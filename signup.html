@@ -11,14 +11,23 @@
         body { background: #000; color: white; font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; }
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
-        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 100% { transform: translateY(110vh); opacity: 0; } }
+        @keyframes fall { 0% { transform: translateY(-10vh); } 100% { transform: translateY(110vh); } }
+        
         .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 30px; width: 90%; max-width: 420px; z-index: 10; position: relative; max-height: 90vh; overflow-y: auto; }
         .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 14px; width: 100%; color: white; outline: none; font-size: 13px; }
         .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 16px; border-radius: 12px; text-transform: uppercase; cursor: pointer; border: none; }
+        
+        .eye-box { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 100; padding: 10px; }
         .hidden { display: none !important; }
+        
+        /* Fixed +234 Styling */
+        .phone-container { display: flex; align-items: center; background: #161616; border: 1px solid #333; border-radius: 12px; overflow: hidden; }
+        .prefix { padding-left: 14px; color: #666; font-weight: bold; font-size: 13px; user-select: none; }
+        .phone-input { background: transparent; border: none; padding: 14px 10px; width: 100%; color: white; outline: none; font-size: 13px; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
+
     <div class="stars" id="star-field"></div>
     <a href="index.html" class="absolute top-8 left-8 text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-[0.3em] transition">← Back</a>
 
@@ -27,25 +36,52 @@
             <h1 class="text-3xl font-black italic uppercase tracking-tighter">S<span class="text-[#FF6600]">DEL</span> JOIN</h1>
             <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Create your account</p>
         </div>
+
         <div id="msg" class="hidden p-3 mb-4 rounded text-xs font-bold text-center uppercase"></div>
+
         <div class="space-y-3">
             <div class="flex gap-2">
                 <input type="text" id="fname" placeholder="FIRST NAME" class="sdel-input w-1/2">
                 <input type="text" id="lname" placeholder="LAST NAME" class="sdel-input w-1/2">
             </div>
+            
             <input type="text" id="uname" placeholder="USERNAME" class="sdel-input">
-            <input type="tel" id="ph" placeholder="PHONE NUMBER" class="sdel-input">
+            
+            <div class="phone-container">
+                <span class="prefix">+234</span>
+                <input type="tel" id="ph" placeholder="8012345678" maxlength="10" class="phone-input" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            </div>
+
             <input type="email" id="em" placeholder="EMAIL ADDRESS" class="sdel-input">
-            <input type="password" id="pw" placeholder="PASSWORD" class="sdel-input">
-            <button onclick="signUp()" id="s-btn" class="btn-orange">Create Account</button>
-            <p class="text-[9px] text-center text-gray-600 uppercase font-bold px-4 pt-2">
-                Agree to our <a href="terms.html" class="underline">Terms</a> & <a href="privacy.html" class="underline">Privacy</a>
+
+            <div class="relative">
+                <input type="password" id="pw" placeholder="PASSWORD" class="sdel-input pr-12" oninput="checkMatch()">
+                <div class="eye-box" onclick="toggleView('pw', 'on1', 'off1')">
+                    <svg id="on1" class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="off1" class="w-4 h-4 text-gray-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </div>
+            </div>
+
+            <div class="relative">
+                <input type="password" id="rpw" placeholder="RE-ENTER PASSWORD" class="sdel-input pr-12" oninput="checkMatch()">
+                <div class="eye-box" onclick="toggleView('rpw', 'on2', 'off2')">
+                    <svg id="on2" class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="off2" class="w-4 h-4 text-gray-500 hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </div>
+            </div>
+            
+            <div id="match-text" class="text-[9px] font-black uppercase text-center hidden">Passwords Match</div>
+
+            <button onclick="signUp()" id="s-btn" class="btn-orange mt-2">Create Account</button>
+
+            <p class="text-[9px] text-center text-gray-500 uppercase font-bold px-4 pt-2">
+                Agree to our <a href="terms.html" class="text-white underline">Terms & Conditions</a> and <a href="privacy.html" class="text-white underline">Privacy Policy</a>
             </p>
         </div>
     </div>
 
     <script>
-        // Stars Logic
+        // Star logic
         const f = document.getElementById('star-field');
         for(let i=0; i<80; i++) {
             const s = document.createElement('div');
@@ -58,6 +94,32 @@
 
         const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
+        function toggleView(inputId, onId, offId) {
+            const p = document.getElementById(inputId);
+            const on = document.getElementById(onId);
+            const off = document.getElementById(offId);
+            if (p.type === 'password') {
+                p.type = 'text'; on.classList.add('hidden'); off.classList.remove('hidden');
+            } else {
+                p.type = 'password'; on.classList.remove('hidden'); off.classList.add('hidden');
+            }
+        }
+
+        function checkMatch() {
+            const p1 = document.getElementById('pw').value;
+            const p2 = document.getElementById('rpw').value;
+            const mt = document.getElementById('match-text');
+            if(!p2) { mt.classList.add('hidden'); return; }
+            mt.classList.remove('hidden');
+            if(p1 === p2) {
+                mt.innerText = "Passwords Match";
+                mt.style.color = "#22c55e"; // Green
+            } else {
+                mt.innerText = "Passwords Do Not Match";
+                mt.style.color = "#ef4444"; // Red
+            }
+        }
+
         async function signUp() {
             const fn = document.getElementById('fname').value;
             const ln = document.getElementById('lname').value;
@@ -65,35 +127,43 @@
             const ph = document.getElementById('ph').value;
             const em = document.getElementById('em').value;
             const pw = document.getElementById('pw').value;
+            const rpw = document.getElementById('rpw').value;
             const msg = document.getElementById('msg');
             const btn = document.getElementById('s-btn');
 
-            if(!fn || !ln || !un || !ph || !em || !pw) {
-                msg.innerText = "ALL FIELDS REQUIRED";
-                msg.className = "p-3 mb-4 rounded bg-red-900/20 text-red-500 border border-red-500/30 text-xs font-bold text-center uppercase block";
-                return;
+            if(!fn || !ln || !un || !ph || !em || !pw || !rpw) {
+                showMsg("FILL ALL FIELDS", "red"); return;
+            }
+            if(ph.length !== 10) {
+                showMsg("PHONE MUST BE EXACTLY 10 DIGITS", "red"); return;
+            }
+            if(pw !== rpw) {
+                showMsg("PASSWORDS MUST MATCH", "red"); return;
             }
 
-            btn.innerText = "SENDING...";
+            btn.innerText = "PROCESSING...";
             btn.disabled = true;
+
+            const fullPhone = "+234" + ph;
 
             const { data, error } = await sb.auth.signUp({
                 email: em,
                 password: pw,
-                options: { 
-                    data: { first_name: fn, last_name: ln, username: un, phone: ph } 
-                }
+                options: { data: { first_name: fn, last_name: ln, username: un, phone: fullPhone } }
             });
 
             if (error) {
-                msg.innerText = error.message.toUpperCase();
-                msg.className = "p-3 mb-4 rounded bg-red-900/20 text-red-500 text-xs font-bold text-center uppercase block";
-                btn.innerText = "CREATE ACCOUNT";
-                btn.disabled = false;
+                showMsg(error.message, "red");
+                btn.innerText = "CREATE ACCOUNT"; btn.disabled = false;
             } else {
-                msg.innerText = "VERIFY YOUR EMAIL TO CONTINUE!";
-                msg.className = "p-3 mb-4 rounded bg-green-900/20 text-green-500 text-xs font-bold text-center uppercase block";
+                showMsg("SUCCESS! VERIFY YOUR EMAIL", "green");
             }
+        }
+
+        function showMsg(text, type) {
+            const msg = document.getElementById('msg');
+            msg.innerText = text.toUpperCase();
+            msg.className = `p-3 mb-4 rounded border text-xs font-bold text-center uppercase block ${type === 'red' ? 'bg-red-900/20 text-red-500 border-red-500/30' : 'bg-green-900/20 text-green-500 border-green-500/30'}`;
         }
     </script>
 </body>
