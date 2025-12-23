@@ -6,102 +6,102 @@
     <title>Sdel | Dashboard</title>
     
     <script type="module">
-        import { createClient } from 'https://jspm.dev/@supabase/supabase-js';
-        // These will be replaced by your actual Supabase credentials
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        
+        // 1. DATABASE CONFIGURATION
         const supabase = createClient('YOUR_SUPABASE_URL', 'YOUR_SUPABASE_ANON_KEY');
 
-        async function checkUser() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                window.location.href = 'index.html'; // Kick out if not logged in
-            } else {
-                document.body.style.display = 'block';
-                initializeApp(session.user);
+        async function protectPage() {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            
+            // 4. CRITICAL REDIRECT: If no user, force to index.html
+            if (error || !session) {
+                window.location.replace('index.html'); 
+                return;
             }
-        }
-        checkUser();
-
-        async function initializeApp(user) {
-            // 2. FETCH INITIALS & WALLET
+            
+            // 2. FETCH USER DETAILS (Thomas Gold -> TG)
             const { data: profile } = await supabase
                 .from('profiles')
                 .select('first_name, last_name, wallet_balance')
-                .eq('id', user.id)
+                .eq('id', session.user.id)
                 .single();
 
             if (profile) {
-                document.getElementById('user-initials').innerText = 
-                    `${profile.first_name[0]}${profile.last_name[0]}`.toUpperCase();
-                document.getElementById('wallet-balance').innerText = 
-                    `₦${profile.wallet_balance.toLocaleString()}`;
+                const initials = (profile.first_name[0] + profile.last_name[0]).toUpperCase();
+                document.getElementById('user-initials').innerText = initials;
+                document.getElementById('wallet-balance').innerText = `₦${profile.wallet_balance.toLocaleString()}`;
+                
+                // Fetch Notification Count (Unread)
+                const { count } = await supabase
+                    .from('notifications')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('user_id', session.user.id)
+                    .eq('is_read', false);
+                
+                const notifBadge = document.getElementById('notif-count');
+                if(count > 0) {
+                    notifBadge.innerText = count;
+                    notifBadge.classList.remove('hidden');
+                }
             }
-
-            // 3. FETCH NOTIFICATION COUNT
-            const { count } = await supabase
-                .from('notifications')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', user.id)
-                .eq('is_read', false);
             
-            const badge = document.getElementById('notif-count');
-            if (count > 0) {
-                badge.innerText = count;
-                badge.classList.remove('hidden');
-            }
-
-            // 4. FETCH RECENT TRANSACTIONS (MAX 3)
-            loadTransactions(user.id);
-        }
-
-        async function loadTransactions(userId) {
+            // 6. FETCH RECENT TRANSACTIONS (MAX 3)
             const { data: orders } = await supabase
                 .from('orders')
                 .select('*')
-                .eq('user_id', userId)
+                .eq('user_id', session.user.id)
                 .order('created_at', { ascending: false })
                 .limit(3);
-
-            const container = document.getElementById('activity-feed');
-            container.innerHTML = ''; // Clear skeleton
-
-            orders.forEach(order => {
-                const statusColor = order.status === 'completed' ? 'text-green-500' : 'text-sdel';
-                const icon = order.status === 'completed' ? 'check-circle' : 'clock';
                 
-                container.innerHTML += `
-                    <div class="card-zinc p-4 rounded-3xl flex items-center justify-between animate__animated animate__fadeIn">
-                        <div class="flex items-center space-x-4">
-                            <div class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center ${statusColor}">
-                                <i data-lucide="${icon}" size="20"></i>
-                            </div>
-                            <div>
-                                <p class="font-black text-sm uppercase">${order.item_name}</p>
-                                <p class="text-[10px] text-gray-500 font-bold uppercase tracking-tight">Status: ${order.status_message}</p>
-                            </div>
+            renderOrders(orders);
+        }
+
+        function renderOrders(orders) {
+            const feed = document.getElementById('activity-feed');
+            if (!orders || orders.length === 0) {
+                feed.innerHTML = '<p class="text-[10px] text-gray-600 font-black uppercase text-center py-4 tracking-widest">No recent activity</p>';
+                return;
+            }
+            feed.innerHTML = orders.map(order => `
+                <div class="card-zinc p-4 rounded-3xl flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center ${order.status === 'completed' ? 'text-green-500' : 'text-sdel'}">
+                            <i data-lucide="${order.status === 'completed' ? 'check-circle' : 'clock'}" size="18"></i>
                         </div>
-                        <span class="text-[10px] font-black ${statusColor} uppercase">${order.status}</span>
+                        <div>
+                            <p class="font-black text-sm uppercase">${order.item_name}</p>
+                            <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Status: ${order.status_message}</p>
+                        </div>
                     </div>
-                `;
-            });
+                    <span class="text-[9px] font-black ${order.status === 'completed' ? 'text-green-500' : 'text-sdel'} uppercase">${order.status}</span>
+                </div>
+            `).join('');
             lucide.createIcons();
         }
+
+        protectPage();
     </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #000; color: white; display: none; } /* Hidden until auth check passes */
+        body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(18, 18, 18, 0.8); border: 1px solid rgba(255,255,255,0.05); backdrop-blur: 5px; }
+        
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-blur: 10px; position: relative; z-index: 10; }
         .card-zinc:hover { border-color: #FF6600; transition: 0.3s ease; }
         
         /* 3. STARS BEHIND CARDS */
-        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
-        .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .star { position: absolute; background-color: rgba(255,255,255,0.8); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(100vh); } }
+        
+        main { position: relative; z-index: 10; }
     </style>
 </head>
 <body class="bg-black text-white">
@@ -111,61 +111,62 @@
     <nav class="flex justify-between items-center p-6 border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
         <div class="flex items-center space-x-2">
             <span class="text-2xl font-black tracking-tighter uppercase">S<span class="text-sdel">del</span></span>
-            <span class="bg-sdel/10 text-sdel text-[10px] px-2 py-0.5 rounded font-black border border-sdel/20">BETA</span>
+            <span class="bg-sdel/10 text-sdel text-[10px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase tracking-widest">Dash</span>
         </div>
         <div class="flex items-center space-x-4">
             <button class="relative p-2 text-gray-400 hover:text-white transition" id="notif-btn">
                 <i data-lucide="bell" size="20"></i>
-                <span id="notif-count" class="hidden absolute top-1 right-1 w-4 h-4 bg-sdel text-black text-[10px] flex items-center justify-center rounded-full font-black border-2 border-black">0</span>
+                <span id="notif-count" class="hidden absolute top-1 right-1 w-4 h-4 bg-sdel text-black text-[9px] flex items-center justify-center rounded-full font-black border-2 border-black">0</span>
             </button>
-            <div id="user-initials" class="w-10 h-10 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-sdel">
+            <div id="user-initials" class="w-10 h-10 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-sdel uppercase text-sm">
                 --
             </div>
         </div>
     </nav>
 
-    <main class="p-6 max-w-6xl mx-auto space-y-8 pb-24 relative z-10">
+    <main class="p-6 max-w-6xl mx-auto space-y-8 pb-24">
         
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
                 <h1 class="text-3xl font-black uppercase italic">Welcome, <span class="text-sdel">Scholar.</span></h1>
-                <p class="text-gray-500 font-bold text-sm">Your OAU utility hub is live.</p>
+                <p class="text-gray-500 font-bold text-sm tracking-widest uppercase">System Operational</p>
             </div>
-            <div class="bg-zinc-900 border-2 border-zinc-800 rounded-3xl p-5 w-full md:w-auto min-w-[240px]">
-                <p class="text-[10px] font-black uppercase text-gray-400 mb-1">Total Balance</p>
+            
+            <div class="bg-zinc-900 border-2 border-zinc-800 rounded-3xl p-5 w-full md:w-auto min-w-[240px] card-zinc">
+                <p class="text-[10px] font-black uppercase text-gray-400 mb-1 tracking-tighter">Verified Balance</p>
                 <div class="flex justify-between items-center">
                     <span id="wallet-balance" class="text-2xl font-black">₦0.00</span>
-                    <button class="bg-sdel text-black p-2 rounded-xl hover:scale-105 transition" onclick="alert('Generating Secure Payment Account...')">
+                    <button class="bg-sdel text-black p-2 rounded-xl hover:scale-105 transition" onclick="alert('Securing Gateway...')">
                         <i data-lucide="plus" size="18"></i>
                     </button>
                 </div>
             </div>
         </header>
 
-        <section class="card-zinc rounded-3xl p-6 relative overflow-hidden group border-sdel/30 border-2">
+        <section class="card-zinc rounded-3xl p-6 border-sdel/30 border-2">
             <div class="relative z-10 space-y-4">
                 <div class="flex items-center space-x-2 text-sdel">
                     <i data-lucide="sparkles" size="18"></i>
-                    <span class="font-black text-xs uppercase tracking-widest">AI Concierge</span>
+                    <span class="font-black text-[10px] uppercase tracking-widest">AI Concierge</span>
                 </div>
-                <h2 class="text-2xl font-black uppercase italic leading-none">Find anything in Ife instantly.</h2>
-                <p class="text-gray-400 text-sm font-bold max-w-md">Snap a picture or describe it. Our runners will bargain and deliver it.</p>
-                <button class="bg-sdel text-black px-6 py-3 rounded-2xl font-black uppercase text-xs tracking-widest hover:scale-105 transition">Start Sourcing</button>
+                <h2 class="text-2xl font-black uppercase italic leading-none">Find Anything in Ife.</h2>
+                <p class="text-gray-400 text-xs font-bold max-w-md">Snap it. We find it. Runners deliver it. No trekking required.</p>
+                <button class="bg-sdel text-black px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition">New Request</button>
             </div>
         </section>
 
         <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="card-zinc p-6 rounded-3xl text-center space-y-3 cursor-pointer">
                 <i data-lucide="book-open" class="mx-auto text-sdel"></i>
-                <p class="font-black uppercase text-[10px] tracking-widest">Past Questions</p>
+                <p class="font-black uppercase text-[10px] tracking-widest">PQs</p>
             </div>
             <div class="card-zinc p-6 rounded-3xl text-center space-y-3 cursor-pointer">
                 <i data-lucide="scroll" class="mx-auto text-blue-500"></i>
-                <p class="font-black uppercase text-[10px] tracking-widest">Dept Manuals</p>
+                <p class="font-black uppercase text-[10px] tracking-widest">Manuals</p>
             </div>
             <div class="card-zinc p-6 rounded-3xl text-center space-y-3 cursor-pointer">
                 <i data-lucide="shopping-bag" class="mx-auto text-green-500"></i>
-                <p class="font-black uppercase text-[10px] tracking-widest">Marketplace</p>
+                <p class="font-black uppercase text-[10px] tracking-widest">Market</p>
             </div>
             <div class="card-zinc p-6 rounded-3xl text-center space-y-3 cursor-pointer">
                 <i data-lucide="truck" class="mx-auto text-purple-500"></i>
@@ -175,11 +176,11 @@
 
         <section class="space-y-4">
             <div class="flex justify-between items-center px-2">
-                <h3 class="text-xs font-black uppercase tracking-widest text-gray-500">Live Orders & Activity</h3>
-                <button class="text-sdel text-[10px] font-black uppercase hover:underline">Show More</button>
+                <h3 class="text-xs font-black uppercase tracking-widest text-gray-500">Activity History</h3>
+                <button id="show-more-btn" class="text-sdel text-[10px] font-black uppercase hover:underline">Show More</button>
             </div>
             <div id="activity-feed" class="space-y-3">
-                <div class="animate-pulse card-zinc p-4 rounded-3xl h-16 bg-zinc-900/50"></div>
+                <div class="animate-pulse bg-zinc-900 h-16 rounded-3xl border border-zinc-800"></div>
             </div>
         </section>
 
@@ -187,18 +188,18 @@
 
     <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 p-4 flex justify-around items-center z-50">
         <a href="#" class="text-sdel flex flex-col items-center"><i data-lucide="home"></i></a>
-        <a href="products.html" class="text-gray-500 flex flex-col items-center"><i data-lucide="grid"></i></a>
-        <a href="#" class="text-gray-500 flex flex-col items-center"><i data-lucide="search"></i></a>
-        <a href="#" class="text-gray-500 flex flex-col items-center"><i data-lucide="user"></i></a>
+        <a href="products.html" class="text-gray-500 flex flex-col items-center hover:text-white transition"><i data-lucide="grid"></i></a>
+        <a href="#" class="text-gray-500 flex flex-col items-center hover:text-white transition"><i data-lucide="search"></i></a>
+        <a href="#" class="text-gray-500 flex flex-col items-center hover:text-white transition"><i data-lucide="user"></i></a>
     </div>
 
     <script>
         lucide.createIcons();
 
-        // 3. FALLING STARS SCRIPT
+        // 3. STARS ANIMATION
         function createStars() {
             const container = document.getElementById('stars');
-            for (let i = 0; i < 100; i++) {
+            for (let i = 0; i < 80; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
                 const size = Math.random() * 2 + 1;
@@ -206,16 +207,15 @@
                 star.style.height = `${size}px`;
                 star.style.left = `${Math.random() * 100}vw`;
                 star.style.top = `${Math.random() * 100}vh`;
-                star.style.animationDuration = `${Math.random() * 80 + 40}s`;
+                star.style.animationDuration = `${Math.random() * 60 + 40}s`;
                 container.appendChild(star);
             }
         }
         createStars();
 
-        // Notification clearing logic
+        // Manual Notification Clear
         document.getElementById('notif-btn').onclick = () => {
             document.getElementById('notif-count').classList.add('hidden');
-            // Add DB logic here to mark all as read
         };
     </script>
 </body>
