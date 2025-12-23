@@ -8,23 +8,23 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #000; color: white; font-family: 'Poppins', sans-serif; overflow: hidden; }
-        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+        body { background: #000; color: white; font-family: 'Poppins', sans-serif; overflow: hidden; margin: 0; }
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
         .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { from { transform: translateY(-10vh); } to { transform: translateY(110vh); } }
         
-        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 100%; max-width: 400px; }
-        .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 100%; color: white; outline: none; }
+        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 100%; max-width: 400px; z-index: 10; }
+        .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 100%; color: white; outline: none; font-size: 14px; }
         .sdel-input:focus { border-color: #FF6600; }
         
-        .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 16px; border-radius: 12px; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
-        .btn-orange:hover { background: #e55c00; }
-
-        /* The Eye Toggle Fix */
-        .eye-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 50; padding: 8px; }
-        .eye-btn svg { width: 20px; height: 20px; stroke: #888; pointer-events: none; }
+        .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 16px; border-radius: 12px; text-transform: uppercase; cursor: pointer; border: none; }
         
-        #error-msg { display: none; background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); color: #ff4444; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; text-align: center; font-weight: 600; }
+        /* The Eye Fix */
+        .eye-container { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 50; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+        .eye-container svg { width: 20px; height: 20px; stroke: #888; fill: none; pointer-events: none; }
+        .hidden { display: none !important; }
+        
+        #error-box { display: none; background: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff4444; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; text-align: center; font-weight: 600; text-transform: uppercase; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
@@ -32,94 +32,113 @@
     <div class="stars" id="star-field"></div>
 
     <div class="login-card">
-        <h1 class="text-3xl font-black text-center italic mb-8">S<span class="text-[#FF6600]">DEL</span> LOGIN</h1>
+        <h1 class="text-3xl font-black text-center italic mb-8 uppercase tracking-tighter">S<span class="text-[#FF6600]">DEL</span> LOGIN</h1>
 
-        <div id="error-msg"></div>
+        <div id="error-box"></div>
 
-        <form onsubmit="doLogin(event)" class="space-y-4">
-            <input type="email" id="user-email" placeholder="EMAIL ADDRESS" required class="sdel-input">
+        <div class="space-y-4">
+            <input type="email" id="email-field" placeholder="EMAIL ADDRESS" class="sdel-input">
 
             <div class="relative">
-                <input type="password" id="user-pass" placeholder="PASSWORD" required class="sdel-input">
-                <div class="eye-btn" onclick="togglePass()">
-                    <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke-width="2"><path id="eye-path" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <input type="password" id="pass-field" placeholder="PASSWORD" class="sdel-input">
+                <div class="eye-container" onclick="toggleEye()">
+                    <svg id="eye-open" viewBox="0 0 24 24" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="eye-closed" class="hidden" viewBox="0 0 24 24" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                 </div>
             </div>
 
-            <button type="submit" id="login-btn" class="btn-orange">Log In</button>
-        </form>
+            <button type="button" onclick="loginNow()" id="login-btn" class="btn-orange">Log In</button>
+        </div>
 
-        <div class="mt-6 text-center text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-            <a href="forgot-password.html" class="hover:text-white mr-4">Forgot Password?</a>
+        <div class="mt-6 flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+            <a href="forgot-password.html" class="hover:text-[#FF6600]">Forgot Password?</a>
             <a href="signup.html" class="text-[#FF6600]">Create Account</a>
         </div>
         
-        <div class="mt-8 text-center">
-            <a href="index.html" class="text-xs text-gray-600 hover:text-white">← BACK TO HOME</a>
+        <div class="mt-10 text-center">
+            <a href="index.html" class="text-[10px] text-gray-600 hover:text-white uppercase tracking-[0.3em]">← BACK TO HOME</a>
         </div>
     </div>
 
     <script>
-        // 1. Generate Stars
+        // 1. Stars Logic
         const field = document.getElementById('star-field');
-        for (let i = 0; i < 50; i++) {
+        for (let i = 0; i < 40; i++) {
             const s = document.createElement('div');
             s.className = 'star';
             s.style.width = s.style.height = Math.random() * 2 + 1 + 'px';
             s.style.left = Math.random() * 100 + 'vw';
-            s.style.animationDuration = Math.random() * 10 + 10 + 's';
+            s.style.top = Math.random() * 100 + 'vh';
+            s.style.animationDuration = Math.random() * 10 + 15 + 's';
             field.appendChild(s);
         }
 
-        // 2. Supabase Setup
+        // 2. Supabase
         const supabase = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        // 3. Eye Toggle Function
-        function togglePass() {
-            const pInput = document.getElementById('user-pass');
-            const pPath = document.getElementById('eye-path');
-            if (pInput.type === "password") {
-                pInput.type = "text";
-                pPath.setAttribute("d", "M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24");
+        // 3. Eye Toggle (Bulletproof)
+        function toggleEye() {
+            const input = document.getElementById('pass-field');
+            const open = document.getElementById('eye-open');
+            const closed = document.getElementById('eye-closed');
+            
+            if (input.type === "password") {
+                input.type = "text";
+                open.classList.add('hidden');
+                closed.classList.remove('hidden');
             } else {
-                pInput.type = "password";
-                pPath.setAttribute("d", "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z");
+                input.type = "password";
+                open.classList.remove('hidden');
+                closed.classList.add('hidden');
             }
         }
 
-        // 4. Handle Login (The Fix for the clear/refresh)
-        async function doLogin(event) {
-            event.preventDefault(); // STOPS REFRESH
-            
-            const email = document.getElementById('user-email').value;
-            const pass = document.getElementById('user-pass').value;
-            const errBox = document.getElementById('error-msg');
+        // 4. Login Function (Manual Trigger)
+        async function loginNow() {
+            const email = document.getElementById('email-field').value;
+            const pass = document.getElementById('pass-field').value;
+            const errBox = document.getElementById('error-box');
             const btn = document.getElementById('login-btn');
 
+            if (!email || !pass) {
+                errBox.innerText = "FILL IN ALL DETAILS";
+                errBox.style.display = "block";
+                return;
+            }
+
             errBox.style.display = "none";
-            btn.innerText = "AUTHENTICATING...";
+            btn.innerText = "VERIFYING...";
             btn.disabled = true;
 
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
 
-            if (error) {
-                // Show the error message clearly
-                errBox.innerText = error.message.toUpperCase();
-                errBox.style.display = "block";
-                btn.innerText = "Log In";
-                btn.disabled = false;
-            } else {
-                // Check Profiles table for details
-                const { data: profile, error: pError } = await supabase.from('profiles').select('*').eq('id', data.user.id).single();
-                
-                if (pError || !profile) {
-                    errBox.innerText = "DETAILS NOT FOUND IN DATABASE";
+                if (error) {
+                    errBox.innerText = error.message.toUpperCase();
                     errBox.style.display = "block";
                     btn.innerText = "Log In";
                     btn.disabled = false;
                 } else {
-                    window.location.href = 'dashboard.html';
+                    // Check profile table
+                    const { data: profile, error: pError } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', data.user.id)
+                        .single();
+                    
+                    if (pError || !profile) {
+                        errBox.innerText = "NO PROFILE FOUND IN DV";
+                        errBox.style.display = "block";
+                        btn.innerText = "Log In";
+                        btn.disabled = false;
+                    } else {
+                        window.location.href = 'dashboard.html';
+                    }
                 }
+            } catch (e) {
+                errBox.innerText = "CONNECTION ERROR";
+                errBox.style.display = "block";
+                btn.disabled = false;
             }
         }
     </script>
