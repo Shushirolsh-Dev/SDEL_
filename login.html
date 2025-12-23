@@ -8,10 +8,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
-        body { background: #000; color: white; font-family: 'Poppins', sans-serif; margin: 0; }
+        body { background: #000; color: white; font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; }
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
-        @keyframes fall { 0% { transform: translateY(-10vh); } 100% { transform: translateY(110vh); } }
+        
+        /* SLOWER FALLING STARS */
+        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(110vh); opacity: 0; } }
+        
         .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 90%; max-width: 400px; position: relative; z-index: 10; }
         .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 100%; color: white; outline: none; }
         .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 16px; border-radius: 12px; text-transform: uppercase; cursor: pointer; border: none; }
@@ -23,8 +26,13 @@
 
     <div class="stars" id="star-field"></div>
 
+    <a href="index.html" class="absolute top-8 left-8 text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-[0.3em] transition">← Back</a>
+
     <div class="login-card">
-        <h1 class="text-3xl font-black text-center italic mb-8 uppercase tracking-tighter">S<span class="text-[#FF6600]">DEL</span> LOGIN</h1>
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black italic uppercase tracking-tighter">S<span class="text-[#FF6600]">DEL</span> LOGIN</h1>
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Login to your campus account</p>
+        </div>
         
         <div id="err" class="hidden p-3 mb-4 rounded bg-red-900/20 text-red-500 border border-red-500/30 text-xs font-bold text-center uppercase"></div>
 
@@ -40,26 +48,31 @@
             </div>
 
             <button onclick="startLogin()" id="l-btn" class="btn-orange">Log In</button>
+
+            <div class="flex justify-between items-center mt-4">
+                <a href="forgot-password.html" class="text-[10px] font-bold text-gray-500 hover:text-[#FF6600] uppercase tracking-tighter">Forgot Password?</a>
+                <a href="signup.html" class="text-[10px] font-bold text-[#FF6600] hover:underline uppercase tracking-tighter">Create Account</a>
+            </div>
         </div>
     </div>
 
     <script>
-        // Start Stars Immediately
+        // MORE STARS - FALLING SLOWER
         const f = document.getElementById('star-field');
-        for(let i=0; i<30; i++) {
+        for(let i=0; i<80; i++) { // Increased to 80 stars
             const s = document.createElement('div');
             s.className = 'star';
-            s.style.width = s.style.height = '2px';
+            s.style.width = s.style.height = (Math.random() * 2 + 1) + 'px';
             s.style.left = Math.random()*100+'vw';
             s.style.top = Math.random()*100+'vh';
-            s.style.animationDuration = (Math.random()*10 + 10)+'s';
+            // Slower duration: between 25 and 45 seconds
+            s.style.animationDuration = (Math.random()*20 + 25)+'s'; 
+            s.style.animationDelay = (Math.random()*10)+'s';
             f.appendChild(s);
         }
 
-        // Supabase
         const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        // EYE TOGGLE - Inline Style
         function toggleView() {
             const p = document.getElementById('pass');
             const on = document.getElementById('on');
@@ -75,7 +88,6 @@
             }
         }
 
-        // LOGIN - Direct Trigger
         async function startLogin() {
             const e = document.getElementById('email').value;
             const p = document.getElementById('pass').value;
@@ -89,7 +101,7 @@
             }
 
             err.classList.add('hidden');
-            btn.innerText = "LOADING...";
+            btn.innerText = "VERIFYING...";
             btn.disabled = true;
 
             const { data, error } = await sb.auth.signInWithPassword({ email: e, password: p });
