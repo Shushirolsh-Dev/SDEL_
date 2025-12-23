@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
         body { background: #000; color: white; font-family: 'Poppins', sans-serif; overflow: hidden; margin: 0; }
-        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { 
             0% { transform: translateY(-10vh); opacity: 0; }
@@ -18,14 +18,14 @@
             100% { transform: translateY(110vh); opacity: 0; }
         }
         
-        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 100%; max-width: 400px; z-index: 10; }
+        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 100%; max-width: 400px; z-index: 10; position: relative; }
         .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 100%; color: white; outline: none; font-size: 14px; }
         .sdel-input:focus { border-color: #FF6600; }
         
         .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 16px; border-radius: 12px; text-transform: uppercase; cursor: pointer; border: none; }
         
         .eye-container { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 50; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
-        .eye-container svg { width: 20px; height: 20px; stroke: #888; fill: none; pointer-events: none; }
+        .eye-container svg { width: 20px; height: 20px; stroke: #888; fill: none; }
         .hidden { display: none !important; }
         
         #error-box { display: none; background: rgba(255, 0, 0, 0.15); border: 1px solid #ff4444; color: #ff4444; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; text-align: center; font-weight: 600; text-transform: uppercase; }
@@ -45,7 +45,7 @@
 
             <div class="relative">
                 <input type="password" id="pass-field" placeholder="PASSWORD" class="sdel-input">
-                <div class="eye-container" onclick="toggleEye()">
+                <div class="eye-container" id="eye-toggle">
                     <svg id="eye-open" viewBox="0 0 24 24" stroke-width="2">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                         <circle cx="12" cy="12" r="3"/>
@@ -57,7 +57,7 @@
                 </div>
             </div>
 
-            <button type="button" onclick="loginNow()" id="login-btn" class="btn-orange">Log In</button>
+            <button type="button" id="login-btn" class="btn-orange">Log In</button>
         </div>
 
         <div class="mt-6 flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest">
@@ -71,7 +71,7 @@
     </div>
 
     <script>
-        // 1. Stars Logic - Working perfectly
+        // Stars - Now visible and falling behind card
         const field = document.getElementById('star-field');
         for (let i = 0; i < 100; i++) {
             const s = document.createElement('div');
@@ -84,11 +84,11 @@
             field.appendChild(s);
         }
 
-        // 2. Supabase
+        // Supabase
         const supabase = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        // 3. Eye Toggle - Fixed and working
-        function toggleEye() {
+        // Eye Toggle - Using JS event listener (more reliable than onclick)
+        document.getElementById('eye-toggle').addEventListener('click', () => {
             const input = document.getElementById('pass-field');
             const open = document.getElementById('eye-open');
             const closed = document.getElementById('eye-closed');
@@ -102,10 +102,10 @@
                 open.classList.remove('hidden');
                 closed.classList.add('hidden');
             }
-        }
+        });
 
-        // 4. Login Function - Working
-        async function loginNow() {
+        // Login Function - With ban/suspended check
+        document.getElementById('login-btn').addEventListener('click', async () => {
             const email = document.getElementById('email-field').value.trim();
             const pass = document.getElementById('pass-field').value;
             const errBox = document.getElementById('error-box');
@@ -128,15 +128,28 @@
                     errBox.innerText = error.message.toUpperCase();
                     errBox.style.display = "block";
                 } else {
+                    // Check profile for ban/suspension
                     const { data: profile, error: pError } = await supabase
                         .from('profiles')
-                        .select('*')
+                        .select('banned, suspended, suspension_end')
                         .eq('id', data.user.id)
                         .single();
-                    
-                    if (pError || !profile) {
-                        errBox.innerText = "PROFILE NOT FOUND";
+
+                    if (pError) {
+                        errBox.innerText = "PROFILE ERROR";
                         errBox.style.display = "block";
+                    } else if (profile.banned) {
+                        window.location.href = 'banned.html';
+                    } else if (profile.suspended && profile.suspension_end) {
+                        const now = new Date();
+                        const end = new Date(profile.suspension_end);
+                        if (now < end) {
+                            window.location.href = 'suspended.html';
+                        } else {
+                            // Clear expired suspension
+                            await supabase.from('profiles').update({ suspended: false, suspension_end: null }).eq('id', data.user.id);
+                            window.location.href = 'dashboard.html';
+                        }
                     } else {
                         window.location.href = 'dashboard.html';
                     }
@@ -148,7 +161,7 @@
                 btn.innerText = "Log In";
                 btn.disabled = false;
             }
-        }
+        });
     </script>
 </body>
 </html>
