@@ -65,19 +65,36 @@
             if (!session) return window.location.href = 'login.html';
 
             document.body.style.display = 'block';
+            
+            // FEATURE ADDED: Mark messages as read immediately upon opening the page
+            markAsRead(session.user.id);
+            
             createStars();
-            loadMessages();
+            loadMessages(session.user.id);
         }
 
-        async function loadMessages() {
+        // NEW FUNCTION: Updates the user profile last_read_at timestamp
+        async function markAsRead(userId) {
+            const now = new Date().toISOString();
+            await supabase
+                .from('profile')
+                .update({ last_read_at: now })
+                .eq('id', userId);
+        }
+
+        async function loadMessages(userId) {
+            // Updated query to show both general and personal messages for this user
             const { data, error } = await supabase
                 .from('messages')
                 .select('*')
+                .or(`recipient_id.is.null,recipient_id.eq.${userId}`)
                 .order('created_at', { ascending: false });
 
             if (!error) {
                 allMessages = data;
                 renderMessages();
+                
+                // Note: The nav badge here shows total messages available to the user
                 document.getElementById('msg-count').innerText = data.length;
             }
         }
@@ -109,7 +126,7 @@
             const filtered = allMessages.filter(m => m.type === currentFilter);
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="py-20 text-center opacity-30 font-black uppercase text-[10px] tracking-widest">No ${currentFilter} messages</div>`;
+                container.innerHTML = `<div class="py-20 text-center opacity-30 font-black uppercase text-[10px] tracking-widest">No ${currentFilter === 'general' ? 'general' : 'personal'} messages</div>`;
                 return;
             }
 
