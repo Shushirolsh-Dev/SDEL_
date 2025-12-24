@@ -15,7 +15,6 @@
         .bg-sdel { background-color: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         
-        /* 50 Static Star Logic */
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(110vh); } }
@@ -60,30 +59,20 @@
         let currentFilter = 'general';
 
         async function init() {
-            // Security Script: Check if user is logged in
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.href = 'login.html';
 
             document.body.style.display = 'block';
             
-            // FEATURE ADDED: Mark messages as read immediately upon opening the page
-            markAsRead(session.user.id);
+            // 1. Mark as read immediately
+            const now = new Date().toISOString();
+            await supabase.from('profile').update({ last_read_at: now }).eq('id', session.user.id);
             
             createStars();
             loadMessages(session.user.id);
         }
 
-        // NEW FUNCTION: Updates the user profile last_read_at timestamp
-        async function markAsRead(userId) {
-            const now = new Date().toISOString();
-            await supabase
-                .from('profile')
-                .update({ last_read_at: now })
-                .eq('id', userId);
-        }
-
         async function loadMessages(userId) {
-            // Updated query to show both general and personal messages for this user
             const { data, error } = await supabase
                 .from('messages')
                 .select('*')
@@ -93,8 +82,6 @@
             if (!error) {
                 allMessages = data;
                 renderMessages();
-                
-                // Note: The nav badge here shows total messages available to the user
                 document.getElementById('msg-count').innerText = data.length;
             }
         }
