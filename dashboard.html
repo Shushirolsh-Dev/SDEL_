@@ -7,10 +7,9 @@
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        // CONFIG: Using sessionStorage for Strict Security
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw', {
-            auth: { storage: window.sessionStorage }
-        });
+        
+        // Use standard storage to stay synced with your student login page
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         async function gatekeeper() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -23,10 +22,9 @@
             listenForMessages(session.user.id); 
         }
 
-        // UPDATED UNREAD MESSAGE LOGIC
         async function listenForMessages(userId) {
             const updateCount = async () => {
-                // 1. Get the last time the user checked messages
+                // Fetch user's last read timestamp
                 const { data: profile } = await supabase
                     .from('profile')
                     .select('last_read_at')
@@ -35,7 +33,7 @@
 
                 const lastRead = profile?.last_read_at || '1970-01-01T00:00:00Z';
 
-                // 2. Only count messages created AFTER last_read_at
+                // Only count messages newer than the last time they opened them
                 const { data } = await supabase
                     .from('messages')
                     .select('id')
@@ -51,13 +49,10 @@
                 }
             };
 
-            // Function to clear badge when clicking the bell
+            // GLOBAL FUNCTION: Clears unread when bell is clicked
             window.markAsRead = async () => {
                 const now = new Date().toISOString();
-                await supabase
-                    .from('profile')
-                    .update({ last_read_at: now })
-                    .eq('id', userId);
+                await supabase.from('profile').update({ last_read_at: now }).eq('id', userId);
                 updateCount();
             };
 
@@ -66,7 +61,6 @@
             supabase
                 .channel('live-msgs')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => updateCount())
-                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profile', filter: `id=eq.${userId}` }, () => updateCount())
                 .subscribe();
         }
 
@@ -83,23 +77,11 @@
             else if (hour < 17) greet = "Good afternoon";
             document.getElementById('js-greet').innerText = greet;
 
-            let fName = "Scholar";
-            let lName = "";
-
-            if (profile && profile.first_name) {
-                fName = profile.first_name;
-                lName = profile.last_name || "";
-            } else if (user.user_metadata && user.user_metadata.first_name) {
-                fName = user.user_metadata.first_name;
-                lName = user.user_metadata.last_name || "";
-            }
+            let fName = profile?.first_name || user.user_metadata?.first_name || "Scholar";
+            let lName = profile?.last_name || user.user_metadata?.last_name || "";
 
             document.getElementById('js-name').innerText = fName;
-
-            const firstInitial = fName.charAt(0).toUpperCase();
-            const lastInitial = lName ? lName.charAt(0).toUpperCase() : "";
-            
-            document.getElementById('user-initials').innerText = firstInitial + lastInitial;
+            document.getElementById('user-initials').innerText = (fName[0] + (lName[0] || "")).toUpperCase();
             
             const balance = profile?.wallet_balance || 0;
             document.getElementById('wallet-balance').innerText = `₦${balance.toLocaleString()}`;
@@ -249,4 +231,5 @@
         });
     </script>
 </body>
-</html>
+    </html>
+            
