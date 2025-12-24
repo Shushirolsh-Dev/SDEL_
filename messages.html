@@ -33,7 +33,7 @@
         <h1 class="text-lg font-black uppercase tracking-tighter">Inbox</h1>
         <div class="relative">
             <i data-lucide="bell" size="20"></i>
-            <span id="msg-count" class="hidden absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center"></span>
+            <span id="msg-count" class="hidden absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center">0</span>
         </div>
     </nav>
 
@@ -64,19 +64,23 @@
 
             document.body.style.display = 'block';
             
-            // Mark as read immediately
+            createStars();
+            // We load messages FIRST to see the unread count before we update the timestamp
+            await loadMessages(session.user.id);
+
+            // After loading, we update the timestamp so the badge clears for next time
             const now = new Date().toISOString();
             await supabase.from('profile').update({ last_read_at: now }).eq('id', session.user.id);
-            
-            createStars();
-            loadMessages(session.user.id);
         }
 
         async function loadMessages(userId) {
             const badge = document.getElementById('msg-count');
-            badge.innerText = ""; // Wipe out any "0" before loading
-            badge.classList.add('hidden');
             
+            // 1. Get the last_read_at timestamp BEFORE we update it
+            const { data: profile } = await supabase.from('profile').select('last_read_at').eq('id', userId).single();
+            const lastRead = profile?.last_read_at || '1970-01-01T00:00:00Z';
+
+            // 2. Fetch ALL messages for the list
             const { data, error } = await supabase
                 .from('messages')
                 .select('*')
@@ -87,9 +91,14 @@
                 allMessages = data;
                 renderMessages();
                 
-                if (data.length > 0) {
-                    badge.innerText = data.length;
+                // 3. Filter only UNREAD messages for the badge count
+                const unread = data.filter(m => new Date(m.created_at) > new Date(lastRead));
+
+                if (unread.length > 0) {
+                    badge.innerText = unread.length;
                     badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
                 }
             }
         }
