@@ -20,40 +20,48 @@
         }
 
         async function initializeApp(user) {
-            // Fetch profile columns strictly: first_name and last_name
+            console.log("Logged in as:", user.id); // Debug log
+
+            // We use 'id' because you confirmed that's the column name
             const { data: profile, error } = await supabase
-                .from('profile')
+                .from('profile') 
                 .select('first_name, last_name, wallet_balance')
                 .eq('id', user.id)
                 .single();
 
-            if (profile) {
-                // 1. DYNAMIC TIME GREETING FROM PHONE/PC CLOCK
-                const hour = new Date().getHours();
-                let greet;
-                if (hour < 12) greet = "Good morning";
-                else if (hour < 17) greet = "Good afternoon";
-                else greet = "Good evening";
-                
-                // Injecting into spans
-                document.getElementById('js-greet').innerText = greet;
-                document.getElementById('js-name').innerText = profile.first_name || "Scholar";
-
-                // 2. DYNAMIC INITIALS FROM DATABASE
-                const firstChar = profile.first_name ? profile.first_name.charAt(0) : '';
-                const lastChar = profile.last_name ? profile.last_name.charAt(0) : '';
-                const initials = (firstChar + lastChar).toUpperCase();
-                
-                // Remove the "--" and put the real initials
-                document.getElementById('user-initials').innerText = initials || "??";
-                
-                // 3. WALLET BALANCE
-                document.getElementById('wallet-balance').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
+            if (error) {
+                console.error("Database Error:", error.message);
             }
+
+            // --- 1. TIME GREETING LOGIC ---
+            const hour = new Date().getHours();
+            let greet = "Good evening";
+            if (hour < 12) greet = "Good morning";
+            else if (hour < 17) greet = "Good afternoon";
+            
+            // --- 2. NAME & INITIALS LOGIC ---
+            // If DB is empty, use 'Scholar' as fallback so it's never blank
+            const firstName = profile?.first_name || "Scholar";
+            const lastName = profile?.last_name || "";
+
+            // Inject Greeting
+            document.getElementById('js-greet').innerText = greet;
+            document.getElementById('js-name').innerText = firstName;
+
+            // Inject Initials (F + L)
+            const f = firstName.charAt(0);
+            const l = lastName ? lastName.charAt(0) : "";
+            document.getElementById('user-initials').innerText = (f + l).toUpperCase();
+            
+            // --- 3. WALLET ---
+            const balance = profile?.wallet_balance || 0;
+            document.getElementById('wallet-balance').innerText = `₦${balance.toLocaleString()}`;
+
             loadActivity(user.id);
         }
 
         async function loadActivity(userId) {
+            // Updated to use 'id' column for orders too if that's your schema
             const { data: orders } = await supabase.from('orders').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(3);
             const feed = document.getElementById('activity-feed');
             if (orders && orders.length > 0) {
@@ -76,6 +84,7 @@
                 feed.innerHTML = '<p class="text-center text-[10px] text-gray-600 font-black uppercase py-4">No recent activity</p>';
             }
         }
+
         gatekeeper();
     </script>
 
@@ -96,17 +105,13 @@
     </style>
 </head>
 <body class="bg-black text-white">
-
     <div class="stars" id="stars"></div>
 
     <nav class="flex justify-between items-center p-6 border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
         <div class="flex items-center space-x-2">
             <span class="text-2xl font-black tracking-tighter uppercase">S<span class="text-sdel">del</span></span>
-            <span class="bg-sdel/10 text-sdel text-[10px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase">Dashboard</span>
         </div>
-        <div class="flex items-center space-x-4">
-            <div id="user-initials" class="w-10 h-10 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-sdel uppercase text-sm"></div>
-        </div>
+        <div id="user-initials" class="w-10 h-10 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-sdel uppercase text-sm"></div>
     </nav>
 
     <main class="p-6 max-w-6xl mx-auto space-y-8 pb-24">
@@ -137,20 +142,20 @@
         </section>
 
         <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div class="card-zinc p-6 rounded-3xl text-center space-y-2 cursor-pointer group">
-                <i data-lucide="book-open" class="mx-auto text-sdel"></i>
+            <div class="card-zinc p-6 rounded-3xl text-center cursor-pointer">
+                <i data-lucide="book-open" class="mx-auto text-sdel mb-2"></i>
                 <p class="font-black uppercase text-[10px] tracking-widest">PQs</p>
             </div>
-            <div class="card-zinc p-6 rounded-3xl text-center space-y-2 cursor-pointer group">
-                <i data-lucide="scroll" class="mx-auto text-blue-500"></i>
+            <div class="card-zinc p-6 rounded-3xl text-center cursor-pointer">
+                <i data-lucide="scroll" class="mx-auto text-blue-500 mb-2"></i>
                 <p class="font-black uppercase text-[10px] tracking-widest">Manuals</p>
             </div>
-            <div class="card-zinc p-6 rounded-3xl text-center space-y-2 cursor-pointer group">
-                <i data-lucide="shopping-bag" class="mx-auto text-green-500"></i>
+            <div class="card-zinc p-6 rounded-3xl text-center cursor-pointer">
+                <i data-lucide="shopping-bag" class="mx-auto text-green-500 mb-2"></i>
                 <p class="font-black uppercase text-[10px] tracking-widest">Market</p>
             </div>
-            <div class="card-zinc p-6 rounded-3xl text-center space-y-2 cursor-pointer group">
-                <i data-lucide="truck" class="mx-auto text-purple-500"></i>
+            <div class="card-zinc p-6 rounded-3xl text-center cursor-pointer">
+                <i data-lucide="truck" class="mx-auto text-purple-500 mb-2"></i>
                 <p class="font-black uppercase text-[10px] tracking-widest">Logistics</p>
             </div>
         </section>
@@ -191,4 +196,5 @@
         });
     </script>
 </body>
-</html>
+                    </html>
+                    
