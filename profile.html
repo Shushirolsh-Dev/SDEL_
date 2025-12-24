@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <style>
+        /* Prevents flickering before security check finishes */
+        html { opacity: 0; transition: opacity 0.3s ease; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="pb-24">
+
+    <nav class="p-6 flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-md z-50">
+        <a href="dashboard.html" class="text-white"><i data-lucide="chevron-left"></i></a>
+        <h1 class="text-lg font-black uppercase tracking-tighter">My <span class="text-sdel">Account</span></h1>
+        <button id="logout-btn-top" class="text-gray-500"><i data-lucide="log-out" size="20"></i></button>
+    </nav>
+
+    <main class="p-6 space-y-8">
+        <div class="flex flex-col items-center text-center space-y-4">
+            <div id="p-initials" class="w-24 h-24 rounded-full bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center text-3xl font-black text-sdel uppercase">
+                --
+            </div>
+            <div>
+                <h2 id="p-full-name" class="text-2xl font-black uppercase tracking-tight italic">Loading...</h2>
+                <p id="p-email" class="text-gray-500 text-xs font-bold uppercase tracking-widest">---</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="card-zinc p-5 rounded-3xl text-center">
+                <p class="text-[9px] font-black uppercase text-gray-500 mb-1">Balance</p>
+                <p id="p-balance" class="text-xl font-black italic">₦0</p>
+            </div>
+            <div class="card-zinc p-5 rounded-3xl text-center">
+                <p class="text-[9px] font-black uppercase text-gray-500 mb-1">Status</p>
+                <p class="text-xl font-black italic text-green-500">Active</p>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <h3 class="text-[10px] font-black uppercase text-gray-500 tracking-widest px-2">Account Settings</h3>
+            
+            <div class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-sdel">
+                        <i data-lucide="user" size="18"></i>
+                    </div>
+                    <span class="text-sm font-bold uppercase">Personal Info</span>
+                </div>
+                <i data-lucide="chevron-right" class="text-gray-600"></i>
+            </div>
+
+            <div class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-blue-500">
+                        <i data-lucide="shield-check" size="18"></i>
+                    </div>
+                    <span class="text-sm font-bold uppercase">Security</span>
+                </div>
+                <i data-lucide="chevron-right" class="text-gray-600"></i>
+            </div>
+        </div>
+
+        <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">
+            Sign Out of Sdel
+        </button>
+    </main>
+
+    <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 p-4 flex justify-around items-center z-50">
+        <a href="dashboard.html" class="text-gray-500"><i data-lucide="home"></i></a>
+        <a href="products.html" class="text-gray-500"><i data-lucide="grid"></i></a>
+        <a href="#" class="text-gray-500"><i data-lucide="search"></i></a>
+        <a href="#" class="text-sdel"><i data-lucide="user"></i></a>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        // --- SECURITY GATEKEEPER ---
+        async function checkSession() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                // Not logged in? Redirect to login page immediately
+                window.location.replace('login.html');
+            } else {
+                // Logged in? Show the page and load data
+                document.documentElement.style.opacity = "1";
+                loadProfile(session.user);
+            }
+        }
+
+        async function loadProfile(user) {
+            const { data: profile } = await supabase
+                .from('profile')
+                .select('first_name, last_name, wallet_balance')
+                .eq('id', user.id)
+                .single();
+
+            const fName = profile?.first_name || user.user_metadata?.first_name || "Scholar";
+            const lName = profile?.last_name || user.user_metadata?.last_name || "";
+
+            document.getElementById('p-full-name').innerText = `${fName} ${lName}`;
+            document.getElementById('p-email').innerText = user.email;
+            document.getElementById('p-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
+            
+            const initials = (fName[0] + (lName ? lName[0] : "")).toUpperCase();
+            document.getElementById('p-initials').innerText = initials;
+
+            lucide.createIcons();
+        }
+
+        async function handleSignOut() {
+            await supabase.auth.signOut();
+            window.location.replace('login.html');
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', handleSignOut);
+        document.getElementById('logout-btn-top').addEventListener('click', handleSignOut);
+
+        // Run security check on load
+        checkSession();
+    </script>
+</body>
+</html>
