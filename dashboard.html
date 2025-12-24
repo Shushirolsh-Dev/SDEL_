@@ -27,21 +27,31 @@
                 .single();
 
             if (profile) {
-                // 1. JS DYNAMIC GREETING
-                const hour = new Date().getHours();
-                let greetText = "Good Evening";
-                if (hour < 12) greetText = "Good Morning";
-                else if (hour < 17) greetText = "Good Afternoon";
-                
-                document.getElementById('js-greet').innerText = greetText;
-                document.getElementById('js-name').innerText = profile.first_name;
+                // 1. JS LOGIC: CHECK PHONE TIME FOR GREETING
+                const now = new Date();
+                const hours = now.getHours();
+                let greetingStr = "";
 
-                // 2. JS DYNAMIC INITIALS
-                const f = profile.first_name ? profile.first_name[0] : '';
-                const l = profile.last_name ? profile.last_name[0] : '';
-                document.getElementById('user-initials').innerText = (f + l).toUpperCase();
+                if (hours < 12) {
+                    greetingStr = "Good morning";
+                } else if (hours < 17) {
+                    greetingStr = "Good afternoon";
+                } else {
+                    greetingStr = "Good evening";
+                }
                 
-                // 3. WALLET
+                // Injecting into the spans
+                document.getElementById('js-greet').innerText = greetingStr;
+                document.getElementById('js-name').innerText = profile.first_name || "Scholar";
+
+                // 2. JS LOGIC: GENERATE INITIALS (F + L)
+                const f = profile.first_name ? profile.first_name.charAt(0) : '';
+                const l = profile.last_name ? profile.last_name.charAt(0) : '';
+                const initials = (f + l).toUpperCase();
+                
+                document.getElementById('user-initials').innerText = initials || "??";
+                
+                // 3. UPDATE WALLET
                 document.getElementById('wallet-balance').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
             }
             loadActivity(user.id);
@@ -180,8 +190,8 @@
         }
         createStars();
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            const sb = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
-            await sb.auth.signOut();
+            const { data: { session } } = await supabase.auth.getSession();
+            await supabase.auth.signOut();
             window.location.replace('login.html');
         });
     </script>
