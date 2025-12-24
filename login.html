@@ -12,12 +12,12 @@
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
         
-        /* SLOWER FALLING STARS */
         @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(110vh); opacity: 0; } }
         
         .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 90%; max-width: 400px; position: relative; z-index: 10; }
         .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 100%; color: white; outline: none; }
         .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 16px; border-radius: 12px; text-transform: uppercase; cursor: pointer; border: none; }
+        .btn-orange:disabled { background: #555; cursor: not-allowed; }
         .eye-box { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 100; padding: 10px; }
         .hidden { display: none !important; }
     </style>
@@ -81,5 +81,79 @@
                 off.classList.remove('hidden');
             } else {
                 p.type = 'password';
-                on.classList.remove
-        
+                on.classList.remove('hidden');
+                off.classList.add('hidden');
+            }
+        }
+
+        function showErr(t) {
+            const e = document.getElementById('err');
+            e.innerText = t.toUpperCase();
+            e.classList.remove('hidden');
+            setTimeout(() => e.classList.add('hidden'), 4000);
+        }
+
+        async function startLogin() {
+            const em = document.getElementById('email').value;
+            const pw = document.getElementById('pass').value;
+            const btn = document.getElementById('l-btn');
+
+            if(!em || !pw) return showErr("ENTER ALL DETAILS");
+
+            btn.innerText = "VERIFYING...";
+            btn.disabled = true;
+
+            // 1. AUTHENTICATE
+            const { data: { user }, error: authError } = await sb.auth.signInWithPassword({
+                email: em,
+                password: pw
+            });
+
+            if (authError) {
+                showErr(authError.message);
+                btn.innerText = "LOG IN";
+                btn.disabled = false;
+                return;
+            }
+
+            // 2. CHECK ACCOUNT STATUS (SECURITY GATE)
+            const { data: profile, error: profError } = await sb
+                .from('profile')
+                .select('account_status, suspended_at')
+                .eq('id', user.id)
+                .single();
+
+            if (profError || !profile) {
+                showErr("PROFILE ERROR - CONTACT SUPPORT");
+                btn.innerText = "LOG IN";
+                btn.disabled = false;
+                return;
+            }
+
+            // 3. HANDLE BANNED
+            if (profile.account_status === 'banned') {
+                window.location.href = 'banned.html';
+                return;
+            }
+
+            // 4. HANDLE SUSPENDED (With 24hr Auto-Check)
+            if (profile.account_status === 'suspended') {
+                const now = new Date();
+                const suspTime = new Date(profile.suspended_at);
+                const diff = (now - suspTime) / (1000 * 60 * 60); // Difference in hours
+
+                if (diff >= 24) {
+                    // Time up! Reactive user
+                    await sb.from('profile').update({ account_status: 'active', suspended_at: null }).eq('id', user.id);
+                } else {
+                    window.location.href = 'suspended.html';
+                    return;
+                }
+            }
+
+            // 5. REDIRECT TO DASHBOARD
+            window.location.href = 'dashboard.html';
+        }
+    </script>
+</body>
+</html>
