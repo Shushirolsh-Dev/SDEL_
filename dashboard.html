@@ -20,37 +20,30 @@
         }
 
         async function initializeApp(user) {
-            // 1. FETCH DATA FROM 'profile' TABLE
-            const { data: profile, error } = await supabase
+            const { data: profile } = await supabase
                 .from('profile')
                 .select('first_name, last_name, wallet_balance')
                 .eq('id', user.id)
                 .single();
 
-            if (profile && profile.first_name) {
-                // 2. TIME-BASED GREETING LOGIC
+            if (profile) {
+                // 1. JS DYNAMIC GREETING
                 const hour = new Date().getHours();
-                let greet;
-                if (hour < 12) greet = "Good Morning";
-                else if (hour < 17) greet = "Good Afternoon";
-                else greet = "Good Evening";
+                let greetText = "Good Evening";
+                if (hour < 12) greetText = "Good Morning";
+                else if (hour < 17) greetText = "Good Afternoon";
                 
-                // FORCE UPDATE THE GREETING
-                const greetElement = document.getElementById('greeting-text');
-                greetElement.innerHTML = `${greet}, <span class="text-sdel italic">${profile.first_name}.</span>`;
+                document.getElementById('js-greet').innerText = greetText;
+                document.getElementById('js-name').innerText = profile.first_name;
 
-                // 3. FORCE UPDATE THE INITIALS
-                const firstInitial = profile.first_name.charAt(0).toUpperCase();
-                const lastInitial = profile.last_name ? profile.last_name.charAt(0).toUpperCase() : '';
-                document.getElementById('user-initials').innerText = firstInitial + lastInitial;
+                // 2. JS DYNAMIC INITIALS
+                const f = profile.first_name ? profile.first_name[0] : '';
+                const l = profile.last_name ? profile.last_name[0] : '';
+                document.getElementById('user-initials').innerText = (f + l).toUpperCase();
                 
-                // 4. UPDATE WALLET
+                // 3. WALLET
                 document.getElementById('wallet-balance').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
-            } else {
-                console.error("Profile not found or name missing", error);
             }
-
-            // Load Orders/Notifications
             loadActivity(user.id);
         }
 
@@ -77,7 +70,6 @@
                 feed.innerHTML = '<p class="text-center text-[10px] text-gray-600 font-black uppercase py-4">No recent activity</p>';
             }
         }
-
         gatekeeper();
     </script>
 
@@ -107,14 +99,14 @@
             <span class="bg-sdel/10 text-sdel text-[10px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase">Dashboard</span>
         </div>
         <div class="flex items-center space-x-4">
-            <div id="user-initials" class="w-10 h-10 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-sdel uppercase text-sm">--</div>
+            <div id="user-initials" class="w-10 h-10 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-sdel uppercase text-sm"></div>
         </div>
     </nav>
 
     <main class="p-6 max-w-6xl mx-auto space-y-8 pb-24">
         <header>
-            <h1 id="greeting-text" class="text-3xl font-black uppercase italic tracking-tighter">
-                Loading...
+            <h1 class="text-3xl font-black uppercase italic tracking-tighter">
+                <span id="js-greet"></span>, <span id="js-name" class="text-sdel italic"></span>
             </h1>
             <p class="text-gray-500 font-bold text-sm tracking-widest uppercase italic">The Campus Command Center</p>
             
@@ -126,6 +118,17 @@
                 </div>
             </div>
         </header>
+
+        <section class="card-zinc rounded-3xl p-6 border-sdel/30 border-2">
+            <div class="relative z-10 space-y-4">
+                <div class="flex items-center space-x-2 text-sdel">
+                    <i data-lucide="sparkles" size="18"></i>
+                    <span class="font-black text-[10px] uppercase tracking-widest">Sourcing Agent Active</span>
+                </div>
+                <h2 class="text-2xl font-black uppercase italic leading-none">Find Anything in Great Ife.</h2>
+                <button class="bg-sdel text-black px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition">New Request</button>
+            </div>
+        </section>
 
         <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="card-zinc p-6 rounded-3xl text-center space-y-2 cursor-pointer group">
@@ -177,7 +180,6 @@
         }
         createStars();
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
             const sb = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
             await sb.auth.signOut();
             window.location.replace('login.html');
