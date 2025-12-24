@@ -10,22 +10,30 @@
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #000; color: white; }
+        body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
-        .category-pill { transition: all 0.3s ease; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
+        .category-pill { transition: all 0.3s ease; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); position: relative; z-index: 10; }
         .category-pill.active { background-color: #FF6600; color: black; border-color: #FF6600; }
+        
+        /* 50 Static Star Logic */
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(110vh); } }
     </style>
 </head>
 <body class="pb-24">
 
+    <div class="stars" id="stars"></div>
+
     <nav class="p-6 flex items-center justify-between border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
         <a href="dashboard.html" class="text-white"><i data-lucide="chevron-left"></i></a>
         <h1 class="text-lg font-black uppercase tracking-tighter">Campus <span class="text-sdel">Market</span></h1>
-        <div class="relative">
+        
+        <div onclick="window.location.href='cart.html'" class="relative cursor-pointer p-2">
             <i data-lucide="shopping-cart" class="text-gray-400"></i>
-            <span class="absolute -top-2 -right-2 bg-sdel text-black text-[10px] font-bold px-1.5 rounded-full">0</span>
+            <span id="cart-count" class="absolute top-0 right-0 bg-sdel text-black text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center border-2 border-black">0</span>
         </div>
     </nav>
 
@@ -52,6 +60,51 @@
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
+        let currentUserId = null;
+
+        async function init() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                currentUserId = session.user.id;
+                updateCartCount();
+            }
+            loadProducts();
+            createStars();
+        }
+
+        async function updateCartCount() {
+            if (!currentUserId) return;
+            const { count, error } = await supabase
+                .from('cart')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', currentUserId);
+            
+            if (!error) {
+                document.getElementById('cart-count').innerText = count || 0;
+            }
+        }
+
+        async function addToCart(productId) {
+            if (!currentUserId) {
+                alert("Please log in first");
+                return;
+            }
+
+            const { error } = await supabase.from('cart').upsert({
+                user_id: currentUserId,
+                product_id: productId
+            }, { onConflict: 'user_id, product_id' });
+
+            if (error) {
+                console.error(error);
+                alert("Could not add to cart");
+            } else {
+                updateCartCount();
+                // Simple feedback
+                alert("Added to bag! 🎒");
+            }
+        }
+
         async function loadProducts() {
             const { data: products, error } = await supabase
                 .from('products')
@@ -65,14 +118,9 @@
                 return;
             }
 
-            if (products.length === 0) {
-                list.innerHTML = `<p class="text-gray-500 text-xs text-center py-10">No items available yet.</p>`;
-                return;
-            }
-
             list.innerHTML = products.map(item => `
                 <div class="card-zinc rounded-3xl overflow-hidden flex flex-col">
-                    <div class="h-40 bg-zinc-800 flex items-center justify-center">
+                    <div class="h-40 bg-zinc-900 flex items-center justify-center">
                         ${item.image_url ? `<img src="${item.image_url}" class="object-cover h-full w-full">` : `<i data-lucide="image" class="text-zinc-600" size="40"></i>`}
                     </div>
                     <div class="p-5 space-y-2">
@@ -84,7 +132,7 @@
                             <p class="font-black text-lg tracking-tighter">₦${item.price.toLocaleString()}</p>
                         </div>
                         <p class="text-[10px] text-gray-500 line-clamp-2">${item.description || 'No description provided.'}</p>
-                        <button class="w-full bg-white text-black py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-sdel hover:text-white transition mt-2">
+                        <button onclick="window.addToCart('${item.id}')" class="w-full bg-white text-black py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-sdel hover:text-white transition mt-2">
                             Add to Cart
                         </button>
                     </div>
@@ -94,7 +142,24 @@
             lucide.createIcons();
         }
 
-        loadProducts();
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
+                star.style.left = Math.random() * 100 + 'vw';
+                if (i < 50) star.style.top = Math.random() * 100 + 'vh';
+                else star.style.top = '-' + (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
+                container.appendChild(star);
+            }
+        }
+
+        // Expose function to global scope for onclick
+        window.addToCart = addToCart;
+
+        init();
     </script>
 </body>
 </html>
