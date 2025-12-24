@@ -16,13 +16,15 @@
         .bg-sdel { background-color: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         
-        /* Slow Falling Stars - High Z-Index to slightly overlap text */
+        /* VERY SLOW Falling Stars */
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(110vh); } }
 
         /* Modal Blur */
-        #edit-modal { backdrop-filter: blur(20px); z-index: 200; }
+        .modal-overlay { backdrop-filter: blur(25px); z-index: 200; position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; padding: 24px; overflow-y: auto; }
+        .input-zinc { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; width: 100%; padding: 16px; border-radius: 16px; font-size: 14px; outline: none; }
+        .input-zinc:focus { border-color: #FF6600; }
     </style>
 </head>
 <body class="pb-24">
@@ -56,14 +58,20 @@
         </div>
 
         <div class="space-y-3">
-            <h3 class="text-[10px] font-black uppercase text-gray-500 tracking-widest px-2">Account Settings</h3>
+            <h3 class="text-[10px] font-black uppercase text-gray-500 tracking-widest px-2">Settings</h3>
             
-            <div onclick="openEditModal()" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
+            <div onclick="openModal('edit-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
                 <div class="flex items-center space-x-4">
-                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-sdel">
-                        <i data-lucide="user" size="18"></i>
-                    </div>
+                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-sdel"><i data-lucide="user" size="18"></i></div>
                     <span class="text-sm font-bold uppercase">Personal Info</span>
+                </div>
+                <i data-lucide="chevron-right" class="text-gray-600"></i>
+            </div>
+
+            <div onclick="openModal('security-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-blue-500"><i data-lucide="shield-check" size="18"></i></div>
+                    <span class="text-sm font-bold uppercase">Security</span>
                 </div>
                 <i data-lucide="chevron-right" class="text-gray-600"></i>
             </div>
@@ -72,34 +80,36 @@
         <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">Sign Out</button>
     </main>
 
-    <div id="edit-modal" class="fixed inset-0 bg-black/80 hidden p-6 overflow-y-auto">
+    <div id="edit-modal" class="modal-overlay">
         <div class="flex justify-between items-center mb-8">
             <h2 class="text-xl font-black uppercase italic">Edit <span class="text-sdel">Profile</span></h2>
-            <button onclick="closeEditModal()" class="text-white"><i data-lucide="x"></i></button>
+            <button onclick="closeModal('edit-modal')" class="text-white"><i data-lucide="x"></i></button>
         </div>
-        
         <div class="space-y-4">
-            <div>
-                <label class="text-[10px] font-black uppercase text-gray-500 ml-2">First Name</label>
-                <input id="edit-fname" type="text" class="w-full bg-zinc-900 border border-white/10 p-4 rounded-2xl text-sm focus:border-sdel outline-none mt-1">
-            </div>
-            <div>
-                <label class="text-[10px] font-black uppercase text-gray-500 ml-2">Last Name</label>
-                <input id="edit-lname" type="text" class="w-full bg-zinc-900 border border-white/10 p-4 rounded-2xl text-sm focus:border-sdel outline-none mt-1">
-            </div>
-            <div>
-                <label class="text-[10px] font-black uppercase text-gray-500 ml-2">Phone Number</label>
-                <input id="edit-phone" type="text" class="w-full bg-zinc-900 border border-white/10 p-4 rounded-2xl text-sm focus:border-sdel outline-none mt-1">
-            </div>
-            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest mt-4">Save Changes</button>
+            <input id="edit-fname" type="text" class="input-zinc" placeholder="First Name">
+            <input id="edit-lname" type="text" class="input-zinc" placeholder="Last Name">
+            <input id="edit-phone" type="text" class="input-zinc" placeholder="Phone Number">
+            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest">Save Changes</button>
         </div>
     </div>
 
-    <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 p-4 flex justify-around items-center z-50">
-        <a href="dashboard.html" class="text-gray-500"><i data-lucide="home"></i></a>
-        <a href="products.html" class="text-gray-500"><i data-lucide="grid"></i></a>
-        <a href="#" class="text-gray-500"><i data-lucide="search"></i></a>
-        <a href="#" class="text-sdel"><i data-lucide="user"></i></a>
+    <div id="security-modal" class="modal-overlay">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-xl font-black uppercase italic">Update <span class="text-sdel">Security</span></h2>
+            <button onclick="closeModal('security-modal')" class="text-white"><i data-lucide="x"></i></button>
+        </div>
+        <div class="space-y-4">
+            <div class="relative">
+                <input id="new-pass" type="password" class="input-zinc" placeholder="New Password">
+                <button onclick="togglePass('new-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
+            </div>
+            <div class="relative">
+                <input id="confirm-pass" type="password" class="input-zinc" placeholder="Confirm New Password">
+                <button onclick="togglePass('confirm-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
+            </div>
+            <p id="pass-msg" class="text-[10px] font-bold uppercase text-center"></p>
+            <button onclick="updatePassword()" id="pass-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest">Update Password</button>
+        </div>
     </div>
 
     <script type="module">
@@ -120,56 +130,72 @@
 
         async function loadProfile() {
             const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
-            
             const fName = profile?.first_name || "Scholar";
             const lName = profile?.last_name || "";
-
             document.getElementById('p-full-name').innerText = `${fName} ${lName}`;
             document.getElementById('p-email').innerText = currentUser.email;
             document.getElementById('p-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
             document.getElementById('p-initials').innerText = (fName[0] + (lName ? lName[0] : "")).toUpperCase();
-            
-            // Pre-fill modal
             document.getElementById('edit-fname').value = fName;
             document.getElementById('edit-lname').value = lName;
             document.getElementById('edit-phone').value = profile?.phone || "";
         }
 
-        window.openEditModal = () => document.getElementById('edit-modal').classList.remove('hidden');
-        window.closeEditModal = () => document.getElementById('edit-modal').classList.add('hidden');
+        window.openModal = (id) => document.getElementById(id).style.display = 'block';
+        window.closeModal = (id) => document.getElementById(id).style.display = 'none';
+        
+        window.togglePass = (id) => {
+            const el = document.getElementById(id);
+            el.type = el.type === 'password' ? 'text' : 'password';
+        }
 
         window.saveProfileUpdates = async () => {
             const btn = document.getElementById('save-btn');
             btn.innerText = "UPDATING...";
-            
             const { error } = await supabase.from('profile').update({
                 first_name: document.getElementById('edit-fname').value,
                 last_name: document.getElementById('edit-lname').value,
                 phone: document.getElementById('edit-phone').value
             }).eq('id', currentUser.id);
-
-            if (error) alert("Update failed: " + error.message);
-            else {
-                alert("Profile Updated!");
-                location.reload();
-            }
+            if (error) alert(error.message); else location.reload();
         };
+
+        window.updatePassword = async () => {
+            const pass = document.getElementById('new-pass').value;
+            const confirm = document.getElementById('confirm-pass').value;
+            const msg = document.getElementById('pass-msg');
+
+            if (pass !== confirm) {
+                msg.innerText = "Passwords do not match!";
+                msg.className = "text-[10px] font-bold uppercase text-center text-red-500";
+                return;
+            }
+
+            const { error } = await supabase.auth.updateUser({ password: pass });
+            if (error) {
+                msg.innerText = error.message;
+                msg.className = "text-[10px] font-bold uppercase text-center text-red-500";
+            } else {
+                msg.innerText = "Password updated successfully!";
+                msg.className = "text-[10px] font-bold uppercase text-center text-green-500";
+                setTimeout(() => closeModal('security-modal'), 2000);
+            }
+        }
 
         function createStars() {
             const container = document.getElementById('stars');
-            for (let i = 0; i < 150; i++) {
+            for (let i = 0; i < 180; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
                 star.style.left = Math.random() * 100 + 'vw';
                 star.style.top = '-' + (Math.random() * 100) + 'vh';
-                star.style.animationDuration = (Math.random() * 15 + 10) + 's'; // Slow fall
+                star.style.animationDuration = (Math.random() * 20 + 20) + 's'; // Extra slow
                 container.appendChild(star);
             }
         }
 
         document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
-        
         createStars();
         checkSession();
         lucide.createIcons();
