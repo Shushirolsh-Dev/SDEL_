@@ -7,41 +7,42 @@
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        // CONNECTED TO YOUR REAL DATABASE
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         async function gatekeeper() {
             const { data: { session } } = await supabase.auth.getSession();
-            
             if (!session) {
-                window.location.replace('login.html'); // Redirect to login if not authenticated
+                window.location.replace('login.html');
                 return;
             }
-
             document.documentElement.style.opacity = "1";
             initializeApp(session.user);
         }
 
         async function initializeApp(user) {
-            // FETCH DATA FROM THE 'profile' TABLE WE CREATED
             const { data: profile } = await supabase
-                .from('profile') 
+                .from('profile')
                 .select('first_name, last_name, wallet_balance')
                 .eq('id', user.id)
                 .single();
 
             if (profile) {
-                // UPDATE INITIALS
-                document.getElementById('user-initials').innerText = 
-                    (profile.first_name[0] + profile.last_name[0]).toUpperCase();
+                // 1. TIME-BASED GREETING
+                const hour = new Date().getHours();
+                let greeting = "Good Evening";
+                if (hour < 12) greeting = "Good Morning";
+                else if (hour < 17) greeting = "Good Afternoon";
                 
-                // UPDATE WALLET (Defaults to 0 if null)
-                const balance = profile.wallet_balance || 0;
-                document.getElementById('wallet-balance').innerText = 
-                    `₦${balance.toLocaleString()}`;
+                document.getElementById('greeting-text').innerHTML = `${greeting}, <span class="text-sdel">${profile.first_name}.</span>`;
+
+                // 2. INITIALS (F + L)
+                const initials = (profile.first_name[0] + profile.last_name[0]).toUpperCase();
+                document.getElementById('user-initials').innerText = initials;
+                
+                // 3. WALLET BALANCE
+                document.getElementById('wallet-balance').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
             }
 
-            // NOTIFICATION COUNT
             const { count } = await supabase
                 .from('notifications')
                 .select('*', { count: 'exact', head: true })
@@ -128,7 +129,7 @@
     <main class="p-6 max-w-6xl mx-auto space-y-8 pb-24">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-                <h1 class="text-3xl font-black uppercase italic">Welcome, <span class="text-sdel">Scholar.</span></h1>
+                <h1 id="greeting-text" class="text-3xl font-black uppercase italic">Welcome, <span class="text-sdel">Scholar.</span></h1>
                 <p class="text-gray-500 font-bold text-sm tracking-widest uppercase italic">The Campus Command Center</p>
             </div>
             
@@ -186,7 +187,7 @@
         <a href="#" class="text-sdel flex flex-col items-center"><i data-lucide="home"></i></a>
         <a href="products.html" class="text-gray-500 flex flex-col items-center"><i data-lucide="grid"></i></a>
         <a href="#" class="text-gray-500 flex flex-col items-center"><i data-lucide="search"></i></a>
-        <a href="#" class="text-gray-500 flex flex-col items-center" id="logout-btn"><i data-lucide="log-out"></i></a>
+        <button id="logout-btn" class="text-gray-500 flex flex-col items-center transition hover:text-red-500"><i data-lucide="log-out"></i></button>
     </div>
 
     <script>
@@ -207,12 +208,8 @@
         }
         createStars();
 
-        // ADD LOGOUT FUNCTIONALITY
-        document.getElementById('logout-btn').addEventListener('click', async (e) => {
-            e.preventDefault();
-            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
-            const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
-            await supabase.auth.signOut();
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            const { error } = await supabase.auth.signOut();
             window.location.replace('login.html');
         });
     </script>
