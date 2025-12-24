@@ -7,7 +7,10 @@
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+        // CONFIG: Using sessionStorage for Strict Security
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw', {
+            auth: { storage: window.sessionStorage }
+        });
 
         async function gatekeeper() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -17,16 +20,27 @@
             }
             document.documentElement.style.opacity = "1";
             initializeApp(session.user);
-            listenForMessages(session.user.id); // Start live listener
+            listenForMessages(session.user.id); 
         }
 
-        // LIVE UNREAD MESSAGE LOGIC
+        // UPDATED UNREAD MESSAGE LOGIC
         async function listenForMessages(userId) {
             const updateCount = async () => {
+                // 1. Get the last time the user checked messages
+                const { data: profile } = await supabase
+                    .from('profile')
+                    .select('last_read_at')
+                    .eq('id', userId)
+                    .single();
+
+                const lastRead = profile?.last_read_at || '1970-01-01T00:00:00Z';
+
+                // 2. Only count messages created AFTER last_read_at
                 const { data } = await supabase
                     .from('messages')
                     .select('id')
-                    .or(`recipient_id.is.null,recipient_id.eq.${userId}`);
+                    .or(`recipient_id.is.null,recipient_id.eq.${userId}`)
+                    .gt('created_at', lastRead);
                 
                 const badge = document.getElementById('msg-badge');
                 if (data && data.length > 0) {
@@ -37,12 +51,22 @@
                 }
             };
 
-            updateCount(); // Initial check
+            // Function to clear badge when clicking the bell
+            window.markAsRead = async () => {
+                const now = new Date().toISOString();
+                await supabase
+                    .from('profile')
+                    .update({ last_read_at: now })
+                    .eq('id', userId);
+                updateCount();
+            };
+
+            updateCount(); 
 
             supabase
                 .channel('live-msgs')
-                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => updateCount())
-                .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, () => updateCount())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => updateCount())
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profile', filter: `id=eq.${userId}` }, () => updateCount())
                 .subscribe();
         }
 
@@ -135,7 +159,7 @@
             <span class="bg-sdel/10 text-sdel text-[10px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase">Dashboard</span>
         </div>
         <div class="flex items-center space-x-4">
-            <a href="messages.html" class="relative text-gray-400 hover:text-sdel transition-colors">
+            <a href="messages.html" onclick="markAsRead()" class="relative text-gray-400 hover:text-sdel transition-colors">
                 <i data-lucide="bell" size="22"></i>
                 <span id="msg-badge" class="hidden absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-black">0</span>
             </a>
