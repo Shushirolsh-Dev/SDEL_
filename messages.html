@@ -57,50 +57,101 @@
 
         let allMessages = [];
         let currentFilter = 'general';
+        let currentUser = null;
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.href = 'login.html';
+            currentUser = session.user;
 
             document.body.style.display = 'block';
-            
             createStars();
-            // We load messages FIRST to see the unread count before we update the timestamp
-            await loadMessages(session.user.id);
-
-            // After loading, we update the timestamp so the badge clears for next time
-            const now = new Date().toISOString();
-            await supabase.from('profile').update({ last_read_at: now }).eq('id', session.user.id);
+            
+            // On load, update General read status and load messages
+            await markAsRead('general');
+            await loadMessages();
         }
 
-        async function loadMessages(userId) {
+        async function markAsRead(type) {
+            const column = type === 'general' ? 'last_read_general' : 'last_read_team';
+            await supabase
+                .from('profile')
+                .update({ [column]: new Date().toISOString() })
+                .eq('id', currentUser.id);
+        }
+
+        async function loadMessages() {
             const badge = document.getElementById('msg-count');
             
-            // 1. Get the last_read_at timestamp BEFORE we update it
-            const { data: profile } = await supabase.from('profile').select('last_read_at').eq('id', userId).single();
-            const lastRead = profile?.last_read_at || '1970-01-01T00:00:00Z';
+            // Get user's read timestamps
+            const { data: profile } = await supabase
+                .from('profile')
+                .select('last_read_general, last_read_team')
+                .eq('id', currentUser.id)
+                .single();
 
-            // 2. Fetch ALL messages for the list
+            const lastGen = new Date(profile?.last_read_general || 0);
+            const lastTeam = new Date(profile?.last_read_team || 0);
+
+            // Fetch all relevant messages
             const { data, error } = await supabase
                 .from('messages')
                 .select('*')
-                .or(`recipient_id.is.null,recipient_id.eq.${userId}`)
+                .or(`recipient_id.is.null,recipient_id.eq.${currentUser.id}`)
                 .order('created_at', { ascending: false });
 
             if (!error && data) {
                 allMessages = data;
                 renderMessages();
                 
-                // 3. Filter only UNREAD messages for the badge count
-                const unread = data.filter(m => new Date(m.created_at) > new Date(lastRead));
+                // DYNAMIC CALCULATION: Count messages created AFTER the respective timestamps
+                const unreadGen = data.filter(m => m.type === 'general' && new Date(m.created_at) > lastGen).length;
+                const unreadTeam = data.filter(m => m.type === 'team' && new Date(m.created_at) > lastTeam).length;
+                
+                const totalUnread = unreadGen + unreadTeam;
 
-                if (unread.length > 0) {
-                    badge.innerText = unread.length;
+                if (totalUnread > 0) {
+                    badge.innerText = totalUnread;
                     badge.classList.remove('hidden');
                 } else {
                     badge.classList.add('hidden');
                 }
             }
+        }
+
+        window.filterMsgs = async (type) => {
+            currentFilter = type;
+            
+            // If switching to team, mark team as read and refresh
+            if (type === 'team') {
+                await markAsRead('team');
+                await loadMessages();
+            }
+
+            document.getElementById('btn-gen').className = type === 'general' ? 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase bg-sdel text-black' : 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase text-gray-500';
+            document.getElementById('btn-team').className = type === 'team' ? 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase bg-sdel text-black' : 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase text-gray-500';
+            renderMessages();
+        };
+
+        function renderMessages() {
+            const container = document.getElementById('message-container');
+            const filtered = allMessages.filter(m => m.type === currentFilter);
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="py-20 text-center opacity-30 font-black uppercase text-[10px] tracking-widest">No ${currentFilter} messages</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(m => `
+                <div class="card-zinc p-6 rounded-[32px] msg-bubble ${m.type === 'general' ? 'msg-bubble-general' : 'msg-bubble-team'}">
+                    <p class="text-xs text-gray-200 leading-relaxed font-medium">${m.content}</p>
+                    <div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
+                        <span class="text-[8px] font-black uppercase text-gray-500 tracking-widest">${formatSdelTime(m.created_at)}</span>
+                        <i data-lucide="${m.type === 'general' ? 'megaphone' : 'user'}" size="12" class="text-gray-600"></i>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
         }
 
         function formatSdelTime(dateString) {
@@ -116,34 +167,6 @@
             if (diff < 2678400) return `${staticDate} • ${Math.floor(diff/86400)} day ago`;
             if (diff < 31536000) return `${staticDate} • ${Math.floor(diff/2592000)} mth ago`;
             return `${staticDate} • ${Math.floor(diff/31536000)} yr ago`;
-        }
-
-        window.filterMsgs = (type) => {
-            currentFilter = type;
-            document.getElementById('btn-gen').className = type === 'general' ? 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase bg-sdel text-black' : 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase text-gray-500';
-            document.getElementById('btn-team').className = type === 'team' ? 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase bg-sdel text-black' : 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase text-gray-500';
-            renderMessages();
-        };
-
-        function renderMessages() {
-            const container = document.getElementById('message-container');
-            const filtered = allMessages.filter(m => m.type === currentFilter);
-
-            if (filtered.length === 0) {
-                container.innerHTML = `<div class="py-20 text-center opacity-30 font-black uppercase text-[10px] tracking-widest">No ${currentFilter === 'general' ? 'general' : 'personal'} messages</div>`;
-                return;
-            }
-
-            container.innerHTML = filtered.map(m => `
-                <div class="card-zinc p-6 rounded-[32px] msg-bubble ${m.type === 'general' ? 'msg-bubble-general' : 'msg-bubble-team'}">
-                    <p class="text-xs text-gray-200 leading-relaxed font-medium">${m.content}</p>
-                    <div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
-                        <span class="text-[8px] font-black uppercase text-gray-500 tracking-widest">${formatSdelTime(m.created_at)}</span>
-                        <i data-lucide="${m.type === 'general' ? 'megaphone' : 'user'}" size="12" class="text-gray-600"></i>
-                    </div>
-                </div>
-            `).join('');
-            lucide.createIcons();
         }
 
         function createStars() {
