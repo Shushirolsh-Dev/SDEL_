@@ -20,38 +20,34 @@
         }
 
         async function initializeApp(user) {
-            const { data: profile } = await supabase
+            // Fetch profile columns strictly: first_name and last_name
+            const { data: profile, error } = await supabase
                 .from('profile')
                 .select('first_name, last_name, wallet_balance')
                 .eq('id', user.id)
                 .single();
 
             if (profile) {
-                // 1. JS LOGIC: CHECK PHONE TIME FOR GREETING
-                const now = new Date();
-                const hours = now.getHours();
-                let greetingStr = "";
-
-                if (hours < 12) {
-                    greetingStr = "Good morning";
-                } else if (hours < 17) {
-                    greetingStr = "Good afternoon";
-                } else {
-                    greetingStr = "Good evening";
-                }
+                // 1. DYNAMIC TIME GREETING FROM PHONE/PC CLOCK
+                const hour = new Date().getHours();
+                let greet;
+                if (hour < 12) greet = "Good morning";
+                else if (hour < 17) greet = "Good afternoon";
+                else greet = "Good evening";
                 
-                // Injecting into the spans
-                document.getElementById('js-greet').innerText = greetingStr;
+                // Injecting into spans
+                document.getElementById('js-greet').innerText = greet;
                 document.getElementById('js-name').innerText = profile.first_name || "Scholar";
 
-                // 2. JS LOGIC: GENERATE INITIALS (F + L)
-                const f = profile.first_name ? profile.first_name.charAt(0) : '';
-                const l = profile.last_name ? profile.last_name.charAt(0) : '';
-                const initials = (f + l).toUpperCase();
+                // 2. DYNAMIC INITIALS FROM DATABASE
+                const firstChar = profile.first_name ? profile.first_name.charAt(0) : '';
+                const lastChar = profile.last_name ? profile.last_name.charAt(0) : '';
+                const initials = (firstChar + lastChar).toUpperCase();
                 
+                // Remove the "--" and put the real initials
                 document.getElementById('user-initials').innerText = initials || "??";
                 
-                // 3. UPDATE WALLET
+                // 3. WALLET BALANCE
                 document.getElementById('wallet-balance').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
             }
             loadActivity(user.id);
@@ -190,7 +186,6 @@
         }
         createStars();
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            const { data: { session } } = await supabase.auth.getSession();
             await supabase.auth.signOut();
             window.location.replace('login.html');
         });
