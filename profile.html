@@ -9,16 +9,25 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
     <style>
-        /* Prevents flickering before security check finishes */
         html { opacity: 0; transition: opacity 0.3s ease; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #000; color: white; }
+        body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
+        
+        /* Slow Falling Stars - High Z-Index to slightly overlap text */
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; pointer-events: none; }
+        .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(110vh); } }
+
+        /* Modal Blur */
+        #edit-modal { backdrop-filter: blur(20px); z-index: 200; }
     </style>
 </head>
 <body class="pb-24">
+
+    <div class="stars" id="stars"></div>
 
     <nav class="p-6 flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-md z-50">
         <a href="dashboard.html" class="text-white"><i data-lucide="chevron-left"></i></a>
@@ -28,9 +37,7 @@
 
     <main class="p-6 space-y-8">
         <div class="flex flex-col items-center text-center space-y-4">
-            <div id="p-initials" class="w-24 h-24 rounded-full bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center text-3xl font-black text-sdel uppercase">
-                --
-            </div>
+            <div id="p-initials" class="w-24 h-24 rounded-full bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center text-3xl font-black text-sdel uppercase">--</div>
             <div>
                 <h2 id="p-full-name" class="text-2xl font-black uppercase tracking-tight italic">Loading...</h2>
                 <p id="p-email" class="text-gray-500 text-xs font-bold uppercase tracking-widest">---</p>
@@ -51,7 +58,7 @@
         <div class="space-y-3">
             <h3 class="text-[10px] font-black uppercase text-gray-500 tracking-widest px-2">Account Settings</h3>
             
-            <div class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer">
+            <div onclick="openEditModal()" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
                 <div class="flex items-center space-x-4">
                     <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-sdel">
                         <i data-lucide="user" size="18"></i>
@@ -60,22 +67,33 @@
                 </div>
                 <i data-lucide="chevron-right" class="text-gray-600"></i>
             </div>
-
-            <div class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer">
-                <div class="flex items-center space-x-4">
-                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-blue-500">
-                        <i data-lucide="shield-check" size="18"></i>
-                    </div>
-                    <span class="text-sm font-bold uppercase">Security</span>
-                </div>
-                <i data-lucide="chevron-right" class="text-gray-600"></i>
-            </div>
         </div>
 
-        <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">
-            Sign Out of Sdel
-        </button>
+        <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">Sign Out</button>
     </main>
+
+    <div id="edit-modal" class="fixed inset-0 bg-black/80 hidden p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-xl font-black uppercase italic">Edit <span class="text-sdel">Profile</span></h2>
+            <button onclick="closeEditModal()" class="text-white"><i data-lucide="x"></i></button>
+        </div>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="text-[10px] font-black uppercase text-gray-500 ml-2">First Name</label>
+                <input id="edit-fname" type="text" class="w-full bg-zinc-900 border border-white/10 p-4 rounded-2xl text-sm focus:border-sdel outline-none mt-1">
+            </div>
+            <div>
+                <label class="text-[10px] font-black uppercase text-gray-500 ml-2">Last Name</label>
+                <input id="edit-lname" type="text" class="w-full bg-zinc-900 border border-white/10 p-4 rounded-2xl text-sm focus:border-sdel outline-none mt-1">
+            </div>
+            <div>
+                <label class="text-[10px] font-black uppercase text-gray-500 ml-2">Phone Number</label>
+                <input id="edit-phone" type="text" class="w-full bg-zinc-900 border border-white/10 p-4 rounded-2xl text-sm focus:border-sdel outline-none mt-1">
+            </div>
+            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest mt-4">Save Changes</button>
+        </div>
+    </div>
 
     <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 p-4 flex justify-around items-center z-50">
         <a href="dashboard.html" class="text-gray-500"><i data-lucide="home"></i></a>
@@ -88,49 +106,73 @@
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        // --- SECURITY GATEKEEPER ---
+        let currentUser = null;
+
         async function checkSession() {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                // Not logged in? Redirect to login page immediately
-                window.location.replace('login.html');
-            } else {
-                // Logged in? Show the page and load data
+            if (!session) { window.location.replace('login.html'); }
+            else { 
                 document.documentElement.style.opacity = "1";
-                loadProfile(session.user);
+                currentUser = session.user;
+                loadProfile(); 
             }
         }
 
-        async function loadProfile(user) {
-            const { data: profile } = await supabase
-                .from('profile')
-                .select('first_name, last_name, wallet_balance')
-                .eq('id', user.id)
-                .single();
-
-            const fName = profile?.first_name || user.user_metadata?.first_name || "Scholar";
-            const lName = profile?.last_name || user.user_metadata?.last_name || "";
+        async function loadProfile() {
+            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
+            
+            const fName = profile?.first_name || "Scholar";
+            const lName = profile?.last_name || "";
 
             document.getElementById('p-full-name').innerText = `${fName} ${lName}`;
-            document.getElementById('p-email').innerText = user.email;
+            document.getElementById('p-email').innerText = currentUser.email;
             document.getElementById('p-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
+            document.getElementById('p-initials').innerText = (fName[0] + (lName ? lName[0] : "")).toUpperCase();
             
-            const initials = (fName[0] + (lName ? lName[0] : "")).toUpperCase();
-            document.getElementById('p-initials').innerText = initials;
-
-            lucide.createIcons();
+            // Pre-fill modal
+            document.getElementById('edit-fname').value = fName;
+            document.getElementById('edit-lname').value = lName;
+            document.getElementById('edit-phone').value = profile?.phone || "";
         }
 
-        async function handleSignOut() {
-            await supabase.auth.signOut();
-            window.location.replace('login.html');
+        window.openEditModal = () => document.getElementById('edit-modal').classList.remove('hidden');
+        window.closeEditModal = () => document.getElementById('edit-modal').classList.add('hidden');
+
+        window.saveProfileUpdates = async () => {
+            const btn = document.getElementById('save-btn');
+            btn.innerText = "UPDATING...";
+            
+            const { error } = await supabase.from('profile').update({
+                first_name: document.getElementById('edit-fname').value,
+                last_name: document.getElementById('edit-lname').value,
+                phone: document.getElementById('edit-phone').value
+            }).eq('id', currentUser.id);
+
+            if (error) alert("Update failed: " + error.message);
+            else {
+                alert("Profile Updated!");
+                location.reload();
+            }
+        };
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
+                star.style.left = Math.random() * 100 + 'vw';
+                star.style.top = '-' + (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 15 + 10) + 's'; // Slow fall
+                container.appendChild(star);
+            }
         }
 
-        document.getElementById('logout-btn').addEventListener('click', handleSignOut);
-        document.getElementById('logout-btn-top').addEventListener('click', handleSignOut);
-
-        // Run security check on load
+        document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
+        
+        createStars();
         checkSession();
+        lucide.createIcons();
     </script>
 </body>
 </html>
