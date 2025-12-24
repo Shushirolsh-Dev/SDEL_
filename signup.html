@@ -25,6 +25,8 @@
         .valid { color: #22c55e; } .invalid { color: #444; }
         .login-card::-webkit-scrollbar { width: 5px; }
         .login-card::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        /* Error text style for live check */
+        .live-err { color: #ef4444; font-size: 10px; font-weight: 900; text-transform: uppercase; margin-top: 4px; padding-left: 5px; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
@@ -41,12 +43,25 @@
                 <input type="text" id="fname" placeholder="FIRST NAME" class="sdel-input w-1/2">
                 <input type="text" id="lname" placeholder="LAST NAME" class="sdel-input w-1/2">
             </div>
-            <input type="text" id="uname" placeholder="USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()">
-            <div class="phone-container">
-                <span class="prefix">+234</span>
-                <input type="tel" id="ph" placeholder="8012345678" maxlength="10" class="phone-input" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            
+            <div>
+                <input type="text" id="uname" placeholder="USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()" onblur="liveCheck('username', this.value, 'u-err')">
+                <p id="u-err" class="live-err hidden">Username already taken</p>
             </div>
-            <input type="email" id="em" placeholder="EMAIL ADDRESS" class="sdel-input">
+
+            <div>
+                <div class="phone-container">
+                    <span class="prefix">+234</span>
+                    <input type="tel" id="ph" placeholder="8012345678" maxlength="10" class="phone-input" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onblur="liveCheck('phone', '+234'+this.value, 'p-err')">
+                </div>
+                <p id="p-err" class="live-err hidden">Phone number registered</p>
+            </div>
+
+            <div>
+                <input type="email" id="em" placeholder="EMAIL ADDRESS" class="sdel-input" onblur="liveCheck('email', this.value, 'e-err')">
+                <p id="e-err" class="live-err hidden">Email already exists</p>
+            </div>
+
             <div class="relative">
                 <input type="password" id="pw" placeholder="PASSWORD" class="sdel-input pr-14" oninput="validatePassword(); checkMatch();">
                 <div class="eye-box" onclick="toggleView('pw', 'on1', 'off1')">
@@ -84,6 +99,23 @@
             f.appendChild(s);
         }
         const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+        
+        // Track if data is unique
+        let isUnique = { username: true, phone: true, email: true };
+
+        async function liveCheck(col, val, errId) {
+            if (!val || val.length < 3) return;
+            const { data } = await sb.from('profile').select(col).eq(col, val).maybeSingle();
+            const errEl = document.getElementById(errId);
+            if (data) {
+                errEl.classList.remove('hidden');
+                isUnique[col] = false;
+            } else {
+                errEl.classList.add('hidden');
+                isUnique[col] = true;
+            }
+        }
+
         function validatePassword() {
             const p = document.getElementById('pw').value;
             const len = p.length >= 6;
@@ -122,11 +154,14 @@
             const rpw = document.getElementById('rpw').value;
             const agree = document.getElementById('agree').checked;
             const btn = document.getElementById('s-btn');
+
             if(!fn || !ln || !un || !ph || !em || !pw || !rpw) return showMsg("FILL ALL FIELDS", "red");
+            if(!isUnique.username || !isUnique.phone || !isUnique.email) return showMsg("SOME DATA ALREADY EXISTS", "red");
             if(ph.length !== 10) return showMsg("PHONE MUST BE 10 DIGITS", "red");
             if(!validatePassword()) return showMsg("CRITERIA NOT MET", "red");
             if(pw !== rpw) return showMsg("PASSWORDS MUST MATCH", "red");
             if(!agree) return showMsg("AGREE TO TERMS FIRST", "red");
+
             btn.innerText = "PROCESSING..."; btn.disabled = true;
             const { error } = await sb.auth.signUp({
                 email: em, password: pw,
@@ -138,7 +173,6 @@
                 btn.disabled = false; 
             } else { 
                 showMsg("SUCCESS! GOING TO DASHBOARD...", "green");
-                // REDIRECT IMMEDIATELY
                 setTimeout(() => { window.location.href = 'dashboard.html'; }, 1500);
             }
         }
