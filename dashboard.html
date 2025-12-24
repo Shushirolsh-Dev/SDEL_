@@ -17,24 +17,48 @@
             }
             document.documentElement.style.opacity = "1";
             initializeApp(session.user);
+            listenForMessages(session.user.id); // Start live listener
+        }
+
+        // LIVE UNREAD MESSAGE LOGIC
+        async function listenForMessages(userId) {
+            const updateCount = async () => {
+                const { data } = await supabase
+                    .from('messages')
+                    .select('id')
+                    .or(`recipient_id.is.null,recipient_id.eq.${userId}`);
+                
+                const badge = document.getElementById('msg-badge');
+                if (data && data.length > 0) {
+                    badge.innerText = data.length;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            };
+
+            updateCount(); // Initial check
+
+            supabase
+                .channel('live-msgs')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => updateCount())
+                .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, () => updateCount())
+                .subscribe();
         }
 
         async function initializeApp(user) {
-            // 1. Fetch from 'profile' using the 'id' column
             const { data: profile } = await supabase
                 .from('profile')
                 .select('first_name, last_name, wallet_balance')
                 .eq('id', user.id)
                 .single();
 
-            // 2. TIME GREETING LOGIC (Using local device time)
             const hour = new Date().getHours();
             let greet = "Good evening";
             if (hour < 12) greet = "Good morning";
             else if (hour < 17) greet = "Good afternoon";
             document.getElementById('js-greet').innerText = greet;
 
-            // 3. NAME LOGIC (With Safety Fallbacks)
             let fName = "Scholar";
             let lName = "";
 
@@ -42,20 +66,17 @@
                 fName = profile.first_name;
                 lName = profile.last_name || "";
             } else if (user.user_metadata && user.user_metadata.first_name) {
-                // Backup: Check if name is in the Auth Metadata
                 fName = user.user_metadata.first_name;
                 lName = user.user_metadata.last_name || "";
             }
 
             document.getElementById('js-name').innerText = fName;
 
-            // 4. INITIALS LOGIC (First letter of First and Last name)
             const firstInitial = fName.charAt(0).toUpperCase();
             const lastInitial = lName ? lName.charAt(0).toUpperCase() : "";
             
             document.getElementById('user-initials').innerText = firstInitial + lastInitial;
             
-            // 5. WALLET
             const balance = profile?.wallet_balance || 0;
             document.getElementById('wallet-balance').innerText = `₦${balance.toLocaleString()}`;
 
@@ -114,6 +135,10 @@
             <span class="bg-sdel/10 text-sdel text-[10px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase">Dashboard</span>
         </div>
         <div class="flex items-center space-x-4">
+            <a href="messages.html" class="relative text-gray-400 hover:text-sdel transition-colors">
+                <i data-lucide="bell" size="22"></i>
+                <span id="msg-badge" class="hidden absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-black">0</span>
+            </a>
             <div id="user-initials" class="w-10 h-10 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-sdel uppercase text-sm"></div>
         </div>
     </nav>
