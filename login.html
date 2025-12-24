@@ -37,7 +37,7 @@
         <div id="err" class="hidden p-3 mb-4 rounded bg-red-900/20 text-red-500 border border-red-500/30 text-xs font-bold text-center uppercase"></div>
 
         <div class="space-y-4">
-            <input type="text" id="email" placeholder="EMAIL OR USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()">
+            <input type="text" id="identifier" placeholder="EMAIL OR USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()">
 
             <div class="relative">
                 <input type="password" id="pass" placeholder="PASSWORD" class="sdel-input pr-12">
@@ -94,18 +94,36 @@
         }
 
         async function startLogin() {
-            const em = document.getElementById('email').value;
+            const inputVal = document.getElementById('identifier').value;
             const pw = document.getElementById('pass').value;
             const btn = document.getElementById('l-btn');
 
-            if(!em || !pw) return showErr("ENTER ALL DETAILS");
+            if(!inputVal || !pw) return showErr("ENTER ALL DETAILS");
 
             btn.innerText = "VERIFYING...";
             btn.disabled = true;
 
-            // 1. AUTHENTICATE
+            let finalEmail = inputVal;
+
+            // 1. RESOLVE USERNAME TO EMAIL (If input isn't an email)
+            if (!inputVal.includes('@')) {
+                const { data: profileData, error: findError } = await sb
+                    .from('profile')
+                    .select('email')
+                    .eq('username', inputVal)
+                    .single();
+                
+                if (findError || !profileData) {
+                    btn.innerText = "LOG IN";
+                    btn.disabled = false;
+                    return showErr("USERNAME NOT FOUND");
+                }
+                finalEmail = profileData.email;
+            }
+
+            // 2. AUTHENTICATE
             const { data: { user }, error: authError } = await sb.auth.signInWithPassword({
-                email: em,
+                email: finalEmail,
                 password: pw
             });
 
@@ -116,7 +134,7 @@
                 return;
             }
 
-            // 2. CHECK ACCOUNT STATUS (SECURITY GATE)
+            // 3. CHECK ACCOUNT STATUS (SECURITY GATE)
             const { data: profile, error: profError } = await sb
                 .from('profile')
                 .select('account_status, suspended_at')
@@ -130,20 +148,19 @@
                 return;
             }
 
-            // 3. HANDLE BANNED
+            // 4. HANDLE BANNED
             if (profile.account_status === 'banned') {
                 window.location.href = 'banned.html';
                 return;
             }
 
-            // 4. HANDLE SUSPENDED (With 24hr Auto-Check)
+            // 5. HANDLE SUSPENDED
             if (profile.account_status === 'suspended') {
                 const now = new Date();
                 const suspTime = new Date(profile.suspended_at);
-                const diff = (now - suspTime) / (1000 * 60 * 60); // Difference in hours
+                const diff = (now - suspTime) / (1000 * 60 * 60);
 
                 if (diff >= 24) {
-                    // Time up! Reactive user
                     await sb.from('profile').update({ account_status: 'active', suspended_at: null }).eq('id', user.id);
                 } else {
                     window.location.href = 'suspended.html';
@@ -151,7 +168,6 @@
                 }
             }
 
-            // 5. REDIRECT TO DASHBOARD
             window.location.href = 'dashboard.html';
         }
     </script>
