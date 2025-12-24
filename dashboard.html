@@ -7,40 +7,41 @@
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('YOUR_SUPABASE_URL', 'YOUR_SUPABASE_ANON_KEY');
+        // CONNECTED TO YOUR REAL DATABASE
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         async function gatekeeper() {
             const { data: { session } } = await supabase.auth.getSession();
             
-            // IF NO SESSION, REDIRECT IMMEDIATELY
             if (!session) {
-                window.location.replace('index.html');
+                window.location.replace('login.html'); // Redirect to login if not authenticated
                 return;
             }
 
-            // IF SESSION EXISTS, SHOW PAGE AND LOAD DATA
             document.documentElement.style.opacity = "1";
             initializeApp(session.user);
         }
 
         async function initializeApp(user) {
-            // 2. Fetch User Initials (Thomas Gold -> TG)
+            // FETCH DATA FROM THE 'profile' TABLE WE CREATED
             const { data: profile } = await supabase
-                .from('profiles')
+                .from('profile') 
                 .select('first_name, last_name, wallet_balance')
                 .eq('id', user.id)
                 .single();
 
             if (profile) {
+                // UPDATE INITIALS
                 document.getElementById('user-initials').innerText = 
                     (profile.first_name[0] + profile.last_name[0]).toUpperCase();
                 
-                // 5. Live Wallet Balance
+                // UPDATE WALLET (Defaults to 0 if null)
+                const balance = profile.wallet_balance || 0;
                 document.getElementById('wallet-balance').innerText = 
-                    `₦${profile.wallet_balance.toLocaleString()}`;
+                    `₦${balance.toLocaleString()}`;
             }
 
-            // 1. Live Notification Count (Per Account)
+            // NOTIFICATION COUNT
             const { count } = await supabase
                 .from('notifications')
                 .select('*', { count: 'exact', head: true })
@@ -57,7 +58,6 @@
         }
 
         async function loadActivity(userId) {
-            // 6. Live Orders (Max 3)
             const { data: orders } = await supabase
                 .from('orders')
                 .select('*')
@@ -75,7 +75,7 @@
                             </div>
                             <div>
                                 <p class="font-black text-sm uppercase">${order.item_name}</p>
-                                <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Status: ${order.status_message}</p>
+                                <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Status: ${order.status_message || 'Processing'}</p>
                             </div>
                         </div>
                         <span class="text-[9px] font-black ${order.status === 'completed' ? 'text-green-500' : 'text-sdel'} uppercase">${order.status}</span>
@@ -95,18 +95,13 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
     <style>
-        /* Block page view until auth check passes */
         html { opacity: 0; transition: opacity 0.5s ease; }
-        
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        
-        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-blur: 10px; position: relative; z-index: 10; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         .card-zinc:hover { border-color: #FF6600; transition: 0.3s ease; }
-        
-        /* 3. STARS BEHIND CARDS */
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.8); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(100vh); } }
@@ -191,7 +186,7 @@
         <a href="#" class="text-sdel flex flex-col items-center"><i data-lucide="home"></i></a>
         <a href="products.html" class="text-gray-500 flex flex-col items-center"><i data-lucide="grid"></i></a>
         <a href="#" class="text-gray-500 flex flex-col items-center"><i data-lucide="search"></i></a>
-        <a href="#" class="text-gray-500 flex flex-col items-center"><i data-lucide="user"></i></a>
+        <a href="#" class="text-gray-500 flex flex-col items-center" id="logout-btn"><i data-lucide="log-out"></i></a>
     </div>
 
     <script>
@@ -211,6 +206,15 @@
             }
         }
         createStars();
+
+        // ADD LOGOUT FUNCTIONALITY
+        document.getElementById('logout-btn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm');
+            const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+            await supabase.auth.signOut();
+            window.location.replace('login.html');
+        });
     </script>
 </body>
 </html>
