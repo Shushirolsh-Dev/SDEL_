@@ -37,7 +37,7 @@
         <div id="err" class="hidden p-3 mb-4 rounded bg-red-900/20 text-red-500 border border-red-500/30 text-xs font-bold text-center uppercase"></div>
 
         <div class="space-y-4">
-            <input type="email" id="email" placeholder="EMAIL ADDRESS" class="sdel-input">
+            <input type="text" id="email" placeholder="EMAIL OR USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()">
 
             <div class="relative">
                 <input type="password" id="pass" placeholder="PASSWORD" class="sdel-input pr-12">
@@ -57,15 +57,13 @@
     </div>
 
     <script>
-        // MORE STARS - FALLING SLOWER
         const f = document.getElementById('star-field');
-        for(let i=0; i<80; i++) { // Increased to 80 stars
+        for(let i=0; i<80; i++) {
             const s = document.createElement('div');
             s.className = 'star';
             s.style.width = s.style.height = (Math.random() * 2 + 1) + 'px';
             s.style.left = Math.random()*100+'vw';
             s.style.top = Math.random()*100+'vh';
-            // Slower duration: between 25 and 45 seconds
             s.style.animationDuration = (Math.random()*20 + 25)+'s'; 
             s.style.animationDelay = (Math.random()*10)+'s';
             f.appendChild(s);
@@ -89,12 +87,13 @@
         }
 
         async function startLogin() {
-            const e = document.getElementById('email').value;
+            const userInput = document.getElementById('email').value;
             const p = document.getElementById('pass').value;
             const btn = document.getElementById('l-btn');
             const err = document.getElementById('err');
+            let emailToAuth = userInput;
 
-            if(!e || !p) {
+            if(!userInput || !p) {
                 err.innerText = "MISSING DETAILS";
                 err.classList.remove('hidden');
                 return;
@@ -104,7 +103,29 @@
             btn.innerText = "VERIFYING...";
             btn.disabled = true;
 
-            const { data, error } = await sb.auth.signInWithPassword({ email: e, password: p });
+            // --- USERNAME TO EMAIL LOOKUP ---
+            if (!userInput.includes('@')) {
+                const { data, error: userError } = await sb
+                    .from('profile')
+                    .select('email')
+                    .eq('username', userInput.toLowerCase())
+                    .maybeSingle();
+
+                if (userError || !data) {
+                    err.innerText = "USERNAME NOT FOUND";
+                    err.classList.remove('hidden');
+                    btn.innerText = "LOG IN";
+                    btn.disabled = false;
+                    return;
+                }
+                emailToAuth = data.email;
+            }
+            // --- END LOOKUP ---
+
+            const { data, error } = await sb.auth.signInWithPassword({ 
+                email: emailToAuth, 
+                password: p 
+            });
 
             if (error) {
                 err.innerText = error.message.toUpperCase();
