@@ -33,7 +33,7 @@
         <h1 class="text-lg font-black uppercase tracking-tighter">Inbox</h1>
         <div class="relative">
             <i data-lucide="bell" size="20"></i>
-            <span id="msg-count" class="hidden absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center">0</span>
+            <span id="msg-count" class="hidden absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center"></span>
         </div>
     </nav>
 
@@ -64,7 +64,7 @@
 
             document.body.style.display = 'block';
             
-            // Mark as read immediately to clear dashboard badge
+            // Mark as read immediately
             const now = new Date().toISOString();
             await supabase.from('profile').update({ last_read_at: now }).eq('id', session.user.id);
             
@@ -74,6 +74,8 @@
 
         async function loadMessages(userId) {
             const badge = document.getElementById('msg-count');
+            badge.innerText = ""; // Wipe out any "0" before loading
+            badge.classList.add('hidden');
             
             const { data, error } = await supabase
                 .from('messages')
@@ -85,12 +87,9 @@
                 allMessages = data;
                 renderMessages();
                 
-                // Show actual count only after data arrives
                 if (data.length > 0) {
                     badge.innerText = data.length;
                     badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
                 }
             }
         }
