@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Checkout</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
+        
+        /* 50 Static Star Logic */
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(110vh); } }
+
+        .dashed-line { border-top: 2px dashed rgba(255,255,255,0.1); width: 100%; margin: 15px 0; }
+        .spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="pb-10">
+
+    <div class="stars" id="stars"></div>
+
+    <nav class="p-6 flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-md z-50">
+        <a href="cart.html" class="text-white"><i data-lucide="chevron-left"></i></a>
+        <h1 class="text-lg font-black uppercase tracking-tighter text-sdel">Confirmation</h1>
+        <div class="w-6"></div>
+    </nav>
+
+    <main class="p-6 space-y-6 relative z-10">
+        <div class="card-zinc p-6 rounded-[32px] space-y-4">
+            <h2 class="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em]">Order Summary</h2>
+            
+            <div id="summary-items" class="space-y-3">
+                </div>
+
+            <div class="dashed-line"></div>
+
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs font-bold">
+                    <span class="text-gray-500 uppercase">Subtotal</span>
+                    <span id="subtotal">₦0</span>
+                </div>
+                <div class="flex justify-between text-xs font-bold">
+                    <span class="text-gray-500 uppercase">Delivery Fee</span>
+                    <span class="text-green-500">FREE</span>
+                </div>
+                <div class="flex justify-between items-end pt-2">
+                    <span class="text-[10px] font-black uppercase text-sdel">Total to Pay</span>
+                    <span id="final-total" class="text-2xl font-black italic tracking-tighter">₦0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-zinc p-6 rounded-[32px] space-y-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-zinc-900 rounded-2xl flex items-center justify-center text-sdel">
+                    <i data-lucide="map-pin" size="20"></i>
+                </div>
+                <div>
+                    <h3 class="text-xs font-black uppercase tracking-tight">Delivery Address</h3>
+                    <p id="user-phone" class="text-[10px] text-gray-500 font-bold">Fetching address...</p>
+                </div>
+            </div>
+        </div>
+
+        <button id="pay-btn" onclick="processPayment()" class="w-full bg-white text-black py-6 rounded-[24px] font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center space-x-3 shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-95 transition-all">
+            <i data-lucide="shield-check" size="18"></i>
+            <span id="pay-text">Confirm & Pay Now</span>
+        </button>
+        
+        <p class="text-[9px] text-center text-gray-600 font-bold uppercase tracking-widest">Secure transaction powered by Sdel Wallet</p>
+    </main>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let totalAmount = 0;
+        let userBalance = 0;
+        let userId = null;
+
+        async function init() {
+            createStars();
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.replace('login.html');
+            userId = session.user.id;
+
+            // Load Cart Items & Profile Balance
+            const [cartRes, profileRes] = await Promise.all([
+                supabase.from('cart').select('*, products(*)').eq('user_id', userId),
+                supabase.from('profile').select('*').eq('id', userId).single()
+            ]);
+
+            userBalance = profileRes.data.wallet_balance;
+            document.getElementById('user-phone').innerText = `Campus Delivery: ${profileRes.data.phone || 'Standard Address'}`;
+
+            renderSummary(cartRes.data);
+        }
+
+        function renderSummary(items) {
+            const container = document.getElementById('summary-items');
+            totalAmount = 0;
+
+            container.innerHTML = items.map(item => {
+                totalAmount += (item.products.price * item.quantity);
+                return `
+                    <div class="flex justify-between items-center">
+                        <span class="text-[11px] font-bold uppercase text-gray-300">${item.quantity}x ${item.products.name}</span>
+                        <span class="text-xs font-black italic">₦${(item.products.price * item.quantity).toLocaleString()}</span>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('subtotal').innerText = `₦${totalAmount.toLocaleString()}`;
+            document.getElementById('final-total').innerText = `₦${totalAmount.toLocaleString()}`;
+            lucide.createIcons();
+        }
+
+        window.processPayment = async () => {
+            const btn = document.getElementById('pay-btn');
+            const btnText = document.getElementById('pay-text');
+
+            if (userBalance < totalAmount) {
+                alert("Insufficient Balance! Please top up your wallet.");
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> PROCESSING...';
+            lucide.createIcons();
+
+            // 1. Deduct Balance
+            const { error: balanceErr } = await supabase.from('profile')
+                .update({ wallet_balance: userBalance - totalAmount })
+                .eq('id', userId);
+
+            if (balanceErr) { alert("Payment failed"); return; }
+
+            // 2. Clear Cart
+            await supabase.from('cart').delete().eq('user_id', userId);
+
+            // 3. Success Feedback
+            btnText.innerText = "SUCCESSFUL!";
+            btn.classList.add('bg-green-500', 'text-white');
+            setTimeout(() => window.location.href = 'dashboard.html', 2000);
+        };
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
+                star.style.left = Math.random() * 100 + 'vw';
+                if (i < 50) star.style.top = Math.random() * 100 + 'vh';
+                else star.style.top = '-' + (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
+                container.appendChild(star);
+            }
+        }
+
+        init();
+    </script>
+</body>
+  </html>
+  
