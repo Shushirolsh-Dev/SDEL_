@@ -16,15 +16,19 @@
         .bg-sdel { background-color: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         
-        /* VERY SLOW Falling Stars */
-        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; pointer-events: none; }
+        /* EXTRA SLOW Falling Stars - Overlays Everything */
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 250; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(110vh); } }
 
-        /* Modal Blur */
-        .modal-overlay { backdrop-filter: blur(25px); z-index: 200; position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; padding: 24px; overflow-y: auto; }
+        /* Modals */
+        .modal-overlay { backdrop-filter: blur(25px); z-index: 200; position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; padding: 24px; overflow-y: auto; }
         .input-zinc { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; width: 100%; padding: 16px; border-radius: 16px; font-size: 14px; outline: none; }
         .input-zinc:focus { border-color: #FF6600; }
+
+        /* Spinner Animation */
+        .spinner { animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="pb-24">
@@ -81,24 +85,26 @@
     </main>
 
     <div id="edit-modal" class="modal-overlay">
-        <div class="flex justify-between items-center mb-8">
+        <div class="flex justify-between items-center mb-8 relative z-10">
             <h2 class="text-xl font-black uppercase italic">Edit <span class="text-sdel">Profile</span></h2>
             <button onclick="closeModal('edit-modal')" class="text-white"><i data-lucide="x"></i></button>
         </div>
-        <div class="space-y-4">
+        <div class="space-y-4 relative z-10">
             <input id="edit-fname" type="text" class="input-zinc" placeholder="First Name">
             <input id="edit-lname" type="text" class="input-zinc" placeholder="Last Name">
             <input id="edit-phone" type="text" class="input-zinc" placeholder="Phone Number">
-            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest">Save Changes</button>
+            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
+                <span id="save-text">Save Changes</span>
+            </button>
         </div>
     </div>
 
     <div id="security-modal" class="modal-overlay">
-        <div class="flex justify-between items-center mb-8">
+        <div class="flex justify-between items-center mb-8 relative z-10">
             <h2 class="text-xl font-black uppercase italic">Update <span class="text-sdel">Security</span></h2>
             <button onclick="closeModal('security-modal')" class="text-white"><i data-lucide="x"></i></button>
         </div>
-        <div class="space-y-4">
+        <div class="space-y-4 relative z-10">
             <div class="relative">
                 <input id="new-pass" type="password" class="input-zinc" placeholder="New Password">
                 <button onclick="togglePass('new-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
@@ -108,8 +114,17 @@
                 <button onclick="togglePass('confirm-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
             </div>
             <p id="pass-msg" class="text-[10px] font-bold uppercase text-center"></p>
-            <button onclick="updatePassword()" id="pass-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest">Update Password</button>
+            <button onclick="updatePassword()" id="pass-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
+                <span id="pass-text">Update Password</span>
+            </button>
         </div>
+    </div>
+
+    <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 p-4 flex justify-around items-center z-50">
+        <a href="dashboard.html" class="text-gray-500"><i data-lucide="home"></i></a>
+        <a href="products.html" class="text-gray-500"><i data-lucide="grid"></i></a>
+        <a href="#" class="text-gray-500"><i data-lucide="search"></i></a>
+        <a href="#" class="text-sdel"><i data-lucide="user"></i></a>
     </div>
 
     <script type="module">
@@ -147,23 +162,34 @@
         window.togglePass = (id) => {
             const el = document.getElementById(id);
             el.type = el.type === 'password' ? 'text' : 'password';
+            lucide.createIcons();
         }
 
         window.saveProfileUpdates = async () => {
             const btn = document.getElementById('save-btn');
-            btn.innerText = "UPDATING...";
+            const text = document.getElementById('save-text');
+            text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> UPDATING...';
+            lucide.createIcons();
+            
             const { error } = await supabase.from('profile').update({
                 first_name: document.getElementById('edit-fname').value,
                 last_name: document.getElementById('edit-lname').value,
                 phone: document.getElementById('edit-phone').value
             }).eq('id', currentUser.id);
-            if (error) alert(error.message); else location.reload();
+
+            if (error) {
+                alert(error.message);
+                text.innerText = "Save Changes";
+            } else {
+                location.reload();
+            }
         };
 
         window.updatePassword = async () => {
             const pass = document.getElementById('new-pass').value;
             const confirm = document.getElementById('confirm-pass').value;
             const msg = document.getElementById('pass-msg');
+            const btnText = document.getElementById('pass-text');
 
             if (pass !== confirm) {
                 msg.innerText = "Passwords do not match!";
@@ -171,26 +197,31 @@
                 return;
             }
 
+            btnText.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> PROCESSING...';
+            lucide.createIcons();
+
             const { error } = await supabase.auth.updateUser({ password: pass });
             if (error) {
                 msg.innerText = error.message;
                 msg.className = "text-[10px] font-bold uppercase text-center text-red-500";
+                btnText.innerText = "Update Password";
             } else {
                 msg.innerText = "Password updated successfully!";
                 msg.className = "text-[10px] font-bold uppercase text-center text-green-500";
                 setTimeout(() => closeModal('security-modal'), 2000);
             }
+            lucide.createIcons();
         }
 
         function createStars() {
             const container = document.getElementById('stars');
-            for (let i = 0; i < 180; i++) {
+            for (let i = 0; i < 150; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
                 star.style.left = Math.random() * 100 + 'vw';
                 star.style.top = '-' + (Math.random() * 100) + 'vh';
-                star.style.animationDuration = (Math.random() * 20 + 20) + 's'; // Extra slow
+                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
                 container.appendChild(star);
             }
         }
