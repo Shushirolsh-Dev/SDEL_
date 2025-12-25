@@ -3,161 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel | Messages</title>
+    <title>Sdel - Join</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #000; color: white; overflow-x: hidden; display: none; }
-        .text-sdel { color: #FF6600; }
-        .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
+        body { background: #000; color: white; font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; }
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+        .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { 0% { transform: translateY(-10vh); } 100% { transform: translateY(110vh); } }
+        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 28px; padding: 35px; width: 95%; max-width: 450px; z-index: 10; position: relative; max-height: 95vh; overflow-y: auto; }
+        .sdel-input { background: #161616; border: 1px solid #333; border-radius: 14px; padding: 16px; width: 100%; color: white; outline: none; font-size: 16px; }
+        .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 18px; border-radius: 14px; text-transform: uppercase; cursor: pointer; border: none; font-size: 16px; letter-spacing: 1px; }
+        .btn-orange:disabled { background: #555; cursor: not-allowed; }
+        .eye-box { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 100; padding: 10px; }
+        .hidden { display: none !important; }
+        .phone-container { display: flex; align-items: center; background: #161616; border: 1px solid #333; border-radius: 14px; overflow: hidden; }
+        .prefix { padding-left: 16px; color: #888; font-weight: 900; font-size: 16px; }
+        .phone-input { background: transparent; border: none; padding: 16px 12px; width: 100%; color: white; outline: none; font-size: 16px; }
         
-        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
-        .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
-        @keyframes fall { to { transform: translateY(110vh); } }
-
-        .msg-bubble { border-left: 3px solid transparent; transition: all 0.3s ease; }
-        .msg-bubble-general { border-left-color: #FF6600; }
-        .msg-bubble-team { border-left-color: #3b82f6; }
+        /* UPDATED: Increased size and visibility */
+        .criteria-item { font-size: 14px; font-weight: 900; text-transform: uppercase; margin-right: 12px; transition: color 0.3s; }
+        .valid { color: #22c55e; } 
+        .invalid { color: rgba(255, 255, 255, 0.2); } /* Muted white for better visibility on black */
+        
+        .login-card::-webkit-scrollbar { width: 5px; }
+        .login-card::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        .live-msg { text-transform: uppercase; font-size: 10px; font-weight: 900; margin-top: 4px; padding-left: 5px; }
     </style>
 </head>
-<body class="pb-10">
-
-    <div class="stars" id="stars"></div>
-
-    <nav class="p-6 flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-md z-50">
-        <a href="dashboard.html" class="text-white"><i data-lucide="chevron-left"></i></a>
-        <h1 class="text-lg font-black uppercase tracking-tighter">Inbox</h1>
-        <div class="relative">
-            <i data-lucide="bell" size="20"></i>
-            <span id="msg-count" class="hidden absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center">0</span>
+<body class="flex items-center justify-center min-h-screen">
+    <div class="stars" id="star-field"></div>
+    <div class="login-card">
+        <a href="index.html" class="text-[12px] font-black text-white hover:text-[#FF6600] uppercase tracking-[0.4em] transition block mb-6">← Back</a>
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-black italic uppercase tracking-tighter">S<span class="text-[#FF6600]">DEL</span> JOIN</h1>
+            <p class="text-[12px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-3">Create your account</p>
         </div>
-    </nav>
-
-    <main class="p-6 space-y-6 relative z-10">
-        <div class="flex bg-zinc-900/50 p-1 rounded-2xl card-zinc">
-            <button onclick="filterMsgs('general')" id="btn-gen" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all bg-sdel text-black">General</button>
-            <button onclick="filterMsgs('team')" id="btn-team" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all text-gray-500">Personal</button>
-        </div>
-
-        <div id="message-container" class="space-y-4">
-            <div class="animate-pulse space-y-4">
-                <div class="h-24 bg-zinc-900 rounded-3xl w-full"></div>
-                <div class="h-24 bg-zinc-900 rounded-3xl w-full"></div>
+        <div id="msg" class="hidden p-4 mb-5 rounded text-sm font-black text-center uppercase"></div>
+        <div class="space-y-4">
+            <div class="flex gap-3">
+                <input type="text" id="fname" placeholder="FIRST NAME" class="sdel-input w-1/2">
+                <input type="text" id="lname" placeholder="LAST NAME" class="sdel-input w-1/2">
             </div>
-        </div>
-    </main>
-
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
-
-        let allMessages = [];
-        let currentFilter = 'general';
-        let currentUser = null;
-
-        async function init() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.href = 'login.html';
-            currentUser = session.user;
-
-            document.body.style.display = 'block';
-            createStars();
             
-            await markAsRead('general');
-            await loadMessages();
-        }
+            <div>
+                <input type="text" id="uname" placeholder="USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()" onblur="liveCheck('username', this.value, 'u-msg')">
+                <p id="u-msg" class="live-msg hidden"></p>
+            </div>
 
-        async function markAsRead(type) {
-            const column = type === 'general' ? 'last_read_general' : 'last_read_team';
-            await supabase
-                .from('profile')
-                .update({ [column]: new Date().toISOString() })
-                .eq('id', currentUser.id);
-        }
-
-        async function loadMessages() {
-            const badge = document.getElementById('msg-count');
-            
-            const { data: profile } = await supabase
-                .from('profile')
-                .select('last_read_general, last_read_team')
-                .eq('id', currentUser.id)
-                .single();
-
-            const lastGen = new Date(profile?.last_read_general || 0);
-            const lastTeam = new Date(profile?.last_read_team || 0);
-
-            const { data, error } = await supabase
-                .from('messages')
-                .select('*')
-                .or(`recipient_id.is.null,recipient_id.eq.${currentUser.id}`)
-                .order('created_at', { ascending: false });
-
-            if (!error && data) {
-                allMessages = data;
-                renderMessages();
-                
-                const unreadGen = data.filter(m => m.type === 'general' && new Date(m.created_at) > lastGen).length;
-                const unreadTeam = data.filter(m => m.type === 'team' && new Date(m.created_at) > lastTeam).length;
-                
-                const totalUnread = unreadGen + unreadTeam;
-
-                if (totalUnread > 0) {
-                    badge.innerText = totalUnread;
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
-            }
-        }
-
-        window.filterMsgs = async (type) => {
-            currentFilter = type;
-            
-            if (type === 'team') {
-                await markAsRead('team');
-                await loadMessages();
-            }
-
-            document.getElementById('btn-gen').className = type === 'general' ? 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase bg-sdel text-black' : 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase text-gray-500';
-            document.getElementById('btn-team').className = type === 'team' ? 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase bg-sdel text-black' : 'flex-1 py-3 rounded-xl text-[10px] font-black uppercase text-gray-500';
-            renderMessages();
-        };
-
-        function renderMessages() {
-            const container = document.getElementById('message-container');
-            const filtered = allMessages.filter(m => m.type === currentFilter);
-
-            if (filtered.length === 0) {
-                container.innerHTML = `<div class="py-20 text-center opacity-30 font-black uppercase text-[10px] tracking-widest">No ${currentFilter} messages</div>`;
-                return;
-            }
-
-            container.innerHTML = filtered.map(m => `
-                <div class="card-zinc p-6 rounded-[32px] msg-bubble ${m.type === 'general' ? 'msg-bubble-general' : 'msg-bubble-team'}">
-                    <p class="text-base text-white leading-relaxed font-semibold">${m.content}</p>
-                    <div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
-                        <span class="text-[8px] font-black uppercase text-gray-500 tracking-widest">${formatSdelTime(m.created_at)}</span>
-                        <i data-lucide="${m.type === 'general' ? 'megaphone' : 'user'}" size="12" class="text-gray-600"></i>
-                    </div>
+            <div>
+                <div class="phone-container">
+                    <span class="prefix">+234</span>
+                    <input type="tel" id="ph" placeholder="8012345678" maxlength="10" class="phone-input" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onblur="liveCheck('phone', '+234'+this.value, 'p-msg')">
                 </div>
-            `).join('');
-            lucide.createIcons();
+                <p id="p-msg" class="live-msg hidden"></p>
+            </div>
+
+            <div>
+                <input type="email" id="em" placeholder="EMAIL ADDRESS" class="sdel-input" onblur="liveCheck('email', this.value, 'e-msg')">
+                <p id="e-msg" class="live-msg hidden"></p>
+            </div>
+
+            <div class="relative">
+                <input type="password" id="pw" placeholder="PASSWORD" class="sdel-input pr-14" oninput="validatePassword(); checkMatch();">
+                <div class="eye-box" onclick="toggleView('pw', 'on1', 'off1')">
+                    <svg id="on1" class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="off1" class="w-5 h-5 text-gray-500 hidden" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </div>
+            </div>
+            <div class="flex flex-wrap px-1 gap-y-2">
+                <span id="c-len" class="criteria-item invalid">6+ Digits</span>
+                <span id="c-up" class="criteria-item invalid">Uppercase</span>
+                <span id="c-low" class="criteria-item invalid">Lowercase</span>
+                <span id="c-sym" class="criteria-item invalid">Symbol</span>
+            </div>
+            <div class="relative">
+                <input type="password" id="rpw" placeholder="RE-ENTER PASSWORD" class="sdel-input pr-14" oninput="checkMatch()">
+                <div class="eye-box" onclick="toggleView('rpw', 'on2', 'off2')">
+                    <svg id="on2" class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="off2" class="w-5 h-5 text-gray-500 hidden" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </div>
+            </div>
+            <div id="match-text" class="text-[12px] font-black uppercase text-center hidden">Match Status</div>
+            <div class="flex items-center gap-3 px-2 py-2">
+                <input type="checkbox" id="agree" class="w-5 h-5 accent-[#FF6600]">
+                <label for="agree" class="text-[11px] font-bold text-gray-400 uppercase tracking-wide">I agree to the <a href="terms.html" class="text-white underline">Terms</a> & <a href="privacy.html" class="text-white underline">Privacy</a></label>
+            </div>
+            <button onclick="signUp()" id="s-btn" class="btn-orange mt-2">Create Account</button>
+        </div>
+    </div>
+    <script>
+        const f = document.getElementById('star-field');
+        for(let i=0; i<80; i++) {
+            const s = document.createElement('div'); s.className = 'star';
+            s.style.width = s.style.height = (Math.random()*2+1.5)+'px';
+            s.style.left = Math.random()*100+'vw'; s.style.animationDuration = (Math.random()*20+25)+'s';
+            f.appendChild(s);
+        }
+        const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let isUnique = { username: true, phone: true, email: true };
+
+        async function liveCheck(col, val, msgId) {
+            const msgEl = document.getElementById(msgId);
+            if (!val || val.length < 3) { msgEl.classList.add('hidden'); return; }
+            const { data } = await sb.from('profile').select(col).eq(col, val).maybeSingle();
+            msgEl.classList.remove('hidden');
+            if (data) {
+                msgEl.innerText = col + " already taken";
+                msgEl.style.color = "#ef4444";
+                isUnique[col] = false;
+            } else {
+                msgEl.innerText = col + " available";
+                msgEl.style.color = "#22c55e";
+                isUnique[col] = true;
+            }
         }
 
-        function formatSdelTime(dateString) {
-            const date = new Date(dateString);
-            const now = new Date();
-            const diff = Math.floor((now - date) / 1000);
-            const options = { month: 'short', day: 'numeric', year: 'numeric' };
-            const staticDate = date.toLocaleDateString('en-US', options);
+        function validatePassword() {
+            const p = document.getElementById('pw').value;
+            const len = p.length >= 6;
+            const up = /[A-Z]/.test(p);
+            const low = /[a-z]/.test(p);
+            const sym = /[^A-Za-z0-9]/.test(p);
+            document.getElementById('c-len').className = `criteria-item ${len ? 'valid' : 'invalid'}`;
+            document.getElementById('c-up').className = `criteria-item ${up ? 'valid' : 'invalid'}`;
+            document.getElementById('c-low').className = `criteria-item ${low ? 'valid' : 'invalid'}`;
+            document.getElementById('c-sym').className = `criteria-item ${sym ? 'valid' : 'invalid'}`;
+            return len && up && low && sym;
+        }
 
-            if (diff < 60) return `${staticDate} • just now`;
-            if (diff < 3600) return `${staticDate} • ${Math.floor(diff/60)} min ago`;
-            if (diff < 86400) return `${staticDate} • ${Math.floor(diff/3600)} hr ago`;
-            if (diff < 2678400) return `${staticDate} • ${Math.floor(
+        function checkMatch() {
+            const p1 = document.getElementById('pw').value;
+            const p2 = document.getElementById('rpw').value;
+            const mt = document.getElementById('match-text');
+            if(!p2) { mt.classList.add('hidden'); return; }
+            mt.classList.remove('hidden');
+            if(p1 === p2) { mt.innerText = "PASSWORDS MATCH"; mt.style.color = "#22c55e"; } 
+            else { mt.innerText = "PASSWORDS DO NOT MATCH"; mt.style.color = "#ef4444"; }
+        }
+
+        function toggleView(inputId, onId, offId) {
+            const p = document.getElementById(inputId);
+            const on = document.getElementById(onId);
+            const off = document.getElementById(offId);
+            if (p.type === 'password') { p.type = 'text'; on.classList.add('hidden'); off.classList.remove('hidden'); }
+            else { p.type = 'password'; on.classList.remove('hidden'); off.classList.add('hidden'); }
+        }
+
+        async function signUp() {
+            const fn = document.getElementById('fname').value;
+            const ln = document.getElementById('lname').value;
+            const un = document.getElementById('uname').value;
+            const ph = document.getElementById('ph').value;
+            const em = document.getElementById('em').value;
+            const pw = document.getElementById('pw').value;
+            const rpw = document.getElementById('rpw').value;
+            const agree = document.getElementById('agree').checked;
+            const btn = document.getElementById('s-btn');
+
+            if(!fn || !ln || !un || !ph || !em || !pw || !rpw) return showMsg("FILL ALL FIELDS", "red");
+            if(!isUnique.username || !isUnique.phone || !isUnique.email) return showMsg("SOME DATA IS ALREADY REGISTERED", "red");
+            if(ph.length !== 10) return showMsg("PHONE MUST BE 10 DIGITS", "red");
+            if(!validatePassword()) return showMsg("CRITERIA NOT MET", "red");
+            if
         
