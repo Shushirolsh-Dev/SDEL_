@@ -144,15 +144,29 @@
         }
 
         async function loadProfile() {
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
-            const fName = profile?.first_name || "Scholar";
+            const { data: profile, error } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
+            
+            if (error) {
+                console.error("Profile load error:", error);
+                return;
+            }
+
+            // STRICT CORRECTION: Pull first_name and last_name from table, use username as fallback
+            const fName = profile?.first_name || profile?.username || "User";
             const lName = profile?.last_name || "";
-            document.getElementById('p-full-name').innerText = `${fName} ${lName}`;
+            
+            document.getElementById('p-full-name').innerText = (fName + " " + lName).trim();
             document.getElementById('p-email').innerText = currentUser.email;
             document.getElementById('p-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
-            document.getElementById('p-initials').innerText = (fName[0] + (lName ? lName[0] : "")).toUpperCase();
-            document.getElementById('edit-fname').value = fName;
-            document.getElementById('edit-lname').value = lName;
+            
+            // Set initials based on names found in table
+            const initial1 = fName.charAt(0);
+            const initial2 = lName.charAt(0) || "";
+            document.getElementById('p-initials').innerText = (initial1 + initial2).toUpperCase();
+            
+            // Fill edit fields with database values
+            document.getElementById('edit-fname').value = profile?.first_name || "";
+            document.getElementById('edit-lname').value = profile?.last_name || "";
             document.getElementById('edit-phone').value = profile?.phone || "";
         }
 
@@ -215,22 +229,13 @@
 
         function createStars() {
             const container = document.getElementById('stars');
-            
-            // Generate stars
             for (let i = 0; i < 150; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
                 star.style.left = Math.random() * 100 + 'vw';
-                
-                // If it's one of the first 50 stars, place it randomly on the screen (Pre-fill)
-                if (i < 50) {
-                    star.style.top = Math.random() * 100 + 'vh';
-                } else {
-                    // Otherwise, start it above the screen (Continuous flow)
-                    star.style.top = '-' + (Math.random() * 100) + 'vh';
-                }
-                
+                if (i < 50) star.style.top = Math.random() * 100 + 'vh';
+                else star.style.top = '-' + (Math.random() * 100) + 'vh';
                 star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
                 container.appendChild(star);
             }
@@ -242,5 +247,4 @@
         lucide.createIcons();
     </script>
 </body>
-    </html>
-    
+</html>
