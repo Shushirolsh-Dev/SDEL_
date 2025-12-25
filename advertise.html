@@ -12,6 +12,7 @@
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
         select, textarea, input { background: #111 !important; border: 1px solid #222 !important; color: white !important; outline: none; }
         .btn-sdel { background: #FF6600; color: #000; font-weight: 900; text-transform: uppercase; }
+        .premium-border { border: 2px solid #FF6600 !important; }
     </style>
 </head>
 <body class="p-6 pb-24">
@@ -37,16 +38,25 @@
         </div>
 
         <div>
-            <label class="text-[10px] font-black uppercase text-zinc-500 ml-2">Duration & Cost</label>
-            <select id="adPlan" class="w-full p-4 rounded-2xl mt-1 text-sm">
-                <option value="1000">3 Days - ₦1,000</option>
-                <option value="2000">7 Days - ₦2,000</option>
-                <option value="7000">1 Month - ₦7,000</option>
+            <label class="text-[10px] font-black uppercase text-zinc-500 ml-2">Select Ad Tier</label>
+            <select id="adPlan" onchange="updatePriceDisplay()" class="w-full p-4 rounded-2xl mt-1 text-sm font-bold">
+                <option value="1500" data-tier="Standard">Standard (3 Days) - ₦1,500</option>
+                <option value="3500" data-tier="Standard">Standard (7 Days) - ₦3,500</option>
+                <option value="10000" data-tier="Standard">Standard (1 Month) - ₦10,000</option>
+                <option value="25000" data-tier="Premium" class="text-[#FF6600] font-black">🔥 PREMIUM CUSTOM (1 Month) - ₦25,000</option>
             </select>
         </div>
 
+        <div id="priceBox" class="bg-zinc-900/50 p-4 rounded-2xl border border-dashed border-zinc-700">
+            <div class="flex justify-between items-center">
+                <span class="text-[9px] font-black uppercase text-zinc-500">Total Payable:</span>
+                <span id="displayPrice" class="text-xl font-black text-[#FF6600]">₦1,500</span>
+            </div>
+            <p id="tierNote" class="text-[8px] text-zinc-600 font-bold uppercase mt-1">Standard placement in dashboard rotation.</p>
+        </div>
+
         <button onclick="submitAdvert()" id="submitBtn" class="w-full btn-sdel py-5 rounded-2xl text-xs tracking-widest active:scale-95 transition flex items-center justify-center gap-2">
-            <i data-lucide="credit-card" size="16"></i> Pay & Post Advert
+            <i data-lucide="zap" size="16"></i> Confirm & Pay Now
         </button>
     </div>
 
@@ -54,19 +64,38 @@
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
+        window.updatePriceDisplay = () => {
+            const select = document.getElementById('adPlan');
+            const price = select.value;
+            const tier = select.options[select.selectedIndex].getAttribute('data-tier');
+            
+            document.getElementById('displayPrice').innerText = `₦${Number(price).toLocaleString()}`;
+            
+            const note = document.getElementById('tierNote');
+            if (tier === 'Premium') {
+                note.innerText = "⭐ PREMIUM: Full-screen priority & Custom UI elements included.";
+                note.classList.add('text-[#FF6600]');
+            } else {
+                note.innerText = "Standard placement in dashboard rotation.";
+                note.classList.remove('text-[#FF6600]');
+            }
+        };
+
         window.submitAdvert = async () => {
             const btn = document.getElementById('submitBtn');
-            const file = document.getElementById('adFile').files[0];
+            const fileInput = document.getElementById('adFile');
+            const file = fileInput.files[0];
             const title = document.getElementById('adTitle').value;
             const desc = document.getElementById('adDesc').value;
+            const price = document.getElementById('adPlan').value;
 
             if(!file || !title) return alert("Fill all fields and select a file");
 
             btn.disabled = true;
-            btn.innerText = "UPLOADING...";
+            btn.innerHTML = `<span class="animate-pulse">PROCESSING PAYMENT...</span>`;
 
-            // 1. Upload File to Storage
-            const fileName = `${Date.now()}_${file.name}`;
+            // 1. Upload to Storage
+            const fileName = `ads/${Date.now()}_${file.name}`;
             const { data: uploadData, error: uploadError } = await supabase.storage
                 .from('adverts')
                 .upload(fileName, file);
@@ -74,25 +103,27 @@
             if(uploadError) {
                 alert("Upload failed: " + uploadError.message);
                 btn.disabled = false;
-                btn.innerText = "Pay & Post Advert";
+                btn.innerText = "Confirm & Pay Now";
                 return;
             }
 
             const { data: { publicUrl } } = supabase.storage.from('adverts').getPublicUrl(fileName);
 
-            // 2. Save to promoted_ads table (set active to false until admin approves)
+            // 2. Insert into database
             const { error: dbError } = await supabase.from('promoted_ads').insert({
                 title: title,
                 description: desc,
                 media_url: publicUrl,
-                active: false // Admin must approve
+                cost: price,
+                active: false 
             });
 
             if(!dbError) {
-                alert("Ad submitted! It will appear after admin approval.");
+                alert("Order Placed! Once you complete the transfer, the admin will activate your ad.");
                 window.location.href = 'dashboard.html';
             } else {
-                alert("Error: " + dbError.message);
+                alert("Database error: " + dbError.message);
+                btn.disabled = false;
             }
         };
         lucide.createIcons();
