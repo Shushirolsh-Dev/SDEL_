@@ -151,22 +151,29 @@
                 return;
             }
 
-            // STRICT CORRECTION: Pull first_name and last_name from table, use username as fallback
-            const fName = profile?.first_name || profile?.username || "User";
-            const lName = profile?.last_name || "";
+            // Correction: Get real data from DB
+            const firstNameDB = profile?.first_name || "";
+            const lastNameDB = profile?.last_name || "";
+            const userNameDB = profile?.username || "User";
+
+            // Update UI Name Display
+            if (firstNameDB || lastNameDB) {
+                document.getElementById('p-full-name').innerText = (firstNameDB + " " + lastNameDB).trim();
+            } else {
+                document.getElementById('p-full-name').innerText = userNameDB;
+            }
             
-            document.getElementById('p-full-name').innerText = (fName + " " + lName).trim();
             document.getElementById('p-email').innerText = currentUser.email;
             document.getElementById('p-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
             
-            // Set initials based on names found in table
-            const initial1 = fName.charAt(0);
-            const initial2 = lName.charAt(0) || "";
+            // Set initials
+            const initial1 = firstNameDB ? firstNameDB.charAt(0) : userNameDB.charAt(0);
+            const initial2 = lastNameDB ? lastNameDB.charAt(0) : "";
             document.getElementById('p-initials').innerText = (initial1 + initial2).toUpperCase();
             
-            // Fill edit fields with database values
-            document.getElementById('edit-fname').value = profile?.first_name || "";
-            document.getElementById('edit-lname').value = profile?.last_name || "";
+            // PRE-FILL INPUT FIELDS WITH CURRENT DB VALUES (CORRECTED)
+            document.getElementById('edit-fname').value = firstNameDB;
+            document.getElementById('edit-lname').value = lastNameDB;
             document.getElementById('edit-phone').value = profile?.phone || "";
         }
 
@@ -232,19 +239,5 @@
             for (let i = 0; i < 150; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
-                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
-                star.style.left = Math.random() * 100 + 'vw';
-                if (i < 50) star.style.top = Math.random() * 100 + 'vh';
-                else star.style.top = '-' + (Math.random() * 100) + 'vh';
-                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
-                container.appendChild(star);
-            }
-        }
-
-        document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
-        createStars();
-        checkSession();
-        lucide.createIcons();
-    </script>
-</body>
-</html>
+                star.style.width =
+        
