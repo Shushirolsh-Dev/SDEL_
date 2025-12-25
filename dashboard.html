@@ -8,7 +8,6 @@
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         
-        // Use standard storage to stay synced with your student login page
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         async function gatekeeper() {
@@ -17,14 +16,30 @@
                 window.location.replace('login.html');
                 return;
             }
+
+            // --- ADDED: SECURITY CHECK FOR BAN/SUSPENSION ---
+            const { data: profile, error } = await supabase
+                .from('profile')
+                .select('account_status')
+                .eq('id', session.user.id)
+                .single();
+
+            if (profile && (profile.account_status === 'banned' || profile.account_status === 'suspended')) {
+                alert(`ACCESS DENIED: Your account is ${profile.account_status.toUpperCase()}.`);
+                await supabase.auth.signOut();
+                window.location.replace('login.html');
+                return;
+            }
+            // -----------------------------------------------
+
             document.documentElement.style.opacity = "1";
             initializeApp(session.user);
             listenForMessages(session.user.id); 
+            loadPromotedAds(); // Added call for ads
         }
 
         async function listenForMessages(userId) {
             const updateCount = async () => {
-                // Fetch user's last read timestamp
                 const { data: profile } = await supabase
                     .from('profile')
                     .select('last_read_at')
@@ -33,7 +48,6 @@
 
                 const lastRead = profile?.last_read_at || '1970-01-01T00:00:00Z';
 
-                // Only count messages newer than the last time they opened them
                 const { data } = await supabase
                     .from('messages')
                     .select('id')
@@ -49,7 +63,6 @@
                 }
             };
 
-            // GLOBAL FUNCTION: Clears unread when bell is clicked
             window.markAsRead = async () => {
                 const now = new Date().toISOString();
                 await supabase.from('profile').update({ last_read_at: now }).eq('id', userId);
@@ -87,6 +100,27 @@
             document.getElementById('wallet-balance').innerText = `₦${balance.toLocaleString()}`;
 
             loadActivity(user.id);
+        }
+
+        // --- ADDED: PROMOTED ADS HANDLER ---
+        async function loadPromotedAds() {
+            // This fetches from an 'ads' table or shows default placeholders
+            const adContainer = document.getElementById('promoted-ads-feed');
+            const { data: ads } = await supabase.from('promoted_ads').select('*').eq('active', true).limit(5);
+            
+            if (ads && ads.length > 0) {
+                adContainer.innerHTML = ads.map(ad => `
+                    <div class="card-zinc p-4 rounded-3xl min-w-[280px] border-zinc-700/50">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="bg-sdel/10 text-sdel text-[8px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase tracking-widest">Sponsored</span>
+                            <i data-lucide="external-link" size="12" class="text-gray-500"></i>
+                        </div>
+                        <h4 class="font-black text-xs uppercase italic">${ad.title}</h4>
+                        <p class="text-[9px] text-gray-400 font-bold uppercase mt-1 line-clamp-2">${ad.description}</p>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            }
         }
 
         async function loadActivity(userId) {
@@ -129,6 +163,7 @@
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.8); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(100vh); } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body class="bg-black text-white">
@@ -164,6 +199,23 @@
                 </div>
             </div>
         </header>
+
+        <section class="space-y-4">
+            <div class="flex justify-between items-center px-2">
+                <h3 class="text-xs font-black uppercase tracking-widest text-gray-500">Promoted Services</h3>
+                <span class="text-[8px] font-black uppercase text-sdel border-b border-sdel/30">Advertise here</span>
+            </div>
+            <div id="promoted-ads-feed" class="flex overflow-x-auto gap-4 no-scrollbar pb-2">
+                <div class="card-zinc p-4 rounded-3xl min-w-[280px] border-zinc-700/50">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="bg-sdel/10 text-sdel text-[8px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase tracking-widest">Sponsored</span>
+                        <i data-lucide="sparkles" size="12" class="text-sdel"></i>
+                    </div>
+                    <h4 class="font-black text-xs uppercase italic">Your Ad Here</h4>
+                    <p class="text-[9px] text-gray-400 font-bold uppercase mt-1">Reach 1000+ students in Great Ife daily. Boost your business today.</p>
+                </div>
+            </div>
+        </section>
 
         <section class="card-zinc rounded-3xl p-6 border-sdel/30 border-2">
             <div class="relative z-10 space-y-4">
@@ -232,4 +284,4 @@
     </script>
 </body>
     </html>
-            
+    
