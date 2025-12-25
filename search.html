@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Search Market</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { background: #000; color: #fff; font-family: 'Poppins', sans-serif; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        input:focus { border-color: #FF6600 !important; }
+    </style>
+</head>
+<body class="p-6">
+    <nav class="flex items-center gap-4 mb-8">
+        <button onclick="window.history.back()" class="bg-zinc-900 p-3 rounded-xl"><i data-lucide="chevron-left"></i></button>
+        <h1 class="text-xl font-black uppercase italic tracking-tighter">Search <span class="text-[#FF6600]">Market</span></h1>
+    </nav>
+
+    <div class="relative mb-8">
+        <input type="text" id="searchInput" placeholder="Search products, manuals, PQs..." 
+            class="w-full bg-zinc-900 border border-white/10 p-5 rounded-2xl outline-none text-sm font-bold">
+        <button onclick="handleSearch()" class="absolute right-4 top-1/2 -translate-y-1/2 text-[#FF6600]">
+            <i data-lucide="search"></i>
+        </button>
+    </div>
+
+    <div id="results" class="grid grid-cols-1 gap-4 pb-20">
+        <p class="text-center text-zinc-600 text-[10px] font-black uppercase tracking-widest mt-10">Type something to search Great Ife market</p>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        window.handleSearch = async () => {
+            const query = document.getElementById('searchInput').value;
+            const resDiv = document.getElementById('results');
+            if(query.length < 2) return;
+
+            resDiv.innerHTML = '<div class="animate-pulse text-center uppercase font-black text-xs">Searching...</div>';
+
+            const { data, error } = await supabase
+                .from('markets')
+                .select('*')
+                .ilike('name', `%${query}%`);
+
+            if(data && data.length > 0) {
+                resDiv.innerHTML = data.map(item => `
+                    <div class="card-zinc p-4 rounded-3xl flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-[#FF6600]">
+                                <i data-lucide="package"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-black uppercase text-sm">${item.name}</h3>
+                                <p class="text-[#FF6600] font-black text-xs italic">₦${item.price.toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <button class="bg-white text-black text-[10px] font-black px-4 py-2 rounded-xl uppercase">View</button>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            } else {
+                resDiv.innerHTML = '<p class="text-center text-zinc-600 text-[10px] font-black uppercase">No products found</p>';
+            }
+        };
+        
+        document.getElementById('searchInput').addEventListener('keypress', (e) => { if(e.key === 'Enter') handleSearch(); });
+        lucide.createIcons();
+    </script>
+</body>
+</html>
