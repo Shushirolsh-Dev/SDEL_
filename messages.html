@@ -67,7 +67,6 @@
             document.body.style.display = 'block';
             createStars();
             
-            // On load, update General read status and load messages
             await markAsRead('general');
             await loadMessages();
         }
@@ -83,7 +82,6 @@
         async function loadMessages() {
             const badge = document.getElementById('msg-count');
             
-            // Get user's read timestamps
             const { data: profile } = await supabase
                 .from('profile')
                 .select('last_read_general, last_read_team')
@@ -93,7 +91,6 @@
             const lastGen = new Date(profile?.last_read_general || 0);
             const lastTeam = new Date(profile?.last_read_team || 0);
 
-            // Fetch all relevant messages
             const { data, error } = await supabase
                 .from('messages')
                 .select('*')
@@ -104,7 +101,6 @@
                 allMessages = data;
                 renderMessages();
                 
-                // DYNAMIC CALCULATION: Count messages created AFTER the respective timestamps
                 const unreadGen = data.filter(m => m.type === 'general' && new Date(m.created_at) > lastGen).length;
                 const unreadTeam = data.filter(m => m.type === 'team' && new Date(m.created_at) > lastTeam).length;
                 
@@ -122,7 +118,6 @@
         window.filterMsgs = async (type) => {
             currentFilter = type;
             
-            // If switching to team, mark team as read and refresh
             if (type === 'team') {
                 await markAsRead('team');
                 await loadMessages();
@@ -144,7 +139,7 @@
 
             container.innerHTML = filtered.map(m => `
                 <div class="card-zinc p-6 rounded-[32px] msg-bubble ${m.type === 'general' ? 'msg-bubble-general' : 'msg-bubble-team'}">
-                    <p class="text-xs text-gray-200 leading-relaxed font-medium">${m.content}</p>
+                    <p class="text-base text-white leading-relaxed font-semibold">${m.content}</p>
                     <div class="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
                         <span class="text-[8px] font-black uppercase text-gray-500 tracking-widest">${formatSdelTime(m.created_at)}</span>
                         <i data-lucide="${m.type === 'general' ? 'megaphone' : 'user'}" size="12" class="text-gray-600"></i>
@@ -164,26 +159,5 @@
             if (diff < 60) return `${staticDate} • just now`;
             if (diff < 3600) return `${staticDate} • ${Math.floor(diff/60)} min ago`;
             if (diff < 86400) return `${staticDate} • ${Math.floor(diff/3600)} hr ago`;
-            if (diff < 2678400) return `${staticDate} • ${Math.floor(diff/86400)} day ago`;
-            if (diff < 31536000) return `${staticDate} • ${Math.floor(diff/2592000)} mth ago`;
-            return `${staticDate} • ${Math.floor(diff/31536000)} yr ago`;
-        }
-
-        function createStars() {
-            const container = document.getElementById('stars');
-            for (let i = 0; i < 150; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
-                star.style.left = Math.random() * 100 + 'vw';
-                if (i < 50) star.style.top = Math.random() * 100 + 'vh';
-                else star.style.top = '-' + (Math.random() * 100) + 'vh';
-                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
-                container.appendChild(star);
-            }
-        }
-
-        init();
-    </script>
-</body>
-</html>
+            if (diff < 2678400) return `${staticDate} • ${Math.floor(
+        
