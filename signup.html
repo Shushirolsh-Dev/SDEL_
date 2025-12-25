@@ -14,6 +14,7 @@
         @keyframes fall { 0% { transform: translateY(-10vh); } 100% { transform: translateY(110vh); } }
         .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 28px; padding: 35px; width: 95%; max-width: 450px; z-index: 10; position: relative; max-height: 95vh; overflow-y: auto; }
         .sdel-input { background: #161616; border: 1px solid #333; border-radius: 14px; padding: 16px; width: 100%; color: white; outline: none; font-size: 16px; }
+        .input-error { border-color: #ef4444 !important; }
         .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 18px; border-radius: 14px; text-transform: uppercase; cursor: pointer; border: none; font-size: 16px; letter-spacing: 1px; }
         .btn-orange:disabled { background: #555; cursor: not-allowed; }
         .eye-box { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 100; padding: 10px; }
@@ -21,11 +22,13 @@
         .phone-container { display: flex; align-items: center; background: #161616; border: 1px solid #333; border-radius: 14px; overflow: hidden; }
         .prefix { padding-left: 16px; color: #888; font-weight: 900; font-size: 16px; }
         .phone-input { background: transparent; border: none; padding: 16px 12px; width: 100%; color: white; outline: none; font-size: 16px; }
-        .criteria-item { font-size: 11px; font-weight: 900; text-transform: uppercase; margin-right: 12px; transition: color 0.3s; }
+        /* Increased font size to 14px for criteria */
+        .criteria-item { font-size: 14px; font-weight: 900; text-transform: uppercase; margin-right: 12px; transition: color 0.3s; }
         .valid { color: #22c55e; } .invalid { color: #444; }
         .login-card::-webkit-scrollbar { width: 5px; }
         .login-card::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
         .live-msg { text-transform: uppercase; font-size: 10px; font-weight: 900; margin-top: 4px; padding-left: 5px; }
+        .error-hint { color: #ef4444; font-size: 10px; font-weight: 900; text-transform: uppercase; margin-top: 4px; padding-left: 5px; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
@@ -38,35 +41,39 @@
         </div>
         <div id="msg" class="hidden p-4 mb-5 rounded text-sm font-black text-center uppercase"></div>
         <div class="space-y-4">
-            <div class="flex gap-3">
-                <input type="text" id="fname" placeholder="FIRST NAME" class="sdel-input w-1/2">
-                <input type="text" id="lname" placeholder="LAST NAME" class="sdel-input w-1/2">
+            <div>
+                <div class="flex gap-3">
+                    <input type="text" id="fname" placeholder="FIRST NAME" class="sdel-input w-1/2" oninput="clearErr('fname')">
+                    <input type="text" id="lname" placeholder="LAST NAME" class="sdel-input w-1/2" oninput="clearErr('lname')">
+                </div>
+                <p id="err-name" class="error-hint hidden"></p>
             </div>
             
             <div>
-                <input type="text" id="uname" placeholder="USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()" onblur="liveCheck('username', this.value, 'u-msg')">
+                <input type="text" id="uname" placeholder="USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase(); clearErr('uname')" onblur="liveCheck('username', this.value, 'u-msg')">
                 <p id="u-msg" class="live-msg hidden"></p>
             </div>
 
             <div>
-                <div class="phone-container">
+                <div class="phone-container" id="ph-box">
                     <span class="prefix">+234</span>
-                    <input type="tel" id="ph" placeholder="8012345678" maxlength="10" class="phone-input" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onblur="liveCheck('phone', '+234'+this.value, 'p-msg')">
+                    <input type="tel" id="ph" placeholder="8012345678" maxlength="10" class="phone-input" oninput="this.value = this.value.replace(/[^0-9]/g, ''); clearErr('ph')" onblur="liveCheck('phone', '+234'+this.value, 'p-msg')">
                 </div>
                 <p id="p-msg" class="live-msg hidden"></p>
             </div>
 
             <div>
-                <input type="email" id="em" placeholder="EMAIL ADDRESS" class="sdel-input" onblur="liveCheck('email', this.value, 'e-msg')">
+                <input type="email" id="em" placeholder="EMAIL ADDRESS" class="sdel-input" oninput="clearErr('em')" onblur="liveCheck('email', this.value, 'e-msg')">
                 <p id="e-msg" class="live-msg hidden"></p>
             </div>
 
             <div class="relative">
-                <input type="password" id="pw" placeholder="PASSWORD" class="sdel-input pr-14" oninput="validatePassword(); checkMatch();">
+                <input type="password" id="pw" placeholder="PASSWORD" class="sdel-input pr-14" oninput="validatePassword(); checkMatch(); clearErr('pw')">
                 <div class="eye-box" onclick="toggleView('pw', 'on1', 'off1')">
                     <svg id="on1" class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     <svg id="off1" class="w-5 h-5 text-gray-500 hidden" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                 </div>
+                <p id="err-pw" class="error-hint hidden"></p>
             </div>
             <div class="flex flex-wrap px-1 gap-y-2">
                 <span id="c-len" class="criteria-item invalid">6+ Digits</span>
@@ -75,17 +82,19 @@
                 <span id="c-sym" class="criteria-item invalid">Symbol</span>
             </div>
             <div class="relative">
-                <input type="password" id="rpw" placeholder="RE-ENTER PASSWORD" class="sdel-input pr-14" oninput="checkMatch()">
+                <input type="password" id="rpw" placeholder="RE-ENTER PASSWORD" class="sdel-input pr-14" oninput="checkMatch(); clearErr('rpw')">
                 <div class="eye-box" onclick="toggleView('rpw', 'on2', 'off2')">
                     <svg id="on2" class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     <svg id="off2" class="w-5 h-5 text-gray-500 hidden" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                 </div>
+                <p id="err-rpw" class="error-hint hidden"></p>
             </div>
             <div id="match-text" class="text-[12px] font-black uppercase text-center hidden">Match Status</div>
             <div class="flex items-center gap-3 px-2 py-2">
-                <input type="checkbox" id="agree" class="w-5 h-5 accent-[#FF6600]">
+                <input type="checkbox" id="agree" class="w-5 h-5 accent-[#FF6600]" onchange="clearErr('agree')">
                 <label for="agree" class="text-[11px] font-bold text-gray-400 uppercase tracking-wide">I agree to the <a href="terms.html" class="text-white underline">Terms</a> & <a href="privacy.html" class="text-white underline">Privacy</a></label>
             </div>
+            <p id="err-agree" class="error-hint hidden text-center"></p>
             <button onclick="signUp()" id="s-btn" class="btn-orange mt-2">Create Account</button>
         </div>
     </div>
@@ -101,6 +110,25 @@
 
         let isUnique = { username: true, phone: true, email: true };
 
+        function setErr(id, msg, customMsgId = null) {
+            const input = document.getElementById(id);
+            const msgEl = document.getElementById(customMsgId || `err-${id}`);
+            if(input && id !== 'agree') input.classList.add('input-error');
+            if(id === 'ph') document.getElementById('ph-box').classList.add('input-error');
+            if(msgEl) {
+                msgEl.innerText = msg;
+                msgEl.classList.remove('hidden');
+            }
+        }
+
+        function clearErr(id) {
+            const input = document.getElementById(id);
+            if(input) input.classList.remove('input-error');
+            if(id === 'ph') document.getElementById('ph-box').classList.remove('input-error');
+            const specificHint = document.getElementById(`err-${id}`) || (id === 'fname' || id === 'lname' ? document.getElementById('err-name') : null);
+            if(specificHint) specificHint.classList.add('hidden');
+        }
+
         async function liveCheck(col, val, msgId) {
             const msgEl = document.getElementById(msgId);
             if (!val || val.length < 3) { msgEl.classList.add('hidden'); return; }
@@ -110,10 +138,12 @@
                 msgEl.innerText = col + " already taken";
                 msgEl.style.color = "#ef4444";
                 isUnique[col] = false;
+                document.getElementById(msgId === 'u-msg' ? 'uname' : msgId === 'p-msg' ? 'ph' : 'em').classList.add('input-error');
             } else {
                 msgEl.innerText = col + " available";
                 msgEl.style.color = "#22c55e";
                 isUnique[col] = true;
+                document.getElementById(msgId === 'u-msg' ? 'uname' : msgId === 'p-msg' ? 'ph' : 'em').classList.remove('input-error');
             }
         }
 
@@ -159,35 +189,15 @@
             const agree = document.getElementById('agree').checked;
             const btn = document.getElementById('s-btn');
 
-            if(!fn || !ln || !un || !ph || !em || !pw || !rpw) return showMsg("FILL ALL FIELDS", "red");
-            if(!isUnique.username || !isUnique.phone || !isUnique.email) return showMsg("SOME DATA IS ALREADY REGISTERED", "red");
-            if(ph.length !== 10) return showMsg("PHONE MUST BE 10 DIGITS", "red");
-            if(!validatePassword()) return showMsg("CRITERIA NOT MET", "red");
-            if(pw !== rpw) return showMsg("PASSWORDS MUST MATCH", "red");
-            if(!agree) return showMsg("AGREE TO TERMS FIRST", "red");
+            if(!fn || !ln) setErr('fname', 'ENTER YOUR FULL NAME', 'err-name');
+            if(!un) setErr('uname', 'USERNAME REQUIRED', 'u-msg');
+            if(!ph) setErr('ph', 'PHONE NUMBER REQUIRED', 'p-msg');
+            if(!em) setErr('em', 'EMAIL ADDRESS REQUIRED', 'e-msg');
+            if(!pw) setErr('pw', 'PASSWORD REQUIRED');
+            if(!rpw) setErr('rpw', 'PLEASE CONFIRM PASSWORD');
 
-            btn.innerText = "PROCESSING..."; btn.disabled = true;
-            const { error } = await sb.auth.signUp({
-                email: em, password: pw,
-                options: { data: { first_name: fn, last_name: ln, username: un, phone: "+234"+ph } }
-            });
-            if (error) { 
-                showMsg(error.message, "red"); 
-                btn.innerText = "CREATE ACCOUNT"; 
-                btn.disabled = false; 
-            } else { 
-                showMsg("SUCCESS! REDIRECTING...", "green");
-                setTimeout(() => { window.location.href = 'dashboard.html'; }, 1500);
-            }
-        }
-
-        function showMsg(t, type) {
-            const m = document.getElementById('msg');
-            m.innerText = t.toUpperCase();
-            m.className = `p-4 mb-5 rounded border text-sm font-black text-center uppercase block ${type === 'red' ? 'bg-red-900/20 text-red-500 border-red-500/30' : 'bg-green-900/20 text-green-500 border-green-500/30'}`;
-            m.classList.remove('hidden');
-            setTimeout(() => { m.classList.add('hidden'); }, 4000);
-        }
-    </script>
-</body>
-</html>
+            if(!fn || !ln || !un || !ph || !em || !pw || !rpw) return;
+            if(!isUnique.username || !isUnique.phone || !isUnique.email) return;
+            if(ph.length !== 10) return setErr('ph', 'MUST BE 10 DIGITS', 'p-msg');
+            if(!validatePassword())
+        
