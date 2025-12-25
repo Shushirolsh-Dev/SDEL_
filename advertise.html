@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Post Advertisement</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { background: #000; color: #fff; font-family: 'Poppins', sans-serif; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        select, textarea, input { background: #111 !important; border: 1px solid #222 !important; color: white !important; outline: none; }
+        .btn-sdel { background: #FF6600; color: #000; font-weight: 900; text-transform: uppercase; }
+    </style>
+</head>
+<body class="p-6 pb-24">
+    <nav class="flex items-center gap-4 mb-8">
+        <button onclick="window.history.back()" class="bg-zinc-900 p-3 rounded-xl"><i data-lucide="chevron-left"></i></button>
+        <h1 class="text-xl font-black uppercase italic tracking-tighter">New <span class="text-[#FF6600]">Advert</span></h1>
+    </nav>
+
+    <div class="card-zinc p-6 rounded-[32px] space-y-6">
+        <div>
+            <label class="text-[10px] font-black uppercase text-zinc-500 ml-2">Business Title</label>
+            <input type="text" id="adTitle" placeholder="e.g. Ife Best Laundry" class="w-full p-4 rounded-2xl mt-1 text-sm">
+        </div>
+
+        <div>
+            <label class="text-[10px] font-black uppercase text-zinc-500 ml-2">Description</label>
+            <textarea id="adDesc" rows="3" placeholder="Tell students about your service..." class="w-full p-4 rounded-2xl mt-1 text-sm"></textarea>
+        </div>
+
+        <div>
+            <label class="text-[10px] font-black uppercase text-zinc-500 ml-2">Upload Media (Pic/Video)</label>
+            <input type="file" id="adFile" accept="image/*,video/*" class="w-full p-4 rounded-2xl mt-1 text-xs">
+        </div>
+
+        <div>
+            <label class="text-[10px] font-black uppercase text-zinc-500 ml-2">Duration & Cost</label>
+            <select id="adPlan" class="w-full p-4 rounded-2xl mt-1 text-sm">
+                <option value="1000">3 Days - ₦1,000</option>
+                <option value="2000">7 Days - ₦2,000</option>
+                <option value="7000">1 Month - ₦7,000</option>
+            </select>
+        </div>
+
+        <button onclick="submitAdvert()" id="submitBtn" class="w-full btn-sdel py-5 rounded-2xl text-xs tracking-widest active:scale-95 transition flex items-center justify-center gap-2">
+            <i data-lucide="credit-card" size="16"></i> Pay & Post Advert
+        </button>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        window.submitAdvert = async () => {
+            const btn = document.getElementById('submitBtn');
+            const file = document.getElementById('adFile').files[0];
+            const title = document.getElementById('adTitle').value;
+            const desc = document.getElementById('adDesc').value;
+
+            if(!file || !title) return alert("Fill all fields and select a file");
+
+            btn.disabled = true;
+            btn.innerText = "UPLOADING...";
+
+            // 1. Upload File to Storage
+            const fileName = `${Date.now()}_${file.name}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('adverts')
+                .upload(fileName, file);
+
+            if(uploadError) {
+                alert("Upload failed: " + uploadError.message);
+                btn.disabled = false;
+                btn.innerText = "Pay & Post Advert";
+                return;
+            }
+
+            const { data: { publicUrl } } = supabase.storage.from('adverts').getPublicUrl(fileName);
+
+            // 2. Save to promoted_ads table (set active to false until admin approves)
+            const { error: dbError } = await supabase.from('promoted_ads').insert({
+                title: title,
+                description: desc,
+                media_url: publicUrl,
+                active: false // Admin must approve
+            });
+
+            if(!dbError) {
+                alert("Ad submitted! It will appear after admin approval.");
+                window.location.href = 'dashboard.html';
+            } else {
+                alert("Error: " + dbError.message);
+            }
+        };
+        lucide.createIcons();
+    </script>
+</body>
+</html>
