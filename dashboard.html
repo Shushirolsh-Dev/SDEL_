@@ -9,6 +9,7 @@
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+        window.supabase = supabase;
 
         async function gatekeeper() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -17,116 +18,97 @@
                 return;
             }
 
-            // --- ADDED: SECURITY CHECK FOR BAN/SUSPENSION ---
-            const { data: profile, error } = await supabase
+            const { data: profile } = await supabase
                 .from('profile')
                 .select('account_status')
                 .eq('id', session.user.id)
                 .single();
 
             if (profile && (profile.account_status === 'banned' || profile.account_status === 'suspended')) {
-                alert(`ACCESS DENIED: Your account is ${profile.account_status.toUpperCase()}.`);
+                alert(`STRICT ACCESS DENIED: This account is ${profile.account_status.toUpperCase()}.`);
                 await supabase.auth.signOut();
                 window.location.replace('login.html');
                 return;
             }
-            // -----------------------------------------------
 
             document.documentElement.style.opacity = "1";
             initializeApp(session.user);
             listenForMessages(session.user.id); 
-            loadPromotedAds(); // Added call for ads
-        }
-
-        async function listenForMessages(userId) {
-            const updateCount = async () => {
-                const { data: profile } = await supabase
-                    .from('profile')
-                    .select('last_read_at')
-                    .eq('id', userId)
-                    .single();
-
-                const lastRead = profile?.last_read_at || '1970-01-01T00:00:00Z';
-
-                const { data } = await supabase
-                    .from('messages')
-                    .select('id')
-                    .or(`recipient_id.is.null,recipient_id.eq.${userId}`)
-                    .gt('created_at', lastRead);
-                
-                const badge = document.getElementById('msg-badge');
-                if (data && data.length > 0) {
-                    badge.innerText = data.length;
-                    badge.classList.remove('hidden');
-                } else {
-                    badge.classList.add('hidden');
-                }
-            };
-
-            window.markAsRead = async () => {
-                const now = new Date().toISOString();
-                await supabase.from('profile').update({ last_read_at: now }).eq('id', userId);
-                updateCount();
-            };
-
-            updateCount(); 
-
-            supabase
-                .channel('live-msgs')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => updateCount())
-                .subscribe();
+            loadDynamicAds(); 
         }
 
         async function initializeApp(user) {
-            const { data: profile } = await supabase
-                .from('profile')
-                .select('first_name, last_name, wallet_balance')
-                .eq('id', user.id)
-                .single();
-
+            const { data: profile } = await supabase.from('profile').select('first_name, last_name, wallet_balance').eq('id', user.id).single();
             const hour = new Date().getHours();
-            let greet = "Good evening";
-            if (hour < 12) greet = "Good morning";
-            else if (hour < 17) greet = "Good afternoon";
-            document.getElementById('js-greet').innerText = greet;
-
-            let fName = profile?.first_name || user.user_metadata?.first_name || "Scholar";
-            let lName = profile?.last_name || user.user_metadata?.last_name || "";
-
-            document.getElementById('js-name').innerText = fName;
-            document.getElementById('user-initials').innerText = (fName[0] + (lName[0] || "")).toUpperCase();
+            let greet = (hour < 12) ? "Good morning" : (hour < 17) ? "Good afternoon" : "Good evening";
             
-            const balance = profile?.wallet_balance || 0;
-            document.getElementById('wallet-balance').innerText = `₦${balance.toLocaleString()}`;
+            document.getElementById('js-greet').innerText = greet;
+            let fName = profile?.first_name || "Scholar";
+            document.getElementById('js-name').innerText = fName;
+            document.getElementById('user-initials').innerText = (fName[0] + (profile?.last_name?.[0] || "")).toUpperCase();
+            document.getElementById('wallet-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
 
             loadActivity(user.id);
         }
 
-        // --- ADDED: PROMOTED ADS HANDLER ---
-        async function loadPromotedAds() {
-            // This fetches from an 'ads' table or shows default placeholders
+        // DYNAMIC AD ENGINE WITH SLIDESHOW
+        async function loadDynamicAds() {
             const adContainer = document.getElementById('promoted-ads-feed');
-            const { data: ads } = await supabase.from('promoted_ads').select('*').eq('active', true).limit(5);
+            const { data: ads } = await supabase.from('promoted_ads').select('*').eq('active', true);
             
             if (ads && ads.length > 0) {
-                adContainer.innerHTML = ads.map(ad => `
-                    <div class="card-zinc p-4 rounded-3xl min-w-[280px] border-zinc-700/50">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="bg-sdel/10 text-sdel text-[8px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase tracking-widest">Sponsored</span>
-                            <i data-lucide="external-link" size="12" class="text-gray-500"></i>
-                        </div>
-                        <h4 class="font-black text-xs uppercase italic">${ad.title}</h4>
-                        <p class="text-[9px] text-gray-400 font-bold uppercase mt-1 line-clamp-2">${ad.description}</p>
-                    </div>
-                `).join('');
-                lucide.createIcons();
+                adContainer.classList.add('h-48'); // Expand for media
+                let adHtml = '';
+                ads.forEach((ad, index) => {
+                    const isVideo = ad.media_url?.endsWith('.mp4');
+                    adHtml += `
+                        <div class="ad-slide ${index === 0 ? 'block' : 'hidden'} w-full h-full relative overflow-hidden rounded-3xl">
+                            ${isVideo 
+                                ? `<video src="${ad.media_url}" autoplay muted loop class="w-full h-full object-cover"></video>` 
+                                : `<img src="${ad.media_url}" class="w-full h-full object-cover">`}
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex flex-col justify-end">
+                                <span class="bg-sdel text-black text-[7px] font-black px-2 py-0.5 rounded w-fit uppercase mb-1">Sponsored</span>
+                                <h4 class="font-black text-sm uppercase italic">${ad.title}</h4>
+                            </div>
+                        </div>`;
+                });
+                adContainer.innerHTML = adHtml;
+                startSlideshow();
             }
+        }
+
+        function startSlideshow() {
+            const slides = document.querySelectorAll('.ad-slide');
+            if (slides.length <= 1) return;
+            let current = 0;
+            setInterval(() => {
+                slides[current].classList.replace('block', 'hidden');
+                current = (current + 1) % slides.length;
+                slides[current].classList.replace('hidden', 'block');
+            }, 5000);
+        }
+
+        async function listenForMessages(userId) {
+            const updateCount = async () => {
+                const { data: profile } = await supabase.from('profile').select('last_read_at').eq('id', userId).single();
+                const lastRead = profile?.last_read_at || '1970-01-01T00:00:00Z';
+                const { data } = await supabase.from('messages').select('id').or(`recipient_id.is.null,recipient_id.eq.${userId}`).gt('created_at', lastRead);
+                const badge = document.getElementById('msg-badge');
+                if (data?.length > 0) { badge.innerText = data.length; badge.classList.remove('hidden'); }
+                else { badge.classList.add('hidden'); }
+            };
+            window.markAsRead = async () => {
+                await supabase.from('profile').update({ last_read_at: new Date().toISOString() }).eq('id', userId);
+                updateCount();
+            };
+            updateCount(); 
+            supabase.channel('live-msgs').on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => updateCount()).subscribe();
         }
 
         async function loadActivity(userId) {
             const { data: orders } = await supabase.from('orders').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(3);
             const feed = document.getElementById('activity-feed');
-            if (orders && orders.length > 0) {
+            if (orders?.length > 0) {
                 feed.innerHTML = orders.map(order => `
                     <div class="card-zinc p-4 rounded-3xl flex items-center justify-between">
                         <div class="flex items-center space-x-4">
@@ -139,8 +121,7 @@
                             </div>
                         </div>
                         <span class="text-[9px] font-black ${order.status === 'completed' ? 'text-green-500' : 'text-sdel'} uppercase">${order.status}</span>
-                    </div>
-                `).join('');
+                    </div>`).join('');
                 lucide.createIcons();
             } else {
                 feed.innerHTML = '<p class="text-center text-[10px] text-gray-600 font-black uppercase py-4">No recent activity</p>';
@@ -203,10 +184,10 @@
         <section class="space-y-4">
             <div class="flex justify-between items-center px-2">
                 <h3 class="text-xs font-black uppercase tracking-widest text-gray-500">Promoted Services</h3>
-                <span class="text-[8px] font-black uppercase text-sdel border-b border-sdel/30">Advertise here</span>
+                <a href="advertise.html" class="text-[8px] font-black uppercase text-sdel border-b border-sdel/30">Advertise here</a>
             </div>
-            <div id="promoted-ads-feed" class="flex overflow-x-auto gap-4 no-scrollbar pb-2">
-                <div class="card-zinc p-4 rounded-3xl min-w-[280px] border-zinc-700/50">
+            <div id="promoted-ads-feed" class="flex flex-col gap-4 no-scrollbar pb-2 transition-all duration-500">
+                <div class="card-zinc p-4 rounded-3xl min-w-full border-zinc-700/50">
                     <div class="flex items-center justify-between mb-2">
                         <span class="bg-sdel/10 text-sdel text-[8px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase tracking-widest">Sponsored</span>
                         <i data-lucide="sparkles" size="12" class="text-sdel"></i>
@@ -256,9 +237,9 @@
     </main>
 
     <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 p-4 flex justify-around items-center z-50">
-        <a href="#" class="text-sdel flex flex-col items-center"><i data-lucide="home"></i></a>
+        <a href="dashboard.html" class="text-sdel flex flex-col items-center"><i data-lucide="home"></i></a>
         <a href="market.html" class="text-gray-500 flex flex-col items-center"><i data-lucide="grid"></i></a>
-        <a href="#" class="text-gray-500 flex flex-col items-center"><i data-lucide="search"></i></a>
+        <a href="search.html" class="text-gray-500 flex flex-col items-center"><i data-lucide="search"></i></a>
         <button id="logout-btn" class="text-gray-500 flex flex-col items-center transition hover:text-red-500"><i data-lucide="log-out"></i></button>
     </div>
 
@@ -277,11 +258,14 @@
             }
         }
         createStars();
+
+        // LOGOUT LOGIC
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            await supabase.auth.signOut();
-            window.location.replace('login.html');
+            if(confirm("Are you sure you want to logout?")) {
+                await window.supabase.auth.signOut();
+                window.location.replace('login.html');
+            }
         });
     </script>
 </body>
-    </html>
-    
+</html>
