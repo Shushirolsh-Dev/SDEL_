@@ -9,21 +9,24 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
     <style>
-        /* REMOVED html { opacity: 0; } to prevent blank white screen */
+        html { opacity: 0; transition: opacity 0.3s ease; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         
+        /* EXTRA SLOW Falling Stars - Overlays Everything */
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 250; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(110vh); } }
 
+        /* Modals */
         .modal-overlay { backdrop-filter: blur(25px); z-index: 200; position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; padding: 24px; overflow-y: auto; }
         .input-zinc { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; width: 100%; padding: 16px; border-radius: 16px; font-size: 14px; outline: none; }
         .input-zinc:focus { border-color: #FF6600; }
 
+        /* Spinner Animation */
         .spinner { animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
@@ -42,7 +45,7 @@
         <div class="flex flex-col items-center text-center space-y-4">
             <div id="p-initials" class="w-24 h-24 rounded-full bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center text-3xl font-black text-sdel uppercase">--</div>
             <div>
-                <h2 id="p-full-name" class="text-2xl font-black uppercase tracking-tight italic text-white">Loading...</h2>
+                <h2 id="p-full-name" class="text-2xl font-black uppercase tracking-tight italic">Loading...</h2>
                 <p id="p-email" class="text-gray-500 text-xs font-bold uppercase tracking-widest">---</p>
             </div>
         </div>
@@ -61,7 +64,7 @@
         <div class="space-y-3">
             <h3 class="text-[10px] font-black uppercase text-gray-500 tracking-widest px-2">Settings</h3>
             
-            <div onclick="openModal('edit-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer">
+            <div onclick="openModal('edit-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
                 <div class="flex items-center space-x-4">
                     <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-sdel"><i data-lucide="user" size="18"></i></div>
                     <span class="text-sm font-bold uppercase">Personal Info</span>
@@ -69,7 +72,7 @@
                 <i data-lucide="chevron-right" class="text-gray-600"></i>
             </div>
 
-            <div onclick="openModal('security-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer">
+            <div onclick="openModal('security-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
                 <div class="flex items-center space-x-4">
                     <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-blue-500"><i data-lucide="shield-check" size="18"></i></div>
                     <span class="text-sm font-bold uppercase">Security</span>
@@ -78,7 +81,7 @@
             </div>
         </div>
 
-        <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20">Sign Out</button>
+        <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">Sign Out</button>
     </main>
 
     <div id="edit-modal" class="modal-overlay">
@@ -90,7 +93,7 @@
             <input id="edit-fname" type="text" class="input-zinc" placeholder="First Name">
             <input id="edit-lname" type="text" class="input-zinc" placeholder="Last Name">
             <input id="edit-phone" type="text" class="input-zinc" placeholder="Phone Number">
-            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center">
+            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
                 <span id="save-text">Save Changes</span>
             </button>
         </div>
@@ -102,10 +105,16 @@
             <button onclick="closeModal('security-modal')" class="text-white"><i data-lucide="x"></i></button>
         </div>
         <div class="space-y-4 relative z-10">
-            <input id="new-pass" type="password" class="input-zinc" placeholder="New Password">
-            <input id="confirm-pass" type="password" class="input-zinc" placeholder="Confirm New Password">
+            <div class="relative">
+                <input id="new-pass" type="password" class="input-zinc" placeholder="New Password">
+                <button onclick="togglePass('new-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
+            </div>
+            <div class="relative">
+                <input id="confirm-pass" type="password" class="input-zinc" placeholder="Confirm New Password">
+                <button onclick="togglePass('confirm-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
+            </div>
             <p id="pass-msg" class="text-[10px] font-bold uppercase text-center"></p>
-            <button onclick="updatePassword()" id="pass-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest">
+            <button onclick="updatePassword()" id="pass-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
                 <span id="pass-text">Update Password</span>
             </button>
         </div>
@@ -125,10 +134,10 @@
         let currentUser = null;
 
         async function checkSession() {
-            const { data: { session }, error } = await supabase.auth.getSession();
-            if (!session || error) { 
-                window.location.replace('login.html'); 
-            } else { 
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) { window.location.replace('login.html'); }
+            else { 
+                document.documentElement.style.opacity = "1";
                 currentUser = session.user;
                 loadProfile(); 
             }
@@ -136,34 +145,44 @@
 
         async function loadProfile() {
             const { data: profile, error } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
-            if (error) return;
+            
+            if (error) {
+                console.error("Profile load error:", error);
+                return;
+            }
 
-            const fn = profile?.first_name || "";
-            const ln = profile?.last_name || "";
-            const un = profile?.username || "User";
-
-            // Update UI
-            document.getElementById('p-full-name').innerText = (fn || ln) ? `${fn} ${ln}`.trim() : un;
+            // STRICT CORRECTION: Pull first_name and last_name from table, use username as fallback
+            const fName = profile?.first_name || profile?.username || "User";
+            const lName = profile?.last_name || "";
+            
+            document.getElementById('p-full-name').innerText = (fName + " " + lName).trim();
             document.getElementById('p-email').innerText = currentUser.email;
             document.getElementById('p-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
             
-            // Update Initials
-            const i1 = fn ? fn[0] : un[0];
-            const i2 = ln ? ln[0] : "";
-            document.getElementById('p-initials').innerText = (i1 + i2).toUpperCase();
+            // Set initials based on names found in table
+            const initial1 = fName.charAt(0);
+            const initial2 = lName.charAt(0) || "";
+            document.getElementById('p-initials').innerText = (initial1 + initial2).toUpperCase();
             
-            // PRE-FILL INPUTS (Your correction)
-            document.getElementById('edit-fname').value = fn;
-            document.getElementById('edit-lname').value = ln;
+            // Fill edit fields with database values
+            document.getElementById('edit-fname').value = profile?.first_name || "";
+            document.getElementById('edit-lname').value = profile?.last_name || "";
             document.getElementById('edit-phone').value = profile?.phone || "";
         }
 
         window.openModal = (id) => document.getElementById(id).style.display = 'block';
         window.closeModal = (id) => document.getElementById(id).style.display = 'none';
+        
+        window.togglePass = (id) => {
+            const el = document.getElementById(id);
+            el.type = el.type === 'password' ? 'text' : 'password';
+            lucide.createIcons();
+        }
 
         window.saveProfileUpdates = async () => {
+            const btn = document.getElementById('save-btn');
             const text = document.getElementById('save-text');
-            text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i>';
+            text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> UPDATING...';
             lucide.createIcons();
             
             const { error } = await supabase.from('profile').update({
@@ -172,16 +191,40 @@
                 phone: document.getElementById('edit-phone').value
             }).eq('id', currentUser.id);
 
-            if (error) { alert(error.message); text.innerText = "Save Changes"; }
-            else { location.reload(); }
+            if (error) {
+                alert(error.message);
+                text.innerText = "Save Changes";
+            } else {
+                location.reload();
+            }
         };
 
         window.updatePassword = async () => {
-            const p = document.getElementById('new-pass').value;
-            const cp = document.getElementById('confirm-pass').value;
-            if (p !== cp) { alert("Passwords match error"); return; }
-            const { error } = await supabase.auth.updateUser({ password: p });
-            if (error) alert(error.message); else alert("Updated!");
+            const pass = document.getElementById('new-pass').value;
+            const confirm = document.getElementById('confirm-pass').value;
+            const msg = document.getElementById('pass-msg');
+            const btnText = document.getElementById('pass-text');
+
+            if (pass !== confirm) {
+                msg.innerText = "Passwords do not match!";
+                msg.className = "text-[10px] font-bold uppercase text-center text-red-500";
+                return;
+            }
+
+            btnText.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> PROCESSING...';
+            lucide.createIcons();
+
+            const { error } = await supabase.auth.updateUser({ password: pass });
+            if (error) {
+                msg.innerText = error.message;
+                msg.className = "text-[10px] font-bold uppercase text-center text-red-500";
+                btnText.innerText = "Update Password";
+            } else {
+                msg.innerText = "Password updated successfully!";
+                msg.className = "text-[10px] font-bold uppercase text-center text-green-500";
+                setTimeout(() => closeModal('security-modal'), 2000);
+            }
+            lucide.createIcons();
         }
 
         function createStars() {
@@ -191,5 +234,17 @@
                 star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
                 star.style.left = Math.random() * 100 + 'vw';
-                star.style.top = Math.random() * 100
-        
+                if (i < 50) star.style.top = Math.random() * 100 + 'vh';
+                else star.style.top = '-' + (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
+                container.appendChild(star);
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
+        createStars();
+        checkSession();
+        lucide.createIcons();
+    </script>
+</body>
+</html>
