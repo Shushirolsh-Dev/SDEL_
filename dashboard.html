@@ -66,7 +66,7 @@
             const { data: ads } = await supabase.from('promoted_ads').select('*').eq('active', true).or(`expires_at.gt.${now},expires_at.is.null`);
             
             if (ads && ads.length > 0) {
-                adContainer.classList.add('h-48'); // Bigger box for visibility
+                adContainer.classList.add('h-48'); 
                 let weightedAds = [];
                 ads.forEach(ad => {
                     const weight = ad.appearance_count || 1;
@@ -122,6 +122,15 @@
         };
 
         window.closeAdModal = () => document.getElementById('ad-modal').innerHTML = '';
+
+        // --- CLEAR UNREAD MESSAGES LOGIC ---
+        window.clearMessages = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await supabase.from('profile').update({ last_read_at: new Date().toISOString() }).eq('id', session.user.id);
+            }
+            window.location.href = 'messages.html';
+        }
 
         async function listenForMessages(userId) {
             const updateCount = async () => {
@@ -186,7 +195,7 @@
             <span class="bg-sdel/10 text-sdel text-[10px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase">Dashboard</span>
         </div>
         <div class="flex items-center space-x-4">
-            <a href="messages.html" class="relative text-gray-400">
+            <a href="javascript:void(0)" onclick="clearMessages()" class="relative text-gray-400">
                 <i data-lucide="bell" size="22"></i>
                 <span id="msg-badge" class="hidden absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-black">0</span>
             </a>
