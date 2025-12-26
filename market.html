@@ -88,9 +88,10 @@
                 currentUserId = session.user.id;
                 updateCartCount();
             }
-            loadTabs();
-            loadProducts();
+            await loadTabs();
+            await loadProducts();
             createStars();
+            lucide.createIcons();
         }
 
         async function loadTabs() {
@@ -108,43 +109,58 @@
 
         async function updateCartCount() {
             if (!currentUserId) return;
+            // Note: Ensure you create the 'cart' table for this to work
             const { count } = await supabase.from('cart').select('*', { count: 'exact', head: true }).eq('user_id', currentUserId);
             document.getElementById('cart-count').innerText = count || 0;
         }
 
         window.addToCart = async (productId) => {
-            if (!currentUserId) return;
-            await supabase.from('cart').upsert({ user_id: currentUserId, product_id: productId }, { onConflict: 'user_id, product_id' });
-            updateCartCount();
+            if (!currentUserId) {
+                alert("Please log in to add items to cart");
+                return;
+            }
+            
+            const { error } = await supabase.from('cart').insert([
+                { user_id: currentUserId, product_id: productId }
+            ]);
+
+            if(error) {
+                console.error(error);
+                alert("Could not add to cart");
+            } else {
+                updateCartCount();
+            }
         }
 
         async function loadProducts() {
             const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-            const list = document.getElementById('product-list');
-            
-            if (products && products.length > 0) {
+            if (products) {
                 allProducts = products;
                 renderProducts(allProducts);
-            } else {
-                list.innerHTML = '<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-700">No items in the market yet.</p></div>';
             }
         }
 
         function renderProducts(items) {
             const list = document.getElementById('product-list');
+            if (items.length === 0) {
+                list.innerHTML = '<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-700">No items found.</p></div>';
+                return;
+            }
+
             list.innerHTML = items.map(item => `
                 <div class="card-zinc rounded-3xl overflow-hidden flex flex-col">
-                    <div class="h-40 bg-zinc-900 flex items-center justify-center">
+                    <div class="h-48 bg-zinc-900 flex items-center justify-center relative">
                         ${item.image_url ? `<img src="${item.image_url}" class="object-cover h-full w-full">` : `<i data-lucide="image" class="text-zinc-600" size="40"></i>`}
+                        <div class="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
+                             <p class="text-[8px] text-sdel font-black uppercase tracking-widest">${item.category}</p>
+                        </div>
                     </div>
                     <div class="p-5 space-y-2">
                         <div class="flex justify-between items-start">
-                            <div>
-                                <p class="text-[10px] text-sdel font-black uppercase tracking-widest">${item.category}</p>
-                                <h3 class="font-bold text-sm uppercase">${item.name}</h3>
-                            </div>
-                            <p class="font-black text-lg tracking-tighter">₦${item.price.toLocaleString()}</p>
+                            <h3 class="font-bold text-sm uppercase truncate pr-2">${item.name}</h3>
+                            <p class="font-black text-lg tracking-tighter text-white">₦${item.price.toLocaleString()}</p>
                         </div>
+                        <p class="text-[10px] text-zinc-500 line-clamp-2 h-8">${item.description || 'No description'}</p>
                         <button onclick="window.addToCart('${item.id}')" class="w-full bg-white text-black py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition mt-2">
                             Add to Cart
                         </button>
@@ -159,28 +175,32 @@
             pills.forEach(p => { p.classList.remove('active'); p.classList.add('text-gray-500'); });
             event.currentTarget.classList.add('active');
             event.currentTarget.classList.remove('text-gray-500');
-            renderProducts(category === 'All' ? allProducts : allProducts.filter(p => p.category === category));
+            
+            const filtered = category === 'All' ? allProducts : allProducts.filter(p => p.category === category);
+            renderProducts(filtered);
         }
 
         window.openSearch = () => {
             document.getElementById('search-view').style.display = 'block';
             document.getElementById('search-input').focus();
-            runSearch('');
         }
 
         window.closeSearch = () => { document.getElementById('search-view').style.display = 'none'; }
 
         window.runSearch = (val) => {
             const container = document.getElementById('search-results-list');
+            if(val.trim() === "") { container.innerHTML = ""; return; }
+
             const filtered = allProducts.filter(p => p.name.toLowerCase().includes(val.toLowerCase()));
             
-            if(val === "") { container.innerHTML = ""; return; }
-
             container.innerHTML = filtered.map(item => `
                 <div class="search-item" onclick="viewFromSearch('${item.id}')">
-                    <div>
-                        <p class="font-bold text-sm uppercase tracking-tight">${item.name}</p>
-                        <p class="text-[9px] text-gray-500 font-black uppercase tracking-widest">${item.category}</p>
+                    <div class="flex items-center gap-3">
+                        <img src="${item.image_url}" class="w-10 h-10 object-cover rounded-lg">
+                        <div>
+                            <p class="font-bold text-sm uppercase tracking-tight">${item.name}</p>
+                            <p class="text-[9px] text-gray-500 font-black uppercase tracking-widest">${item.category}</p>
+                        </div>
                     </div>
                     <p class="font-black text-sdel text-xs">₦${item.price.toLocaleString()}</p>
                 </div>
@@ -205,8 +225,8 @@
                 container.appendChild(star);
             }
         }
+        
         init();
-        lucide.createIcons();
     </script>
 </body>
 </html>
