@@ -150,7 +150,11 @@
             const title = document.getElementById('adTitle').value.trim();
             const desc = document.getElementById('adDesc').value.trim();
 
-            if(!file || !title || !desc) return alert("Please complete all fields.");
+            // STRICT VALIDATION
+            if(!file || !title || !desc) {
+                alert("STRICT ACTION: All fields must be filled and media uploaded.");
+                return;
+            }
 
             btn.disabled = true;
             btn.innerText = "Processing...";
@@ -162,21 +166,19 @@
             const { data: { publicUrl } } = supabase.storage.from('adverts').getPublicUrl(fileName);
 
             const { error: dbErr } = await supabase.from('promoted_ads').insert({
-                title, description: desc, media_url: publicUrl, cost: currentPrice, active: false
+                title, 
+                description: desc, 
+                media_url: publicUrl, 
+                cost: currentPrice, 
+                active: false
             });
 
             if(!dbErr) {
-                document.body.innerHTML = `
-                <div class="fixed inset-0 bg-black flex flex-col items-center justify-center p-10 text-center">
-                    <i data-lucide="clock" class="text-sdel mb-6" size="48"></i>
-                    <h2 class="text-lg font-black uppercase italic mb-2">Request Received</h2>
-                    <p class="text-[11px] text-zinc-500 font-bold uppercase leading-relaxed mb-8">
-                        Our team will DM your inbox within 72 hours for payment. <br><br>
-                        <span class="text-red-500 italic">Warning: Fake requests lead to 48hr suspension.</span>
-                    </p>
-                    <button onclick="window.location.href='dashboard.html'" class="w-full border border-zinc-800 py-3 rounded-lg text-xs font-black uppercase">Close</button>
-                </div>`;
-                lucide.createIcons();
+                // REDIRECT TO THE ADS-CHECKOUT PAGE
+                window.location.href = `ads-checkout.html?cost=${currentPrice}&tier=${encodeURIComponent(currentTier)}&title=${encodeURIComponent(title)}`;
+            } else {
+                alert("Database Error: " + dbErr.message);
+                btn.disabled = false;
             }
         };
 
