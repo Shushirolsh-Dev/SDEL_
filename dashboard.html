@@ -25,7 +25,7 @@
                 .single();
 
             if (profile && (profile.account_status === 'banned' || profile.account_status === 'suspended')) {
-                alert(`ACCESS DENIED: Account ${profile.account_status.toUpperCase()}.`);
+                alert(`STRICT ACCESS DENIED: This account is ${profile.account_status.toUpperCase()}.`);
                 await supabase.auth.signOut();
                 window.location.replace('login.html');
                 return;
@@ -39,7 +39,7 @@
         }
 
         async function initializeApp(user) {
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', user.id).single();
+            const { data: profile } = await supabase.from('profile').select('first_name, last_name, wallet_balance').eq('id', user.id).single();
             const hour = new Date().getHours();
             let greet = (hour < 12) ? "Good morning" : (hour < 17) ? "Good afternoon" : "Good evening";
             
@@ -47,28 +47,25 @@
             let fName = profile?.first_name || "Scholar";
             document.getElementById('js-name').innerText = fName;
             document.getElementById('user-initials').innerText = (fName[0] + (profile?.last_name?.[0] || "")).toUpperCase();
-            updateWalletUI(profile?.wallet_balance);
+            document.getElementById('wallet-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
 
             loadActivity(user.id);
-        }
-
-        function updateWalletUI(balance) {
-            document.getElementById('wallet-balance').innerText = `₦${(balance || 0).toLocaleString()}`;
         }
 
         function subscribeToBalance(userId) {
             supabase.channel('wallet-sync')
                 .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profile', filter: `id=eq.${userId}` }, 
-                payload => updateWalletUI(payload.new.wallet_balance))
+                payload => {
+                    document.getElementById('wallet-balance').innerText = `₦${(payload.new.wallet_balance || 0).toLocaleString()}`;
+                })
                 .subscribe();
         }
 
-        // --- DYNAMIC AD ENGINE ---
+        // --- DYNAMIC AD ENGINE (ORIGINAL UI VERSION) ---
         async function loadDynamicAds() {
             const adContainer = document.getElementById('promoted-ads-feed');
             const now = new Date().toISOString();
 
-            // Only fetch ads that are active and NOT expired
             const { data: ads } = await supabase
                 .from('promoted_ads')
                 .select('*')
@@ -76,30 +73,32 @@
                 .or(`expires_at.gt.${now},expires_at.is.null`);
             
             if (ads && ads.length > 0) {
-                adContainer.classList.remove('flex-col');
-                adContainer.classList.add('h-64', 'relative', 'overflow-hidden', 'rounded-3xl', 'border-2', 'border-sdel/20'); 
+                // Expanding to match your "make it bigger" request within original styling
+                adContainer.classList.add('h-48'); 
                 
                 let weightedAds = [];
                 ads.forEach(ad => {
                     const weight = ad.appearance_count || 1;
                     for (let i = 0; i < weight; i++) { weightedAds.push(ad); }
                 });
-
                 weightedAds.sort(() => Math.random() - 0.5);
 
-                adContainer.innerHTML = weightedAds.map((ad, index) => `
-                    <div class="ad-slide ${index === 0 ? 'opacity-100' : 'opacity-0'} absolute inset-0 w-full h-full transition-opacity duration-700 cursor-pointer" 
-                         onclick="openAdDetails('${ad.id}', '${ad.title}', '${ad.description}', '${ad.media_url}', '${ad.user_id}')">
-                        ${ad.media_url?.endsWith('.mp4') 
-                            ? `<video src="${ad.media_url}" autoplay muted loop class="w-full h-full object-cover"></video>` 
-                            : `<img src="${ad.media_url}" class="w-full h-full object-cover">`}
-                        <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent p-6 flex flex-col justify-end">
-                            <span class="bg-sdel text-black text-[8px] font-black px-2 py-0.5 rounded w-fit uppercase mb-1">Sponsored</span>
-                            <h4 class="font-black text-xl uppercase italic leading-none text-white">${ad.title}</h4>
-                            <p class="text-[10px] text-gray-300 font-bold uppercase tracking-wider line-clamp-1">${ad.description || ''}</p>
-                        </div>
-                    </div>`).join('');
-                
+                let adHtml = '';
+                weightedAds.forEach((ad, index) => {
+                    const isVideo = ad.media_url?.endsWith('.mp4');
+                    adHtml += `
+                        <div class="ad-slide ${index === 0 ? 'block' : 'hidden'} w-full h-full relative overflow-hidden rounded-3xl cursor-pointer" 
+                             onclick="openAdDetails('${ad.id}', '${ad.title}', '${ad.description}', '${ad.media_url}', '${ad.user_id}')">
+                            ${isVideo 
+                                ? `<video src="${ad.media_url}" autoplay muted loop class="w-full h-full object-cover"></video>` 
+                                : `<img src="${ad.media_url}" class="w-full h-full object-cover">`}
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent p-4 flex flex-col justify-end">
+                                <span class="bg-sdel text-black text-[7px] font-black px-2 py-0.5 rounded w-fit uppercase mb-1">Sponsored</span>
+                                <h4 class="font-black text-sm uppercase italic">${ad.title}</h4>
+                            </div>
+                        </div>`;
+                });
+                adContainer.innerHTML = adHtml;
                 startSlideshow();
             }
         }
@@ -109,30 +108,29 @@
             if (slides.length <= 1) return;
             let current = 0;
             setInterval(() => {
-                slides[current].classList.replace('opacity-100', 'opacity-0');
+                slides[current].classList.replace('block', 'hidden');
                 current = (current + 1) % slides.length;
-                slides[current].classList.replace('opacity-0', 'opacity-100');
+                slides[current].classList.replace('hidden', 'block');
             }, 5000);
         }
 
-        // --- AD OVERLAY FEATURE ---
+        // --- CLICK TO VIEW OVERLAY ---
         window.openAdDetails = (id, title, desc, media, sellerId) => {
             const modal = document.getElementById('ad-modal');
             modal.innerHTML = `
-                <div class="bg-black/95 fixed inset-0 z-[100] p-6 flex flex-col items-center justify-center animate-in fade-in duration-300">
-                    <button onclick="closeAdModal()" class="absolute top-8 right-8 text-white"><i data-lucide="x" size="30"></i></button>
-                    <div class="w-full max-w-sm card-zinc rounded-3xl overflow-hidden shadow-2xl border-sdel/30">
+                <div class="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-6 backdrop-blur-sm">
+                    <div class="card-zinc w-full max-w-sm rounded-3xl overflow-hidden border-sdel/30 animate-in fade-in duration-300">
                         <img src="${media}" class="w-full aspect-square object-cover">
-                        <div class="p-6 space-y-4">
-                            <h2 class="text-2xl font-black uppercase italic text-sdel">${title}</h2>
-                            <p class="text-xs text-gray-400 font-bold uppercase tracking-wide leading-relaxed">${desc}</p>
-                            <button onclick="window.location.href='dm.html?id=${sellerId}'" class="w-full bg-sdel py-4 rounded-2xl text-black font-black uppercase italic text-xs tracking-widest flex items-center justify-center gap-3">
-                                <i data-lucide="message-circle" size="18"></i> Message Seller
-                            </button>
+                        <div class="p-6">
+                            <h2 class="text-xl font-black uppercase italic text-sdel mb-2">${title}</h2>
+                            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-6">${desc}</p>
+                            <div class="flex gap-3">
+                                <button onclick="window.location.href='dm.html?id=${sellerId}'" class="flex-1 bg-sdel py-4 rounded-xl text-black font-black uppercase italic text-[10px]">Message Seller</button>
+                                <button onclick="closeAdModal()" class="px-6 bg-zinc-800 rounded-xl font-black text-[10px] uppercase">Close</button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
+                </div>`;
             lucide.createIcons();
         };
 
@@ -156,17 +154,17 @@
             const feed = document.getElementById('activity-feed');
             if (orders?.length > 0) {
                 feed.innerHTML = orders.map(order => `
-                    <div class="card-zinc p-4 rounded-3xl flex items-center justify-between border-white/5">
+                    <div class="card-zinc p-4 rounded-3xl flex items-center justify-between">
                         <div class="flex items-center space-x-4">
                             <div class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center ${order.status === 'completed' ? 'text-green-500' : 'text-sdel'}">
                                 <i data-lucide="${order.status === 'completed' ? 'check-circle' : 'clock'}" size="18"></i>
                             </div>
                             <div>
                                 <p class="font-black text-sm uppercase">${order.item_name}</p>
-                                <p class="text-[8px] text-gray-500 font-black uppercase tracking-widest">${new Date(order.created_at).toLocaleDateString()}</p>
+                                <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Status: ${order.status_message || 'Processing'}</p>
                             </div>
                         </div>
-                        <span class="text-[9px] font-black uppercase">${order.status}</span>
+                        <span class="text-[9px] font-black ${order.status === 'completed' ? 'text-green-500' : 'text-sdel'} uppercase">${order.status}</span>
                     </div>`).join('');
                 lucide.createIcons();
             } else {
@@ -181,121 +179,122 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
     <style>
-        html { opacity: 0; transition: opacity 0.5s ease; scroll-behavior: smooth; }
-        body { background-color: #000; color: white; -webkit-tap-highlight-color: transparent; }
+        html { opacity: 0; transition: opacity 0.5s ease; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(20px); }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         .star { position: absolute; background-color: rgba(255,255,255,0.8); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(100vh); } }
-        .animate-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body>
+<body class="bg-black text-white">
 
     <div class="stars fixed inset-0 z-[-1]" id="stars"></div>
-    <div id="ad-modal"></div> <nav class="flex justify-between items-center p-6 sticky top-0 bg-black/80 backdrop-blur-xl z-50 border-b border-white/5">
+    <div id="ad-modal"></div>
+
+    <nav class="flex justify-between items-center p-6 border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
         <div class="flex items-center space-x-2">
-            <span class="text-2xl font-black uppercase italic tracking-tighter">S<span class="text-sdel">del</span></span>
+            <span class="text-2xl font-black tracking-tighter uppercase">S<span class="text-sdel">del</span></span>
+            <span class="bg-sdel/10 text-sdel text-[10px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase">Dashboard</span>
         </div>
         <div class="flex items-center space-x-4">
-            <a href="messages.html" class="relative text-zinc-400">
+            <a href="messages.html" class="relative text-gray-400">
                 <i data-lucide="bell" size="22"></i>
                 <span id="msg-badge" class="hidden absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black h-4 w-4 rounded-full flex items-center justify-center border-2 border-black">0</span>
             </a>
-            <div id="user-initials" class="w-9 h-9 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center font-black text-sdel text-xs"></div>
+            <div id="user-initials" class="w-10 h-10 rounded-full bg-zinc-800 border-2 border-zinc-700 flex items-center justify-center font-black text-sdel uppercase text-sm"></div>
         </div>
     </nav>
 
-    <main class="p-6 max-w-lg mx-auto space-y-8 pb-32">
-        <header class="space-y-1">
-            <h1 class="text-3xl font-black uppercase italic tracking-tighter leading-none">
-                <span id="js-greet"></span>,<br><span id="js-name" class="text-sdel"></span>
+    <main class="p-6 max-w-6xl mx-auto space-y-8 pb-24">
+        <header>
+            <h1 class="text-3xl font-black uppercase italic tracking-tighter">
+                <span id="js-greet"></span>, <span id="js-name" class="text-sdel italic"></span>
             </h1>
-            <p class="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.3em]">Command Center</p>
+            <p class="text-gray-500 font-bold text-sm tracking-widest uppercase italic">The Campus Command Center</p>
             
-            <div class="pt-6">
-                <div class="card-zinc p-6 rounded-[2.5rem] border-2 border-white/5 relative overflow-hidden">
-                    <div class="relative z-10 flex justify-between items-center">
-                        <div>
-                            <p class="text-[10px] font-black uppercase text-zinc-500 mb-1">Available Funds</p>
-                            <span id="wallet-balance" class="text-3xl font-black tracking-tight">₦0.00</span>
-                        </div>
-                        <button onclick="window.location.href='fund.html'" class="bg-sdel text-black h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg shadow-sdel/20"><i data-lucide="plus" size="24"></i></button>
-                    </div>
-                    <div class="absolute -right-4 -bottom-4 opacity-5 text-white italic font-black text-6xl">WALLET</div>
+            <div class="mt-6 bg-zinc-900 border-2 border-zinc-800 rounded-3xl p-5 card-zinc">
+                <p class="text-[10px] font-black uppercase text-gray-400 mb-1 tracking-tighter">Live Account Balance</p>
+                <div class="flex justify-between items-center">
+                    <span id="wallet-balance" class="text-2xl font-black tracking-tight">₦0.00</span>
+                    <button onclick="window.location.href='fund.html'" class="bg-sdel text-black p-2 rounded-xl hover:scale-105 transition"><i data-lucide="plus" size="18"></i></button>
                 </div>
             </div>
         </header>
 
         <section class="space-y-4">
             <div class="flex justify-between items-center px-2">
-                <h3 class="text-[10px] font-black uppercase tracking-widest text-zinc-600">Premium Promotions</h3>
-                <a href="ad-studio.html" class="text-[9px] font-black uppercase text-sdel">Create Ad</a>
+                <h3 class="text-xs font-black uppercase tracking-widest text-gray-500">Promoted Services</h3>
+                <a href="ad-studio.html" class="text-[8px] font-black uppercase text-sdel border-b border-sdel/30">Advertise here</a>
             </div>
-            <div id="promoted-ads-feed" class="flex flex-col gap-4 transition-all duration-700">
-                <div class="card-zinc p-5 rounded-[2rem] border-dashed border-zinc-800">
-                    <h4 class="font-black text-xs uppercase italic mb-1">Advertise Your Brand</h4>
-                    <p class="text-[9px] text-zinc-500 font-bold uppercase">Get seen by 5,000+ students. Instant setup.</p>
+            <div id="promoted-ads-feed" class="flex flex-col gap-4 no-scrollbar pb-2 transition-all duration-500">
+                <div class="card-zinc p-4 rounded-3xl min-w-full border-zinc-700/50">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="bg-sdel/10 text-sdel text-[8px] px-2 py-0.5 rounded font-black border border-sdel/20 uppercase tracking-widest">Sponsored</span>
+                        <i data-lucide="sparkles" size="12" class="text-sdel"></i>
+                    </div>
+                    <h4 class="font-black text-xs uppercase italic">Your Ad Here</h4>
+                    <p class="text-[9px] text-gray-400 font-bold uppercase mt-1">Reach 1000+ students in Great Ife daily.</p>
                 </div>
             </div>
         </section>
 
-        <section class="card-zinc rounded-[2.5rem] p-8 border-sdel/20 border-2 relative overflow-hidden group" onclick="window.location.href='request.html'">
+        <section class="card-zinc rounded-3xl p-6 border-sdel/30 border-2" onclick="window.location.href='request.html'">
             <div class="relative z-10 space-y-4">
                 <div class="flex items-center space-x-2 text-sdel">
-                    <i data-lucide="zap" size="16"></i>
-                    <span class="font-black text-[10px] uppercase tracking-[0.2em]">Agent Active</span>
+                    <i data-lucide="sparkles" size="18"></i>
+                    <span class="font-black text-[10px] uppercase tracking-widest">Sourcing Agent Active</span>
                 </div>
-                <h2 class="text-3xl font-black uppercase italic leading-none">Find Anything<br>On Campus.</h2>
-                <p class="text-[9px] text-zinc-400 font-bold uppercase">Food, Hostels, Gadgets, or PQs. We find it.</p>
+                <h2 class="text-2xl font-black uppercase italic leading-none">Find Anything in Great Ife.</h2>
+                <button class="bg-sdel text-black px-8 py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-105 transition">New Request</button>
             </div>
-            <i data-lucide="search" class="absolute -right-4 -bottom-4 text-white opacity-5 group-hover:opacity-10 transition" size="120"></i>
         </section>
 
-        <section class="grid grid-cols-2 gap-4">
-            <div onclick="window.location.href='pqs.html'" class="card-zinc p-6 rounded-[2rem] space-y-3 cursor-pointer active:scale-95 transition">
-                <i data-lucide="book-open" class="text-sdel" size="20"></i>
-                <p class="font-black uppercase text-[10px] tracking-widest">Past Questions</p>
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div onclick="window.location.href='pqs.html'" class="card-zinc p-6 rounded-3xl text-center space-y-2 cursor-pointer group">
+                <i data-lucide="book-open" class="mx-auto text-sdel"></i>
+                <p class="font-black uppercase text-[10px] tracking-widest">PQs</p>
             </div>
-            <div onclick="window.location.href='market.html'" class="card-zinc p-6 rounded-[2rem] space-y-3 cursor-pointer active:scale-95 transition">
-                <i data-lucide="shopping-bag" class="text-blue-500" size="20"></i>
-                <p class="font-black uppercase text-[10px] tracking-widest">Marketplace</p>
+            <div onclick="window.location.href='market.html'" class="card-zinc p-6 rounded-3xl text-center space-y-2 cursor-pointer group">
+                <i data-lucide="shopping-bag" class="mx-auto text-green-500"></i>
+                <p class="font-black uppercase text-[10px] tracking-widest">Market</p>
             </div>
         </section>
 
         <section class="space-y-4">
-            <h3 class="text-[10px] font-black uppercase tracking-widest text-zinc-600 px-2">Order Activity</h3>
+            <h3 class="text-xs font-black uppercase tracking-widest text-gray-500 px-2">Live Order Status</h3>
             <div id="activity-feed" class="space-y-3"></div>
         </section>
     </main>
 
-    <div class="fixed bottom-6 left-6 right-6 h-20 bg-zinc-900/90 backdrop-blur-2xl rounded-[2rem] border border-white/10 px-8 flex justify-between items-center z-[100] shadow-2xl shadow-black">
-        <a href="dashboard.html" class="text-sdel"><i data-lucide="layout-grid" size="24"></i></a>
-        <a href="market.html" class="text-zinc-600"><i data-lucide="shopping-cart" size="24"></i></a>
-        <a href="search.html" class="text-zinc-600"><i data-lucide="search" size="24"></i></a>
-        <button id="logout-btn" class="text-zinc-600"><i data-lucide="log-out" size="24"></i></button>
+    <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 p-4 flex justify-around items-center z-50">
+        <a href="dashboard.html" class="text-sdel flex flex-col items-center"><i data-lucide="home"></i></a>
+        <a href="market.html" class="text-gray-500 flex flex-col items-center"><i data-lucide="grid"></i></a>
+        <a href="search.html" class="text-gray-500 flex flex-col items-center"><i data-lucide="search"></i></a>
+        <button id="logout-btn" class="text-gray-500 flex flex-col items-center transition hover:text-red-500"><i data-lucide="log-out"></i></button>
     </div>
 
     <script>
         lucide.createIcons();
         function createStars() {
             const container = document.getElementById('stars');
-            for (let i = 0; i < 50; i++) {
+            for (let i = 0; i < 60; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
-                star.style.width = star.style.height = (Math.random() * 2) + 'px';
+                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
                 star.style.left = Math.random() * 100 + 'vw';
                 star.style.top = Math.random() * 100 + 'vh';
-                star.style.animationDuration = (Math.random() * 50 + 20) + 's';
+                star.style.animationDuration = (Math.random() * 60 + 40) + 's';
                 container.appendChild(star);
             }
         }
         createStars();
 
         document.getElementById('logout-btn').addEventListener('click', async () => {
-            if(confirm("Sign out?")) {
+            if(confirm("Are you sure you want to logout?")) {
                 await window.supabase.auth.signOut();
                 window.location.replace('login.html');
             }
