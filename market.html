@@ -44,12 +44,9 @@
         </div>
     </nav>
 
-    <div class="p-6 flex space-x-3 overflow-x-auto no-scrollbar">
-        <div class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</div>
-        <div class="category-pill px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap text-gray-500">PQs</div>
-        <div class="category-pill px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap text-gray-500">Manuals</div>
-        <div class="category-pill px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap text-gray-500">Gadgets</div>
-    </div>
+    <div class="p-6 flex space-x-3 overflow-x-auto no-scrollbar" id="category-tabs">
+        <div onclick="filterProducts('All')" class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</div>
+        </div>
 
     <main class="px-6 grid grid-cols-1 md:grid-cols-2 gap-6" id="product-list">
         <div class="animate-pulse bg-zinc-900 h-48 rounded-3xl"></div>
@@ -68,6 +65,7 @@
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         let currentUserId = null;
+        let allProducts = [];
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -75,8 +73,23 @@
                 currentUserId = session.user.id;
                 updateCartCount();
             }
+            loadTabs();
             loadProducts();
             createStars();
+        }
+
+        async function loadTabs() {
+            const { data: categories } = await supabase.from('categories').select('*').order('name');
+            const container = document.getElementById('category-tabs');
+            if (categories) {
+                // Keep the 'All Items' tab and append others
+                const tabHtml = categories.map(cat => `
+                    <div onclick="filterProducts('${cat.name}')" class="category-pill px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap text-gray-500">
+                        ${cat.name}
+                    </div>
+                `).join('');
+                container.innerHTML = `<div onclick="filterProducts('All')" class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</div>` + tabHtml;
+            }
         }
 
         async function updateCartCount() {
@@ -91,33 +104,26 @@
             }
         }
 
-        async function addToCart(productId) {
+        window.addToCart = async (productId) => {
             if (!currentUserId) return;
-
             const { error } = await supabase.from('cart').upsert({
                 user_id: currentUserId,
                 product_id: productId
             }, { onConflict: 'user_id, product_id' });
 
-            if (!error) {
-                updateCartCount(); // Count updates silently
-            }
+            if (!error) updateCartCount();
         }
 
         async function loadProducts() {
-            const { data: products, error } = await supabase
-                .from('products')
-                .select('*')
-                .order('created_at', { ascending: false });
+            const { data: products, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+            if (error) return;
+            allProducts = products;
+            renderProducts(allProducts);
+        }
 
+        function renderProducts(items) {
             const list = document.getElementById('product-list');
-            
-            if (error) {
-                list.innerHTML = `<p class="text-red-500 text-xs">Error loading products</p>`;
-                return;
-            }
-
-            list.innerHTML = products.map(item => `
+            list.innerHTML = items.map(item => `
                 <div class="card-zinc rounded-3xl overflow-hidden flex flex-col">
                     <div class="h-40 bg-zinc-900 flex items-center justify-center">
                         ${item.image_url ? `<img src="${item.image_url}" class="object-cover h-full w-full">` : `<i data-lucide="image" class="text-zinc-600" size="40"></i>`}
@@ -137,8 +143,25 @@
                     </div>
                 </div>
             `).join('');
-            
             lucide.createIcons();
+        }
+
+        window.filterProducts = (category) => {
+            // Update Tab UI
+            const pills = document.querySelectorAll('.category-pill');
+            pills.forEach(p => {
+                p.classList.remove('active', 'text-black');
+                p.classList.add('text-gray-500');
+            });
+            event.currentTarget.classList.add('active');
+            event.currentTarget.classList.remove('text-gray-500');
+
+            if (category === 'All') {
+                renderProducts(allProducts);
+            } else {
+                const filtered = allProducts.filter(p => p.category === category);
+                renderProducts(filtered);
+            }
         }
 
         function createStars() {
@@ -155,7 +178,6 @@
             }
         }
 
-        window.addToCart = addToCart;
         init();
     </script>
 </body>
