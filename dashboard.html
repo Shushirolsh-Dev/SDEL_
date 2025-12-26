@@ -39,24 +39,23 @@
         }
 
         async function initializeApp(user) {
-            // FIXED: Fetching first_name and last_name correctly from the profile table
-            const { data: profile } = await supabase.from('profile').select('first_name, last_name, wallet_balance').eq('id', user.id).single();
+            // Updated to fetch profile and handle naming correctly
+            const { data: profile } = await supabase.from('profile').select('*').eq('id', user.id).single();
             
             const hour = new Date().getHours();
             let greet = (hour < 12) ? "Good morning" : (hour < 17) ? "Good afternoon" : "Good evening";
             
             document.getElementById('js-greet').innerText = greet;
             
-            // FIXED: Logic to use first name and generate proper initials
-            const firstName = profile?.first_name || "Scholar";
-            const lastName = profile?.last_name || "";
+            // Logic for First Name and Initials
+            const fName = profile?.first_name || profile?.firstname || "Scholar";
+            const lName = profile?.last_name || profile?.lastname || "";
             
-            document.getElementById('js-name').innerText = firstName;
+            document.getElementById('js-name').innerText = fName;
             
-            // FIXED: Setting Initials to First Letter of First Name + First Letter of Last Name
-            const firstInitial = firstName.charAt(0);
-            const lastInitial = lastName ? lastName.charAt(0) : "";
-            document.getElementById('user-initials').innerText = (firstInitial + lastInitial).toUpperCase();
+            // Generate initials: First letter of first name + first letter of last name
+            const initials = (fName.charAt(0) + (lName ? lName.charAt(0) : "")).toUpperCase();
+            document.getElementById('user-initials').innerText = initials;
             
             document.getElementById('wallet-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
 
@@ -123,7 +122,7 @@
                             <h2 class="text-xl font-black uppercase italic text-sdel mb-2">${title}</h2>
                             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-6">${desc}</p>
                             <div class="flex gap-3">
-                                <button onclick="window.location.href='dm.html?seller=${sellerId}&ad=${id}'" class="flex-1 bg-sdel py-4 rounded-xl text-black font-black uppercase italic text-[10px]">Message Seller</button>
+                                <button onclick="window.location.href='dm.html?seller=${sellerId}&ref=${id}'" class="flex-1 bg-sdel py-4 rounded-xl text-black font-black uppercase italic text-[10px]">Message Seller</button>
                                 <button onclick="closeAdModal()" class="px-6 bg-zinc-800 rounded-xl font-black text-[10px] uppercase">Close</button>
                             </div>
                         </div>
