@@ -32,31 +32,30 @@
             }
 
             document.documentElement.style.opacity = "1";
-            initializeApp(session.user);
+            initializeApp(session.user); // Passing the 'user' object which contains signup data
             listenForMessages(session.user.id); 
             loadDynamicAds(); 
             subscribeToBalance(session.user.id);
         }
 
         async function initializeApp(user) {
-            // Updated to fetch profile and handle naming correctly
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', user.id).single();
-            
+            // 1. Fetching name directly from User Metadata (entered at Signup)
+            // This works even if the profile table is empty
+            const rawFirstName = user.user_metadata?.first_name || user.user_metadata?.firstname || "Scholar";
+            const rawLastName = user.user_metadata?.last_name || user.user_metadata?.lastname || "";
+
+            // 2. Greeting Logic
             const hour = new Date().getHours();
             let greet = (hour < 12) ? "Good morning" : (hour < 17) ? "Good afternoon" : "Good evening";
-            
             document.getElementById('js-greet').innerText = greet;
-            
-            // Logic for First Name and Initials
-            const fName = profile?.first_name || profile?.firstname || "Scholar";
-            const lName = profile?.last_name || profile?.lastname || "";
-            
-            document.getElementById('js-name').innerText = fName;
-            
-            // Generate initials: First letter of first name + first letter of last name
-            const initials = (fName.charAt(0) + (lName ? lName.charAt(0) : "")).toUpperCase();
+
+            // 3. Set Name and Initials
+            document.getElementById('js-name').innerText = rawFirstName;
+            const initials = (rawFirstName.charAt(0) + (rawLastName ? rawLastName.charAt(0) : "")).toUpperCase();
             document.getElementById('user-initials').innerText = initials;
-            
+
+            // 4. Still fetch balance from profile as that's financial data
+            const { data: profile } = await supabase.from('profile').select('wallet_balance').eq('id', user.id).single();
             document.getElementById('wallet-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
 
             loadActivity(user.id);
