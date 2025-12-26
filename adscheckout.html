@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Checkout</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { background: #000; color: #fff; font-family: 'Poppins', sans-serif; -webkit-font-smoothing: antialiased; }
+        .card-zinc { background: #121212; border: 1px solid #262626; border-radius: 12px; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background: #FF6600; }
+        .divider { height: 1px; background: #262626; margin: 16px 0; }
+    </style>
+</head>
+<body class="p-6">
+    <nav class="flex items-center justify-between mb-10">
+        <button onclick="window.history.back()"><i data-lucide="arrow-left" size="24"></i></button>
+        <h1 class="text-xs font-black uppercase tracking-widest">Order Summary</h1>
+        <div class="w-6"></div>
+    </nav>
+
+    <div class="space-y-6">
+        <div class="card-zinc p-6">
+            <h2 id="summary-title" class="text-sm font-black uppercase italic mb-1">Standard Promotion</h2>
+            <p id="summary-tier" class="text-[10px] text-zinc-500 font-bold uppercase mb-4">3 Days Visibility</p>
+            
+            <div class="divider"></div>
+            
+            <div class="flex justify-between items-center text-[11px] font-bold uppercase">
+                <span class="text-zinc-500">Ad Placement</span>
+                <span id="summary-cost">₦1,500</span>
+            </div>
+            
+            <div class="flex justify-between items-center text-[11px] font-bold uppercase mt-3">
+                <span class="text-zinc-500">Service Fee</span>
+                <span class="text-green-500">FREE</span>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="flex justify-between items-center">
+                <span class="text-xs font-black uppercase">Total Amount</span>
+                <span id="total-cost" class="text-lg font-black text-sdel">₦1,500</span>
+            </div>
+        </div>
+
+        <div class="card-zinc p-5 bg-zinc-900/30 border-dashed border-zinc-700">
+            <div class="flex gap-3 items-start">
+                <i data-lucide="info" size="18" class="text-sdel"></i>
+                <div>
+                    <p class="text-[11px] font-black uppercase text-white">Manual Verification</p>
+                    <p class="text-[10px] text-zinc-500 font-bold leading-relaxed mt-1">
+                        Do not pay yet. Clicking confirm will alert our admin. We will DM your inbox with payment details within 72 hours.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="processOrder()" id="confirmBtn" class="w-full bg-sdel text-white py-4 rounded-lg font-black uppercase text-xs tracking-widest active:scale-95 transition flex items-center justify-center gap-2">
+            Confirm Request <i data-lucide="chevron-right" size="16"></i>
+        </button>
+        
+        <p class="text-center text-[9px] text-zinc-600 font-bold uppercase">
+            Spamming requests without payment results in a 48hr ban.
+        </p>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        // Get data from URL parameters passed from advertise.html
+        const params = new URLSearchParams(window.location.search);
+        const cost = params.get('cost') || '1500';
+        const tier = params.get('tier') || 'Standard';
+        const title = params.get('title') || 'New Business';
+
+        document.getElementById('summary-title').innerText = title;
+        document.getElementById('summary-tier').innerText = tier;
+        document.getElementById('summary-cost').innerText = `₦${Number(cost).toLocaleString()}`;
+        document.getElementById('total-cost').innerText = `₦${Number(cost).toLocaleString()}`;
+
+        window.processOrder = async () => {
+            const btn = document.getElementById('confirmBtn');
+            btn.disabled = true;
+            btn.innerText = "NOTIFYING ADMIN...";
+
+            // This part inserts into the DB (Assuming media was already uploaded in previous step)
+            // For now, we simulate the final success message
+            setTimeout(() => {
+                window.location.href = 'dashboard.html?status=requested';
+            }, 1500);
+        };
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>
