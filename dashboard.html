@@ -39,14 +39,25 @@
         }
 
         async function initializeApp(user) {
+            // FIXED: Fetching first_name and last_name correctly from the profile table
             const { data: profile } = await supabase.from('profile').select('first_name, last_name, wallet_balance').eq('id', user.id).single();
+            
             const hour = new Date().getHours();
             let greet = (hour < 12) ? "Good morning" : (hour < 17) ? "Good afternoon" : "Good evening";
             
             document.getElementById('js-greet').innerText = greet;
-            let fName = profile?.first_name || "Scholar";
-            document.getElementById('js-name').innerText = fName;
-            document.getElementById('user-initials').innerText = (fName[0] + (profile?.last_name?.[0] || "")).toUpperCase();
+            
+            // FIXED: Logic to use first name and generate proper initials
+            const firstName = profile?.first_name || "Scholar";
+            const lastName = profile?.last_name || "";
+            
+            document.getElementById('js-name').innerText = firstName;
+            
+            // FIXED: Setting Initials to First Letter of First Name + First Letter of Last Name
+            const firstInitial = firstName.charAt(0);
+            const lastInitial = lastName ? lastName.charAt(0) : "";
+            document.getElementById('user-initials').innerText = (firstInitial + lastInitial).toUpperCase();
+            
             document.getElementById('wallet-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
 
             loadActivity(user.id);
@@ -112,7 +123,7 @@
                             <h2 class="text-xl font-black uppercase italic text-sdel mb-2">${title}</h2>
                             <p class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-6">${desc}</p>
                             <div class="flex gap-3">
-                                <button onclick="window.location.href='dm.html?id=${sellerId}'" class="flex-1 bg-sdel py-4 rounded-xl text-black font-black uppercase italic text-[10px]">Message Seller</button>
+                                <button onclick="window.location.href='dm.html?seller=${sellerId}&ad=${id}'" class="flex-1 bg-sdel py-4 rounded-xl text-black font-black uppercase italic text-[10px]">Message Seller</button>
                                 <button onclick="closeAdModal()" class="px-6 bg-zinc-800 rounded-xl font-black text-[10px] uppercase">Close</button>
                             </div>
                         </div>
@@ -123,7 +134,6 @@
 
         window.closeAdModal = () => document.getElementById('ad-modal').innerHTML = '';
 
-        // --- CLEAR UNREAD MESSAGES LOGIC ---
         window.clearMessages = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
