@@ -49,20 +49,57 @@
         .animate-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* FIXED BOTTOM DOCK */
+        /* FIXED BOTTOM DOCK - ANCHORED & FULLY VISIBLE */
         .bottom-dock {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(0, 0, 0, 0.9);
-            backdrop-filter: blur(20px);
+            background: #000;
             border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 15px 20px calc(20px + env(safe-area-inset-bottom));
+            padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
             z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        .send-btn { background-color: #FF6600; height: 54px; width: 54px; border-radius: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 15px rgba(255, 102, 0, 0.4); }
+        .input-wrapper {
+            flex: 1;
+            background: #121212;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 4px 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        #ai-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 12px 0;
+            text-transform: uppercase;
+        }
+
+        .send-btn { 
+            background-color: #FF6600; 
+            height: 48px; 
+            width: 48px; 
+            border-radius: 14px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            flex-shrink: 0; 
+            box-shadow: 0 4px 12px rgba(255, 102, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .send-btn:active { transform: scale(0.9); opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -86,19 +123,20 @@
             <div class="ai-bubble animate-in">
                 <p class="text-[10px] font-black uppercase text-sdel mb-2 tracking-tighter">Jona_p</p>
                 <p class="text-xs font-bold leading-relaxed tracking-wide">
-                    READY TO CRUSH SOME QUESTIONS? TYPE <span class="text-sdel underline">"CBT"</span> TO START A TIMED MOCK TEST.
+                    YO! I'M JONA_P, YOUR ALL-IN-ONE CAMPUS COMPANION. I CAN HELP YOU NAVIGATE THE SDEL MARKETPLACE, MANAGE YOUR ORDERS, OR EVEN PREP YOU FOR EXAMS.
+                    <br><br>
+                    NEED TO KNOW WHAT I CAN DO? JUST TYPE <span class="text-sdel underline">"HELP"</span>.
                 </p>
             </div>
         </div>
 
         <div class="bottom-dock">
-            <div class="flex items-center gap-3">
-                <input type="text" id="ai-input" autocomplete="off" placeholder="MESSAGE JONA_P..." 
-                    class="flex-1 bg-zinc-900 border border-white/10 p-4 rounded-2xl outline-none focus:border-sdel transition text-sm font-bold uppercase text-white placeholder:text-gray-500">
-                <button onclick="askAI()" class="send-btn active:scale-95 transition">
-                    <i data-lucide="send" size="22" color="black"></i>
-                </button>
+            <div class="input-wrapper">
+                <input type="text" id="ai-input" autocomplete="off" placeholder="MESSAGE JONA_P...">
             </div>
+            <button onclick="askAI()" class="send-btn">
+                <i data-lucide="send" size="20" color="black"></i>
+            </button>
         </div>
 
     </div>
@@ -118,6 +156,17 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
+        function showHelp() {
+            const helpText = `
+                HERE IS HOW I CAN HELP YOU:<br><br>
+                1. <span class="text-sdel">MARKETPLACE:</span> ASK ME TO FIND PRODUCTS OR DEALS ON CAMPUS.<br>
+                2. <span class="text-sdel">CBT MOCK:</span> TYPE "CBT" TO START A TIMED PRACTICE TEST.<br>
+                3. <span class="text-sdel">SUPPORT:</span> ASK ME ABOUT YOUR ORDERS OR HOW TO USE THE SITE.<br>
+                4. <span class="text-sdel">LOGISTICS:</span> GET UPDATES ON DELIVERY STATUS.
+            `;
+            addMessage(helpText, 'ai');
+        }
+
         // CBT PRO TEMPLATE WITH TIMER
         function launchCBT() {
             const div = document.createElement('div');
@@ -132,35 +181,29 @@
                 </div>
                 <div class="cbt-card">
                     <div id="bar_${qId}" class="timer-bar" style="width: 100%"></div>
-                    <p class="text-xs font-black italic uppercase mb-4 mt-2">Which of these is the legal tender used in Nigeria?</p>
-                    <button class="option-btn" onclick="selectOpt(this)">A) Dollar</button>
-                    <button class="option-btn" id="correct_${qId}" onclick="selectOpt(this)">B) Naira</button>
-                    <button class="option-btn" onclick="selectOpt(this)">C) Pounds</button>
+                    <p class="text-xs font-black italic uppercase mb-4 mt-2">Which organelle is responsible for protein synthesis?</p>
+                    <button class="option-btn" onclick="selectOpt(this)">A) Nucleus</button>
+                    <button class="option-btn" id="correct_${qId}" onclick="selectOpt(this)">B) Ribosome</button>
+                    <button class="option-btn" onclick="selectOpt(this)">C) Mitochondria</button>
                     <button onclick="submitCBT(this, '${qId}')" class="mt-4 w-full bg-white text-black font-black py-3 rounded-xl uppercase text-[10px] tracking-widest">Submit Answer</button>
                 </div>
             `;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            // Timer Logic
             const countdown = setInterval(() => {
                 timeLeft--;
                 const bar = document.getElementById(`bar_${qId}`);
                 const text = document.getElementById(`timer_text_${qId}`);
-                
                 if(!bar) { clearInterval(countdown); return; }
-
                 text.innerText = `00:${timeLeft < 10 ? '0'+timeLeft : timeLeft}`;
                 bar.style.width = (timeLeft / 30 * 100) + "%";
-
                 if(timeLeft <= 10) bar.classList.add('timer-warning');
-                
                 if(timeLeft <= 0) {
                     clearInterval(countdown);
                     submitCBT(div.querySelector('button[onclick*="submitCBT"]'), qId, true);
                 }
             }, 1000);
-
             div.dataset.intervalId = countdown;
         }
 
@@ -173,19 +216,16 @@
             const card = btn.parentElement;
             const bubble = card.parentElement;
             clearInterval(bubble.dataset.intervalId);
-
             const selected = card.querySelector('.selected');
             if(!selected && !auto) return alert("SELECT AN OPTION!");
-
             const isCorrect = selected && selected.id === `correct_${qId}`;
-            
             card.innerHTML = `
                 <div class="text-center py-4 animate-in">
                     <i data-lucide="${isCorrect ? 'check-circle' : 'x-circle'}" class="${isCorrect ? 'text-green-500' : 'text-red-500'} mx-auto mb-2" size="40"></i>
                     <p class="font-black uppercase italic text-lg">${auto ? 'TIME UP!' : (isCorrect ? 'CORRECT!' : 'WRONG!')}</p>
                     <div class="mt-4 p-4 bg-zinc-900 rounded-xl text-left border-l-4 border-sdel">
                         <p class="text-[10px] font-black text-sdel uppercase">The Lesson:</p>
-                        <p class="text-[11px] font-bold text-gray-400 mt-1 uppercase leading-tight">The Naira is the only legal tender in Nigeria. Even if you have Dollars, you must convert them to spend on campus!</p>
+                        <p class="text-[11px] font-bold text-gray-400 mt-1 uppercase leading-tight">Ribosomes are the sites of protein synthesis. They can be found floating freely or attached to the endoplasmic reticulum.</p>
                     </div>
                 </div>
             `;
@@ -201,10 +241,13 @@
             input.value = '';
 
             setTimeout(() => {
-                if(val.toLowerCase().includes("cbt")) {
+                const query = val.toLowerCase();
+                if(query === "help") {
+                    showHelp();
+                } else if(query.includes("cbt")) {
                     launchCBT();
                 } else {
-                    addMessage("Type 'CBT' to test your speed, or tell me what you're looking for.", 'ai');
+                    addMessage("I'M ON IT! TYPE 'HELP' TO SEE ALL THE WAYS I CAN ASSIST YOU ON SDEL.", 'ai');
                 }
             }, 600);
         }
