@@ -3,167 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel | Checkout</title>
+    <title>Sdel | Secure Checkout</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
-        
-        /* 50 Static Star Logic */
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(110vh); } }
-
-        .dashed-line { border-top: 2px dashed rgba(255,255,255,0.1); width: 100%; margin: 15px 0; }
-        .spinner { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        input, select { background: rgba(255,255,255,0.03) !important; border: 1px solid rgba(255,255,255,0.1) !important; color: white !important; }
+        input:focus { border-color: #FF6600 !important; outline: none; }
+        .method-card { border: 2px solid transparent; transition: all 0.3s; cursor: pointer; }
+        .method-card.active { border-color: #FF6600; background: rgba(255, 102, 0, 0.05); }
     </style>
 </head>
 <body class="pb-10">
-
     <div class="stars" id="stars"></div>
 
-    <nav class="p-6 flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-md z-50">
+    <nav class="p-6 flex items-center justify-between border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
         <a href="cart.html" class="text-white"><i data-lucide="chevron-left"></i></a>
-        <h1 class="text-lg font-black uppercase tracking-tighter text-sdel">Confirmation</h1>
-        <div class="w-6"></div>
+        <h1 class="text-lg font-black uppercase tracking-tighter italic">Secure <span class="text-sdel">Checkout</span></h1>
+        <div></div>
     </nav>
 
-    <main class="p-6 space-y-6 relative z-10">
-        <div class="card-zinc p-6 rounded-[32px] space-y-4">
-            <h2 class="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em]">Order Summary</h2>
-            
+    <main class="p-6 max-w-xl mx-auto space-y-8 relative z-10">
+        <section class="space-y-4">
+            <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Delivery Information</h2>
+            <div class="space-y-3">
+                <input type="text" id="cust-name" placeholder="Full Name" class="w-full p-4 rounded-2xl text-sm font-bold">
+                <input type="text" id="cust-address" placeholder="Hostel / Building / Apartment" class="w-full p-4 rounded-2xl text-sm font-bold">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="cust-room" placeholder="Room/Floor" class="w-full p-4 rounded-2xl text-sm font-bold">
+                    <input type="tel" id="cust-phone" placeholder="Phone Number" class="w-full p-4 rounded-2xl text-sm font-bold">
+                </div>
+            </div>
+        </section>
+
+        <section class="space-y-4">
+            <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Payment Method</h2>
+            <div class="grid grid-cols-1 gap-3">
+                <div onclick="setMethod('wallet')" id="method-wallet" class="method-card card-zinc p-5 rounded-3xl flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-zinc-900 rounded-2xl text-sdel"><i data-lucide="wallet"></i></div>
+                        <div>
+                            <p class="text-xs font-black uppercase">Sdel Wallet</p>
+                            <p class="text-[10px] text-zinc-500 font-bold">Balance: ₦0.00</p>
+                        </div>
+                    </div>
+                    <div class="text-[10px] font-black text-zinc-600 italic">Insufficient</div>
+                </div>
+                
+                <div onclick="setMethod('pod')" id="method-pod" class="method-card active card-zinc p-5 rounded-3xl flex items-center gap-4">
+                    <div class="p-3 bg-zinc-900 rounded-2xl text-white"><i data-lucide="truck"></i></div>
+                    <div>
+                        <p class="text-xs font-black uppercase">Pay on Delivery / Transfer</p>
+                        <p class="text-[10px] text-zinc-500 font-bold">Manual verification required</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="card-zinc p-6 rounded-[2.5rem] space-y-4 border border-white/5">
+            <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Order Summary</h2>
             <div id="summary-items" class="space-y-3">
                 </div>
-
-            <div class="dashed-line"></div>
-
-            <div class="space-y-2">
-                <div class="flex justify-between text-xs font-bold">
-                    <span class="text-gray-500 uppercase">Subtotal</span>
+            <div class="pt-4 border-t border-white/10 space-y-2">
+                <div class="flex justify-between text-zinc-400 text-xs font-bold">
+                    <span>Subtotal</span>
                     <span id="subtotal">₦0</span>
                 </div>
-                <div class="flex justify-between text-xs font-bold">
-                    <span class="text-gray-500 uppercase">Delivery Fee</span>
-                    <span class="text-green-500">FREE</span>
+                <div class="flex justify-between text-zinc-400 text-xs font-bold">
+                    <span>Delivery Fee</span>
+                    <span>₦0</span>
                 </div>
-                <div class="flex justify-between items-end pt-2">
-                    <span class="text-[10px] font-black uppercase text-sdel">Total to Pay</span>
-                    <span id="final-total" class="text-2xl font-black italic tracking-tighter">₦0</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="card-zinc p-6 rounded-[32px] space-y-4">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-zinc-900 rounded-2xl flex items-center justify-center text-sdel">
-                    <i data-lucide="map-pin" size="20"></i>
-                </div>
-                <div>
-                    <h3 class="text-xs font-black uppercase tracking-tight">Delivery Address</h3>
-                    <p id="user-phone" class="text-[10px] text-gray-500 font-bold">Fetching address...</p>
+                <div class="flex justify-between text-white text-lg font-black italic">
+                    <span>TOTAL</span>
+                    <span id="final-total" class="text-sdel">₦0</span>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <button id="pay-btn" onclick="processPayment()" class="w-full bg-white text-black py-6 rounded-[24px] font-black uppercase text-xs tracking-[0.2em] flex items-center justify-center space-x-3 shadow-[0_0_30px_rgba(255,255,255,0.1)] active:scale-95 transition-all">
-            <i data-lucide="shield-check" size="18"></i>
-            <span id="pay-text">Confirm & Pay Now</span>
+        <button onclick="confirmOrder()" id="pay-btn" class="w-full bg-white text-black py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] active:scale-95 transition">
+            Confirm Order
         </button>
-        
-        <p class="text-[9px] text-center text-gray-600 font-bold uppercase tracking-widest">Secure transaction powered by Sdel Wallet</p>
     </main>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        let totalAmount = 0;
-        let userBalance = 0;
-        let userId = null;
+        let checkoutItems = JSON.parse(localStorage.getItem('checkout_items')) || [];
+        let selectedMethod = 'pod';
 
-        async function init() {
+        function init() {
+            if(checkoutItems.length === 0) window.location.href = 'market.html';
+            renderSummary();
             createStars();
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.replace('login.html');
-            userId = session.user.id;
-
-            // Load Cart Items & Profile Balance
-            const [cartRes, profileRes] = await Promise.all([
-                supabase.from('cart').select('*, products(*)').eq('user_id', userId),
-                supabase.from('profile').select('*').eq('id', userId).single()
-            ]);
-
-            userBalance = profileRes.data.wallet_balance;
-            document.getElementById('user-phone').innerText = `Campus Delivery: ${profileRes.data.phone || 'Standard Address'}`;
-
-            renderSummary(cartRes.data);
+            lucide.createIcons();
         }
 
-        function renderSummary(items) {
+        function renderSummary() {
             const container = document.getElementById('summary-items');
-            totalAmount = 0;
-
-            container.innerHTML = items.map(item => {
-                totalAmount += (item.products.price * item.quantity);
+            let total = 0;
+            
+            container.innerHTML = checkoutItems.map(item => {
+                const price = item.products.price * item.quantity;
+                total += price;
                 return `
                     <div class="flex justify-between items-center">
-                        <span class="text-[11px] font-bold uppercase text-gray-300">${item.quantity}x ${item.products.name}</span>
-                        <span class="text-xs font-black italic">₦${(item.products.price * item.quantity).toLocaleString()}</span>
+                        <p class="text-xs font-bold text-zinc-300">${item.products.name} <span class="text-zinc-600">x${item.quantity}</span></p>
+                        <p class="text-xs font-black">₦${price.toLocaleString()}</p>
                     </div>
                 `;
             }).join('');
 
-            document.getElementById('subtotal').innerText = `₦${totalAmount.toLocaleString()}`;
-            document.getElementById('final-total').innerText = `₦${totalAmount.toLocaleString()}`;
-            lucide.createIcons();
+            document.getElementById('subtotal').innerText = `₦${total.toLocaleString()}`;
+            document.getElementById('final-total').innerText = `₦${total.toLocaleString()}`;
         }
 
-        window.processPayment = async () => {
-            const btn = document.getElementById('pay-btn');
-            const btnText = document.getElementById('pay-text');
+        window.setMethod = (m) => {
+            if(m === 'wallet') return; // Wallet currently locked as 0
+            selectedMethod = m;
+            document.querySelectorAll('.method-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`method-${m}`).classList.add('active');
+        };
 
-            if (userBalance < totalAmount) {
-                alert("Insufficient Balance! Please top up your wallet.");
-                return;
-            }
+        window.confirmOrder = async () => {
+            const btn = document.getElementById('pay-btn');
+            const name = document.getElementById('cust-name').value;
+            const phone = document.getElementById('cust-phone').value;
+            
+            if(!name || !phone) { alert("Please fill contact info"); return; }
 
             btn.disabled = true;
-            btnText.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> PROCESSING...';
-            lucide.createIcons();
+            btn.innerText = "Processing Order...";
 
-            // 1. Deduct Balance
-            const { error: balanceErr } = await supabase.from('profile')
-                .update({ wallet_balance: userBalance - totalAmount })
-                .eq('id', userId);
+            // Create Order in Supabase
+            const { data, error } = await supabase.from('orders').insert([{
+                user_id: checkoutItems[0].user_id,
+                total_amount: checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0),
+                status: 'pending',
+                payment_method: selectedMethod,
+                delivery_info: {
+                    name, 
+                    phone,
+                    address: document.getElementById('cust-address').value,
+                    room: document.getElementById('cust-room').value
+                }
+            }]).select();
 
-            if (balanceErr) { alert("Payment failed"); return; }
-
-            // 2. Clear Cart
-            await supabase.from('cart').delete().eq('user_id', userId);
-
-            // 3. Success Feedback
-            btnText.innerText = "SUCCESSFUL!";
-            btn.classList.add('bg-green-500', 'text-white');
-            setTimeout(() => window.location.href = 'dashboard.html', 2000);
+            if(!error) {
+                // Remove these specific items from cart since they are now ordered
+                const idsToRemove = checkoutItems.map(i => i.id);
+                await supabase.from('cart').delete().in('id', idsToRemove);
+                
+                localStorage.removeItem('checkout_items');
+                alert("Order Placed Successfully!");
+                window.location.href = 'dashboard.html';
+            } else {
+                alert("Error placing order");
+                btn.disabled = false;
+                btn.innerText = "Confirm Order";
+            }
         };
 
         function createStars() {
             const container = document.getElementById('stars');
-            for (let i = 0; i < 150; i++) {
+            for (let i = 0; i < 50; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
-                star.style.left = Math.random() * 100 + 'vw';
-                if (i < 50) star.style.top = Math.random() * 100 + 'vh';
-                else star.style.top = '-' + (Math.random() * 100) + 'vh';
-                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
+                star.style.left = (Math.random() * 100) + 'vw';
+                star.style.top = (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 20) + 's';
                 container.appendChild(star);
             }
         }
@@ -171,5 +189,4 @@
         init();
     </script>
 </body>
-  </html>
-  
+</html>
