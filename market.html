@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body { background-color: #000; color: white; overflow-x: hidden; }
@@ -16,27 +15,20 @@
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         .category-pill { transition: all 0.3s ease; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); position: relative; z-index: 10; }
         .category-pill.active { background-color: #FF6600; color: black !important; border-color: #FF6600; }
-        
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(110vh); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-
         #search-view { display: none; position: fixed; inset: 0; background: #000; z-index: 100; padding: 24px; }
         .search-item { border-bottom: 1px solid rgba(255,255,255,0.05); padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
 <body class="pb-24">
-
     <script>
         document.addEventListener('contextmenu', event => event.preventDefault());
-        document.onkeydown = function(e) {
-            if(e.keyCode == 123 || (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0))) return false;
-        }
+        document.onkeydown = function(e) { if(e.keyCode == 123 || (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0))) return false; }
     </script>
-
     <div class="stars" id="stars"></div>
-
     <div id="search-view">
         <div class="flex items-center gap-4 mb-6">
             <button onclick="closeSearch()" class="text-gray-400"><i data-lucide="arrow-left"></i></button>
@@ -47,94 +39,59 @@
         </div>
         <div id="search-results-list" class="overflow-y-auto h-[80vh] no-scrollbar"></div>
     </div>
-
     <nav class="p-6 flex items-center justify-between border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
         <a href="dashboard.html" class="text-white"><i data-lucide="chevron-left"></i></a>
         <h1 class="text-lg font-black uppercase tracking-tighter">Campus <span class="text-sdel">Market</span></h1>
-        
         <div onclick="window.location.href='cart.html'" class="relative cursor-pointer p-2">
             <i data-lucide="shopping-cart" class="text-gray-400"></i>
             <span id="cart-count" class="absolute top-0 right-0 bg-sdel text-black text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center border-2 border-black">0</span>
         </div>
     </nav>
-
     <div class="p-6 flex space-x-3 overflow-x-auto no-scrollbar" id="category-tabs">
         <div onclick="filterProducts('All', event)" class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</div>
     </div>
-
     <main class="px-6 grid grid-cols-1 md:grid-cols-2 gap-6" id="product-list">
-        <div class="col-span-full text-center py-20">
-            <p class="text-[10px] font-black uppercase tracking-widest text-zinc-700">Market is syncing...</p>
-        </div>
+        <div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-700">Connecting to Sdel Market...</p></div>
     </main>
-
     <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-xl border-t border-white/10 p-4 flex justify-around items-center z-50">
         <a href="dashboard.html" class="text-gray-500"><i data-lucide="home"></i></a>
         <a href="market.html" class="text-sdel"><i data-lucide="grid"></i></a>
         <button onclick="openSearch()" class="text-gray-500"><i data-lucide="search"></i></button>
         <a href="profile.html" class="text-gray-500"><i data-lucide="user"></i></a>
     </div>
-
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
-
-        let currentUserId = null;
-        let allProducts = [];
-
+        let currentUserId = null; let allProducts = [];
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                currentUserId = session.user.id;
-                updateCartCount();
-            }
-            await loadTabs();
-            await loadProducts();
-            createStars();
-            lucide.createIcons();
+            if (session) { currentUserId = session.user.id; updateCartCount(); }
+            await loadTabs(); await loadProducts(); createStars(); lucide.createIcons();
         }
-
         async function loadTabs() {
-            const { data: categories } = await supabase.from('categories').select('*').order('name');
+            const { data } = await supabase.from('categories').select('*').order('name');
             const container = document.getElementById('category-tabs');
-            if (categories && categories.length > 0) {
-                const tabHtml = categories.map(cat => `
-                    <div onclick="filterProducts('${cat.name}', event)" class="category-pill px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap text-gray-500">
-                        ${cat.name}
-                    </div>
-                `).join('');
-                container.innerHTML = `<div onclick="filterProducts('All', event)" class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</div>` + tabHtml;
+            if (data && data.length > 0) {
+                container.innerHTML = `<div onclick="filterProducts('All', event)" class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</div>` + 
+                data.map(cat => `<div onclick="filterProducts('${cat.name}', event)" class="category-pill px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap text-gray-500">${cat.name}</div>`).join('');
             }
         }
-
         async function updateCartCount() {
             if (!currentUserId) return;
             const { count } = await supabase.from('cart').select('*', { count: 'exact', head: true }).eq('user_id', currentUserId);
             document.getElementById('cart-count').innerText = count || 0;
         }
-
-        window.addToCart = async (productId) => {
-            if (!currentUserId) {
-                alert("Please log in to add items to cart");
-                return;
-            }
-            const { error } = await supabase.from('cart').insert([{ user_id: currentUserId, product_id: productId }]);
-            if(!error) updateCartCount();
-        }
-
         async function loadProducts() {
-            const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-            allProducts = products || [];
+            const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+            allProducts = data || [];
             renderProducts(allProducts);
         }
-
         function renderProducts(items) {
             const list = document.getElementById('product-list');
-            if (!items || items.length === 0) {
-                list.innerHTML = '<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-800">No products available in the market.</p></div>';
+            if (items.length === 0) {
+                list.innerHTML = `<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-800">No Items Available</p></div>`;
                 return;
             }
-
             list.innerHTML = items.map(item => `
                 <div class="card-zinc rounded-3xl overflow-hidden flex flex-col">
                     <div class="h-48 bg-zinc-900 flex items-center justify-center relative">
@@ -149,68 +106,44 @@
                             <p class="font-black text-lg tracking-tighter text-white">₦${item.price.toLocaleString()}</p>
                         </div>
                         <p class="text-[10px] text-zinc-500 line-clamp-2 h-8">${item.description || ''}</p>
-                        <button onclick="window.addToCart('${item.id}')" class="w-full bg-white text-black py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition mt-2">
-                            Add to Cart
-                        </button>
+                        <button onclick="window.addToCart('${item.id}')" class="w-full bg-white text-black py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition mt-2">Add to Cart</button>
                     </div>
-                </div>
-            `).join('');
+                </div>`).join('');
             lucide.createIcons();
         }
-
-        window.filterProducts = (category, event) => {
-            const pills = document.querySelectorAll('.category-pill');
-            pills.forEach(p => { p.classList.remove('active'); p.classList.add('text-gray-500'); });
-            event.currentTarget.classList.add('active', 'text-black');
-            event.currentTarget.classList.remove('text-gray-500');
-            
-            const filtered = category === 'All' ? allProducts : allProducts.filter(p => p.category === category);
-            renderProducts(filtered);
-        }
-
-        window.openSearch = () => {
-            document.getElementById('search-view').style.display = 'block';
-            document.getElementById('search-input').focus();
-        }
-
-        window.closeSearch = () => { document.getElementById('search-view').style.display = 'none'; }
-
+        window.addToCart = async (id) => {
+            if (!currentUserId) return alert("Login Required");
+            const { error } = await supabase.from('cart').insert([{ user_id: currentUserId, product_id: id }]);
+            if(!error) updateCartCount();
+        };
+        window.filterProducts = (cat, e) => {
+            document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active', 'text-black'));
+            e.currentTarget.classList.add('active');
+            renderProducts(cat === 'All' ? allProducts : allProducts.filter(p => p.category === cat));
+        };
+        window.openSearch = () => { document.getElementById('search-view').style.display = 'block'; document.getElementById('search-input').focus(); };
+        window.closeSearch = () => { document.getElementById('search-view').style.display = 'none'; };
         window.runSearch = (val) => {
             const container = document.getElementById('search-results-list');
             if(!val.trim()) { container.innerHTML = ""; return; }
             const filtered = allProducts.filter(p => p.name.toLowerCase().includes(val.toLowerCase()));
             container.innerHTML = filtered.map(item => `
                 <div class="search-item" onclick="viewFromSearch('${item.id}')">
-                    <div class="flex items-center gap-3">
-                        <img src="${item.image_url}" class="w-10 h-10 object-cover rounded-lg">
-                        <div>
-                            <p class="font-bold text-sm uppercase tracking-tight">${item.name}</p>
-                            <p class="text-[9px] text-gray-500 font-black uppercase tracking-widest">${item.category}</p>
-                        </div>
-                    </div>
+                    <div class="flex items-center gap-3"><img src="${item.image_url}" class="w-10 h-10 object-cover rounded-lg">
+                    <div><p class="font-bold text-sm uppercase">${item.name}</p><p class="text-[9px] text-gray-500 font-black uppercase">${item.category}</p></div></div>
                     <p class="font-black text-sdel text-xs">₦${item.price.toLocaleString()}</p>
-                </div>
-            `).join('');
-        }
-
-        window.viewFromSearch = (id) => {
-            renderProducts(allProducts.filter(p => p.id === id));
-            closeSearch();
-        }
-
+                </div>`).join('');
+        };
+        window.viewFromSearch = (id) => { renderProducts(allProducts.filter(p => p.id === id)); closeSearch(); };
         function createStars() {
             const container = document.getElementById('stars');
-            for (let i = 0; i < 150; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div'); star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
-                star.style.left = (Math.random() * 100) + 'vw';
-                star.style.top = (Math.random() * 100) + 'vh';
-                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
-                container.appendChild(star);
+                star.style.left = (Math.random() * 100) + 'vw'; star.style.top = (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 20) + 's'; container.appendChild(star);
             }
         }
-        
         init();
     </script>
 </body>
