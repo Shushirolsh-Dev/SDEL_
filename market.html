@@ -109,7 +109,6 @@
 
         async function updateCartCount() {
             if (!currentUserId) return;
-            // Note: Ensure you create the 'cart' table for this to work
             const { count } = await supabase.from('cart').select('*', { count: 'exact', head: true }).eq('user_id', currentUserId);
             document.getElementById('cart-count').innerText = count || 0;
         }
@@ -119,38 +118,27 @@
                 alert("Please log in to add items to cart");
                 return;
             }
-            
-            const { error } = await supabase.from('cart').insert([
-                { user_id: currentUserId, product_id: productId }
-            ]);
-
-            if(error) {
-                console.error(error);
-                alert("Could not add to cart");
-            } else {
-                updateCartCount();
-            }
+            const { error } = await supabase.from('cart').insert([{ user_id: currentUserId, product_id: productId }]);
+            if(!error) updateCartCount();
         }
 
         async function loadProducts() {
             const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-            if (products) {
-                allProducts = products;
-                renderProducts(allProducts);
-            }
+            allProducts = products || [];
+            renderProducts(allProducts);
         }
 
         function renderProducts(items) {
             const list = document.getElementById('product-list');
-            if (items.length === 0) {
-                list.innerHTML = '<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-700">No items found.</p></div>';
+            if (!items || items.length === 0) {
+                list.innerHTML = '<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-800">No products available in the market.</p></div>';
                 return;
             }
 
             list.innerHTML = items.map(item => `
                 <div class="card-zinc rounded-3xl overflow-hidden flex flex-col">
                     <div class="h-48 bg-zinc-900 flex items-center justify-center relative">
-                        ${item.image_url ? `<img src="${item.image_url}" class="object-cover h-full w-full">` : `<i data-lucide="image" class="text-zinc-600" size="40"></i>`}
+                        <img src="${item.image_url}" class="object-cover h-full w-full">
                         <div class="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
                              <p class="text-[8px] text-sdel font-black uppercase tracking-widest">${item.category}</p>
                         </div>
@@ -160,7 +148,7 @@
                             <h3 class="font-bold text-sm uppercase truncate pr-2">${item.name}</h3>
                             <p class="font-black text-lg tracking-tighter text-white">₦${item.price.toLocaleString()}</p>
                         </div>
-                        <p class="text-[10px] text-zinc-500 line-clamp-2 h-8">${item.description || 'No description'}</p>
+                        <p class="text-[10px] text-zinc-500 line-clamp-2 h-8">${item.description || ''}</p>
                         <button onclick="window.addToCart('${item.id}')" class="w-full bg-white text-black py-3 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition mt-2">
                             Add to Cart
                         </button>
@@ -173,7 +161,7 @@
         window.filterProducts = (category, event) => {
             const pills = document.querySelectorAll('.category-pill');
             pills.forEach(p => { p.classList.remove('active'); p.classList.add('text-gray-500'); });
-            event.currentTarget.classList.add('active');
+            event.currentTarget.classList.add('active', 'text-black');
             event.currentTarget.classList.remove('text-gray-500');
             
             const filtered = category === 'All' ? allProducts : allProducts.filter(p => p.category === category);
@@ -189,10 +177,8 @@
 
         window.runSearch = (val) => {
             const container = document.getElementById('search-results-list');
-            if(val.trim() === "") { container.innerHTML = ""; return; }
-
+            if(!val.trim()) { container.innerHTML = ""; return; }
             const filtered = allProducts.filter(p => p.name.toLowerCase().includes(val.toLowerCase()));
-            
             container.innerHTML = filtered.map(item => `
                 <div class="search-item" onclick="viewFromSearch('${item.id}')">
                     <div class="flex items-center gap-3">
@@ -208,8 +194,7 @@
         }
 
         window.viewFromSearch = (id) => {
-            const product = allProducts.find(p => p.id === id);
-            renderProducts([product]);
+            renderProducts(allProducts.filter(p => p.id === id));
             closeSearch();
         }
 
@@ -219,8 +204,8 @@
                 const star = document.createElement('div');
                 star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
-                star.style.left = Math.random() * 100 + 'vw';
-                star.style.top = Math.random() * 100 + 'vh';
+                star.style.left = (Math.random() * 100) + 'vw';
+                star.style.top = (Math.random() * 100) + 'vh';
                 star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
                 container.appendChild(star);
             }
