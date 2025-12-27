@@ -14,7 +14,6 @@
         .bg-sdel { background-color: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         
-        /* Fixed Tab Button Styling */
         .category-pill { 
             transition: all 0.3s ease; 
             cursor: pointer; 
@@ -86,31 +85,40 @@
 
         let currentUserId = "GUEST_USER"; 
         let allProducts = [];
+        let userCart = {}; // Stores {product_id: quantity}
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) { currentUserId = session.user.id; }
             
-            await updateCartCount();
+            await fetchUserCart();
             await loadTabs(); 
             await loadProducts(); 
             createStars(); 
             lucide.createIcons();
         }
 
+        async function fetchUserCart() {
+            const { data } = await supabase.from('cart').select('product_id, quantity').eq('user_id', currentUserId);
+            userCart = {};
+            if (data) {
+                data.forEach(item => userCart[item.product_id] = item.quantity);
+            }
+            updateCartCountDisplay();
+        }
+
+        function updateCartCountDisplay() {
+            const totalItems = Object.keys(userCart).length;
+            document.getElementById('cart-count').innerText = totalItems;
+        }
+
         async function loadTabs() {
             const { data } = await supabase.from('categories').select('*').order('name');
             const container = document.getElementById('category-tabs');
             if (data && data.length > 0) {
-                // Ensure all tabs are created as buttons for better touch interaction
                 container.innerHTML = `<button onclick="filterProducts('All', event)" class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</button>` + 
                 data.map(cat => `<button onclick="filterProducts('${cat.name}', event)" class="category-pill px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">${cat.name}</button>`).join('');
             }
-        }
-
-        async function updateCartCount() {
-            const { count } = await supabase.from('cart').select('*', { count: 'exact', head: true }).eq('user_id', currentUserId);
-            document.getElementById('cart-count').innerText = count || 0;
         }
 
         async function loadProducts() {
@@ -125,7 +133,9 @@
                 list.innerHTML = `<div class="col-span-full text-center py-20 opacity-30"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">No Items Found</p></div>`;
                 return;
             }
-            list.innerHTML = items.map(item => `
+            list.innerHTML = items.map(item => {
+                const inCart = userCart[item.id];
+                return `
                 <div class="card-zinc rounded-3xl overflow-hidden flex flex-col">
                     <div class="h-56 bg-zinc-900 flex items-center justify-center relative">
                         <img src="${item.image_url}" class="object-cover h-full w-full" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Preview'">
@@ -139,37 +149,49 @@
                             <p class="font-black text-lg tracking-tighter text-white">₦${item.price.toLocaleString()}</p>
                         </div>
                         <p class="text-[10px] text-zinc-500 font-bold leading-relaxed line-clamp-2 h-8">${item.description || ''}</p>
-                        <button onclick="addToCart('${item.id}')" class="w-full bg-white text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition mt-4">Add to Cart</button>
+                        
+                        <div class="mt-4 flex gap-2">
+                            ${inCart ? `
+                                <div class="flex items-center bg-zinc-900 rounded-2xl border border-white/10 overflow-hidden">
+                                    <button onclick="updateQty('${item.id}', -1)" class="px-4 py-3 text-white hover:bg-white/5 transition"><i data-lucide="minus" size="14"></i></button>
+                                    <span class="text-xs font-black w-8 text-center">${inCart}</span>
+                                    <button onclick="updateQty('${item.id}', 1)" class="px-4 py-3 text-white hover:bg-white/5 transition"><i data-lucide="plus" size="14"></i></button>
+                                </div>
+                                <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition">View Cart</button>
+                            ` : `
+                                <button onclick="addToCart('${item.id}')" class="w-full bg-white text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition">Add to Cart</button>
+                            `}
+                        </div>
                     </div>
-                </div>`).join('');
+                </div>`;
+            }).join('');
             lucide.createIcons();
         }
 
         window.addToCart = async (id) => {
-            const { error } = await supabase.from('cart').insert([{ user_id: currentUserId, product_id: id }]);
-            if(!error) {
-                updateCartCount();
-                alert("Product Added!");
-            } else {
-                alert("Error adding to cart");
-            }
+            userCart[id] = 1;
+            window.renderProducts(allProducts); // Silent UI update
+            await supabase.from('cart').insert([{ user_id: currentUserId, product_id: id, quantity: 1 }]);
+            updateCartCountDisplay();
         };
 
-        // FIXED FILTER LOGIC
+        window.updateQty = async (id, change) => {
+            let newQty = (userCart[id] || 0) + change;
+            if (newQty < 1) return; // Logic constraint: cannot unchart here
+            
+            userCart[id] = newQty;
+            window.renderProducts(allProducts); // Silent UI update
+            
+            await supabase.from('cart').update({ quantity: newQty }).eq('user_id', currentUserId).eq('product_id', id);
+        };
+
         window.filterProducts = (cat, e) => {
-            // Update UI Active State
             document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
             e.currentTarget.classList.add('active');
-            
-            // Filter Logic: Precise but Case-Insensitive
-            if (cat === 'All') {
-                window.renderProducts(allProducts);
-            } else {
-                const filtered = allProducts.filter(p => 
-                    String(p.category).trim().toLowerCase() === String(cat).trim().toLowerCase()
-                );
-                window.renderProducts(filtered);
-            }
+            const filtered = cat === 'All' ? allProducts : allProducts.filter(p => 
+                String(p.category).trim().toLowerCase() === String(cat).trim().toLowerCase()
+            );
+            window.renderProducts(filtered);
         };
 
         window.openSearch = () => { 
@@ -177,9 +199,7 @@
             document.getElementById('search-input').focus(); 
         };
 
-        window.closeSearch = () => { 
-            document.getElementById('search-view').style.display = 'none'; 
-        };
+        window.closeSearch = () => { document.getElementById('search-view').style.display = 'none'; };
 
         window.runSearch = (val) => {
             const container = document.getElementById('search-results-list');
@@ -196,6 +216,7 @@
                     </div>
                     <p class="font-black text-sdel text-xs">₦${item.price.toLocaleString()}</p>
                 </div>`).join('');
+            lucide.createIcons();
         };
 
         window.viewFromSearch = (id) => { 
