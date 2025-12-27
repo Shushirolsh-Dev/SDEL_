@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel - Inventory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <style>
+        body { background: #000; color: white; font-family: 'Poppins', sans-serif; }
+        .sdel-input { background: #111; border: 1px solid #222; border-radius: 12px; padding: 14px; width: 100%; color: white; outline: none; font-size: 14px; font-weight: 600; }
+        .sdel-input:focus { border-color: #FF6600; }
+        .btn-orange { background: #FF6600; color: black; font-weight: 900; padding: 16px; border-radius: 12px; text-transform: uppercase; width: 100%; }
+        .product-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 18px; padding: 15px; }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-lg mx-auto">
+        <header class="mb-8">
+            <h1 class="text-3xl font-black italic uppercase italic">STOCK <span class="text-[#FF6600]">ROOM</span></h1>
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Add or update campus inventory</p>
+        </header>
+
+        <div class="bg-[#0a0a0a] border border-[#222] p-6 rounded-3xl mb-8">
+            <h2 class="text-xs font-black uppercase mb-4 text-[#FF6600]">New Product</h2>
+            <div class="space-y-4">
+                <input type="text" id="p-name" placeholder="PRODUCT NAME (e.g. COLD PEPSI)" class="sdel-input">
+                <div class="flex gap-3">
+                    <input type="number" id="p-price" placeholder="PRICE (₦)" class="sdel-input w-1/2">
+                    <select id="p-cat" class="sdel-input w-1/2 bg-[#111]">
+                        <option value="Snacks">SNACKS</option>
+                        <option value="Drinks">DRINKS</option>
+                        <option value="Food">INSTANT FOOD</option>
+                        <option value="Toiletries">TOILETRIES</option>
+                        <option value="Stationery">STATIONERY</option>
+                    </select>
+                </div>
+                <input type="text" id="p-school" value="Obafemi Awolowo University (OAU)" class="sdel-input" readonly>
+                <button onclick="addProduct()" class="btn-orange">Add to Shop</button>
+            </div>
+        </div>
+
+        <div id="inventory-list" class="space-y-4">
+            <h2 class="text-xs font-black uppercase mb-4 text-gray-500">Current Stock</h2>
+            </div>
+    </div>
+
+    <script>
+        const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        async function addProduct() {
+            const name = document.getElementById('p-name').value;
+            const price = document.getElementById('p-price').value;
+            const category = document.getElementById('p-cat').value;
+            const school = document.getElementById('p-school').value;
+
+            if(!name || !price) return alert("Fill all fields");
+
+            const { error } = await sb.from('products').insert([
+                { name, price, category, school_name: school }
+            ]);
+
+            if(error) alert(error.message);
+            else {
+                alert("PRODUCT ADDED!");
+                location.reload();
+            }
+        }
+
+        async function loadInventory() {
+            const { data } = await sb.from('products').select('*').order('created_at', { ascending: false });
+            const list = document.getElementById('inventory-list');
+            
+            data.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'product-card flex justify-between items-center';
+                card.innerHTML = `
+                    <div>
+                        <p class="text-sm font-black uppercase">${p.name}</p>
+                        <p class="text-[10px] font-bold text-[#FF6600]">₦${p.price} | ${p.category}</p>
+                    </div>
+                    <button onclick="deleteProduct('${p.id}')" class="text-red-500 text-[10px] font-black uppercase">Remove</button>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        async function deleteProduct(id) {
+            if(confirm("Remove this product?")) {
+                await sb.from('products').delete().eq('id', id);
+                location.reload();
+            }
+        }
+
+        loadInventory();
+    </script>
+</body>
+</html>
