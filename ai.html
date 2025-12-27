@@ -33,23 +33,33 @@
         }
         .chat-container::-webkit-scrollbar { display: none; }
         
-        .ai-bubble { background: #121212; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 20px 20px 20px 4px; align-self: flex-start; padding: 16px; max-width: 90%; }
+        .ai-bubble { 
+            background: #121212; 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+            border-radius: 20px 20px 20px 4px; 
+            align-self: flex-start; 
+            padding: 16px; 
+            width: 100%; 
+        }
         .user-bubble { background: #FF6600; color: black; border-radius: 20px 20px 4px 20px; align-self: flex-end; padding: 16px; max-width: 85%; font-weight: 800; }
+
+        /* PRODUCT CARD STYLE */
+        .product-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 20px; overflow: hidden; margin-top: 12px; }
+        .product-img { width: 100%; height: 140px; object-fit: cover; background: #111; }
 
         /* CBT PRO TEMPLATE */
         .cbt-card { background: #0a0a0a; border: 2px solid #1a1a1a; border-radius: 24px; padding: 20px; width: 100%; margin-top: 10px; position: relative; overflow: hidden; }
         .option-btn { background: #111; border: 1px solid #222; padding: 14px; border-radius: 12px; width: 100%; text-align: left; font-size: 12px; transition: 0.2s; margin-bottom: 8px; font-weight: 700; text-transform: uppercase; color: #ccc; }
         .option-btn.selected { border-color: #FF6600; background: rgba(255, 102, 0, 0.1); color: white; }
         
-        /* TIMER ANIMATION */
         .timer-bar { height: 4px; background: #FF6600; position: absolute; top: 0; left: 0; transition: width 1s linear; }
         .timer-warning { animation: pulse-red 0.5s infinite; }
-        @keyframes pulse-red { 0% { background: #FF6600; } 50% { background: #ff0000; box-shadow: 0 0 10px #ff0000; } 100% { background: #FF6600; } }
+        @keyframes pulse-red { 0% { background: #FF6600; } 50% { background: #ff0000; } 100% { background: #FF6600; } }
         
         .animate-in { animation: fadeIn 0.3s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* FIXED BOTTOM DOCK - ANCHORED & FULLY VISIBLE */
+        /* FIXED BOTTOM DOCK */
         .bottom-dock {
             position: fixed;
             bottom: 0;
@@ -57,7 +67,7 @@
             right: 0;
             background: #000;
             border-top: 1px solid rgba(255,255,255,0.1);
-            padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+            padding: 12px 16px calc(20px + env(safe-area-inset-bottom));
             z-index: 100;
             display: flex;
             align-items: center;
@@ -69,9 +79,7 @@
             background: #121212;
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
-            padding: 4px 12px;
-            display: flex;
-            align-items: center;
+            padding: 0 16px;
         }
 
         #ai-input {
@@ -80,26 +88,23 @@
             border: none;
             outline: none;
             color: white;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 600;
-            padding: 12px 0;
+            padding: 14px 0;
             text-transform: uppercase;
         }
 
         .send-btn { 
             background-color: #FF6600; 
-            height: 48px; 
-            width: 48px; 
-            border-radius: 14px; 
+            height: 52px; 
+            width: 52px; 
+            border-radius: 16px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             flex-shrink: 0; 
-            box-shadow: 0 4px 12px rgba(255, 102, 0, 0.3);
-            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(255, 102, 0, 0.4);
         }
-        
-        .send-btn:active { transform: scale(0.9); opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -123,9 +128,9 @@
             <div class="ai-bubble animate-in">
                 <p class="text-[10px] font-black uppercase text-sdel mb-2 tracking-tighter">Jona_p</p>
                 <p class="text-xs font-bold leading-relaxed tracking-wide">
-                    YO! I'M JONA_P, YOUR ALL-IN-ONE CAMPUS COMPANION. I CAN HELP YOU NAVIGATE THE SDEL MARKETPLACE, MANAGE YOUR ORDERS, OR EVEN PREP YOU FOR EXAMS.
+                    YO! I'M JONA_P, YOUR ALL-IN-ONE CAMPUS COMPANION. I CAN FIND DEALS, TRACK ORDERS, OR RUN CBT MOCKS.
                     <br><br>
-                    NEED TO KNOW WHAT I CAN DO? JUST TYPE <span class="text-sdel underline">"HELP"</span>.
+                    NEED HELP? TYPE <span class="text-sdel underline font-black uppercase">"HELP"</span>.
                 </p>
             </div>
         </div>
@@ -135,7 +140,7 @@
                 <input type="text" id="ai-input" autocomplete="off" placeholder="MESSAGE JONA_P...">
             </div>
             <button onclick="askAI()" class="send-btn">
-                <i data-lucide="send" size="20" color="black"></i>
+                <i data-lucide="send" size="24" color="black"></i>
             </button>
         </div>
 
@@ -154,20 +159,29 @@
             `;
             chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
+            return div;
         }
 
-        function showHelp() {
-            const helpText = `
-                HERE IS HOW I CAN HELP YOU:<br><br>
-                1. <span class="text-sdel">MARKETPLACE:</span> ASK ME TO FIND PRODUCTS OR DEALS ON CAMPUS.<br>
-                2. <span class="text-sdel">CBT MOCK:</span> TYPE "CBT" TO START A TIMED PRACTICE TEST.<br>
-                3. <span class="text-sdel">SUPPORT:</span> ASK ME ABOUT YOUR ORDERS OR HOW TO USE THE SITE.<br>
-                4. <span class="text-sdel">LOGISTICS:</span> GET UPDATES ON DELIVERY STATUS.
+        // PRODUCT DISPLAY LOGIC
+        function showProduct(category) {
+            const div = addMessage(`FINDING THE BEST ${category} FOR YOU...`, 'ai');
+            const card = document.createElement('div');
+            card.className = "product-card animate-in";
+            card.innerHTML = `
+                <img src="https://images.unsplash.com/photo-1585238342024-78d387f4a707?q=80&w=500" class="product-img" alt="Product">
+                <div class="p-4">
+                    <p class="text-[10px] font-black text-sdel uppercase tracking-widest">In Stock</p>
+                    <p class="text-sm font-black uppercase italic">Premium Campus Pack</p>
+                    <div class="flex justify-between items-center mt-3">
+                        <p class="text-lg font-black italic">₦2,500</p>
+                        <button class="bg-white text-black text-[10px] font-black px-4 py-2 rounded-lg uppercase tracking-tighter">Buy Now</button>
+                    </div>
+                </div>
             `;
-            addMessage(helpText, 'ai');
+            div.appendChild(card);
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // CBT PRO TEMPLATE WITH TIMER
         function launchCBT() {
             const div = document.createElement('div');
             div.className = "ai-bubble animate-in w-full max-w-full";
@@ -181,10 +195,10 @@
                 </div>
                 <div class="cbt-card">
                     <div id="bar_${qId}" class="timer-bar" style="width: 100%"></div>
-                    <p class="text-xs font-black italic uppercase mb-4 mt-2">Which organelle is responsible for protein synthesis?</p>
+                    <p class="text-xs font-black italic uppercase mb-4 mt-2">Which organelle is the powerhouse of the cell?</p>
                     <button class="option-btn" onclick="selectOpt(this)">A) Nucleus</button>
-                    <button class="option-btn" id="correct_${qId}" onclick="selectOpt(this)">B) Ribosome</button>
-                    <button class="option-btn" onclick="selectOpt(this)">C) Mitochondria</button>
+                    <button class="option-btn" id="correct_${qId}" onclick="selectOpt(this)">B) Mitochondria</button>
+                    <button class="option-btn" onclick="selectOpt(this)">C) Ribosome</button>
                     <button onclick="submitCBT(this, '${qId}')" class="mt-4 w-full bg-white text-black font-black py-3 rounded-xl uppercase text-[10px] tracking-widest">Submit Answer</button>
                 </div>
             `;
@@ -199,10 +213,7 @@
                 text.innerText = `00:${timeLeft < 10 ? '0'+timeLeft : timeLeft}`;
                 bar.style.width = (timeLeft / 30 * 100) + "%";
                 if(timeLeft <= 10) bar.classList.add('timer-warning');
-                if(timeLeft <= 0) {
-                    clearInterval(countdown);
-                    submitCBT(div.querySelector('button[onclick*="submitCBT"]'), qId, true);
-                }
+                if(timeLeft <= 0) { clearInterval(countdown); submitCBT(div.querySelector('button'), qId, true); }
             }, 1000);
             div.dataset.intervalId = countdown;
         }
@@ -214,18 +225,16 @@
 
         window.submitCBT = (btn, qId, auto = false) => {
             const card = btn.parentElement;
-            const bubble = card.parentElement;
-            clearInterval(bubble.dataset.intervalId);
+            clearInterval(card.parentElement.dataset.intervalId);
             const selected = card.querySelector('.selected');
-            if(!selected && !auto) return alert("SELECT AN OPTION!");
             const isCorrect = selected && selected.id === `correct_${qId}`;
             card.innerHTML = `
                 <div class="text-center py-4 animate-in">
                     <i data-lucide="${isCorrect ? 'check-circle' : 'x-circle'}" class="${isCorrect ? 'text-green-500' : 'text-red-500'} mx-auto mb-2" size="40"></i>
-                    <p class="font-black uppercase italic text-lg">${auto ? 'TIME UP!' : (isCorrect ? 'CORRECT!' : 'WRONG!')}</p>
+                    <p class="font-black uppercase italic text-lg">${isCorrect ? 'CORRECT!' : 'WRONG!'}</p>
                     <div class="mt-4 p-4 bg-zinc-900 rounded-xl text-left border-l-4 border-sdel">
                         <p class="text-[10px] font-black text-sdel uppercase">The Lesson:</p>
-                        <p class="text-[11px] font-bold text-gray-400 mt-1 uppercase leading-tight">Ribosomes are the sites of protein synthesis. They can be found floating freely or attached to the endoplasmic reticulum.</p>
+                        <p class="text-[11px] font-bold text-gray-400 mt-1 uppercase leading-tight">Mitochondria generates ATP, which is the energy currency of the cell.</p>
                     </div>
                 </div>
             `;
@@ -234,20 +243,21 @@
 
         function askAI() {
             const input = document.getElementById('ai-input');
-            const val = input.value.trim();
+            const val = input.value.trim().toLowerCase();
             if(!val) return;
 
             addMessage(val, 'user');
             input.value = '';
 
             setTimeout(() => {
-                const query = val.toLowerCase();
-                if(query === "help") {
-                    showHelp();
-                } else if(query.includes("cbt")) {
+                if(val === "help") {
+                    addMessage("🛒 MARKETPLACE<br>🎓 CBT MOCK<br>📦 ORDERS<br>💰 WALLET", 'ai');
+                } else if(val.includes("cbt")) {
                     launchCBT();
+                } else if(val.includes("snack") || val.includes("product") || val.includes("buy")) {
+                    showProduct(val);
                 } else {
-                    addMessage("I'M ON IT! TYPE 'HELP' TO SEE ALL THE WAYS I CAN ASSIST YOU ON SDEL.", 'ai');
+                    addMessage("GOT IT. TYPE 'HELP' TO SEE WHAT I CAN DO.", 'ai');
                 }
             }, 600);
         }
