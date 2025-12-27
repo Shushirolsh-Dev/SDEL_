@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel | Cart</title>
+    <title>Sdel | Your Cart</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
         body { background-color: #000; color: white; overflow-x: hidden; }
@@ -15,126 +14,185 @@
         .bg-sdel { background-color: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         
-        /* 50 Static Star Logic */
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(110vh); } }
 
-        .checkout-bar { background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.1); }
+        .custom-checkbox { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.2); border-radius: 6px; appearance: none; cursor: pointer; transition: all 0.2s; position: relative; }
+        .custom-checkbox:checked { background-color: #FF6600; border-color: #FF6600; }
+        .custom-checkbox:checked::after { content: '✓'; position: absolute; color: black; font-size: 12px; font-weight: 900; left: 3px; top: -1px; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body class="pb-40">
-
     <div class="stars" id="stars"></div>
 
-    <nav class="p-6 flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-md z-50">
+    <nav class="p-6 flex items-center justify-between border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
         <a href="market.html" class="text-white"><i data-lucide="chevron-left"></i></a>
-        <h1 class="text-lg font-black uppercase tracking-tighter">Shopping <span class="text-sdel">Bag</span></h1>
-        <div class="w-6"></div> </nav>
+        <h1 class="text-lg font-black uppercase tracking-tighter italic">Shopping <span class="text-sdel">Bag</span></h1>
+        <button onclick="clearCart()" class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Clear</button>
+    </nav>
 
-    <main class="p-6 space-y-6 relative z-10" id="cart-container">
-        <div id="cart-items-list" class="space-y-4">
-            <div class="animate-pulse flex space-x-4 p-4 card-zinc rounded-3xl">
-                <div class="bg-zinc-800 h-20 w-20 rounded-2xl"></div>
-                <div class="flex-1 space-y-3 py-1">
-                    <div class="h-4 bg-zinc-800 rounded w-3/4"></div>
-                    <div class="h-4 bg-zinc-800 rounded w-1/2"></div>
-                </div>
-            </div>
-        </div>
+    <main class="p-6 space-y-4" id="cart-list">
+        <div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-700 animate-pulse">Loading Bag...</p></div>
     </main>
 
-    <div class="fixed bottom-0 left-0 right-0 checkout-bar p-6 z-[100] space-y-4">
-        <div class="flex justify-between items-end">
-            <div>
-                <p class="text-[10px] font-black uppercase text-gray-500 tracking-widest">Total Amount</p>
-                <h2 id="total-price" class="text-3xl font-black italic tracking-tighter">₦0</h2>
+    <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-2xl border-t border-white/10 p-6 z-50">
+        <div class="max-w-xl mx-auto space-y-4">
+            <div class="flex justify-between items-end">
+                <div>
+                    <p class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Selected Total</p>
+                    <h2 class="text-3xl font-black italic tracking-tighter" id="total-price">₦0</h2>
+                </div>
+                <p class="text-[10px] font-bold text-zinc-400" id="item-count">0 Items selected</p>
             </div>
-            <p id="item-count" class="text-[10px] font-bold text-gray-400 uppercase">0 Items</p>
+            <button onclick="proceedToCheckout()" id="checkout-btn" class="w-full bg-white text-black py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] active:scale-95 transition disabled:opacity-30 disabled:pointer-events-none">
+                Proceed to Checkout
+            </button>
         </div>
-        
-        <button id="checkout-btn" onclick="window.location.href='checkout.html'" class="w-full bg-sdel text-black py-5 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2 active:scale-95 transition-transform">
-            <span>Proceed to Checkout</span>
-            <i data-lucide="arrow-right" size="16"></i>
-        </button>
     </div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        async function loadCart() {
+        let currentUserId = "GUEST_USER";
+        let cartItems = [];
+        let selectedItems = new Set();
+
+        async function init() {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.replace('login.html');
+            if (session) currentUserId = session.user.id;
 
-            const { data: cartItems, error } = await supabase
-                .from('cart')
-                .select(`*, products(*)`)
-                .eq('user_id', session.user.id);
-
-            const list = document.getElementById('cart-items-list');
-            const totalEl = document.getElementById('total-price');
-            const countEl = document.getElementById('item-count');
-
-            if (error || !cartItems || cartItems.length === 0) {
-                list.innerHTML = `
-                    <div class="text-center py-20 space-y-4">
-                        <i data-lucide="shopping-bag" class="mx-auto text-zinc-800" size="64"></i>
-                        <p class="text-gray-500 font-bold uppercase text-[10px] tracking-widest">Your bag is empty</p>
-                        <a href="market.html" class="inline-block text-sdel font-black uppercase text-xs">Go Shopping</a>
-                    </div>
-                `;
-                return;
-            }
-
-            let total = 0;
-            list.innerHTML = cartItems.map(item => {
-                total += item.products.price * item.quantity;
-                return `
-                    <div class="card-zinc p-4 rounded-3xl flex items-center space-x-4">
-                        <div class="w-20 h-20 bg-zinc-900 rounded-2xl flex items-center justify-center overflow-hidden">
-                            ${item.products.image_url ? `<img src="${item.products.image_url}" class="object-cover h-full w-full">` : `<i data-lucide="package" class="text-zinc-700"></i>`}
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-[9px] font-black uppercase text-sdel">${item.products.category}</p>
-                            <h3 class="font-bold text-sm uppercase leading-tight">${item.products.name}</h3>
-                            <p class="font-black text-lg italic mt-1">₦${item.products.price.toLocaleString()}</p>
-                        </div>
-                        <div class="flex flex-col items-center space-y-2">
-                            <button class="text-gray-500 hover:text-white"><i data-lucide="trash-2" size="18"></i></button>
-                            <span class="font-black text-xs bg-zinc-800 px-3 py-1 rounded-full">${item.quantity}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            totalEl.innerText = `₦${total.toLocaleString()}`;
-            countEl.innerText = `${cartItems.length} Items`;
+            await loadCart();
+            createStars();
             lucide.createIcons();
         }
 
+        async function loadCart() {
+            const { data, error } = await supabase
+                .from('cart')
+                .select(`*, products (*)`)
+                .eq('user_id', currentUserId);
+
+            if (error || !data || data.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            cartItems = data;
+            // Default: select all items
+            cartItems.forEach(item => selectedItems.add(item.id));
+            renderCart();
+            updateTotal();
+        }
+
+        function showEmptyState() {
+            document.getElementById('cart-list').innerHTML = `
+                <div class="text-center py-32 space-y-6">
+                    <div class="flex justify-center opacity-20"><i data-lucide="shopping-bag" size="64"></i></div>
+                    <p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">Your bag is empty</p>
+                    <a href="market.html" class="inline-block bg-white text-black px-8 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest">Start Shopping</a>
+                </div>
+            `;
+            updateTotal();
+            lucide.createIcons();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-list');
+            container.innerHTML = cartItems.map(item => `
+                <div class="card-zinc p-4 rounded-3xl flex items-center gap-4">
+                    <input type="checkbox" 
+                           ${selectedItems.has(item.id) ? 'checked' : ''} 
+                           onchange="toggleSelect('${item.id}')"
+                           class="custom-checkbox">
+                    
+                    <img src="${item.products.image_url}" class="w-20 h-20 object-cover rounded-2xl bg-zinc-900 border border-white/5">
+                    
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[8px] text-sdel font-black uppercase tracking-widest mb-1">${item.products.category}</p>
+                        <h3 class="font-black text-xs uppercase italic tracking-tighter truncate">${item.products.name}</h3>
+                        <p class="font-black text-sm mt-1">₦${item.products.price.toLocaleString()}</p>
+                    </div>
+
+                    <div class="flex flex-col items-end gap-3">
+                        <button onclick="removeItem('${item.id}')" class="text-zinc-600 hover:text-red-500 transition">
+                            <i data-lucide="trash-2" size="16"></i>
+                        </button>
+                        <div class="bg-black/40 px-2 py-1 rounded-lg border border-white/5 font-black text-[10px]">
+                            x${item.quantity}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        window.toggleSelect = (id) => {
+            if (selectedItems.has(id)) selectedItems.delete(id);
+            else selectedItems.add(id);
+            updateTotal();
+        };
+
+        window.updateTotal = () => {
+            let total = 0;
+            let count = 0;
+
+            cartItems.forEach(item => {
+                if (selectedItems.has(item.id)) {
+                    total += item.products.price * item.quantity;
+                    count++;
+                }
+            });
+
+            document.getElementById('total-price').innerText = `₦${total.toLocaleString()}`;
+            document.getElementById('item-count').innerText = `${count} Item${count !== 1 ? 's' : ''} selected`;
+            document.getElementById('checkout-btn').disabled = count === 0;
+        };
+
+        window.removeItem = async (id) => {
+            const { error } = await supabase.from('cart').delete().eq('id', id);
+            if (!error) {
+                cartItems = cartItems.filter(item => item.id !== id);
+                selectedItems.delete(id);
+                if (cartItems.length === 0) showEmptyState();
+                else renderCart();
+                updateTotal();
+            }
+        };
+
+        window.clearCart = async () => {
+            if (confirm("Clear your entire bag?")) {
+                await supabase.from('cart').delete().eq('user_id', currentUserId);
+                cartItems = [];
+                selectedItems.clear();
+                showEmptyState();
+            }
+        };
+
+        window.proceedToCheckout = () => {
+            // Filter to get only products selected for purchase
+            const toBuy = cartItems.filter(item => selectedItems.has(item.id));
+            localStorage.setItem('checkout_items', JSON.stringify(toBuy));
+            window.location.href = 'checkout.html';
+        };
+
         function createStars() {
             const container = document.getElementById('stars');
-            for (let i = 0; i < 150; i++) {
+            for (let i = 0; i < 60; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
-                star.style.left = Math.random() * 100 + 'vw';
-                
-                if (i < 50) {
-                    star.style.top = Math.random() * 100 + 'vh';
-                } else {
-                    star.style.top = '-' + (Math.random() * 100) + 'vh';
-                }
-                
-                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
+                star.style.left = (Math.random() * 100) + 'vw';
+                star.style.top = (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 20) + 's';
                 container.appendChild(star);
             }
         }
 
-        createStars();
-        loadCart();
-        lucide.createIcons();
+        init();
     </script>
 </body>
 </html>
