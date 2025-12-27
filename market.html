@@ -14,7 +14,7 @@
         .bg-sdel { background-color: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         
-        /* Tab Button Styling */
+        /* Fixed Tab Button Styling */
         .category-pill { 
             transition: all 0.3s ease; 
             cursor: pointer; 
@@ -22,7 +22,7 @@
             position: relative; 
             z-index: 10; 
             color: #6b7280; 
-            user-select: none; /* Prevents text selection on click */
+            user-select: none; 
             -webkit-user-select: none;
             touch-action: manipulation;
         }
@@ -102,6 +102,7 @@
             const { data } = await supabase.from('categories').select('*').order('name');
             const container = document.getElementById('category-tabs');
             if (data && data.length > 0) {
+                // Ensure all tabs are created as buttons for better touch interaction
                 container.innerHTML = `<button onclick="filterProducts('All', event)" class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</button>` + 
                 data.map(cat => `<button onclick="filterProducts('${cat.name}', event)" class="category-pill px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">${cat.name}</button>`).join('');
             }
@@ -154,11 +155,21 @@
             }
         };
 
+        // FIXED FILTER LOGIC
         window.filterProducts = (cat, e) => {
+            // Update UI Active State
             document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
             e.currentTarget.classList.add('active');
-            const filtered = cat === 'All' ? allProducts : allProducts.filter(p => p.category === cat);
-            window.renderProducts(filtered);
+            
+            // Filter Logic: Precise but Case-Insensitive
+            if (cat === 'All') {
+                window.renderProducts(allProducts);
+            } else {
+                const filtered = allProducts.filter(p => 
+                    String(p.category).trim().toLowerCase() === String(cat).trim().toLowerCase()
+                );
+                window.renderProducts(filtered);
+            }
         };
 
         window.openSearch = () => { 
@@ -177,7 +188,7 @@
             container.innerHTML = filtered.map(item => `
                 <div class="search-item" onclick="viewFromSearch('${item.id}')">
                     <div class="flex items-center gap-3">
-                        <img src="${item.image_url}" class="w-12 h-12 object-cover rounded-xl border border-white/5" onerror="this.src='https://placehold.co/100x100/121212/FF6600?text=x'">
+                        <img src="${item.image_url}" class="w-12 h-12 object-cover rounded-xl border border-white/5" onerror="this.src='https://placehold.co/100/100/121212/FF6600?text=x'">
                         <div>
                             <p class="font-black text-sm uppercase italic tracking-tighter">${item.name}</p>
                             <p class="text-[8px] text-gray-500 font-black uppercase">${item.category}</p>
