@@ -22,13 +22,11 @@
         .method-card { border: 2px solid transparent; transition: all 0.3s; cursor: pointer; }
         .method-card.active { border-color: #FF6600; background: rgba(255, 102, 0, 0.05); }
 
-        /* Custom Phone Input Styles */
         .phone-box { display: flex; align-items: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; overflow: hidden; }
         .phone-box:focus-within { border-color: #FF6600; }
         .phone-prefix { padding: 0 12px 0 16px; color: #888; font-weight: 900; font-size: 14px; border-right: 1px solid rgba(255,255,255,0.1); }
         .phone-input { background: transparent !important; border: none !important; padding: 16px 12px !important; width: 100%; }
 
-        /* Custom Modal Overlay */
         #custom-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
         .modal-card { background: #0a0a0a; border: 1px solid #222; border-radius: 30px; padding: 40px 20px; width: 100%; max-width: 350px; text-align: center; }
     </style>
@@ -93,8 +91,7 @@
 
         <section class="card-zinc p-6 rounded-[2.5rem] space-y-4 border border-white/5">
             <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Order Summary</h2>
-            <div id="summary-items" class="space-y-3">
-                </div>
+            <div id="summary-items" class="space-y-3"></div>
             <div class="pt-4 border-t border-white/10 space-y-2">
                 <div class="flex justify-between text-zinc-400 text-xs font-bold">
                     <span>Subtotal</span>
@@ -123,7 +120,6 @@
         let checkoutItems = JSON.parse(localStorage.getItem('checkout_items')) || [];
         let selectedMethod = 'pod';
 
-        // Custom Modal Function
         window.showAlert = (title, desc, type = 'error') => {
             const modal = document.getElementById('custom-modal');
             const icon = document.getElementById('modal-icon');
@@ -181,17 +177,27 @@
             const phone = document.getElementById('cust-phone').value;
             
             if(!name || phone.length !== 10) { 
-                showAlert("Missing Info", "Enter your full name and 10-digit phone number."); 
+                showAlert("Missing Info", "Enter your full name and exactly 10-digits for your phone number."); 
                 return; 
             }
 
             btn.disabled = true;
             btn.innerText = "Processing Order...";
 
+            // Map order items to fix the "Items violate Not-Null" error
+            const orderItems = checkoutItems.map(item => ({
+                id: item.products.id,
+                name: item.products.name,
+                price: item.products.price,
+                quantity: item.quantity
+            }));
+
             try {
                 const { data, error } = await supabase.from('orders').insert([{
                     user_id: checkoutItems[0].user_id,
                     total_amount: checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0),
+                    delivery_fee: 0, // Fixes null delivery_fee error
+                    items: orderItems, // Fixes null items error
                     status: 'pending',
                     payment_method: selectedMethod,
                     delivery_info: {
@@ -208,7 +214,7 @@
                 await supabase.from('cart').delete().in('id', idsToRemove);
                 
                 localStorage.removeItem('checkout_items');
-                showAlert("Order Placed", "Your request has been received. Redirecting to dashboard...", "success");
+                showAlert("Order Placed", "Sdel is processing your order. Redirecting...", "success");
                 setTimeout(() => { window.location.href = 'dashboard.html'; }, 2500);
 
             } catch (err) {
@@ -235,4 +241,5 @@
         init();
     </script>
 </body>
-</html>
+    </html>
+    
