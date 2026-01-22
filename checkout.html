@@ -29,6 +29,9 @@
 
         #custom-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
         .modal-card { background: #0a0a0a; border: 1px solid #222; border-radius: 30px; padding: 40px 20px; width: 100%; max-width: 350px; text-align: center; }
+        
+        /* New style for the Order ID display */
+        .order-id-badge { background: rgba(255, 102, 0, 0.1); border: 1px dashed #FF6600; color: #FF6600; font-family: monospace; }
     </style>
 </head>
 <body class="pb-10">
@@ -38,6 +41,7 @@
         <div class="modal-card">
             <div id="modal-icon" class="mb-4 flex justify-center"></div>
             <h3 id="modal-title" class="text-xl font-black italic uppercase tracking-tighter mb-2"></h3>
+            <div id="order-id-display" class="hidden mb-4 p-2 rounded-lg order-id-badge text-xs font-bold"></div>
             <p id="modal-desc" class="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-8 px-4"></p>
             <button onclick="closeModal()" class="w-full bg-white text-black py-4 rounded-xl font-black uppercase text-[10px] tracking-widest">Continue</button>
         </div>
@@ -120,12 +124,21 @@
         let checkoutItems = JSON.parse(localStorage.getItem('checkout_items')) || [];
         let selectedMethod = 'pod';
 
-        window.showAlert = (title, desc, type = 'error') => {
+        window.showAlert = (title, desc, type = 'error', orderCode = null) => {
             const modal = document.getElementById('custom-modal');
             const icon = document.getElementById('modal-icon');
+            const idDisplay = document.getElementById('order-id-display');
+            
             document.getElementById('modal-title').innerText = title;
             document.getElementById('modal-desc').innerText = desc;
             
+            if(orderCode) {
+                idDisplay.innerText = `ORDER ID: ${orderCode}`;
+                idDisplay.classList.remove('hidden');
+            } else {
+                idDisplay.classList.add('hidden');
+            }
+
             icon.innerHTML = type === 'success' 
                 ? '<div class="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center text-green-500"><i data-lucide="check-circle" size="32"></i></div>'
                 : '<div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500"><i data-lucide="alert-circle" size="32"></i></div>';
@@ -184,7 +197,6 @@
             btn.disabled = true;
             btn.innerText = "Processing Order...";
 
-            // Map order items to fix the "Items violate Not-Null" error
             const orderItems = checkoutItems.map(item => ({
                 id: item.products.id,
                 name: item.products.name,
@@ -193,11 +205,12 @@
             }));
 
             try {
+                // Added order_code to .select() so we can retrieve what the trigger generated
                 const { data, error } = await supabase.from('orders').insert([{
                     user_id: checkoutItems[0].user_id,
                     total_amount: checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0),
-                    delivery_fee: 0, // Fixes null delivery_fee error
-                    items: orderItems, // Fixes null items error
+                    delivery_fee: 0,
+                    items: orderItems,
                     status: 'pending',
                     payment_method: selectedMethod,
                     delivery_info: {
@@ -206,7 +219,7 @@
                         address: document.getElementById('cust-address').value,
                         room: document.getElementById('cust-room').value
                     }
-                }]).select();
+                }]).select('order_code'); 
 
                 if(error) throw error;
 
@@ -214,8 +227,12 @@
                 await supabase.from('cart').delete().in('id', idsToRemove);
                 
                 localStorage.removeItem('checkout_items');
-                showAlert("Order Placed", "Sdel is processing your order. Redirecting...", "success");
-                setTimeout(() => { window.location.href = 'dashboard.html'; }, 2500);
+                
+                // Show success with the generated code
+                const generatedCode = data[0].order_code;
+                showAlert("Order Placed", "Your order is being processed!", "success", generatedCode);
+                
+                setTimeout(() => { window.location.href = 'dashboard.html'; }, 4000);
 
             } catch (err) {
                 console.error(err);
@@ -241,5 +258,4 @@
         init();
     </script>
 </body>
-    </html>
-    
+</html>
