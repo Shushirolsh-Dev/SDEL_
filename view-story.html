@@ -3,66 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sdel | Viewing Story</title>
+    <title>Sdel | Story Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'YOUR_ANON_KEY');
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const storyId = urlParams.get('id');
+        let allUserStories = [];
+        let currentIndex = 0;
+        let progress = 0;
+        let isPaused = false;
+        let timer;
 
-        async function loadStory() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.replace('login.html');
+        async function loadStorySequence() {
+            const params = new URLSearchParams(window.location.search);
+            const initialId = params.get('id');
+            const { data: first } = await supabase.from('stories').select('author_id').eq('id', initialId).single();
+            if (!first) return window.location.href = 'index.html';
 
-            const { data: story } = await supabase.from('stories').select('*, profile(first_name)').eq('id', storyId).single();
-            if (!story) return window.location.href = 'dashboard.html';
+            const { data: stories } = await supabase.from('stories').select('*').eq('author_id', first.author_id).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: true });
+            const { data: profile } = await supabase.from('profile').select('first_name, is_official').eq('id', first.author_id).single();
 
-            document.getElementById('story-img').src = story.media_url;
-            document.getElementById('author-name').innerText = story.profile.first_name;
-            document.getElementById('caption').innerText = story.caption || "";
-
-            // Record the view
-            await supabase.from('story_views').upsert({ story_id: storyId, viewer_id: session.user.id });
+            allUserStories = stories;
+            currentIndex = stories.findIndex(s => s.id === initialId);
+            
+            const isSdel = stories[currentIndex].is_official_post || profile?.is_official;
+            document.getElementById('author-name').innerText = isSdel ? "SDEL OFFICIAL" : (profile?.first_name || "MEMBER");
+            if (isSdel) {
+                document.getElementById('author-name').classList.add('text-yellow-400');
+                document.getElementById('reply-section').classList.add('hidden');
+            }
+            renderStory();
         }
 
-        loadStory();
+        function renderStory() {
+            isPaused = false;
+            progress = 0;
+            const story = allUserStories[currentIndex];
+            document.getElementById('story-img').src = story.media_url;
+            document.getElementById('pause-icon').setAttribute('data-lucide', 'pause');
+            lucide.createIcons();
+            
+            document.getElementById('story-img').onload = () => {
+                document.getElementById('loading-spinner').classList.add('hidden');
+                startTimer();
+            };
+        }
+
+        function startTimer() {
+            clearInterval(timer);
+            timer = setInterval(() => {
+                if (!isPaused) {
+                    progress += 1;
+                    document.getElementById('progress-fill').style.width = progress + '%';
+                    if (progress >= 100) nextStory();
+                }
+            }, 60); 
+        }
+
+        window.togglePause = (e) => {
+            if(e) e.stopPropagation();
+            isPaused = !isPaused;
+            const icon = document.getElementById('pause-icon');
+            icon.setAttribute('data-lucide', isPaused ? 'play' : 'pause');
+            lucide.createIcons();
+        };
+
+        window.nextStory = () => {
+            if (currentIndex < allUserStories.length - 1) {
+                currentIndex++;
+                renderStory();
+            } else { window.location.href = 'index.html'; }
+        };
+
+        window.handleScreenTap = (e) => {
+            const x = e.clientX;
+            const width = window.innerWidth;
+            if (x < width / 3) { // Left tap
+                if (currentIndex > 0) { currentIndex--; renderStory(); }
+                else { window.location.href = 'index.html'; }
+            } else { nextStory(); } // Right tap
+        };
+
+        loadStorySequence();
     </script>
+
     <style>
-        body { background-color: #000; color: white; margin: 0; overflow: hidden; }
-        .progress-bar { height: 2px; background: rgba(255,255,255,0.3); width: 100%; position: absolute; top: 10px; left: 0; z-index: 50; }
-        .progress-fill { height: 100%; background: #FF6600; width: 0%; transition: width 5s linear; }
+        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .glass-input { background: rgba(255,255,255,0.1); backdrop-blur: 10px; border: 1px solid rgba(255,255,255,0.2); }
     </style>
 </head>
-<body>
-    <div class="relative h-screen w-screen flex flex-col">
-        <div class="progress-bar px-4 flex gap-1">
-            <div class="progress-fill" id="fill"></div>
-        </div>
+<body class="h-screen w-full flex flex-col bg-black text-white overflow-hidden">
 
-        <div class="absolute top-8 left-4 z-50 flex items-center space-x-3">
-            <div class="w-10 h-10 rounded-full bg-zinc-800 border border-white/20 overflow-hidden">
-                <img id="author-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=1" class="w-full h-full object-cover">
+    <div class="fixed top-0 inset-x-0 p-4 z-50 bg-gradient-to-b from-black/80 to-transparent">
+        <div class="h-1 w-full bg-white/20 rounded-full overflow-hidden">
+            <div id="progress-fill" class="h-full bg-white w-0"></div>
+        </div>
+        <div class="flex justify-between items-center mt-4">
+            <div class="flex items-center space-x-3">
+                <p id="author-name" class="font-black text-xs uppercase tracking-widest">Loading...</p>
             </div>
-            <p id="author-name" class="font-black uppercase italic text-sm text-white shadow-sm">Scholar</p>
-            <button onclick="window.location.href='dashboard.html'" class="ml-auto p-2 text-white"><i data-lucide="x"></i></button>
-        </div>
-
-        <img id="story-img" class="h-full w-full object-cover">
-
-        <div class="absolute bottom-10 inset-x-0 p-8 bg-gradient-to-t from-black/80 to-transparent">
-            <p id="caption" class="text-lg font-bold text-white leading-tight mb-4"></p>
-            <div class="flex gap-4">
-                <input type="text" placeholder="Reply to gist..." class="flex-1 bg-white/10 border border-white/20 rounded-full px-6 py-3 text-white placeholder:text-white/50 outline-none">
+            <div class="flex items-center space-x-6">
+                <button onclick="togglePause(event)"><i id="pause-icon" data-lucide="pause" size="20"></i></button>
+                <i data-lucide="x" size="24" onclick="window.location.href='index.html'"></i>
             </div>
         </div>
     </div>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script>
-        lucide.createIcons();
-        setTimeout(() => document.getElementById('fill').style.width = '100%', 100);
-        setTimeout(() => window.location.href = 'dashboard.html', 5100);
-    </script>
+
+    <div class="flex-1 flex items-center justify-center relative" onclick="handleScreenTap(event)">
+        <div id="loading-spinner" class="absolute flex items-center justify-center">
+            <div class="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+        </div>
+        <img id="story-img" class="max-h-full w-full object-contain">
+    </div>
+
+    <div id="reply-section" class="p-6 pb-10 bg-gradient-to-t from-black to-transparent">
+        <div class="flex items-center space-x-4">
+            <div class="flex-1 glass-input rounded-full px-5 py-3 flex items-center">
+                <input type="text" placeholder="Send a message..." class="bg-transparent border-none outline-none text-sm w-full placeholder:text-white/40">
+            </div>
+            <button class="w-12 h-12 flex items-center justify-center bg-white rounded-full">
+                <i data-lucide="heart" class="text-black fill-black" size="20"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>lucide.createIcons();</script>
 </body>
 </html>
