@@ -12,19 +12,22 @@
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
+        // Logic variable to track user identity
+        let currentUserId = null;
+
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.href = 'login.html';
 
-            // Get profile and check hidden is_official flag
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
+            currentUserId = session.user.id;
+
+            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
             
             if(profile) {
                 document.getElementById('user-name').innerText = profile.first_name || "CHAMP";
                 document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
                 if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
                 
-                // Update XP and Prestige Ranks
                 document.getElementById('xp-count').innerText = profile.xp || 0;
                 updatePrestige(profile.xp || 0);
             }
@@ -37,14 +40,22 @@
         async function loadStories() {
             const now = new Date().toISOString();
             const { data: stories } = await supabase.from('stories')
-                .select('*, profile(first_name, avatar_url, is_official)')
-                .gt('expires_at', now) // 24hr Filter
+                .select('*, profile:author_id(first_name, avatar_url, is_official)')
+                .gt('expires_at', now)
                 .order('created_at', { ascending: false });
 
             const rail = document.getElementById('story-rail-content');
             if (stories?.length > 0) {
-                rail.innerHTML = stories.map(s => {
-                    const isSdel = s.profile?.is_official === true;
+                // LOGIC: Sort stories so YOUR story is always the first one after the post button
+                const sortedStories = [...stories].sort((a, b) => {
+                    if (a.author_id === currentUserId) return -1;
+                    if (b.author_id === currentUserId) return 1;
+                    return 0;
+                });
+
+                rail.innerHTML = sortedStories.map(s => {
+                    // Check official status using the new DB column we made or the profile flag
+                    const isSdel = s.is_official_post || s.profile?.is_official === true;
                     const name = isSdel ? "SDEL" : (s.profile?.first_name || 'User');
                     const canReply = !isSdel;
 
@@ -215,5 +226,4 @@
 
     <script>lucide.createIcons();</script>
 </body>
-                </html>
-                
+</html>
