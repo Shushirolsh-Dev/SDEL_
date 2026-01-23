@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Share Story</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        async function checkUser() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) window.location.replace('login.html');
+        }
+
+        window.uploadStory = async () => {
+            const fileInput = document.getElementById('story-file');
+            const btn = document.getElementById('post-btn');
+            const file = fileInput.files[0];
+
+            if (!file) return alert("Please select a photo first, homie.");
+            
+            // BLOCK VIDEOS
+            if (file.type.includes('video')) {
+                alert("Videos are not allowed yet. Images only!");
+                return;
+            }
+
+            btn.innerText = "POSTING...";
+            btn.disabled = true;
+
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}.${fileExt}`;
+
+            // 1. Upload
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('story-uploads')
+                .upload(fileName, file);
+
+            if (uploadError) {
+                alert("Upload failed: " + uploadError.message);
+                btn.innerText = "TRY AGAIN";
+                btn.disabled = false;
+                return;
+            }
+
+            // 2. Public Link
+            const { data: { publicUrl } } = supabase.storage.from('story-uploads').getPublicUrl(fileName);
+
+            // 3. Database Entry
+            const { data: { session } } = await supabase.auth.getSession();
+            const { error: dbError } = await supabase.from('stories').insert([{
+                author_id: session.user.id,
+                media_url: publicUrl,
+                caption: document.getElementById('caption').value
+            }]);
+
+            if (dbError) {
+                alert("Database error: " + dbError.message);
+            } else {
+                // 4. Reward XP
+                await supabase.rpc('increment_xp', { user_id: session.user.id, x: 50 });
+                window.location.href = 'dashboard.html';
+            }
+        };
+
+        window.previewImage = (event) => {
+            const file = event.target.files[0];
+            if (file.type.includes('video')) {
+                alert("Videos are not supported.");
+                event.target.value = "";
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(){
+                const output = document.getElementById('img-preview');
+                output.src = reader.result;
+                output.classList.remove('hidden');
+                document.getElementById('placeholder-icon').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        };
+
+        checkUser();
+    </script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+    </style>
+</head>
+<body class="text-white">
+
+    <div class="max-w-md mx-auto p-6 min-h-screen flex flex-col">
+        <nav class="flex justify-between items-center mb-8">
+            <button onclick="window.location.href='dashboard.html'" class="text-zinc-500 font-black text-[10px] uppercase">← Back</button>
+            <h1 class="text-xs font-black uppercase italic tracking-[0.2em] text-sdel">Upload Gist</h1>
+            <div class="w-10"></div>
+        </nav>
+
+        <div class="flex flex-col items-center space-y-6 flex-1">
+            <div class="relative w-64 h-64 bg-zinc-900 rounded-[2.5rem] border-2 border-dashed border-zinc-800 flex items-center justify-center overflow-hidden shadow-2xl shadow-sdel/5">
+                <input type="file" id="story-file" accept="image/*" class="absolute inset-0 opacity-0 z-10 cursor-pointer" onchange="previewImage(event)">
+                
+                <div id="placeholder-icon" class="text-center p-4">
+                    <div class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF6600" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    </div>
+                    <p class="text-[9px] font-black uppercase text-zinc-500 tracking-wider">Tap to open Gallery</p>
+                </div>
+
+                <img id="img-preview" class="hidden w-full h-full object-cover">
+            </div>
+
+            <div class="w-full space-y-2">
+                <p class="text-[8px] font-black uppercase text-zinc-600 ml-2">Caption (Optional)</p>
+                <textarea id="caption" rows="2" placeholder="What's the vibe?" 
+                    class="w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-xs font-medium outline-none focus:border-sdel/50 transition resize-none"></textarea>
+            </div>
+        </div>
+
+        <div class="pt-6">
+            <div class="flex items-center justify-center space-x-2 mb-4">
+                <span class="h-px bg-zinc-800 flex-1"></span>
+                <span class="text-[8px] font-black text-zinc-600 uppercase tracking-widest">+50 XP Reward</span>
+                <span class="h-px bg-zinc-800 flex-1"></span>
+            </div>
+            <button id="post-btn" onclick="uploadStory()" 
+                class="w-full bg-sdel text-black py-5 rounded-[2rem] font-black uppercase italic tracking-[0.1em] text-[11px] shadow-lg shadow-sdel/20 active:scale-95 transition">
+                Share to Circle
+            </button>
+        </div>
+    </div>
+
+</body>
+  </html>
+  
