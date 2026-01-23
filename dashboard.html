@@ -16,33 +16,71 @@
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.href = 'login.html';
 
+            // Get profile and check hidden is_official flag
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             
-            // UI Header Update
-            document.getElementById('user-name').innerText = profile.first_name || "CHAMP";
-            document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
-            if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
+            if(profile) {
+                document.getElementById('user-name').innerText = profile.first_name || "CHAMP";
+                document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
+                if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
+                
+                // Update XP and Prestige Ranks
+                document.getElementById('xp-count').innerText = profile.xp || 0;
+                updatePrestige(profile.xp || 0);
+            }
 
             loadStories();
             loadFeed();
+            loadAds();
         }
 
         async function loadStories() {
+            const now = new Date().toISOString();
             const { data: stories } = await supabase.from('stories')
-                .select('*, profile(first_name, avatar_url)')
-                .gt('expires_at', new Date().toISOString())
+                .select('*, profile(first_name, avatar_url, is_official)')
+                .gt('expires_at', now) // 24hr Filter
                 .order('created_at', { ascending: false });
 
             const rail = document.getElementById('story-rail-content');
             if (stories?.length > 0) {
-                rail.innerHTML = stories.map(s => `
-                    <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='view-story.html?id=${s.id}'">
-                        <div class="w-16 h-16 p-[2px] border-2 border-sdel rounded-full">
-                            <img src="${s.media_url}" class="w-full h-full rounded-full object-cover bg-zinc-900">
+                rail.innerHTML = stories.map(s => {
+                    const isSdel = s.profile?.is_official === true;
+                    const name = isSdel ? "SDEL" : (s.profile?.first_name || 'User');
+                    const canReply = !isSdel;
+
+                    return `
+                        <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='view-story.html?id=${s.id}&reply=${canReply}'">
+                            <div class="w-16 h-16 p-[2px] border-2 ${isSdel ? 'border-yellow-400 sdel-pulse' : 'border-sdel'} rounded-full">
+                                <img src="${s.media_url}" class="w-full h-full rounded-full object-cover bg-zinc-900">
+                            </div>
+                            <span class="text-[9px] font-black uppercase ${isSdel ? 'text-yellow-400' : 'text-white'} truncate w-16 text-center">${name}</span>
                         </div>
-                        <span class="text-[9px] font-black uppercase text-white truncate w-16 text-center">${s.profile?.first_name || 'User'}</span>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
+            }
+        }
+
+        function updatePrestige(xp) {
+            const badge = document.getElementById('rank-badge');
+            const progress = document.getElementById('xp-progress-bar');
+            
+            let rank = { n: "CITIZEN", c: "bg-zinc-700", p: (xp/500)*100 };
+            if (xp >= 10000) rank = { n: "OVERLORD", c: "bg-gradient-to-r from-red-600 to-black animate-pulse", p: 100 };
+            else if (xp >= 5000) rank = { n: "MYTHIC", c: "bg-purple-600", p: (xp/10000)*100 };
+            else if (xp >= 2500) rank = { n: "ELITE", c: "bg-blue-600", p: (xp/5000)*100 };
+            else if (xp >= 1000) rank = { n: "WRAITH", c: "bg-emerald-600", p: (xp/2500)*100 };
+            else if (xp >= 500) rank = { n: "SCOUT", c: "bg-orange-600", p: (xp/1000)*100 };
+
+            badge.innerText = rank.n;
+            badge.className = `px-3 py-1 rounded text-[10px] font-black italic text-white ${rank.c}`;
+            progress.style.width = `${rank.p}%`;
+        }
+
+        async function loadAds() {
+            const { data: ads } = await supabase.from('ads').select('*').eq('status', 'approved').limit(1);
+            if (ads && ads[0]) {
+                document.getElementById('ad-banner').style.backgroundImage = `url(${ads[0].image_url})`;
+                document.getElementById('ad-text').innerText = ads[0].headline;
             }
         }
 
@@ -68,9 +106,9 @@
                         <div class="p-5">
                             <div class="flex justify-between items-center mb-4">
                                 <div class="flex items-center space-x-6">
-                                    <i data-lucide="heart" class="text-white hover:text-red-500 cursor-pointer" onclick="likePost('${p.id}')"></i>
+                                    <i data-lucide="heart" class="text-white hover:text-red-500 cursor-pointer"></i>
                                     <i data-lucide="message-circle" class="text-white"></i>
-                                    <i data-lucide="send" class="text-white" onclick="sharePost('${p.content}')"></i>
+                                    <i data-lucide="send" class="text-white"></i>
                                 </div>
                                 <i data-lucide="bookmark" class="text-white"></i>
                             </div>
@@ -84,14 +122,6 @@
             }
         }
 
-        window.sharePost = async (text) => {
-            if (navigator.share) {
-                navigator.share({ title: 'Sdel Global', text: text, url: window.location.href });
-            } else {
-                alert("Sharing not supported on this browser.");
-            }
-        };
-
         init();
     </script>
     
@@ -103,6 +133,13 @@
         .card-glass { background: #111; border: 1px solid rgba(255,255,255,0.15); }
         .header-text { font-weight: 900; color: #FFFFFF; text-transform: uppercase; letter-spacing: -0.02em; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        @keyframes gold-glow {
+            0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+        }
+        .sdel-pulse { animation: gold-glow 2s infinite; }
     </style>
 </head>
 <body class="pb-24">
@@ -137,12 +174,38 @@
         </div>
     </section>
 
-    <main id="global-feed" class="p-4">
-        </main>
+    <section class="p-4">
+        <div class="card-glass rounded-[2rem] p-5">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <p class="text-[8px] font-black text-white/40 uppercase tracking-widest mb-1">Prestige Status</p>
+                    <div id="rank-badge">...</div>
+                </div>
+                <div class="text-right">
+                    <p class="header-text text-xl italic" id="xp-count">0</p>
+                    <p class="text-[8px] font-black text-sdel uppercase">Total XP</p>
+                </div>
+            </div>
+            <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                <div id="xp-progress-bar" class="h-full bg-sdel transition-all duration-1000" style="width: 0%"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="p-4">
+        <div id="ad-banner" class="w-full h-[400px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10" style="background-image: url('https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=800');">
+            <div class="bg-black/70 backdrop-blur-md p-4 rounded-2xl w-full border border-white/5">
+                <span class="text-[8px] bg-white text-black px-2 py-0.5 font-black rounded mb-2 inline-block">SPONSORED</span>
+                <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Upgrade to Sdel Prime for exclusive benefits.</p>
+            </div>
+        </div>
+    </section>
+
+    <main id="global-feed" class="p-4"></main>
 
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
         <i data-lucide="home" class="text-sdel" size="28"></i>
-        <i data-lucide="compass" class="text-white" size="28"></i>
+        <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
         <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl shadow-sdel/40 border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
             <i data-lucide="camera" class="text-black" size="28"></i>
         </div>
@@ -152,4 +215,5 @@
 
     <script>lucide.createIcons();</script>
 </body>
-</html>
+                </html>
+                
