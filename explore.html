@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Explore the World</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        async function loadDiscovery() {
+            const { data: discovery, error } = await supabase.from('posts')
+                .select('*, profile(first_name)')
+                .order('created_at', { ascending: false })
+                .limit(24);
+
+            const grid = document.getElementById('explore-grid');
+            if (discovery) {
+                grid.innerHTML = discovery.map((p, index) => `
+                    <div class="relative rounded-3xl overflow-hidden mb-4 break-inside-avoid shadow-2xl border-2 border-white/5 active:scale-95 transition" onclick="location.href='dashboard.html'">
+                        <img src="${p.media_url || 'https://images.unsplash.com/photo-1614850523296-d8c1af93d400?w=400'}" 
+                             class="w-full object-cover ${index % 3 === 0 ? 'h-72' : 'h-48'}">
+                        <div class="absolute bottom-0 inset-x-0 p-4 bg-gradient-to-t from-black/95 via-black/40 to-transparent">
+                            <p class="text-[10px] font-black uppercase text-white tracking-widest italic">@${p.profile?.first_name || 'Global'}</p>
+                        </div>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            }
+        }
+        loadDiscovery();
+    </script>
+
+    <style>
+        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #000; color: #fff; overflow-x: hidden; }
+        .masonry-grid { column-count: 2; column-gap: 1rem; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="p-4 pb-32">
+
+    <header class="mb-10 mt-4">
+        <h1 class="text-4xl font-black uppercase italic text-white tracking-tighter leading-none mb-6">EXPLORE<span class="text-[#FF6600]">.</span></h1>
+        <div class="relative group">
+            <input type="text" placeholder="Find global trends..." 
+                class="w-full bg-[#111] border-2 border-white/10 rounded-[2rem] py-5 px-8 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all shadow-xl placeholder:text-white/20">
+            <i data-lucide="search" class="absolute right-6 top-5 text-white/40" size="24"></i>
+        </div>
+    </header>
+
+    <div class="flex space-x-3 overflow-x-auto no-scrollbar mb-10 pb-2">
+        <button class="bg-[#FF6600] text-black px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase italic shadow-lg shadow-[#FF6600]/20">Trending</button>
+        <button class="bg-[#111] text-white border border-white/10 px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase italic">Top Ranks</button>
+        <button class="bg-[#111] text-white border border-white/10 px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase italic">New Gists</button>
+        <button class="bg-[#111] text-white border border-white/10 px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase italic">Verified</button>
+    </div>
+
+    <div id="explore-grid" class="masonry-grid">
+        </div>
+
+    <nav class="fixed bottom-0 inset-x-0 p-6 flex justify-around items-center bg-black/90 border-t border-white/10 backdrop-blur-2xl z-50">
+        <i data-lucide="home" class="text-white/60" size="30" onclick="location.href='dashboard.html'"></i>
+        <i data-lucide="compass" class="text-[#FF6600]" size="30"></i>
+        
+        <div class="bg-[#FF6600] h-16 w-16 rounded-[1.5rem] flex items-center justify-center -mt-14 shadow-2xl shadow-[#FF6600]/40 border-4 border-black active:scale-90 transition-all duration-300" onclick="location.href='post-story.html'">
+            <i data-lucide="plus" stroke-width="4" class="text-black" size="32"></i>
+        </div>
+        
+        <i data-lucide="shopping-cart" class="text-white/60" size="30" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-white/60" size="30" onclick="location.href='profile.html'"></i>
+    </nav>
+
+    <script>lucide.createIcons();</script>
+</body>
+</html>
