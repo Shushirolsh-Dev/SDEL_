@@ -18,17 +18,33 @@
         let isPaused = false;
         let timer;
 
+        // Smart Exit Function
+        function exitViewer() {
+            if (document.referrer && document.referrer.includes(window.location.hostname)) {
+                window.history.back();
+            } else {
+                window.location.href = 'index.html'; // Fallback
+            }
+        }
+
         async function loadStorySequence() {
             const params = new URLSearchParams(window.location.search);
             const initialId = params.get('id');
             const { data: first } = await supabase.from('stories').select('author_id').eq('id', initialId).single();
-            if (!first) return window.location.href = 'index.html';
+            
+            if (!first) return exitViewer();
 
-            const { data: stories } = await supabase.from('stories').select('*').eq('author_id', first.author_id).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: true });
+            const { data: stories } = await supabase.from('stories')
+                .select('*')
+                .eq('author_id', first.author_id)
+                .gt('expires_at', new Date().toISOString())
+                .order('created_at', { ascending: true });
+
             const { data: profile } = await supabase.from('profile').select('first_name, is_official').eq('id', first.author_id).single();
 
             allUserStories = stories;
             currentIndex = stories.findIndex(s => s.id === initialId);
+            if (currentIndex === -1) currentIndex = 0;
             
             const isSdel = stories[currentIndex].is_official_post || profile?.is_official;
             document.getElementById('author-name').innerText = isSdel ? "SDEL OFFICIAL" : (profile?.first_name || "MEMBER");
@@ -43,11 +59,15 @@
             isPaused = false;
             progress = 0;
             const story = allUserStories[currentIndex];
-            document.getElementById('story-img').src = story.media_url;
+            const img = document.getElementById('story-img');
+            
+            document.getElementById('loading-spinner').classList.remove('hidden');
+            img.src = story.media_url;
+            
             document.getElementById('pause-icon').setAttribute('data-lucide', 'pause');
             lucide.createIcons();
             
-            document.getElementById('story-img').onload = () => {
+            img.onload = () => {
                 document.getElementById('loading-spinner').classList.add('hidden');
                 startTimer();
             };
@@ -76,17 +96,19 @@
             if (currentIndex < allUserStories.length - 1) {
                 currentIndex++;
                 renderStory();
-            } else { window.location.href = 'index.html'; }
+            } else { exitViewer(); }
         };
 
         window.handleScreenTap = (e) => {
             const x = e.clientX;
             const width = window.innerWidth;
-            if (x < width / 3) { // Left tap
+            if (x < width / 3) { 
                 if (currentIndex > 0) { currentIndex--; renderStory(); }
-                else { window.location.href = 'index.html'; }
-            } else { nextStory(); } // Right tap
+                else { exitViewer(); }
+            } else { nextStory(); }
         };
+
+        window.closeViewer = () => exitViewer();
 
         loadStorySequence();
     </script>
@@ -108,7 +130,7 @@
             </div>
             <div class="flex items-center space-x-6">
                 <button onclick="togglePause(event)"><i id="pause-icon" data-lucide="pause" size="20"></i></button>
-                <i data-lucide="x" size="24" onclick="window.location.href='index.html'"></i>
+                <i data-lucide="x" size="24" onclick="closeViewer()" class="cursor-pointer"></i>
             </div>
         </div>
     </div>
