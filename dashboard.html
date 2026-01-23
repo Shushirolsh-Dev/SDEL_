@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sdel | Global Feed</title>
+    <title>Sdel | Story Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -12,247 +12,124 @@
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        let currentUserId = null;
-        let allOrdersData = [];
+        let allUserStories = [];
+        let currentIndex = 0;
+        let progress = 0;
+        let isPaused = false;
+        let timer;
 
-        async function init() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.href = 'login.html';
-            currentUserId = session.user.id;
+        async function loadStorySequence() {
+            const params = new URLSearchParams(window.location.search);
+            const initialId = params.get('id');
+            const { data: first } = await supabase.from('stories').select('author_id').eq('id', initialId).single();
+            if (!first) return window.location.href = 'index.html';
 
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
-            if(profile) {
-                document.getElementById('user-name').innerText = profile.first_name || "CHAMP";
-                document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
-                if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
-                document.getElementById('xp-count').innerText = profile.xp || 0;
-                updatePrestige(profile.xp || 0);
+            const { data: stories } = await supabase.from('stories').select('*').eq('author_id', first.author_id).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: true });
+            const { data: profile } = await supabase.from('profile').select('first_name, is_official').eq('id', first.author_id).single();
+
+            allUserStories = stories;
+            currentIndex = stories.findIndex(s => s.id === initialId);
+            
+            const isSdel = stories[currentIndex].is_official_post || profile?.is_official;
+            document.getElementById('author-name').innerText = isSdel ? "SDEL OFFICIAL" : (profile?.first_name || "MEMBER");
+            if (isSdel) {
+                document.getElementById('author-name').classList.add('text-yellow-400');
+                document.getElementById('reply-section').classList.add('hidden');
             }
-
-            loadStories();
-            loadFeed();
-            loadAds();
-            loadOrders();
-            getUnreadCount();
+            renderStory();
         }
 
-        async function getUnreadCount() {
-            const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('receiver_id', currentUserId).eq('is_read', false);
-            if (count > 0) {
-                const badge = document.getElementById('notif-badge');
-                badge.innerText = count > 9 ? '9+' : count;
-                badge.classList.remove('hidden');
-            }
+        function renderStory() {
+            isPaused = false;
+            progress = 0;
+            const story = allUserStories[currentIndex];
+            document.getElementById('story-img').src = story.media_url;
+            document.getElementById('pause-icon').setAttribute('data-lucide', 'pause');
+            lucide.createIcons();
+            
+            document.getElementById('story-img').onload = () => {
+                document.getElementById('loading-spinner').classList.add('hidden');
+                startTimer();
+            };
         }
 
-        async function loadStories() {
-            const now = new Date().toISOString();
-            const { data: stories } = await supabase.from('stories').select('*').gt('expires_at', now).order('created_at', { ascending: false });
-            const rail = document.getElementById('story-rail-content');
-            if (stories?.length > 0) {
-                const uniqueStories = [];
-                const seenUsers = new Set();
-                for (const s of stories) {
-                    if (!seenUsers.has(s.author_id)) {
-                        seenUsers.add(s.author_id);
-                        uniqueStories.push(s);
-                    }
+        function startTimer() {
+            clearInterval(timer);
+            timer = setInterval(() => {
+                if (!isPaused) {
+                    progress += 1;
+                    document.getElementById('progress-fill').style.width = progress + '%';
+                    if (progress >= 100) nextStory();
                 }
-                const authorIds = uniqueStories.map(s => s.author_id);
-                const { data: profiles } = await supabase.from('profile').select('id, first_name, is_official').in('id', authorIds);
-                const finalStories = uniqueStories.map(s => ({
-                    ...s, profile: profiles?.find(p => p.id === s.author_id) || {}
-                })).sort((a, b) => (a.author_id === currentUserId ? -1 : 1));
-
-                rail.innerHTML = finalStories.map(s => {
-                    const isSdel = s.is_official_post || s.profile?.is_official === true;
-                    return `
-                        <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='view-story.html?id=${s.id}'">
-                            <div class="w-16 h-16 p-[2px] border-2 ${isSdel ? 'border-yellow-400 sdel-pulse' : 'border-sdel'} rounded-full">
-                                <img src="${s.media_url}" class="w-full h-full rounded-full object-cover bg-zinc-900">
-                            </div>
-                            <span class="text-[9px] font-black uppercase ${isSdel ? 'text-yellow-400' : 'text-white'} truncate w-16 text-center">${isSdel ? 'SDEL' : (s.profile?.first_name || 'MEMBER')}</span>
-                        </div>`;
-                }).join('');
-            }
+            }, 60); 
         }
 
-        async function loadOrders() {
-            const { data: orders } = await supabase.from('orders').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
-            if (!orders) return;
-            allOrdersData = orders;
-            renderOrderList(orders.slice(0, 3), 'order-history-list');
-        }
+        window.togglePause = (e) => {
+            if(e) e.stopPropagation();
+            isPaused = !isPaused;
+            const icon = document.getElementById('pause-icon');
+            icon.setAttribute('data-lucide', isPaused ? 'play' : 'pause');
+            lucide.createIcons();
+        };
 
-        function renderOrderList(data, targetId) {
-            const container = document.getElementById(targetId);
-            container.innerHTML = data.map(o => {
-                const displayId = o.order_code || `ID: ${o.id.slice(0,8)}`;
-                // Extracting item names from the JSON 'items' column
-                const itemNames = o.items ? JSON.parse(JSON.stringify(o.items)).map(i => i.name).join(', ') : 'Market Item';
-                
-                let statusColor = 'bg-zinc-500/20 text-zinc-400';
-                if(o.status === 'accepted') statusColor = 'bg-emerald-500/20 text-emerald-500';
-                if(o.status === 'rejected') statusColor = 'bg-red-500/20 text-red-500';
+        window.nextStory = () => {
+            if (currentIndex < allUserStories.length - 1) {
+                currentIndex++;
+                renderStory();
+            } else { window.location.href = 'index.html'; }
+        };
 
-                return `
-                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10 select-none">
-                        <div class="max-w-[70%]">
-                            <p class="text-[9px] font-black text-white/50 uppercase">${displayId}</p>
-                            <p class="text-[11px] font-bold text-white truncate">${itemNames}</p>
-                        </div>
-                        <span class="px-2 py-1 rounded text-[8px] font-black uppercase ${statusColor}">${o.status}</span>
-                    </div>`;
-            }).join('');
-        }
+        window.handleScreenTap = (e) => {
+            const x = e.clientX;
+            const width = window.innerWidth;
+            if (x < width / 3) { // Left tap
+                if (currentIndex > 0) { currentIndex--; renderStory(); }
+                else { window.location.href = 'index.html'; }
+            } else { nextStory(); } // Right tap
+        };
 
-        window.toggleAllOrders = function(show) {
-            const modal = document.getElementById('all-orders-modal');
-            if(show) {
-                renderOrderList(allOrdersData, 'full-order-list');
-                modal.classList.remove('hidden');
-            } else {
-                modal.classList.add('hidden');
-            }
-        }
-
-        function updatePrestige(xp) {
-            const badge = document.getElementById('rank-badge');
-            const progress = document.getElementById('xp-progress-bar');
-            let rank = { n: "CITIZEN", c: "bg-zinc-700", p: (xp/500)*100 };
-            if (xp >= 10000) rank = { n: "OVERLORD", c: "bg-gradient-to-r from-red-600 to-black animate-pulse", p: 100 };
-            else if (xp >= 5000) rank = { n: "MYTHIC", c: "bg-purple-600", p: (xp/10000)*100 };
-            else if (xp >= 2500) rank = { n: "ELITE", c: "bg-blue-600", p: (xp/5000)*100 };
-            else if (xp >= 1000) rank = { n: "WRAITH", c: "bg-emerald-600", p: (xp/2500)*100 };
-            else if (xp >= 500) rank = { n: "SCOUT", c: "bg-orange-600", p: (xp/1000)*100 };
-            badge.innerText = rank.n;
-            badge.className = `px-3 py-1 rounded text-[10px] font-black italic text-white ${rank.c}`;
-            progress.style.width = `${rank.p}%`;
-        }
-
-        async function loadAds() {
-            const { data: ads } = await supabase.from('ads').select('*').eq('status', 'approved').limit(1);
-            if (ads?.[0]) {
-                document.getElementById('ad-banner').style.backgroundImage = `url(${ads[0].image_url})`;
-                document.getElementById('ad-text').innerText = ads[0].headline;
-            }
-        }
-
-        async function loadFeed() {
-            const { data: posts } = await supabase.from('posts').select('*, profile(first_name, avatar_url, xp)').order('created_at', { ascending: false });
-            const feed = document.getElementById('global-feed');
-            if (posts?.length > 0) {
-                feed.innerHTML = posts.map(p => `
-                    <div class="card-glass rounded-[2.5rem] overflow-hidden mb-6">
-                        <div class="p-4 flex justify-between items-center border-b border-white/5">
-                            <div class="flex items-center space-x-3">
-                                <img src="${p.profile?.avatar_url || 'https://api.dicebear.com/7.x/initials/svg?seed='+p.profile?.first_name}" class="w-8 h-8 rounded-full border border-white/20">
-                                <div><p class="header-text text-[11px]">${p.profile?.first_name || 'Scholar'}</p></div>
-                            </div>
-                        </div>
-                        ${p.media_url ? `<img src="${p.media_url}" class="w-full object-cover">` : ''}
-                        <div class="p-5"><p class="text-[13px] text-white font-bold leading-snug">${p.content}</p></div>
-                    </div>`).join('');
-                lucide.createIcons();
-            }
-        }
-        init();
+        loadStorySequence();
     </script>
-    
+
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: #fff; }
-        .text-sdel { color: #FF6600; }
-        .bg-sdel { background-color: #FF6600; }
-        .card-glass { background: #111; border: 1px solid rgba(255,255,255,0.15); }
-        .header-text { font-weight: 900; color: #FFFFFF; text-transform: uppercase; letter-spacing: -0.02em; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .select-none { user-select: none; -webkit-user-select: none; }
-        @keyframes gold-glow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
-        .sdel-pulse { animation: gold-glow 2s infinite; }
+        .glass-input { background: rgba(255,255,255,0.1); backdrop-blur: 10px; border: 1px solid rgba(255,255,255,0.2); }
     </style>
 </head>
-<body class="pb-24">
+<body class="h-screen w-full flex flex-col bg-black text-white overflow-hidden">
 
-    <nav class="p-5 flex justify-between items-center sticky top-0 bg-black/90 z-50 border-b border-white/10 backdrop-blur-xl">
-        <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 rounded-full border-2 border-white overflow-hidden shadow-lg shadow-white/10">
-                <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
-            </div>
-            <div>
-                <p class="header-text text-lg italic">HI, <span id="user-name" class="text-sdel">...</span></p>
-                <span id="wallet-pill" class="bg-white text-black text-[9px] font-black px-2 py-0.5 rounded italic">₦0.00</span>
-            </div>
+    <div class="fixed top-0 inset-x-0 p-4 z-50 bg-gradient-to-b from-black/80 to-transparent">
+        <div class="h-1 w-full bg-white/20 rounded-full overflow-hidden">
+            <div id="progress-fill" class="h-full bg-white w-0"></div>
         </div>
-        <div class="flex items-center space-x-5">
-            <i data-lucide="search" size="24" onclick="location.href='circle.html'"></i>
-            <div class="relative cursor-pointer" onclick="location.href='messages.html'">
-                <i data-lucide="bell" size="24"></i>
-                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black">0</span>
+        <div class="flex justify-between items-center mt-4">
+            <div class="flex items-center space-x-3">
+                <p id="author-name" class="font-black text-xs uppercase tracking-widest">Loading...</p>
+            </div>
+            <div class="flex items-center space-x-6">
+                <button onclick="togglePause(event)"><i id="pause-icon" data-lucide="pause" size="20"></i></button>
+                <i data-lucide="x" size="24" onclick="window.location.href='index.html'"></i>
             </div>
         </div>
-    </nav>
-
-    <section class="p-4 border-b border-white/5">
-        <div class="flex space-x-4 overflow-x-auto no-scrollbar py-2">
-            <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='post-story.html'">
-                <div class="w-16 h-16 rounded-full bg-zinc-900 border-2 border-dashed border-white/40 flex items-center justify-center">
-                    <i data-lucide="plus" size="24"></i>
-                </div>
-                <span class="text-[9px] font-black uppercase">Post</span>
-            </div>
-            <div id="story-rail-content" class="flex space-x-4"></div>
-        </div>
-    </section>
-
-    <section class="p-4">
-        <div class="card-glass rounded-[2rem] p-5">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="header-text text-[10px] text-white/50 italic">Order History</h3>
-                <button onclick="toggleAllOrders(true)" class="text-[9px] font-black text-sdel uppercase italic">Show All</button>
-            </div>
-            <div id="order-history-list" class="space-y-3"></div>
-        </div>
-    </section>
-
-    <div id="all-orders-modal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md hidden p-6 overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="header-text text-xl italic">Full History</h2>
-            <i data-lucide="x" class="text-white" onclick="toggleAllOrders(false)"></i>
-        </div>
-        <div id="full-order-list" class="space-y-4"></div>
     </div>
 
-    <section class="p-4">
-        <div class="card-glass rounded-[2rem] p-5">
-            <div class="flex justify-between items-center mb-4">
-                <div><p class="text-[8px] font-black text-white/40 uppercase mb-1">Status</p><div id="rank-badge">...</div></div>
-                <div class="text-right"><p class="header-text text-xl italic" id="xp-count">0</p><p class="text-[8px] font-black text-sdel uppercase">XP</p></div>
+    <div class="flex-1 flex items-center justify-center relative" onclick="handleScreenTap(event)">
+        <div id="loading-spinner" class="absolute flex items-center justify-center">
+            <div class="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+        </div>
+        <img id="story-img" class="max-h-full w-full object-contain">
+    </div>
+
+    <div id="reply-section" class="p-6 pb-10 bg-gradient-to-t from-black to-transparent">
+        <div class="flex items-center space-x-4">
+            <div class="flex-1 glass-input rounded-full px-5 py-3 flex items-center">
+                <input type="text" placeholder="Send a message..." class="bg-transparent border-none outline-none text-sm w-full placeholder:text-white/40">
             </div>
-            <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden"><div id="xp-progress-bar" class="h-full bg-sdel transition-all duration-1000" style="width: 0%"></div></div>
+            <button class="w-12 h-12 flex items-center justify-center bg-white rounded-full">
+                <i data-lucide="heart" class="text-black fill-black" size="20"></i>
+            </button>
         </div>
-    </section>
-
-    <section class="p-4">
-        <div id="ad-banner" class="w-full h-[400px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10">
-            <div class="bg-black/70 backdrop-blur-md p-4 rounded-2xl w-full border border-white/5">
-                <span class="text-[8px] bg-white text-black px-2 py-0.5 font-black rounded mb-2 inline-block">SPONSORED</span>
-                <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Loading...</p>
-            </div>
-        </div>
-    </section>
-
-    <main id="global-feed" class="p-4"></main>
-
-    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
-        <i data-lucide="home" class="text-sdel" size="28"></i>
-        <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
-        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
-            <i data-lucide="camera" class="text-black" size="28"></i>
-        </div>
-        <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
-        <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
-    </nav>
+    </div>
 
     <script>lucide.createIcons();</script>
 </body>
