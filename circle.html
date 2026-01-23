@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Find Scholars</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        function getTier(xp) {
+            if (xp >= 50000) return { name: 'SUPREME', color: '#A855F7' };
+            if (xp >= 25000) return { name: 'GRANDMASTER', color: '#FF6600' };
+            if (xp >= 12000) return { name: 'EXECUTIVE', color: '#EAB308' };
+            if (xp >= 6000) return { name: 'ELITE', color: '#3B82F6' };
+            if (xp >= 2500) return { name: 'STALWART', color: '#CD7F32' };
+            if (xp >= 1000) return { name: 'NOVICE II', color: '#E2E8F0' };
+            return { name: 'NOVICE I', color: '#CBD5E1' };
+        }
+
+        async function loadScholars(query = "") {
+            let request = supabase.from('profile').select('*').order('xp', { ascending: false });
+            
+            if (query) {
+                request = request.ilike('first_name', `%${query}%`);
+            }
+
+            const { data: scholars, error } = await request;
+            const container = document.getElementById('scholar-list');
+            
+            if (scholars) {
+                container.innerHTML = scholars.map(s => {
+                    const tier = getTier(s.xp || 0);
+                    return `
+                    <div class="card-high-contrast p-5 rounded-[2rem] flex items-center justify-between mb-4 active:scale-95 transition" onclick="window.location.href='dm.html?user=${s.id}'">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 rounded-full bg-zinc-900 border-2 flex items-center justify-center font-black text-white" style="border-color: ${tier.color}">
+                                ${s.first_name ? s.first_name[0].toUpperCase() : 'S'}
+                            </div>
+                            <div>
+                                <h3 class="text-sm font-black uppercase text-white tracking-tight">${s.first_name || 'Scholar'}</h3>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-[8px] font-black px-1.5 py-0.5 rounded text-black uppercase italic" style="background-color: ${tier.color}">
+                                        ${tier.name}
+                                    </span>
+                                    <span class="text-[9px] font-bold text-white/60 uppercase tracking-widest">${(s.xp || 0).toLocaleString()} XP</span>
+                                </div>
+                            </div>
+                        </div>
+                        <i data-lucide="chevron-right" class="text-white/20"></i>
+                    </div>`;
+                }).join('');
+                lucide.createIcons();
+            }
+        }
+
+        // Live Search Logic
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            loadScholars(e.target.value);
+        });
+
+        loadScholars();
+    </script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: #FFFFFF; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-high-contrast { background: #111111; border: 2px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body class="p-6">
+
+    <nav class="flex justify-between items-center mb-8">
+        <button onclick="window.location.href='dashboard.html'" class="text-white font-black text-[11px] uppercase border-b-2 border-white/20 pb-1">← Back</button>
+        <h1 class="text-xs font-black uppercase italic tracking-[0.2em] text-sdel">The Circle</h1>
+        <div class="w-10"></div>
+    </nav>
+
+    <div class="relative mb-10">
+        <input type="text" id="search-input" placeholder="Search by name..." 
+            class="w-full bg-[#111111] border-2 border-white/20 rounded-2xl py-5 px-6 text-sm font-bold text-white outline-none focus:border-sdel transition placeholder:text-white/30 shadow-xl">
+        <div class="absolute right-6 top-5 text-white/30">
+            <i data-lucide="search" size="20"></i>
+        </div>
+    </div>
+
+    <div class="space-y-2">
+        <p class="text-[10px] font-black uppercase text-white/40 tracking-[0.3em] ml-2 mb-4">Rankings & Profiles</p>
+        <div id="scholar-list" class="pb-20">
+            </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
