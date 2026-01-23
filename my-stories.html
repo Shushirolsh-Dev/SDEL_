@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | My Gists</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'YOUR_ANON_KEY');
+
+        async function loadMyStories() {
+            const { data: { session } } = await supabase.auth.getSession();
+            const { data: stories } = await supabase.from('stories').select('*, story_views(viewer_id, profile(first_name))').eq('author_id', session.user.id);
+            
+            const list = document.getElementById('my-stories-list');
+            if (stories?.length > 0) {
+                list.innerHTML = stories.map(s => `
+                    <div class="bg-[#111111] border-2 border-white/10 rounded-[2rem] p-4 flex flex-col space-y-4">
+                        <div class="flex items-center space-x-4">
+                            <img src="${s.media_url}" class="w-16 h-16 rounded-2xl object-cover border border-white/10">
+                            <div class="flex-1">
+                                <p class="text-white font-black uppercase text-[10px] tracking-widest mb-1">Posted ${new Date(s.created_at).toLocaleTimeString()}</p>
+                                <p class="text-sdel font-bold text-xs uppercase">${s.story_views.length} Views</p>
+                            </div>
+                            <button onclick="deleteStory('${s.id}')" class="text-red-500 font-black text-[10px] uppercase">Delete</button>
+                        </div>
+                        
+                        <div class="border-t border-white/5 pt-3">
+                            <p class="text-[8px] font-black text-white/40 uppercase mb-2">Viewed By:</p>
+                            <div class="flex flex-wrap gap-2">
+                                ${s.story_views.map(v => `<span class="bg-white/5 text-white text-[8px] px-2 py-1 rounded-md font-bold">@${v.profile?.first_name || 'Scholar'}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        window.deleteStory = async (id) => {
+            if(confirm("Delete this gist?")) {
+                await supabase.from('stories').delete().eq('id', id);
+                location.reload();
+            }
+        }
+
+        loadMyStories();
+    </script>
+</head>
+<body class="bg-black text-white p-6">
+    <nav class="flex justify-between items-center mb-10">
+        <button onclick="window.location.href='dashboard.html'" class="text-white font-black text-[10px] uppercase border-b-2 border-white/20 pb-1">← Home</button>
+        <h1 class="text-xs font-black uppercase italic tracking-[0.2em] text-sdel">My Analytics</h1>
+        <div class="w-10"></div>
+    </nav>
+
+    <div id="my-stories-list" class="space-y-6 pb-20">
+        <p class="text-center text-white/20 font-black uppercase text-[10px] py-20">No active stories found.</p>
+    </div>
+</body>
+</html>
