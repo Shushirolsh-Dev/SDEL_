@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Viewing Story</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'YOUR_ANON_KEY');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const storyId = urlParams.get('id');
+
+        async function loadStory() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.replace('login.html');
+
+            const { data: story } = await supabase.from('stories').select('*, profile(first_name)').eq('id', storyId).single();
+            if (!story) return window.location.href = 'dashboard.html';
+
+            document.getElementById('story-img').src = story.media_url;
+            document.getElementById('author-name').innerText = story.profile.first_name;
+            document.getElementById('caption').innerText = story.caption || "";
+
+            // Record the view
+            await supabase.from('story_views').upsert({ story_id: storyId, viewer_id: session.user.id });
+        }
+
+        loadStory();
+    </script>
+    <style>
+        body { background-color: #000; color: white; margin: 0; overflow: hidden; }
+        .progress-bar { height: 2px; background: rgba(255,255,255,0.3); width: 100%; position: absolute; top: 10px; left: 0; z-index: 50; }
+        .progress-fill { height: 100%; background: #FF6600; width: 0%; transition: width 5s linear; }
+    </style>
+</head>
+<body>
+    <div class="relative h-screen w-screen flex flex-col">
+        <div class="progress-bar px-4 flex gap-1">
+            <div class="progress-fill" id="fill"></div>
+        </div>
+
+        <div class="absolute top-8 left-4 z-50 flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-full bg-zinc-800 border border-white/20 overflow-hidden">
+                <img id="author-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=1" class="w-full h-full object-cover">
+            </div>
+            <p id="author-name" class="font-black uppercase italic text-sm text-white shadow-sm">Scholar</p>
+            <button onclick="window.location.href='dashboard.html'" class="ml-auto p-2 text-white"><i data-lucide="x"></i></button>
+        </div>
+
+        <img id="story-img" class="h-full w-full object-cover">
+
+        <div class="absolute bottom-10 inset-x-0 p-8 bg-gradient-to-t from-black/80 to-transparent">
+            <p id="caption" class="text-lg font-bold text-white leading-tight mb-4"></p>
+            <div class="flex gap-4">
+                <input type="text" placeholder="Reply to gist..." class="flex-1 bg-white/10 border border-white/20 rounded-full px-6 py-3 text-white placeholder:text-white/50 outline-none">
+            </div>
+        </div>
+    </div>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+        setTimeout(() => document.getElementById('fill').style.width = '100%', 100);
+        setTimeout(() => window.location.href = 'dashboard.html', 5100);
+    </script>
+</body>
+</html>
