@@ -39,20 +39,35 @@
 
         async function loadStories() {
             const now = new Date().toISOString();
-            // Fetch stories and profiles separately to avoid join errors
-            const { data: stories } = await supabase.from('stories').select('*').gt('expires_at', now);
+            // Fetch stories
+            const { data: stories } = await supabase.from('stories')
+                .select('*')
+                .gt('expires_at', now)
+                .order('created_at', { ascending: false });
             
             const rail = document.getElementById('story-rail-content');
             if (stories?.length > 0) {
-                const authorIds = [...new Set(stories.map(s => s.author_id))];
+                // "Single Story" Logic: Only show the LATEST story per user
+                const uniqueStories = [];
+                const seenUsers = new Set();
+                
+                for (const s of stories) {
+                    if (!seenUsers.has(s.author_id)) {
+                        seenUsers.add(s.author_id);
+                        uniqueStories.push(s);
+                    }
+                }
+
+                const authorIds = uniqueStories.map(s => s.author_id);
                 const { data: profiles } = await supabase.from('profile').select('id, first_name, is_official').in('id', authorIds);
 
-                const sortedStories = stories.map(s => ({
+                // Merge and Sort: Current User first
+                const finalStories = uniqueStories.map(s => ({
                     ...s,
                     profile: profiles?.find(p => p.id === s.author_id) || {}
                 })).sort((a, b) => (a.author_id === currentUserId ? -1 : 1));
 
-                rail.innerHTML = sortedStories.map(s => {
+                rail.innerHTML = finalStories.map(s => {
                     const isSdel = s.is_official_post || s.profile?.is_official === true;
                     const name = isSdel ? "SDEL" : (s.profile?.first_name || 'MEMBER');
                     return `
@@ -75,7 +90,6 @@
 
             const container = document.getElementById('order-history-list');
             if (orders && orders.length > 0) {
-                // Show only last 3 by default
                 const displayOrders = orders.slice(0, 3);
                 container.innerHTML = displayOrders.map(o => `
                     <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10 select-none">
@@ -98,6 +112,8 @@
             if (xp >= 10000) rank = { n: "OVERLORD", c: "bg-gradient-to-r from-red-600 to-black animate-pulse", p: 100 };
             else if (xp >= 5000) rank = { n: "MYTHIC", c: "bg-purple-600", p: (xp/10000)*100 };
             else if (xp >= 2500) rank = { n: "ELITE", c: "bg-blue-600", p: (xp/5000)*100 };
+            else if (xp >= 1000) rank = { n: "WRAITH", c: "bg-emerald-600", p: (xp/2500)*100 };
+            else if (xp >= 500) rank = { n: "SCOUT", c: "bg-orange-600", p: (xp/1000)*100 };
             badge.innerText = rank.n;
             badge.className = `px-3 py-1 rounded text-[10px] font-black italic text-white ${rank.c}`;
             progress.style.width = `${rank.p}%`;
@@ -124,7 +140,7 @@
                             </div>
                         </div>
                         ${p.media_url ? `<img src="${p.media_url}" class="w-full object-cover">` : ''}
-                        <div class="p-5"><p class="text-[13px] text-white leading-snug">${p.content}</p></div>
+                        <div class="p-5"><p class="text-[13px] text-white font-bold leading-snug">${p.content}</p></div>
                     </div>
                 `).join('');
                 lucide.createIcons();
@@ -140,7 +156,7 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .card-glass { background: #111; border: 1px solid rgba(255,255,255,0.15); }
-        .header-text { font-weight: 900; text-transform: uppercase; }
+        .header-text { font-weight: 900; color: #FFFFFF; text-transform: uppercase; letter-spacing: -0.02em; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .select-none { user-select: none; -webkit-user-select: none; }
         @keyframes gold-glow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
@@ -155,20 +171,25 @@
                 <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
             </div>
             <div>
-                <p class="header-text text-lg italic">HI, <span id="user-name" class="text-sdel">...</span></p>
-                <span id="wallet-pill" class="bg-white text-black text-[9px] font-black px-2 py-0.5 rounded italic">₦0.00</span>
+                <p class="header-text text-lg">HI, <span id="user-name" class="text-sdel">...</span></p>
+                <div class="flex items-center space-x-2 mt-1">
+                    <span id="wallet-pill" class="bg-white text-black text-[9px] font-black px-2 py-0.5 rounded italic">₦0.00</span>
+                </div>
             </div>
         </div>
-        <div class="flex space-x-5"><i data-lucide="search" onclick="location.href='circle.html'"></i><i data-lucide="bell"></i></div>
+        <div class="flex items-center space-x-5">
+            <i data-lucide="search" class="text-white" size="24" onclick="location.href='circle.html'"></i>
+            <i data-lucide="bell" class="text-white" size="24"></i>
+        </div>
     </nav>
 
     <section class="p-4 border-b border-white/5">
         <div class="flex space-x-4 overflow-x-auto no-scrollbar py-2">
             <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='post-story.html'">
                 <div class="w-16 h-16 rounded-full bg-zinc-900 border-2 border-dashed border-white/40 flex items-center justify-center">
-                    <i data-lucide="plus"></i>
+                    <i data-lucide="plus" class="text-white" size="24"></i>
                 </div>
-                <span class="text-[9px] font-black uppercase">Post</span>
+                <span class="text-[9px] font-black uppercase text-white">Post</span>
             </div>
             <div id="story-rail-content" class="flex space-x-4"></div>
         </div>
@@ -181,7 +202,7 @@
                 <button onclick="location.href='all-orders.html'" class="text-[9px] font-black text-sdel uppercase italic">Show All</button>
             </div>
             <div id="order-history-list" class="space-y-3">
-                <p class="text-[10px] text-white/20 italic">No orders yet...</p>
+                <p class="text-[10px] text-white/20 italic">No orders found...</p>
             </div>
         </div>
     </section>
@@ -197,10 +218,10 @@
     </section>
 
     <section class="p-4">
-        <div id="ad-banner" class="w-full h-[350px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10">
+        <div id="ad-banner" class="w-full h-[400px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10">
             <div class="bg-black/70 backdrop-blur-md p-4 rounded-2xl w-full border border-white/5">
-                <span class="text-[8px] bg-white text-black px-2 py-0.5 font-black rounded mb-2 inline-block uppercase">Sponsored</span>
-                <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Loading Ad...</p>
+                <span class="text-[8px] bg-white text-black px-2 py-0.5 font-black rounded mb-2 inline-block">SPONSORED</span>
+                <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Upgrade to Sdel Prime for exclusive benefits.</p>
             </div>
         </div>
     </section>
@@ -208,14 +229,15 @@
     <main id="global-feed" class="p-4"></main>
 
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
-        <i data-lucide="home" class="text-sdel"></i>
-        <i data-lucide="compass" onclick="location.href='explore.html'"></i>
-        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black" onclick="location.href='post-story.html'">
-            <i data-lucide="camera" class="text-black"></i>
+        <i data-lucide="home" class="text-sdel" size="28"></i>
+        <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
+        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl shadow-sdel/40 border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
+            <i data-lucide="camera" class="text-black" size="28"></i>
         </div>
-        <i data-lucide="shopping-cart" onclick="location.href='market.html'"></i>
-        <i data-lucide="user" onclick="location.href='profile.html'"></i>
+        <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
     </nav>
 
+    <script>lucide.createIcons();</script>
 </body>
 </html>
