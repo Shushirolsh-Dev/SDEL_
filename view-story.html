@@ -18,39 +18,34 @@
         let isPaused = false;
         let timer;
 
-        // Smart Exit Function
-        function exitViewer() {
-            if (document.referrer && document.referrer.includes(window.location.hostname)) {
-                window.history.back();
-            } else {
-                window.location.href = 'index.html'; // Fallback
-            }
-        }
-
         async function loadStorySequence() {
             const params = new URLSearchParams(window.location.search);
             const initialId = params.get('id');
-            const { data: first } = await supabase.from('stories').select('author_id').eq('id', initialId).single();
             
-            if (!first) return exitViewer();
+            // Get the author of the clicked story
+            const { data: first } = await supabase.from('stories').select('author_id').eq('id', initialId).single();
+            if (!first) return window.location.href = 'dashboard.html';
 
+            // Fetch ALL active stories for this specific user
             const { data: stories } = await supabase.from('stories')
                 .select('*')
                 .eq('author_id', first.author_id)
                 .gt('expires_at', new Date().toISOString())
-                .order('created_at', { ascending: true });
+                .order('created_at', { ascending: true }); // Play in order of posting
 
             const { data: profile } = await supabase.from('profile').select('first_name, is_official').eq('id', first.author_id).single();
 
             allUserStories = stories;
+            // Start the viewer at the specific story clicked
             currentIndex = stories.findIndex(s => s.id === initialId);
             if (currentIndex === -1) currentIndex = 0;
             
             const isSdel = stories[currentIndex].is_official_post || profile?.is_official;
             document.getElementById('author-name').innerText = isSdel ? "SDEL OFFICIAL" : (profile?.first_name || "MEMBER");
+            
             if (isSdel) {
                 document.getElementById('author-name').classList.add('text-yellow-400');
-                document.getElementById('reply-section').classList.add('hidden');
+                document.getElementById('reply-section').style.display = 'none';
             }
             renderStory();
         }
@@ -64,7 +59,9 @@
             document.getElementById('loading-spinner').classList.remove('hidden');
             img.src = story.media_url;
             
-            document.getElementById('pause-icon').setAttribute('data-lucide', 'pause');
+            // Sync pause icon state
+            const icon = document.getElementById('pause-icon');
+            icon.setAttribute('data-lucide', 'pause');
             lucide.createIcons();
             
             img.onload = () => {
@@ -81,7 +78,7 @@
                     document.getElementById('progress-fill').style.width = progress + '%';
                     if (progress >= 100) nextStory();
                 }
-            }, 60); 
+            }, 50); // Approx 5 seconds per story
         }
 
         window.togglePause = (e) => {
@@ -96,19 +93,25 @@
             if (currentIndex < allUserStories.length - 1) {
                 currentIndex++;
                 renderStory();
-            } else { exitViewer(); }
+            } else { 
+                window.location.href = 'dashboard.html'; 
+            }
         };
 
         window.handleScreenTap = (e) => {
             const x = e.clientX;
             const width = window.innerWidth;
-            if (x < width / 3) { 
-                if (currentIndex > 0) { currentIndex--; renderStory(); }
-                else { exitViewer(); }
-            } else { nextStory(); }
+            if (x < width / 3) { // Left 30% = Back
+                if (currentIndex > 0) { 
+                    currentIndex--; 
+                    renderStory(); 
+                } else { 
+                    window.location.href = 'dashboard.html'; 
+                }
+            } else { 
+                nextStory(); // Right 70% = Next
+            }
         };
-
-        window.closeViewer = () => exitViewer();
 
         loadStorySequence();
     </script>
@@ -116,39 +119,43 @@
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
         .glass-input { background: rgba(255,255,255,0.1); backdrop-blur: 10px; border: 1px solid rgba(255,255,255,0.2); }
+        .progress-segment { background: rgba(255,255,255,0.2); }
     </style>
 </head>
-<body class="h-screen w-full flex flex-col bg-black text-white overflow-hidden">
+<body class="h-screen w-full flex flex-col bg-black text-white overflow-hidden select-none">
 
     <div class="fixed top-0 inset-x-0 p-4 z-50 bg-gradient-to-b from-black/80 to-transparent">
         <div class="h-1 w-full bg-white/20 rounded-full overflow-hidden">
-            <div id="progress-fill" class="h-full bg-white w-0"></div>
+            <div id="progress-fill" class="h-full bg-white w-0 transition-all duration-75 linear"></div>
         </div>
-        <div class="flex justify-between items-center mt-4">
+        
+        <div class="flex justify-between items-center mt-4 px-2">
             <div class="flex items-center space-x-3">
-                <p id="author-name" class="font-black text-xs uppercase tracking-widest">Loading...</p>
+                <p id="author-name" class="font-black text-[10px] uppercase tracking-[0.2em]">Loading...</p>
             </div>
             <div class="flex items-center space-x-6">
-                <button onclick="togglePause(event)"><i id="pause-icon" data-lucide="pause" size="20"></i></button>
-                <i data-lucide="x" size="24" onclick="closeViewer()" class="cursor-pointer"></i>
+                <button onclick="togglePause(event)" class="active:scale-75 transition">
+                    <i id="pause-icon" data-lucide="pause" size="18"></i>
+                </button>
+                <i data-lucide="x" size="22" onclick="window.location.href='dashboard.html'" class="active:scale-75 transition cursor-pointer"></i>
             </div>
         </div>
     </div>
 
-    <div class="flex-1 flex items-center justify-center relative" onclick="handleScreenTap(event)">
-        <div id="loading-spinner" class="absolute flex items-center justify-center">
-            <div class="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+    <div class="flex-1 flex items-center justify-center relative bg-black" onclick="handleScreenTap(event)">
+        <div id="loading-spinner" class="absolute flex items-center justify-center z-10">
+            <div class="w-10 h-10 border-[3px] border-white/10 border-t-white rounded-full animate-spin"></div>
         </div>
-        <img id="story-img" class="max-h-full w-full object-contain">
+        <img id="story-img" class="max-h-full w-full object-contain pointer-events-none" src="">
     </div>
 
-    <div id="reply-section" class="p-6 pb-10 bg-gradient-to-t from-black to-transparent">
-        <div class="flex items-center space-x-4">
+    <div id="reply-section" class="p-6 pb-10 bg-gradient-to-t from-black via-black/40 to-transparent">
+        <div class="flex items-center space-x-3">
             <div class="flex-1 glass-input rounded-full px-5 py-3 flex items-center">
-                <input type="text" placeholder="Send a message..." class="bg-transparent border-none outline-none text-sm w-full placeholder:text-white/40">
+                <input type="text" placeholder="Reply to gist..." class="bg-transparent border-none outline-none text-[13px] w-full placeholder:text-white/40 font-medium">
             </div>
-            <button class="w-12 h-12 flex items-center justify-center bg-white rounded-full">
-                <i data-lucide="heart" class="text-black fill-black" size="20"></i>
+            <button class="w-11 h-11 flex items-center justify-center bg-white rounded-full active:scale-90 transition">
+                <i data-lucide="heart" class="text-black fill-black" size="18"></i>
             </button>
         </div>
     </div>
