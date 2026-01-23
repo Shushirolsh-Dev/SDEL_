@@ -22,21 +22,18 @@
             const params = new URLSearchParams(window.location.search);
             const initialId = params.get('id');
             
-            // Get the author of the clicked story
             const { data: first } = await supabase.from('stories').select('author_id').eq('id', initialId).single();
             if (!first) return window.location.href = 'dashboard.html';
 
-            // Fetch ALL active stories for this specific user
             const { data: stories } = await supabase.from('stories')
                 .select('*')
                 .eq('author_id', first.author_id)
                 .gt('expires_at', new Date().toISOString())
-                .order('created_at', { ascending: true }); // Play in order of posting
+                .order('created_at', { ascending: true });
 
             const { data: profile } = await supabase.from('profile').select('first_name, is_official').eq('id', first.author_id).single();
 
             allUserStories = stories;
-            // Start the viewer at the specific story clicked
             currentIndex = stories.findIndex(s => s.id === initialId);
             if (currentIndex === -1) currentIndex = 0;
             
@@ -55,11 +52,19 @@
             progress = 0;
             const story = allUserStories[currentIndex];
             const img = document.getElementById('story-img');
+            const captionBox = document.getElementById('story-caption');
             
             document.getElementById('loading-spinner').classList.remove('hidden');
             img.src = story.media_url;
+
+            // Updated to use the 'caption' column from your upload file
+            if (story.caption && story.caption.trim() !== "") {
+                captionBox.innerText = story.caption;
+                captionBox.parentElement.classList.remove('hidden');
+            } else {
+                captionBox.parentElement.classList.add('hidden');
+            }
             
-            // Sync pause icon state
             const icon = document.getElementById('pause-icon');
             icon.setAttribute('data-lucide', 'pause');
             lucide.createIcons();
@@ -78,7 +83,7 @@
                     document.getElementById('progress-fill').style.width = progress + '%';
                     if (progress >= 100) nextStory();
                 }
-            }, 50); // Approx 5 seconds per story
+            }, 50); 
         }
 
         window.togglePause = (e) => {
@@ -101,16 +106,10 @@
         window.handleScreenTap = (e) => {
             const x = e.clientX;
             const width = window.innerWidth;
-            if (x < width / 3) { // Left 30% = Back
-                if (currentIndex > 0) { 
-                    currentIndex--; 
-                    renderStory(); 
-                } else { 
-                    window.location.href = 'dashboard.html'; 
-                }
-            } else { 
-                nextStory(); // Right 70% = Next
-            }
+            if (x < width / 3) {
+                if (currentIndex > 0) { currentIndex--; renderStory(); }
+                else { window.location.href = 'dashboard.html'; }
+            } else { nextStory(); }
         };
 
         loadStorySequence();
@@ -118,8 +117,8 @@
 
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .glass-input { background: rgba(255,255,255,0.1); backdrop-blur: 10px; border: 1px solid rgba(255,255,255,0.2); }
-        .progress-segment { background: rgba(255,255,255,0.2); }
+        .glass-input { background: rgba(255,255,255,0.1); backdrop-blur: 15px; border: 1px solid rgba(255,255,255,0.2); }
+        .text-shadow { text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
     </style>
 </head>
 <body class="h-screen w-full flex flex-col bg-black text-white overflow-hidden select-none">
@@ -134,10 +133,8 @@
                 <p id="author-name" class="font-black text-[10px] uppercase tracking-[0.2em]">Loading...</p>
             </div>
             <div class="flex items-center space-x-6">
-                <button onclick="togglePause(event)" class="active:scale-75 transition">
-                    <i id="pause-icon" data-lucide="pause" size="18"></i>
-                </button>
-                <i data-lucide="x" size="22" onclick="window.location.href='dashboard.html'" class="active:scale-75 transition cursor-pointer"></i>
+                <button onclick="togglePause(event)"><i id="pause-icon" data-lucide="pause" size="18"></i></button>
+                <i data-lucide="x" size="22" onclick="window.location.href='dashboard.html'" class="cursor-pointer"></i>
             </div>
         </div>
     </div>
@@ -146,10 +143,14 @@
         <div id="loading-spinner" class="absolute flex items-center justify-center z-10">
             <div class="w-10 h-10 border-[3px] border-white/10 border-t-white rounded-full animate-spin"></div>
         </div>
-        <img id="story-img" class="max-h-full w-full object-contain pointer-events-none" src="">
+        <img id="story-img" class="max-h-screen w-full object-contain pointer-events-none">
+
+        <div class="absolute bottom-32 inset-x-0 px-8 py-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-center">
+            <p id="story-caption" class="text-[15px] font-bold text-white text-shadow leading-relaxed"></p>
+        </div>
     </div>
 
-    <div id="reply-section" class="p-6 pb-10 bg-gradient-to-t from-black via-black/40 to-transparent">
+    <div id="reply-section" class="fixed bottom-0 inset-x-0 p-6 pb-10 bg-black/60 backdrop-blur-md">
         <div class="flex items-center space-x-3">
             <div class="flex-1 glass-input rounded-full px-5 py-3 flex items-center">
                 <input type="text" placeholder="Reply to gist..." class="bg-transparent border-none outline-none text-[13px] w-full placeholder:text-white/40 font-medium">
