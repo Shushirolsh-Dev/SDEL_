@@ -32,29 +32,24 @@
             }
 
             document.documentElement.style.opacity = "1";
-            initializeApp(session.user); // Passing the 'user' object which contains signup data
+            initializeApp(session.user);
             listenForMessages(session.user.id); 
             loadDynamicAds(); 
             subscribeToBalance(session.user.id);
         }
 
         async function initializeApp(user) {
-            // 1. Fetching name directly from User Metadata (entered at Signup)
-            // This works even if the profile table is empty
             const rawFirstName = user.user_metadata?.first_name || user.user_metadata?.firstname || "Scholar";
             const rawLastName = user.user_metadata?.last_name || user.user_metadata?.lastname || "";
 
-            // 2. Greeting Logic
             const hour = new Date().getHours();
             let greet = (hour < 12) ? "Good morning" : (hour < 17) ? "Good afternoon" : "Good evening";
             document.getElementById('js-greet').innerText = greet;
 
-            // 3. Set Name and Initials
             document.getElementById('js-name').innerText = rawFirstName;
             const initials = (rawFirstName.charAt(0) + (rawLastName ? rawLastName.charAt(0) : "")).toUpperCase();
             document.getElementById('user-initials').innerText = initials;
 
-            // 4. Still fetch balance from profile as that's financial data
             const { data: profile } = await supabase.from('profile').select('wallet_balance').eq('id', user.id).single();
             document.getElementById('wallet-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
 
@@ -155,22 +150,63 @@
         async function loadActivity(userId) {
             const { data: orders } = await supabase.from('orders').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(3);
             const feed = document.getElementById('activity-feed');
+            const moreBtn = document.getElementById('view-more-orders');
+            
             if (orders?.length > 0) {
+                if(moreBtn) moreBtn.classList.remove('hidden');
                 feed.innerHTML = orders.map(order => `
-                    <div class="card-zinc p-4 rounded-3xl flex items-center justify-between">
+                    <div class="card-zinc p-4 rounded-3xl flex items-center justify-between animate-in">
                         <div class="flex items-center space-x-4">
                             <div class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center ${order.status === 'completed' ? 'text-green-500' : 'text-sdel'}">
                                 <i data-lucide="${order.status === 'completed' ? 'check-circle' : 'clock'}" size="18"></i>
                             </div>
-                            <div><p class="font-black text-sm uppercase">${order.item_name}</p><p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Status: ${order.status_message || 'Processing'}</p></div>
+                            <div>
+                                <p class="font-black text-sm uppercase">${order.item_name || 'SDEL Order'}</p>
+                                <p class="text-[8px] text-sdel font-mono font-bold uppercase tracking-tighter mb-1">${order.order_code || 'PROCESSING...'}</p>
+                                <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Status: ${order.status_message || 'Processing'}</p>
+                            </div>
                         </div>
-                        <span class="text-[9px] font-black uppercase">${order.status}</span>
+                        <span class="text-[9px] font-black uppercase text-zinc-500">${order.status}</span>
                     </div>`).join('');
                 lucide.createIcons();
             } else {
                 feed.innerHTML = '<p class="text-center text-[10px] text-gray-600 font-black uppercase py-4">No recent activity</p>';
+                if(moreBtn) moreBtn.classList.add('hidden');
             }
         }
+
+        window.showAllOrders = async () => {
+            const { data: { session } } = await window.supabase.auth.getSession();
+            const { data: allOrders } = await window.supabase.from('orders').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
+            
+            const modal = document.getElementById('history-modal');
+            const list = document.getElementById('history-list');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            list.innerHTML = allOrders.map(order => `
+                <div class="card-zinc p-5 rounded-[2rem] border-white/5 space-y-2 animate-in">
+                    <div class="flex justify-between items-start">
+                        <span class="text-[10px] font-black text-sdel font-mono uppercase">${order.order_code}</span>
+                        <span class="text-[8px] bg-zinc-900 px-2 py-1 rounded-md uppercase font-black text-zinc-400">${order.status}</span>
+                    </div>
+                    <p class="text-sm font-black uppercase italic">${order.item_name || 'Market Order'}</p>
+                    <div class="flex justify-between items-center text-[9px] font-bold text-gray-500 uppercase">
+                        <span>${new Date(order.created_at).toLocaleDateString()}</span>
+                        <span class="text-white">₦${order.total_amount?.toLocaleString()}</span>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        };
+
+        window.closeHistory = () => {
+            const modal = document.getElementById('history-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+
         gatekeeper();
     </script>
 
@@ -196,6 +232,14 @@
 
     <div class="stars fixed inset-0 z-[-1]" id="stars"></div>
     <div id="ad-modal"></div>
+
+    <div id="history-modal" class="hidden fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl p-6 overflow-y-auto flex-col">
+        <div class="flex justify-between items-center mb-8 sticky top-0 bg-black/10 py-2">
+            <h2 class="text-2xl font-black uppercase italic tracking-tighter">Order <span class="text-sdel">History</span></h2>
+            <button onclick="closeHistory()" class="p-3 bg-zinc-900 rounded-2xl"><i data-lucide="x" class="text-white"></i></button>
+        </div>
+        <div id="history-list" class="space-y-4 pb-20"></div>
+    </div>
 
     <nav class="flex justify-between items-center p-6 border-b border-white/10 sticky top-0 bg-black z-50">
         <div class="flex items-center space-x-2">
@@ -263,7 +307,10 @@
         </section>
 
         <section class="space-y-4">
-            <h3 class="text-xs font-black uppercase tracking-widest text-gray-500 px-2">Live Order Status</h3>
+            <div class="flex justify-between items-center px-2">
+                <h3 class="text-xs font-black uppercase tracking-widest text-gray-500">Live Order Status</h3>
+                <button onclick="showAllOrders()" id="view-more-orders" class="hidden text-[10px] font-black uppercase text-sdel tracking-widest border-b border-sdel/30 pb-0.5">View History</button>
+            </div>
             <div id="activity-feed" class="space-y-3"></div>
         </section>
     </main>
