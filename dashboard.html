@@ -13,20 +13,18 @@
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         let currentUserId = null;
+        let allOrdersData = [];
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.href = 'login.html';
-
             currentUserId = session.user.id;
 
             const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
-            
             if(profile) {
                 document.getElementById('user-name').innerText = profile.first_name || "CHAMP";
                 document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
                 if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
-                
                 document.getElementById('xp-count').innerText = profile.xp || 0;
                 updatePrestige(profile.xp || 0);
             }
@@ -35,73 +33,86 @@
             loadFeed();
             loadAds();
             loadOrders();
+            getUnreadCount();
+        }
+
+        async function getUnreadCount() {
+            const { count } = await supabase.from('messages').select('*', { count: 'exact', head: true }).eq('receiver_id', currentUserId).eq('is_read', false);
+            if (count > 0) {
+                const badge = document.getElementById('notif-badge');
+                badge.innerText = count > 9 ? '9+' : count;
+                badge.classList.remove('hidden');
+            }
         }
 
         async function loadStories() {
             const now = new Date().toISOString();
-            // Fetch stories
-            const { data: stories } = await supabase.from('stories')
-                .select('*')
-                .gt('expires_at', now)
-                .order('created_at', { ascending: false });
-            
+            const { data: stories } = await supabase.from('stories').select('*').gt('expires_at', now).order('created_at', { ascending: false });
             const rail = document.getElementById('story-rail-content');
             if (stories?.length > 0) {
-                // "Single Story" Logic: Only show the LATEST story per user
                 const uniqueStories = [];
                 const seenUsers = new Set();
-                
                 for (const s of stories) {
                     if (!seenUsers.has(s.author_id)) {
                         seenUsers.add(s.author_id);
                         uniqueStories.push(s);
                     }
                 }
-
                 const authorIds = uniqueStories.map(s => s.author_id);
                 const { data: profiles } = await supabase.from('profile').select('id, first_name, is_official').in('id', authorIds);
-
-                // Merge and Sort: Current User first
                 const finalStories = uniqueStories.map(s => ({
-                    ...s,
-                    profile: profiles?.find(p => p.id === s.author_id) || {}
+                    ...s, profile: profiles?.find(p => p.id === s.author_id) || {}
                 })).sort((a, b) => (a.author_id === currentUserId ? -1 : 1));
 
                 rail.innerHTML = finalStories.map(s => {
                     const isSdel = s.is_official_post || s.profile?.is_official === true;
-                    const name = isSdel ? "SDEL" : (s.profile?.first_name || 'MEMBER');
                     return `
                         <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='view-story.html?id=${s.id}'">
                             <div class="w-16 h-16 p-[2px] border-2 ${isSdel ? 'border-yellow-400 sdel-pulse' : 'border-sdel'} rounded-full">
                                 <img src="${s.media_url}" class="w-full h-full rounded-full object-cover bg-zinc-900">
                             </div>
-                            <span class="text-[9px] font-black uppercase ${isSdel ? 'text-yellow-400' : 'text-white'} truncate w-16 text-center">${name}</span>
-                        </div>
-                    `;
+                            <span class="text-[9px] font-black uppercase ${isSdel ? 'text-yellow-400' : 'text-white'} truncate w-16 text-center">${isSdel ? 'SDEL' : (s.profile?.first_name || 'MEMBER')}</span>
+                        </div>`;
                 }).join('');
             }
         }
 
         async function loadOrders() {
-            const { data: orders } = await supabase.from('orders')
-                .select('*')
-                .eq('user_id', currentUserId)
-                .order('created_at', { ascending: false });
+            const { data: orders } = await supabase.from('orders').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
+            if (!orders) return;
+            allOrdersData = orders;
+            renderOrderList(orders.slice(0, 3), 'order-history-list');
+        }
 
-            const container = document.getElementById('order-history-list');
-            if (orders && orders.length > 0) {
-                const displayOrders = orders.slice(0, 3);
-                container.innerHTML = displayOrders.map(o => `
+        function renderOrderList(data, targetId) {
+            const container = document.getElementById(targetId);
+            container.innerHTML = data.map(o => {
+                const displayId = o.order_code || `ID: ${o.id.slice(0,8)}`;
+                // Extracting item names from the JSON 'items' column
+                const itemNames = o.items ? JSON.parse(JSON.stringify(o.items)).map(i => i.name).join(', ') : 'Market Item';
+                
+                let statusColor = 'bg-zinc-500/20 text-zinc-400';
+                if(o.status === 'accepted') statusColor = 'bg-emerald-500/20 text-emerald-500';
+                if(o.status === 'rejected') statusColor = 'bg-red-500/20 text-red-500';
+
+                return `
                     <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10 select-none">
-                        <div>
-                            <p class="text-[10px] font-black text-white/50 uppercase">ID: ${o.id.slice(0,8)}</p>
-                            <p class="text-xs font-bold text-white">${o.item_name || 'Market Item'}</p>
+                        <div class="max-w-[70%]">
+                            <p class="text-[9px] font-black text-white/50 uppercase">${displayId}</p>
+                            <p class="text-[11px] font-bold text-white truncate">${itemNames}</p>
                         </div>
-                        <span class="px-2 py-1 rounded text-[8px] font-black ${o.status === 'accepted' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-red-500/20 text-red-500'} uppercase">
-                            ${o.status || 'pending'}
-                        </span>
-                    </div>
-                `).join('');
+                        <span class="px-2 py-1 rounded text-[8px] font-black uppercase ${statusColor}">${o.status}</span>
+                    </div>`;
+            }).join('');
+        }
+
+        window.toggleAllOrders = function(show) {
+            const modal = document.getElementById('all-orders-modal');
+            if(show) {
+                renderOrderList(allOrdersData, 'full-order-list');
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
             }
         }
 
@@ -141,12 +152,10 @@
                         </div>
                         ${p.media_url ? `<img src="${p.media_url}" class="w-full object-cover">` : ''}
                         <div class="p-5"><p class="text-[13px] text-white font-bold leading-snug">${p.content}</p></div>
-                    </div>
-                `).join('');
+                    </div>`).join('');
                 lucide.createIcons();
             }
         }
-
         init();
     </script>
     
@@ -171,15 +180,16 @@
                 <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
             </div>
             <div>
-                <p class="header-text text-lg">HI, <span id="user-name" class="text-sdel">...</span></p>
-                <div class="flex items-center space-x-2 mt-1">
-                    <span id="wallet-pill" class="bg-white text-black text-[9px] font-black px-2 py-0.5 rounded italic">₦0.00</span>
-                </div>
+                <p class="header-text text-lg italic">HI, <span id="user-name" class="text-sdel">...</span></p>
+                <span id="wallet-pill" class="bg-white text-black text-[9px] font-black px-2 py-0.5 rounded italic">₦0.00</span>
             </div>
         </div>
         <div class="flex items-center space-x-5">
-            <i data-lucide="search" class="text-white" size="24" onclick="location.href='circle.html'"></i>
-            <i data-lucide="bell" class="text-white" size="24"></i>
+            <i data-lucide="search" size="24" onclick="location.href='circle.html'"></i>
+            <div class="relative cursor-pointer" onclick="location.href='messages.html'">
+                <i data-lucide="bell" size="24"></i>
+                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black">0</span>
+            </div>
         </div>
     </nav>
 
@@ -187,9 +197,9 @@
         <div class="flex space-x-4 overflow-x-auto no-scrollbar py-2">
             <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='post-story.html'">
                 <div class="w-16 h-16 rounded-full bg-zinc-900 border-2 border-dashed border-white/40 flex items-center justify-center">
-                    <i data-lucide="plus" class="text-white" size="24"></i>
+                    <i data-lucide="plus" size="24"></i>
                 </div>
-                <span class="text-[9px] font-black uppercase text-white">Post</span>
+                <span class="text-[9px] font-black uppercase">Post</span>
             </div>
             <div id="story-rail-content" class="flex space-x-4"></div>
         </div>
@@ -198,20 +208,26 @@
     <section class="p-4">
         <div class="card-glass rounded-[2rem] p-5">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="header-text text-[10px] text-white/50">Recent Orders</h3>
-                <button onclick="location.href='all-orders.html'" class="text-[9px] font-black text-sdel uppercase italic">Show All</button>
+                <h3 class="header-text text-[10px] text-white/50 italic">Order History</h3>
+                <button onclick="toggleAllOrders(true)" class="text-[9px] font-black text-sdel uppercase italic">Show All</button>
             </div>
-            <div id="order-history-list" class="space-y-3">
-                <p class="text-[10px] text-white/20 italic">No orders found...</p>
-            </div>
+            <div id="order-history-list" class="space-y-3"></div>
         </div>
     </section>
+
+    <div id="all-orders-modal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md hidden p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="header-text text-xl italic">Full History</h2>
+            <i data-lucide="x" class="text-white" onclick="toggleAllOrders(false)"></i>
+        </div>
+        <div id="full-order-list" class="space-y-4"></div>
+    </div>
 
     <section class="p-4">
         <div class="card-glass rounded-[2rem] p-5">
             <div class="flex justify-between items-center mb-4">
-                <div><p class="text-[8px] font-black text-white/40 uppercase tracking-widest mb-1">Status</p><div id="rank-badge">...</div></div>
-                <div class="text-right"><p class="header-text text-xl italic" id="xp-count">0</p><p class="text-[8px] font-black text-sdel">Total XP</p></div>
+                <div><p class="text-[8px] font-black text-white/40 uppercase mb-1">Status</p><div id="rank-badge">...</div></div>
+                <div class="text-right"><p class="header-text text-xl italic" id="xp-count">0</p><p class="text-[8px] font-black text-sdel uppercase">XP</p></div>
             </div>
             <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden"><div id="xp-progress-bar" class="h-full bg-sdel transition-all duration-1000" style="width: 0%"></div></div>
         </div>
@@ -221,7 +237,7 @@
         <div id="ad-banner" class="w-full h-[400px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10">
             <div class="bg-black/70 backdrop-blur-md p-4 rounded-2xl w-full border border-white/5">
                 <span class="text-[8px] bg-white text-black px-2 py-0.5 font-black rounded mb-2 inline-block">SPONSORED</span>
-                <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Upgrade to Sdel Prime for exclusive benefits.</p>
+                <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Loading...</p>
             </div>
         </div>
     </section>
@@ -231,7 +247,7 @@
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
         <i data-lucide="home" class="text-sdel" size="28"></i>
         <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
-        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl shadow-sdel/40 border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
+        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
             <i data-lucide="camera" class="text-black" size="28"></i>
         </div>
         <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
