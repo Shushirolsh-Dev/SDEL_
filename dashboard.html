@@ -36,39 +36,36 @@
             getUnreadCount();
         }
 
-        // FIXED MESSAGE COUNT LOGIC
+        // FIXED: Added await and Realtime Subscription
         async function getUnreadCount() {
             if (!currentUserId) return;
 
+            // Added await here so the 'count' is actually captured
             const { count, error } = await supabase
                 .from('messages')
                 .select('*', { count: 'exact', head: true })
                 .eq('receiver_id', currentUserId)
                 .eq('is_read', false);
 
-            if (error) {
-                console.error("Notif Error:", error.message);
-                return;
-            }
-
             const badge = document.getElementById('notif-badge');
-            if (count > 0) {
+            
+            if (!error && count > 0) {
                 badge.innerText = count > 9 ? '9+' : count;
                 badge.classList.remove('hidden');
             } else {
                 badge.classList.add('hidden');
             }
 
-            // Realtime listener for instant badge updates
+            // Realtime listener so the count updates the moment a message arrives
             supabase
-                .channel('dashboard-notifs')
+                .channel('unread-dashboard')
                 .on('postgres_changes', { 
-                    event: '*', 
+                    event: 'INSERT', 
                     schema: 'public', 
                     table: 'messages',
                     filter: `receiver_id=eq.${currentUserId}` 
                 }, () => {
-                    getUnreadCount();
+                    getUnreadCount(); // Re-run count on new message
                 })
                 .subscribe();
         }
