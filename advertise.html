@@ -41,13 +41,14 @@
                     <span id="selectedLabel">Loading prices...</span>
                     <i data-lucide="chevron-down" size="16"></i>
                 </div>
-                <div class="options-menu" id="optionsMenu">
-                    </div>
+                <div class="options-menu" id="optionsMenu"></div>
             </div>
         </div>
 
         <input type="text" id="adTitle" placeholder="Business Title" class="ig-input">
         <textarea id="adDesc" placeholder="Ad Description..." rows="2" class="ig-input"></textarea>
+        
+        <input type="text" id="adLink" placeholder="Website or WhatsApp Link (https://...)" class="ig-input">
 
         <label for="adFile" class="flex items-center justify-center gap-2 border border-zinc-800 p-3 rounded-lg cursor-pointer">
             <i data-lucide="plus-square" size="18" class="text-sdel"></i>
@@ -67,24 +68,12 @@
         let currentPrice = 0;
         let currentTier = "";
 
-        // --- FETCH FEES FROM DATABASE ---
         async function fetchDynamicFees() {
-            const { data: fees, error } = await supabase
-                .from('ad_fees')
-                .select('*')
-                .order('fee_amount', { ascending: true });
-
-            if (error) {
-                console.error("Error fetching fees:", error);
-                document.getElementById('selectedLabel').innerText = "Error loading fees";
-                return;
-            }
-
+            const { data: fees, error } = await supabase.from('ad_fees').select('*').order('fee_amount', { ascending: true });
+            if (error) return;
             const menu = document.getElementById('optionsMenu');
             if (fees && fees.length > 0) {
-                // Set default selection to the first item
                 selectOption(fees[0].fee_amount, fees[0].tier_name);
-
                 menu.innerHTML = fees.map(f => `
                     <div class="option-item ${f.fee_amount >= 25000 ? 'text-sdel font-bold' : ''}" 
                          onclick="selectOption(${f.fee_amount}, '${f.tier_name}')">
@@ -116,6 +105,7 @@
             const file = document.getElementById('adFile').files[0];
             const title = document.getElementById('adTitle').value;
             const desc = document.getElementById('adDesc').value;
+            const link = document.getElementById('adLink').value; // Capture link
 
             if(!file || !title) return alert("Please add a title and media.");
 
@@ -132,7 +122,13 @@
             const { data: { publicUrl } } = supabase.storage.from('adverts').getPublicUrl(fileName);
 
             const { error: dbErr } = await supabase.from('promoted_ads').insert({
-                title, description: desc, media_url: publicUrl, cost: currentPrice, active: false, user_id: userId
+                title, 
+                description: desc, 
+                media_url: publicUrl, 
+                cost: currentPrice, 
+                active: false, 
+                user_id: userId,
+                link_url: link // Now sending link to DB
             });
 
             if(!dbErr) {
@@ -144,8 +140,6 @@
         };
 
         window.onclick = (e) => { if (!e.target.closest('#dropdownToggle')) document.getElementById('optionsMenu').classList.remove('show'); }
-        
-        // Initial load
         fetchDynamicFees();
         lucide.createIcons();
     </script>
