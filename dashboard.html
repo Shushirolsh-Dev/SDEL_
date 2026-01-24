@@ -31,40 +31,23 @@
 
             loadStories();
             loadFeed();
-            loadAds();
+            loadAds(); // This is the fixed function
             loadOrders();
-            getUnreadCount(); // Now using your specific timestamp logic
+            getUnreadCount(); 
         }
 
-        // EXACT LOGIC FROM YOUR MESSAGES.HTML
+        // MAINTAINED: Your specific timestamp logic
         async function getUnreadCount() {
             if (!currentUserId) return;
-
-            // 1. Get user's last read timestamps
-            const { data: profile } = await supabase
-                .from('profile')
-                .select('last_read_general, last_read_team')
-                .eq('id', currentUserId)
-                .single();
-
+            const { data: profile } = await supabase.from('profile').select('last_read_general, last_read_team').eq('id', currentUserId).single();
             const lastGen = new Date(profile?.last_read_general || 0);
             const lastTeam = new Date(profile?.last_read_team || 0);
-
-            // 2. Fetch all relevant messages
-            const { data: messages, error } = await supabase
-                .from('messages')
-                .select('type, created_at')
-                .or(`recipient_id.is.null,recipient_id.eq.${currentUserId}`);
-
+            const { data: messages, error } = await supabase.from('messages').select('type, created_at').or(`recipient_id.is.null,recipient_id.eq.${currentUserId}`);
             if (error || !messages) return;
-
-            // 3. Compare message time with last read time
             const unreadGen = messages.filter(m => m.type === 'general' && new Date(m.created_at) > lastGen).length;
             const unreadTeam = messages.filter(m => m.type === 'team' && new Date(m.created_at) > lastTeam).length;
-            
             const totalUnread = unreadGen + unreadTeam;
             const badge = document.getElementById('notif-badge');
-
             if (totalUnread > 0) {
                 badge.innerText = totalUnread > 9 ? '9+' : totalUnread;
                 badge.classList.remove('hidden');
@@ -73,11 +56,31 @@
                 badge.classList.add('hidden');
                 badge.style.display = 'none';
             }
+            supabase.channel('db-changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => getUnreadCount()).subscribe();
+        }
 
-            // Realtime Update
-            supabase.channel('db-changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
-                getUnreadCount();
-            }).subscribe();
+        // FIXED: Pulling from 'promoted_ads' to match your Admin page
+        async function loadAds() {
+            // We fetch where active is true as per your admin's logic
+            const { data: ads, error } = await supabase
+                .from('promoted_ads') 
+                .select('*')
+                .eq('active', true)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (error) console.error("Ad Error:", error.message);
+
+            if (ads && ads[0]) {
+                const ad = ads[0];
+                const banner = document.getElementById('ad-banner');
+                banner.style.backgroundImage = `url(${ad.media_url})`;
+                document.getElementById('ad-text').innerText = ad.title;
+                banner.style.display = 'flex'; // Ensure it's visible
+            } else {
+                // If no active ads, hide the banner or show a default
+                document.getElementById('ad-banner').style.display = 'none';
+            }
         }
 
         async function loadStories() {
@@ -124,11 +127,9 @@
             container.innerHTML = data.map(o => {
                 const displayId = o.order_code || `ID: ${o.id.slice(0,8)}`;
                 const itemNames = o.items ? JSON.parse(JSON.stringify(o.items)).map(i => i.name).join(', ') : 'Market Item';
-                
                 let statusColor = 'bg-zinc-500/20 text-zinc-400';
                 if(o.status === 'accepted') statusColor = 'bg-emerald-500/20 text-emerald-500';
                 if(o.status === 'rejected') statusColor = 'bg-red-500/20 text-red-500';
-
                 return `
                     <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10 select-none">
                         <div class="max-w-[70%]">
@@ -162,14 +163,6 @@
             badge.innerText = rank.n;
             badge.className = `px-3 py-1 rounded text-[10px] font-black italic text-white ${rank.c}`;
             progress.style.width = `${rank.p}%`;
-        }
-
-        async function loadAds() {
-            const { data: ads } = await supabase.from('ads').select('*').eq('status', 'approved').limit(1);
-            if (ads?.[0]) {
-                document.getElementById('ad-banner').style.backgroundImage = `url(${ads[0].image_url})`;
-                document.getElementById('ad-text').innerText = ads[0].headline;
-            }
         }
 
         async function loadFeed() {
@@ -268,7 +261,7 @@
     </section>
 
     <section class="p-4">
-        <div id="ad-banner" class="w-full h-[400px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10">
+        <div id="ad-banner" class="w-full h-[400px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10" style="display: none;">
             <div class="bg-black/70 backdrop-blur-md p-4 rounded-2xl w-full border border-white/5">
                 <span class="text-[8px] bg-white text-black px-2 py-0.5 font-black rounded mb-2 inline-block">SPONSORED</span>
                 <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Loading...</p>
@@ -290,4 +283,5 @@
 
     <script>lucide.createIcons();</script>
 </body>
-</html>
+                </html>
+    
