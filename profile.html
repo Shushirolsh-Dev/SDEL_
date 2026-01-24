@@ -14,7 +14,7 @@
         body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-10; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
         
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 250; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
@@ -79,11 +79,36 @@
         <div class="space-y-4 pt-4">
             <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">Sign Out</button>
             
-            <button onclick="confirmDelete()" class="w-full text-zinc-600 py-2 font-bold uppercase text-[9px] tracking-[0.2em] hover:text-red-600 transition">
+            <button onclick="openDeleteModal()" class="w-full text-zinc-600 py-2 font-bold uppercase text-[9px] tracking-[0.2em] hover:text-red-600 transition">
                 Delete Account Forever
             </button>
         </div>
     </main>
+
+    <div id="delete-modal" class="modal-overlay">
+        <div class="max-w-md mx-auto mt-20 p-8 card-zinc rounded-[40px] border-red-500/30 text-center space-y-6 relative z-10">
+            <div class="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto text-red-500">
+                <i data-lucide="alert-triangle" size="40"></i>
+            </div>
+            <h2 class="text-2xl font-black uppercase italic">Danger <span class="text-red-500">Zone</span></h2>
+            <p class="text-gray-400 text-xs leading-relaxed uppercase font-bold tracking-wider">
+                This action is irreversible. You will lose your account, post history, and your current balance:
+            </p>
+            <div class="bg-red-500/20 py-3 rounded-2xl">
+                <p id="delete-balance-warning" class="text-xl font-black text-red-500">₦0</p>
+            </div>
+            
+            <div class="space-y-4 text-left">
+                <p class="text-[9px] font-black uppercase text-gray-500 ml-2">Confirm with Password</p>
+                <input id="delete-pass-confirm" type="password" class="input-zinc border-red-500/20" placeholder="Your Password">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="closeModal('delete-modal')" class="bg-zinc-900 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Cancel</button>
+                <button onclick="handleAccountDeletion()" id="final-delete-btn" class="bg-red-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Delete Me</button>
+            </div>
+        </div>
+    </div>
 
     <div id="edit-modal" class="modal-overlay">
         <div class="flex justify-between items-center mb-8 relative z-10">
@@ -153,9 +178,13 @@
 
             const fName = profile?.first_name || profile?.username || "User";
             const lName = profile?.last_name || "";
+            const balance = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
+            
             document.getElementById('p-full-name').innerText = (fName + " " + lName).trim();
             document.getElementById('p-email').innerText = currentUser.email;
-            document.getElementById('p-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
+            document.getElementById('p-balance').innerText = balance;
+            document.getElementById('delete-balance-warning').innerText = balance;
+            
             const initial1 = fName.charAt(0);
             const initial2 = lName.charAt(0) || "";
             document.getElementById('p-initials').innerText = (initial1 + initial2).toUpperCase();
@@ -164,35 +193,49 @@
             document.getElementById('edit-phone').value = profile?.phone || "";
         }
 
-        window.confirmDelete = async () => {
-            const confirmation = confirm("ARE YOU SURE? This will permanently delete your account and balance.");
-            if (confirmation) {
-                const password = prompt("Enter password to confirm:");
-                if (!password) return;
+        window.openDeleteModal = () => {
+            document.getElementById('delete-modal').style.display = 'block';
+        };
 
-                const { error: signInErr } = await supabase.auth.signInWithPassword({
-                    email: currentUser.email,
-                    password: password
-                });
+        window.handleAccountDeletion = async () => {
+            const pass = document.getElementById('delete-pass-confirm').value;
+            const btn = document.getElementById('final-delete-btn');
+            
+            if (!pass) {
+                alert("Please enter your password to confirm.");
+                return;
+            }
 
-                if (signInErr) {
-                    alert("Incorrect password.");
-                    return;
-                }
+            btn.innerHTML = '<i data-lucide="loader-2" class="spinner"></i>';
+            lucide.createIcons();
 
-                const { error: deleteErr } = await supabase.from('profile').delete().eq('id', currentUser.id);
-                if (deleteErr) {
-                    alert(deleteErr.message);
-                } else {
-                    alert("Account Deleted.");
-                    await supabase.auth.signOut();
-                    window.location.replace('login.html');
-                }
+            // Re-verify password for security
+            const { error: signInErr } = await supabase.auth.signInWithPassword({
+                email: currentUser.email,
+                password: pass
+            });
+
+            if (signInErr) {
+                alert("Incorrect password. Deletion aborted.");
+                btn.innerText = "Delete Me";
+                return;
+            }
+
+            // Run the deletion
+            const { error: deleteErr } = await supabase.from('profile').delete().eq('id', currentUser.id);
+            
+            if (deleteErr) {
+                alert(deleteErr.message);
+                btn.innerText = "Delete Me";
+            } else {
+                await supabase.auth.signOut();
+                window.location.replace('login.html');
             }
         };
 
         window.openModal = (id) => document.getElementById(id).style.display = 'block';
         window.closeModal = (id) => document.getElementById(id).style.display = 'none';
+        
         window.togglePass = (id) => {
             const el = document.getElementById(id);
             el.type = el.type === 'password' ? 'text' : 'password';
@@ -200,7 +243,6 @@
         };
 
         window.saveProfileUpdates = async () => {
-            const btn = document.getElementById('save-btn');
             const text = document.getElementById('save-text');
             text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> UPDATING...';
             lucide.createIcons();
