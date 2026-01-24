@@ -3,278 +3,242 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sdel | Global Feed</title>
+    <title>Sdel | Market</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
-
-        let currentUserId = null;
-        let allOrdersData = [];
-
-        async function init() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.href = 'login.html';
-            currentUserId = session.user.id;
-
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
-            if(profile) {
-                document.getElementById('user-name').innerText = profile.first_name || "CHAMP";
-                document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
-                if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
-                document.getElementById('xp-count').innerText = profile.xp || 0;
-                updatePrestige(profile.xp || 0);
-            }
-
-            loadStories();
-            loadFeed();
-            loadAds();
-            loadOrders();
-            getUnreadCount();
-        }
-
-        // NO-FAIL DYNAMIC LOGIC
-        async function getUnreadCount() {
-            if (!currentUserId) return;
-
-            const { data, error } = await supabase
-                .from('messages')
-                .select('read_by')
-                .eq('recipient_id', currentUserId);
-
-            if (error) return;
-
-            // Logic: Count only if your ID is NOT in the read_by array
-            const count = data.filter(msg => {
-                const list = msg.read_by || [];
-                return !list.includes(currentUserId);
-            }).length;
-
-            const badge = document.getElementById('notif-badge');
-            
-            if (count > 0) {
-                // This ensures the number is EXACTLY what is in the DB
-                badge.innerText = count > 9 ? '9+' : count;
-                badge.style.display = 'flex';
-            } else {
-                badge.style.display = 'none';
-            }
-
-            // Realtime setup
-            supabase.channel('any').on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => getUnreadCount()).subscribe();
-        }
-
-        async function loadStories() {
-            const now = new Date().toISOString();
-            const { data: stories } = await supabase.from('stories').select('*').gt('expires_at', now).order('created_at', { ascending: false });
-            const rail = document.getElementById('story-rail-content');
-            if (stories?.length > 0) {
-                const uniqueStories = [];
-                const seenUsers = new Set();
-                for (const s of stories) {
-                    if (!seenUsers.has(s.author_id)) {
-                        seenUsers.add(s.author_id);
-                        uniqueStories.push(s);
-                    }
-                }
-                const authorIds = uniqueStories.map(s => s.author_id);
-                const { data: profiles } = await supabase.from('profile').select('id, first_name, is_official').in('id', authorIds);
-                const finalStories = uniqueStories.map(s => ({
-                    ...s, profile: profiles?.find(p => p.id === s.author_id) || {}
-                })).sort((a, b) => (a.author_id === currentUserId ? -1 : 1));
-
-                rail.innerHTML = finalStories.map(s => {
-                    const isSdel = s.is_official_post || s.profile?.is_official === true;
-                    return `
-                        <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='view-story.html?id=${s.id}'">
-                            <div class="w-16 h-16 p-[2px] border-2 ${isSdel ? 'border-yellow-400 sdel-pulse' : 'border-sdel'} rounded-full">
-                                <img src="${s.media_url}" class="w-full h-full rounded-full object-cover bg-zinc-900">
-                            </div>
-                            <span class="text-[9px] font-black uppercase ${isSdel ? 'text-yellow-400' : 'text-white'} truncate w-16 text-center">${isSdel ? 'SDEL' : (s.profile?.first_name || 'MEMBER')}</span>
-                        </div>`;
-                }).join('');
-            }
-        }
-
-        async function loadOrders() {
-            const { data: orders } = await supabase.from('orders').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
-            if (!orders) return;
-            allOrdersData = orders;
-            renderOrderList(orders.slice(0, 3), 'order-history-list');
-        }
-
-        function renderOrderList(data, targetId) {
-            const container = document.getElementById(targetId);
-            container.innerHTML = data.map(o => {
-                const displayId = o.order_code || `ID: ${o.id.slice(0,8)}`;
-                const itemNames = o.items ? JSON.parse(JSON.stringify(o.items)).map(i => i.name).join(', ') : 'Market Item';
-                
-                let statusColor = 'bg-zinc-500/20 text-zinc-400';
-                if(o.status === 'accepted') statusColor = 'bg-emerald-500/20 text-emerald-500';
-                if(o.status === 'rejected') statusColor = 'bg-red-500/20 text-red-500';
-
-                return `
-                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10 select-none">
-                        <div class="max-w-[70%]">
-                            <p class="text-[9px] font-black text-white/50 uppercase">${displayId}</p>
-                            <p class="text-[11px] font-bold text-white truncate">${itemNames}</p>
-                        </div>
-                        <span class="px-2 py-1 rounded text-[8px] font-black uppercase ${statusColor}">${o.status}</span>
-                    </div>`;
-            }).join('');
-        }
-
-        window.toggleAllOrders = function(show) {
-            const modal = document.getElementById('all-orders-modal');
-            if(show) {
-                renderOrderList(allOrdersData, 'full-order-list');
-                modal.classList.remove('hidden');
-            } else {
-                modal.classList.add('hidden');
-            }
-        }
-
-        function updatePrestige(xp) {
-            const badge = document.getElementById('rank-badge');
-            const progress = document.getElementById('xp-progress-bar');
-            let rank = { n: "CITIZEN", c: "bg-zinc-700", p: (xp/500)*100 };
-            if (xp >= 10000) rank = { n: "OVERLORD", c: "bg-gradient-to-r from-red-600 to-black animate-pulse", p: 100 };
-            else if (xp >= 5000) rank = { n: "MYTHIC", c: "bg-purple-600", p: (xp/10000)*100 };
-            else if (xp >= 2500) rank = { n: "ELITE", c: "bg-blue-600", p: (xp/5000)*100 };
-            else if (xp >= 1000) rank = { n: "WRAITH", c: "bg-emerald-600", p: (xp/2500)*100 };
-            else if (xp >= 500) rank = { n: "SCOUT", c: "bg-orange-600", p: (xp/1000)*100 };
-            badge.innerText = rank.n;
-            badge.className = `px-3 py-1 rounded text-[10px] font-black italic text-white ${rank.c}`;
-            progress.style.width = `${rank.p}%`;
-        }
-
-        async function loadAds() {
-            const { data: ads } = await supabase.from('ads').select('*').eq('status', 'approved').limit(1);
-            if (ads?.[0]) {
-                document.getElementById('ad-banner').style.backgroundImage = `url(${ads[0].image_url})`;
-                document.getElementById('ad-text').innerText = ads[0].headline;
-            }
-        }
-
-        async function loadFeed() {
-            const { data: posts } = await supabase.from('posts').select('*, profile(first_name, avatar_url, xp)').order('created_at', { ascending: false });
-            const feed = document.getElementById('global-feed');
-            if (posts?.length > 0) {
-                feed.innerHTML = posts.map(p => `
-                    <div class="card-glass rounded-[2.5rem] overflow-hidden mb-6">
-                        <div class="p-4 flex justify-between items-center border-b border-white/5">
-                            <div class="flex items-center space-x-3">
-                                <img src="${p.profile?.avatar_url || 'https://api.dicebear.com/7.x/initials/svg?seed='+p.profile?.first_name}" class="w-8 h-8 rounded-full border border-white/20">
-                                <div><p class="header-text text-[11px]">${p.profile?.first_name || 'Scholar'}</p></div>
-                            </div>
-                        </div>
-                        ${p.media_url ? `<img src="${p.media_url}" class="w-full object-cover">` : ''}
-                        <div class="p-5"><p class="text-[13px] text-white font-bold leading-snug">${p.content}</p></div>
-                    </div>`).join('');
-                lucide.createIcons();
-            }
-        }
-        init();
-    </script>
-    
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: #fff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-glass { background: #111; border: 1px solid rgba(255,255,255,0.15); }
-        .header-text { font-weight: 900; color: #FFFFFF; text-transform: uppercase; letter-spacing: -0.02em; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
+        
+        .category-pill { 
+            transition: all 0.3s ease; 
+            cursor: pointer; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            position: relative; 
+            z-index: 10; 
+            color: #6b7280; 
+            user-select: none; 
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .category-pill.active { background-color: #FF6600; color: black !important; border-color: #FF6600; }
+        .category-pill:active { transform: scale(0.95); }
+
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(110vh); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .select-none { user-select: none; -webkit-user-select: none; }
-        @keyframes gold-glow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
-        .sdel-pulse { animation: gold-glow 2s infinite; }
+        #search-view { display: none; position: fixed; inset: 0; background: #000; z-index: 100; padding: 24px; }
+        .search-item { border-bottom: 1px solid rgba(255,255,255,0.05); padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
     </style>
 </head>
-<body class="pb-24">
+<body class="pb-32">
+    <script>
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.onkeydown = function(e) { if(e.keyCode == 123 || (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0))) return false; }
+    </script>
 
-    <nav class="p-5 flex justify-between items-center sticky top-0 bg-black/90 z-50 border-b border-white/10 backdrop-blur-xl">
-        <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 rounded-full border-2 border-white overflow-hidden shadow-lg shadow-white/10">
-                <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
-            </div>
-            <div>
-                <p class="header-text text-lg italic">HI, <span id="user-name" class="text-sdel">...</span></p>
-                <span id="wallet-pill" class="bg-white text-black text-[9px] font-black px-2 py-0.5 rounded italic">₦0.00</span>
+    <div class="stars" id="stars"></div>
+
+    <div id="search-view">
+        <div class="flex items-center gap-4 mb-6">
+            <button onclick="closeSearch()" class="text-gray-400"><i data-lucide="arrow-left"></i></button>
+            <div class="flex-1 bg-zinc-900 rounded-2xl flex items-center px-4 border border-white/5">
+                <i data-lucide="search" size="18" class="text-gray-500"></i>
+                <input type="text" id="search-input" oninput="runSearch(this.value)" placeholder="Search product name..." class="bg-transparent w-full p-4 text-sm font-bold outline-none text-white">
             </div>
         </div>
-        <div class="flex items-center space-x-5">
-            <i data-lucide="search" size="24" onclick="location.href='circle.html'"></i>
-            <div class="relative cursor-pointer" onclick="location.href='messages.html'">
-                <i data-lucide="bell" size="24"></i>
-                <span id="notif-badge" class="absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black z-10" style="display: none;"></span>
-            </div>
+        <div id="search-results-list" class="overflow-y-auto h-[80vh] no-scrollbar"></div>
+    </div>
+
+    <nav class="p-6 flex items-center justify-between border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
+        <div class="flex items-center gap-4">
+            <button onclick="openSearch()" class="text-white"><i data-lucide="search"></i></button>
+        </div>
+        <h1 class="text-lg font-black uppercase tracking-tighter italic">Campus <span class="text-sdel">Market</span></h1>
+        <div onclick="window.location.href='cart.html'" class="relative cursor-pointer p-2">
+            <i data-lucide="shopping-cart" class="text-gray-400"></i>
+            <span id="cart-count" class="absolute top-0 right-0 bg-sdel text-black text-[9px] font-black px-1.5 py-0.5 rounded-full min-w-[18px] text-center border-2 border-black">0</span>
         </div>
     </nav>
 
-    <section class="p-4 border-b border-white/5">
-        <div class="flex space-x-4 overflow-x-auto no-scrollbar py-2">
-            <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='post-story.html'">
-                <div class="w-16 h-16 rounded-full bg-zinc-900 border-2 border-dashed border-white/40 flex items-center justify-center">
-                    <i data-lucide="plus" size="24"></i>
-                </div>
-                <span class="text-[9px] font-black uppercase">Post</span>
-            </div>
-            <div id="story-rail-content" class="flex space-x-4"></div>
-        </div>
-    </section>
-
-    <section class="p-4">
-        <div class="card-glass rounded-[2rem] p-5">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="header-text text-[10px] text-white/50 italic">Order History</h3>
-                <button onclick="toggleAllOrders(true)" class="text-[9px] font-black text-sdel uppercase italic">Show All</button>
-            </div>
-            <div id="order-history-list" class="space-y-3"></div>
-        </div>
-    </section>
-
-    <div id="all-orders-modal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md hidden p-6 overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="header-text text-xl italic">Full History</h2>
-            <i data-lucide="x" class="text-white" onclick="toggleAllOrders(false)"></i>
-        </div>
-        <div id="full-order-list" class="space-y-4"></div>
+    <div class="p-6 flex space-x-3 overflow-x-auto no-scrollbar" id="category-tabs">
+        <button onclick="filterProducts('All', event)" class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</button>
     </div>
 
-    <section class="p-4">
-        <div class="card-glass rounded-[2rem] p-5">
-            <div class="flex justify-between items-center mb-4">
-                <div><p class="text-[8px] font-black text-white/40 uppercase mb-1">Status</p><div id="rank-badge">...</div></div>
-                <div class="text-right"><p class="header-text text-xl italic" id="xp-count">0</p><p class="text-[8px] font-black text-sdel uppercase">XP</p></div>
-            </div>
-            <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden"><div id="xp-progress-bar" class="h-full bg-sdel transition-all duration-1000" style="width: 0%"></div></div>
-        </div>
-    </section>
+    <main class="px-6 grid grid-cols-1 md:grid-cols-2 gap-6" id="product-list">
+        <div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-700">Connecting to Sdel Market...</p></div>
+    </main>
 
-    <section class="p-4">
-        <div id="ad-banner" class="w-full h-[400px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10">
-            <div class="bg-black/70 backdrop-blur-md p-4 rounded-2xl w-full border border-white/5">
-                <span class="text-[8px] bg-white text-black px-2 py-0.5 font-black rounded mb-2 inline-block">SPONSORED</span>
-                <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Loading...</p>
-            </div>
-        </div>
-    </section>
-
-    <main id="global-feed" class="p-4"></main>
-
-    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
-        <i data-lucide="home" class="text-sdel" size="28"></i>
+    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100]">
+        <i data-lucide="home" class="text-white" size="28" onclick="location.href='dashboard.html'"></i>
         <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
         <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
             <i data-lucide="camera" class="text-black" size="28"></i>
         </div>
-        <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
+        <i data-lucide="shopping-cart" class="text-sdel" size="28" onclick="location.href='market.html'"></i>
         <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
     </nav>
 
-    <script>lucide.createIcons();</script>
-</body>
-</html>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let currentUserId = "GUEST_USER"; 
+        let allProducts = [];
+        let userCart = {}; 
+
+        async function init() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) { currentUserId = session.user.id; }
+            
+            await fetchUserCart();
+            await loadTabs(); 
+            await loadProducts(); 
+            createStars(); 
+            lucide.createIcons();
+        }
+
+        async function fetchUserCart() {
+            const { data } = await supabase.from('cart').select('product_id, quantity').eq('user_id', currentUserId);
+            userCart = {};
+            if (data) {
+                data.forEach(item => userCart[item.product_id] = item.quantity);
+            }
+            updateCartCountDisplay();
+        }
+
+        function updateCartCountDisplay() {
+            const totalItems = Object.keys(userCart).length;
+            const countEl = document.getElementById('cart-count');
+            if(countEl) countEl.innerText = totalItems;
+        }
+
+        async function loadTabs() {
+            const { data } = await supabase.from('categories').select('*').order('name');
+            const container = document.getElementById('category-tabs');
+            if (data && data.length > 0) {
+                container.innerHTML = `<button onclick="filterProducts('All', event)" class="category-pill active px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">All Items</button>` + 
+                data.map(cat => `<button onclick="filterProducts('${cat.name}', event)" class="category-pill px-4 py-2 rounded-2xl text-[10px] font-black uppercase whitespace-nowrap">${cat.name}</button>`).join('');
+            }
+        }
+
+        async function loadProducts() {
+            const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+            allProducts = data || [];
+            window.renderProducts(allProducts);
+        }
+
+        window.renderProducts = (items) => {
+            const list = document.getElementById('product-list');
+            if (items.length === 0) {
+                list.innerHTML = `<div class="col-span-full text-center py-20 opacity-30"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">No Items Found</p></div>`;
+                return;
+            }
+            list.innerHTML = items.map(item => {
+                const inCart = userCart[item.id];
+                return `
+                <div class="card-zinc rounded-3xl overflow-hidden flex flex-col">
+                    <div class="h-56 bg-zinc-900 flex items-center justify-center relative">
+                        <img src="${item.image_url}" class="object-cover h-full w-full" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Preview'">
+                        <div class="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
+                             <p class="text-[8px] text-sdel font-black uppercase tracking-widest">${item.category}</p>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-2">
+                        <div class="flex justify-between items-start">
+                            <h3 class="font-black text-sm uppercase italic tracking-tighter truncate pr-2">${item.name}</h3>
+                            <p class="font-black text-lg tracking-tighter text-white">₦${item.price.toLocaleString()}</p>
+                        </div>
+                        <p class="text-[10px] text-zinc-500 font-bold leading-relaxed line-clamp-2 h-8">${item.description || ''}</p>
+                        
+                        <div class="mt-4 flex gap-2">
+                            ${inCart ? `
+                                <div class="flex items-center bg-zinc-900 rounded-2xl border border-white/10 overflow-hidden">
+                                    <button onclick="updateQty('${item.id}', -1)" class="px-4 py-3 text-white hover:bg-white/5 transition"><i data-lucide="minus" size="14"></i></button>
+                                    <span class="text-xs font-black w-8 text-center">${inCart}</span>
+                                    <button onclick="updateQty('${item.id}', 1)" class="px-4 py-3 text-white hover:bg-white/5 transition"><i data-lucide="plus" size="14"></i></button>
+                                </div>
+                                <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition">View Cart</button>
+                            ` : `
+                                <button onclick="addToCart('${item.id}')" class="w-full bg-white text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition">Add to Cart</button>
+                            `}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        window.addToCart = async (id) => {
+            userCart[id] = 1;
+            window.renderProducts(allProducts); 
+            await supabase.from('cart').insert([{ user_id: currentUserId, product_id: id, quantity: 1 }]);
+            updateCartCountDisplay();
+        };
+
+        window.updateQty = async (id, change) => {
+            let newQty = (userCart[id] || 0) + change;
+            if (newQty < 1) return; 
+            
+            userCart[id] = newQty;
+            window.renderProducts(allProducts); 
+            
+            await supabase.from('cart').update({ quantity: newQty }).eq('user_id', currentUserId).eq('product_id', id);
+        };
+
+        window.filterProducts = (cat, e) => {
+            document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            const filtered = cat === 'All' ? allProducts : allProducts.filter(p => 
+                String(p.category).trim().toLowerCase() === String(cat).trim().toLowerCase()
+            );
+            window.renderProducts(filtered);
+        };
+
+        window.openSearch = () => { 
+            document.getElementById('search-view').style.display = 'block'; 
+            document.getElementById('search-input').focus(); 
+        };
+
+        window.closeSearch = () => { document.getElementById('search-view').style.display = 'none'; };
+
+        window.runSearch = (val) => {
+            const container = document.getElementById('search-results-list');
+            if(!val.trim()) { container.innerHTML = ""; return; }
+            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(val.toLowerCase()));
+            container.innerHTML = filtered.map(item => `
+                <div class="search-item" onclick="viewFromSearch('${item.id}')">
+                    <div class="flex items-center gap-3">
+                        <img src="${item.image_url}" class="w-12 h-12 object-cover rounded-xl border border-white/5" onerror="this.src='https://placehold.co/100/100/121212/FF6600?text=x'">
+                        <div>
+                            <p class="font-black text-sm uppercase italic tracking-tighter">${item.name}</p>
+                            <p class="text-[8px] text-gray-500 font-black uppercase">${item.category}</p>
+                        </div>
+                    </div>
+                    <p class="font-black text-sdel text-xs">₦${item.price.toLocaleString()}</p>
+                </div>`).join('');
+            lucide.createIcons();
+        };
+
+        window.viewFromSearch = (id) => { 
+            window.renderProducts(allProducts.filter(p => p.id === id)); 
+            closeSearch(); 
+        };
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 100; i++) {
+                const star = document.createElement('div'); star.classList.add('star');
+                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
+                star.style.left = (Math.random() * 100) + 'vw'; star.style.top = (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 20) + 's'; container.appendChild(star);
+            }
+        }
+
+        init();
+        
