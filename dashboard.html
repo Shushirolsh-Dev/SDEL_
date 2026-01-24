@@ -3,320 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sdel | Profile</title>
+    <title>Sdel | Global Feed</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
-        html { opacity: 0; transition: opacity 0.3s ease; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #000; color: white; overflow-x: hidden; }
+        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #000; color: #fff; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
+        .card-glass { background: #111; border: 1px solid rgba(255,255,255,0.15); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* RING STYLES */
+        .ring-sdel-new { border: 3px solid #fbbf24; animation: gold-glow 2s infinite; }
+        .ring-sdel-watched { border: 3px solid #22c55e; } /* Green */
+        .ring-me { border: 3px solid #3f3f46; } /* Ash */
+        .ring-homie-watched { border: 3px solid #3f3f46; } /* Ash */
         
-        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 250; pointer-events: none; }
-        .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
-        @keyframes fall { to { transform: translateY(110vh); } }
+        /* BLUE ROTATING RING */
+        .ring-homie-new {
+            position: relative;
+            padding: 3px;
+            background: #000;
+            border-radius: 50%;
+        }
+        .ring-homie-new::before {
+            content: "";
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            padding: 3px;
+            background: conic-gradient(#3b82f6, transparent);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            animation: rotate 2s linear infinite;
+        }
 
-        .modal-overlay { backdrop-filter: blur(25px); z-index: 200; position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; padding: 24px; overflow-y: auto; }
-        .input-zinc { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; width: 100%; padding: 16px; border-radius: 16px; font-size: 14px; outline: none; }
-        .input-zinc:focus { border-color: #FF6600; }
-
-        .spinner { animation: spin 1s linear infinite; display: inline-block; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes rotate { to { transform: rotate(360deg); } }
+        @keyframes gold-glow { 0%, 100% { box-shadow: 0 0 5px #fbbf24; } 50% { box-shadow: 0 0 15px #fbbf24; } }
     </style>
-</head>
-<body class="pb-32">
-
-    <div class="stars" id="stars"></div>
-
-    <nav class="p-6 flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-md z-50">
-        <a href="dashboard.html" class="text-white"><i data-lucide="chevron-left"></i></a>
-        <h1 class="text-lg font-black uppercase tracking-tighter">My <span class="text-sdel">Account</span></h1>
-        <button id="logout-btn-top" class="text-gray-500"><i data-lucide="log-out" size="20"></i></button>
-    </nav>
-
-    <main class="p-6 space-y-8">
-        <div class="flex flex-col items-center text-center space-y-4">
-            <div id="p-initials" class="w-24 h-24 rounded-full bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center text-3xl font-black text-sdel uppercase">--</div>
-            <div>
-                <h2 id="p-full-name" class="text-2xl font-black uppercase tracking-tight italic">Loading...</h2>
-                <p id="p-email" class="text-gray-500 text-xs font-bold uppercase tracking-widest">---</p>
-            </div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-            <div class="card-zinc p-5 rounded-3xl text-center">
-                <p class="text-[9px] font-black uppercase text-gray-500 mb-1">Balance</p>
-                <p id="p-balance" class="text-xl font-black italic">₦0</p>
-            </div>
-            <div class="card-zinc p-5 rounded-3xl text-center">
-                <p class="text-[9px] font-black uppercase text-gray-500 mb-1">Status</p>
-                <p class="text-xl font-black italic text-green-500">Active</p>
-            </div>
-        </div>
-
-        <div class="space-y-3">
-            <h3 class="text-[10px] font-black uppercase text-gray-500 tracking-widest px-2">Settings</h3>
-            <div onclick="openModal('edit-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
-                <div class="flex items-center space-x-4">
-                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-sdel"><i data-lucide="user" size="18"></i></div>
-                    <span class="text-sm font-bold uppercase">Personal Info</span>
-                </div>
-                <i data-lucide="chevron-right" class="text-gray-600"></i>
-            </div>
-            <div onclick="openModal('security-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
-                <div class="flex items-center space-x-4">
-                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-blue-500"><i data-lucide="shield-check" size="18"></i></div>
-                    <span class="text-sm font-bold uppercase">Security</span>
-                </div>
-                <i data-lucide="chevron-right" class="text-gray-600"></i>
-            </div>
-        </div>
-
-        <div class="space-y-4 pt-4">
-            <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">Sign Out</button>
-            
-            <button onclick="openDeleteModal()" class="w-full text-zinc-600 py-2 font-bold uppercase text-[9px] tracking-[0.2em] hover:text-red-600 transition">
-                Delete Account Forever
-            </button>
-        </div>
-    </main>
-
-    <div id="delete-modal" class="modal-overlay">
-        <div class="max-w-md mx-auto mt-20 p-8 card-zinc rounded-[40px] border-red-500/30 text-center space-y-6 relative z-10">
-            <div class="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto text-red-500">
-                <i data-lucide="alert-triangle" size="40"></i>
-            </div>
-            <h2 class="text-2xl font-black uppercase italic">Danger <span class="text-red-500">Zone</span></h2>
-            <p class="text-gray-400 text-xs leading-relaxed uppercase font-bold tracking-wider">
-                This action is irreversible. You will lose your account, post history, and your current balance:
-            </p>
-            <div class="bg-red-500/20 py-3 rounded-2xl">
-                <p id="delete-balance-warning" class="text-xl font-black text-red-500">₦0</p>
-            </div>
-            
-            <div class="space-y-4 text-left">
-                <p class="text-[9px] font-black uppercase text-gray-500 ml-2">Confirm with Password</p>
-                <input id="delete-pass-confirm" type="password" class="input-zinc border-red-500/20" placeholder="Your Password">
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="closeModal('delete-modal')" class="bg-zinc-900 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Cancel</button>
-                <button onclick="handleAccountDeletion()" id="final-delete-btn" class="bg-red-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Delete Me</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="edit-modal" class="modal-overlay">
-        <div class="flex justify-between items-center mb-8 relative z-10">
-            <h2 class="text-xl font-black uppercase italic">Edit <span class="text-sdel">Profile</span></h2>
-            <button onclick="closeModal('edit-modal')" class="text-white"><i data-lucide="x"></i></button>
-        </div>
-        <div class="space-y-4 relative z-10">
-            <input id="edit-fname" type="text" class="input-zinc" placeholder="First Name">
-            <input id="edit-lname" type="text" class="input-zinc" placeholder="Last Name">
-            <input id="edit-phone" type="text" class="input-zinc" placeholder="Phone Number">
-            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
-                <span id="save-text">Save Changes</span>
-            </button>
-        </div>
-    </div>
-
-    <div id="security-modal" class="modal-overlay">
-        <div class="flex justify-between items-center mb-8 relative z-10">
-            <h2 class="text-xl font-black uppercase italic">Update <span class="text-sdel">Security</span></h2>
-            <button onclick="closeModal('security-modal')" class="text-white"><i data-lucide="x"></i></button>
-        </div>
-        <div class="space-y-4 relative z-10">
-            <div class="relative">
-                <input id="new-pass" type="password" class="input-zinc" placeholder="New Password">
-                <button onclick="togglePass('new-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
-            </div>
-            <div class="relative">
-                <input id="confirm-pass" type="password" class="input-zinc" placeholder="Confirm New Password">
-                <button onclick="togglePass('confirm-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
-            </div>
-            <p id="pass-msg" class="text-[10px] font-bold uppercase text-center"></p>
-            <button onclick="updatePassword()" id="pass-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
-                <span id="pass-text">Update Password</span>
-            </button>
-        </div>
-    </div>
-
-    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100]">
-        <i data-lucide="home" class="text-white" size="28" onclick="location.href='dashboard.html'"></i>
-        <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
-        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
-            <i data-lucide="camera" class="text-black" size="28"></i>
-        </div>
-        <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
-        <i data-lucide="user" class="text-sdel" size="28" onclick="location.href='profile.html'"></i>
-    </nav>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        let currentUser = null;
+        let currentUserId = null;
 
-        async function checkSession() {
+        async function init() {
             const { data: { session } } = await supabase.auth.getSession();
-            if (!session) { window.location.replace('login.html'); }
-            else { 
-                document.documentElement.style.opacity = "1";
-                currentUser = session.user;
-                loadProfile(); 
+            if (!session) return window.location.href = 'login.html';
+            currentUserId = session.user.id;
+
+            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
+            document.getElementById('user-name').innerText = profile?.first_name || session.user.user_metadata?.first_name || "CHAMP";
+            
+            if(profile) {
+                document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
+                if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
+                updatePrestige(profile.xp || 0);
             }
+
+            loadStories();
+            loadFeed();
+            loadAds(); 
         }
 
-        async function loadProfile() {
-            const { data: profile, error } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
-            if (error) return;
-
-            // Priority: Profile table data > Auth MetaData > Default
-            const fName = profile?.first_name || currentUser.user_metadata?.first_name || "User";
-            const lName = profile?.last_name || currentUser.user_metadata?.last_name || "";
-            const balance = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
+        async function loadStories() {
+            const now = new Date().toISOString();
             
-            document.getElementById('p-full-name').innerText = (fName + " " + lName).trim();
-            document.getElementById('p-email').innerText = currentUser.email;
-            document.getElementById('p-balance').innerText = balance;
-            document.getElementById('delete-balance-warning').innerText = balance;
-            
-            const initial1 = fName.charAt(0);
-            const initial2 = lName.charAt(0) || "";
-            document.getElementById('p-initials').innerText = (initial1 + initial2).toUpperCase();
-            
-            // Set input defaults
-            document.getElementById('edit-fname').value = fName;
-            document.getElementById('edit-lname').value = lName;
-            document.getElementById('edit-phone').value = profile?.phone || currentUser.user_metadata?.phone || "";
-        }
+            // 1. Get Homies
+            const { data: follows } = await supabase.from('followers').select('following_id').eq('follower_id', currentUserId);
+            const homieIds = follows ? follows.map(f => f.following_id) : [];
 
-        window.openDeleteModal = () => {
-            document.getElementById('delete-modal').style.display = 'block';
-        };
+            // 2. Get Viewed Stories
+            const { data: viewed } = await supabase.from('story_views').select('story_id').eq('user_id', currentUserId);
+            const viewedSet = new Set(viewed?.map(v => v.story_id));
 
-        window.handleAccountDeletion = async () => {
-            const pass = document.getElementById('delete-pass-confirm').value;
-            const btn = document.getElementById('final-delete-btn');
-            
-            if (!pass) {
-                alert("Please enter your password to confirm.");
-                return;
-            }
+            // 3. Fetch Stories
+            const { data: stories } = await supabase
+                .from('stories')
+                .select('*, profile:profile(first_name, is_official)')
+                .gt('expires_at', now)
+                .or(`is_official_post.eq.true,author_id.eq.${currentUserId},author_id.in.(${homieIds.join(',') || '00000000-0000-0000-0000-000000000000'})`);
 
-            btn.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> TERMINATING...';
-            btn.disabled = true;
-            lucide.createIcons();
+            if (!stories) return;
 
-            try {
-                const { error: signInErr } = await supabase.auth.signInWithPassword({
-                    email: currentUser.email,
-                    password: pass
-                });
+            // Group by user (only show latest story per person)
+            const userLatestMap = new Map();
+            stories.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).forEach(s => {
+                if(!userLatestMap.has(s.author_id)) userLatestMap.set(s.author_id, s);
+            });
+            let uniqueStories = Array.from(userLatestMap.values());
 
-                if (signInErr) {
-                    alert("Incorrect password. Deletion aborted.");
-                    btn.innerText = "Delete Me";
-                    btn.disabled = false;
-                    return;
-                }
+            // 4. SORTING LOGIC
+            const sorted = uniqueStories.sort((a, b) => {
+                const aIsSdel = a.is_official_post || a.profile?.is_official;
+                const bIsSdel = b.is_official_post || b.profile?.is_official;
+                const aWatched = viewedSet.has(a.id);
+                const bWatched = viewedSet.has(b.id);
+                const aIsMe = a.author_id === currentUserId;
+                const bIsMe = b.author_id === currentUserId;
 
-                const { error: deleteErr } = await supabase.rpc('delete_user_completely');
-                
-                if (deleteErr) {
-                    alert("System Error: " + deleteErr.message);
-                    btn.innerText = "Delete Me";
-                    btn.disabled = false;
-                } else {
-                    await supabase.auth.signOut();
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    window.location.replace('join.html');
-                }
-            } catch (err) {
-                alert("Connection error. Try again.");
-                btn.innerText = "Delete Me";
-                btn.disabled = false;
-            }
-        };
+                // Priority 1: SDEL
+                if (aIsSdel && !bIsSdel) return -1;
+                if (!aIsSdel && bIsSdel) return 1;
 
-        window.openModal = (id) => document.getElementById(id).style.display = 'block';
-        window.closeModal = (id) => document.getElementById(id).style.display = 'none';
-        
-        window.togglePass = (id) => {
-            const el = document.getElementById(id);
-            el.type = el.type === 'password' ? 'text' : 'password';
-            lucide.createIcons();
-        };
+                // Priority 2: Me (if SDEL exists, Me is 2nd)
+                if (aIsMe && !bIsMe) return -1;
+                if (!aIsMe && bIsMe) return 1;
 
-        window.saveProfileUpdates = async () => {
-            const text = document.getElementById('save-text');
-            const newFname = document.getElementById('edit-fname').value;
-            const newLname = document.getElementById('edit-lname').value;
-            const newPhone = document.getElementById('edit-phone').value;
+                // Priority 3: Unwatched vs Watched
+                if (!aWatched && bWatched) return -1;
+                if (aWatched && !bWatched) return 1;
 
-            text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> UPDATING...';
-            lucide.createIcons();
-
-            // 1. Update the Public Profile Table
-            const { error: profileError } = await supabase.from('profile').update({
-                first_name: newFname,
-                last_name: newLname,
-                phone: newPhone
-            }).eq('id', currentUser.id);
-
-            // 2. Update the Auth MetaData (CRITICAL for Dashboard sync)
-            const { error: authError } = await supabase.auth.updateUser({
-                data: { first_name: newFname, last_name: newLname, phone: newPhone }
+                // Priority 4: Latest first
+                return new Date(b.created_at) - new Date(a.created_at);
             });
 
-            if (profileError || authError) { 
-                alert("Update failed. Try again."); 
-                text.innerText = "Save Changes"; 
-            } 
-            else { 
-                location.reload(); 
-            }
-        };
+            const rail = document.getElementById('story-rail-content');
+            rail.innerHTML = sorted.map(s => {
+                const isSdel = s.is_official_post || s.profile?.is_official;
+                const isMe = s.author_id === currentUserId;
+                const isWatched = viewedSet.has(s.id);
+                
+                let ringClass = "";
+                if (isSdel) ringClass = isWatched ? "ring-sdel-watched" : "ring-sdel-new";
+                else if (isMe) ringClass = "ring-me";
+                else ringClass = isWatched ? "ring-homie-watched" : "ring-homie-new";
 
-        window.updatePassword = async () => {
-            const pass = document.getElementById('new-pass').value;
-            const confirm = document.getElementById('confirm-pass').value;
-            const msg = document.getElementById('pass-msg');
-            const btnText = document.getElementById('pass-text');
-            if (pass !== confirm) { msg.innerText = "Passwords do not match!"; msg.className = "text-red-500"; return; }
-            btnText.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> PROCESSING...';
-            lucide.createIcons();
-            const { error } = await supabase.auth.updateUser({ password: pass });
-            if (error) { msg.innerText = error.message; msg.className = "text-red-500"; btnText.innerText = "Update Password"; } 
-            else { msg.innerText = "Success!"; msg.className = "text-green-500"; setTimeout(() => closeModal('security-modal'), 2000); }
-            lucide.createIcons();
-        };
-
-        function createStars() {
-            const container = document.getElementById('stars');
-            for (let i = 0; i < 150; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
-                star.style.left = Math.random() * 100 + 'vw';
-                star.style.top = i < 50 ? Math.random() * 100 + 'vh' : '-' + (Math.random() * 100) + 'vh';
-                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
-                container.appendChild(star);
-            }
+                return `
+                    <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="watchStory('${s.id}')">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center ${ringClass}">
+                            <img src="${s.media_url}" class="w-[58px] h-[58px] rounded-full object-cover bg-zinc-900">
+                        </div>
+                        <span class="text-[9px] font-black uppercase ${isSdel ? 'text-yellow-400' : 'text-white'} truncate w-16 text-center">
+                            ${isSdel ? 'SDEL' : (s.profile?.first_name || 'HOMIE')}
+                        </span>
+                    </div>`;
+            }).join('');
         }
 
-        document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
-        document.getElementById('logout-btn-top').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
-        createStars();
-        checkSession();
-        lucide.createIcons();
+        window.watchStory = async (id) => {
+            // Log the view
+            await supabase.from('story_views').upsert({ user_id: currentUserId, story_id: id });
+            location.href = `view-story.html?id=${id}`;
+        };
+
+        // ... Keep existing loadAds, updatePrestige, loadFeed functions from previous code ...
+        
+        init();
     </script>
+</head>
+<body class="pb-24">
+    <nav class="p-5 flex justify-between items-center sticky top-0 bg-black/90 z-50 border-b border-white/10 backdrop-blur-xl">
+        <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-full border-2 border-white overflow-hidden shadow-lg shadow-white/10">
+                <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
+            </div>
+            <div>
+                <p class="font-black text-lg italic uppercase">HI, <span id="user-name" class="text-sdel">...</span></p>
+                <span id="wallet-pill" class="bg-white text-black text-[9px] font-black px-2 py-0.5 rounded italic">₦0.00</span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-5">
+            <i data-lucide="search" size="24" onclick="location.href='circle.html'"></i>
+            <i data-lucide="bell" size="24" onclick="location.href='messages.html'"></i>
+        </div>
+    </nav>
+
+    <section class="p-4 border-b border-white/5">
+        <div class="flex space-x-4 overflow-x-auto no-scrollbar py-2">
+            <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='post-story.html'">
+                <div class="w-16 h-16 rounded-full bg-zinc-900 border-2 border-dashed border-white/40 flex items-center justify-center">
+                    <i data-lucide="plus" size="24"></i>
+                </div>
+                <span class="text-[9px] font-black uppercase">Post</span>
+            </div>
+            <div id="story-rail-content" class="flex space-x-4"></div>
+        </div>
+    </section>
+
+    <main id="global-feed" class="p-4 space-y-6"></main>
+
+    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
+        <i data-lucide="home" class="text-sdel" size="28"></i>
+        <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
+        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
+            <i data-lucide="camera" class="text-black" size="28"></i>
+        </div>
+        <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
+    </nav>
+
+    <script>lucide.createIcons();</script>
 </body>
-        </html>
-                
+</html>
