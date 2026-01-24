@@ -166,25 +166,27 @@
         window.searchPublic = async () => {
             const val = document.getElementById('search-input').value;
             const container = document.getElementById('main-content');
-            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-sm font-black italic">SEARCHING GLOBAL SDEL...</p>`;
+            container.innerHTML = `<p id="searching-text" class="p-10 text-center text-sdel animate-pulse text-sm font-black italic">SEARCHING GLOBAL SDEL...</p>`;
             
-            const { data: users } = await supabase.from('profile')
+            // 5-SECOND TIMEOUT LOGIC
+            let searchResolved = false;
+            const searchTimeout = setTimeout(() => {
+                if (!searchResolved) {
+                    showSearchError(container);
+                }
+            }, 5000);
+
+            const { data: users, error } = await supabase.from('profile')
                 .select('*')
                 .neq('id', currentUserId)
                 .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
                 .limit(15);
 
+            searchResolved = true;
+            clearTimeout(searchTimeout);
+
             if (!users || users.length === 0) {
-                container.innerHTML = `
-                    <div class="p-5 bg-red-500/5 border-b border-red-500/20 flex justify-between items-center">
-                        <span class="text-xs font-black text-red-500 italic uppercase tracking-wider">No Global Results</span>
-                        <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
-                    </div>
-                    <div class="p-10 text-center">
-                        <p class="text-zinc-500 text-sm uppercase font-black italic">User Not Found on Sdel</p>
-                        <p class="text-zinc-700 text-[10px] mt-2 uppercase">Check spelling or try another name</p>
-                    </div>`;
-                lucide.createIcons();
+                showSearchError(container);
                 return;
             }
 
@@ -226,6 +228,19 @@
             `;
             lucide.createIcons();
         };
+
+        function showSearchError(container) {
+            container.innerHTML = `
+                <div class="p-5 bg-red-500/5 border-b border-red-500/20 flex justify-between items-center">
+                    <span class="text-xs font-black text-red-500 italic uppercase tracking-wider">No Global Results</span>
+                    <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
+                </div>
+                <div class="p-10 text-center">
+                    <p class="text-zinc-500 text-sm uppercase font-black italic">User Not Found on Sdel</p>
+                    <p class="text-zinc-700 text-[10px] mt-2 uppercase">Try again with a different name</p>
+                </div>`;
+            lucide.createIcons();
+        }
 
         window.sendHomieReq = async (id) => {
             const { error } = await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
