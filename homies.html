@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Homies</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #000; color: #fff; overflow-x: hidden; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .header-text { font-weight: 800; letter-spacing: -0.01em; }
+        .tab-active { color: #FF6600; border-bottom: 2px solid #FF6600; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .glass-card { background: #0c0c0c; border: 1px solid rgba(255,255,255,0.05); }
+    </style>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let currentUserId = null;
+        let activeTab = 'general';
+
+        async function init() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.href = 'login.html';
+            currentUserId = session.user.id;
+            switchTab('general');
+        }
+
+        window.switchTab = (tab) => {
+            activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            loadContent();
+        };
+
+        async function loadContent() {
+            const container = document.getElementById('main-content');
+            container.innerHTML = `<div class="p-10 text-center text-zinc-600">Loading...</div>`;
+
+            if (activeTab === 'general') {
+                // Fetch latest messages + homies
+                const { data } = await supabase.from('connections').select('*, profile:profile!receiver_id(*)').eq('status', 'accepted');
+                renderChats(data);
+            } else if (activeTab === 'requests') {
+                // Fetch incoming requests
+                const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
+                renderRequests(data);
+            }
+        }
+
+        function renderChats(homies) {
+            const container = document.getElementById('main-content');
+            if (!homies || homies.length === 0) {
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-xs">No homies yet. Search to add some!</p>`;
+                return;
+            }
+            container.innerHTML = homies.map(h => `
+                <div onclick="location.href='dm.html?id=${h.profile.id}'" class="flex items-center p-4 space-x-4 border-b border-white/5 active:bg-zinc-900">
+                    <div class="w-12 h-12 rounded-full bg-zinc-800 border border-sdel/20 flex items-center justify-center text-sdel font-black">${h.profile.first_name[0]}</div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center"><h3 class="text-sm font-bold text-white">${h.profile.first_name} ${h.profile.last_name}</h3><span class="text-[9px] text-zinc-600">Now</span></div>
+                        <p class="text-xs text-zinc-500 truncate italic">Tap to open encrypted chat...</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRequests(reqs) {
+            const container = document.getElementById('main-content');
+            container.innerHTML = reqs.map(r => `
+                <div class="flex items-center p-4 space-x-4 border-b border-white/5">
+                    <div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-black">${r.sender.first_name[0]}</div>
+                    <div class="flex-1">
+                        <h3 class="text-xs font-bold text-white">${r.sender.first_name} @${r.sender.username}</h3>
+                        <div class="flex space-x-2 mt-2">
+                            <button onclick="respond('${r.id}', 'accepted')" class="bg-sdel text-black text-[9px] font-black px-4 py-1.5 rounded-lg">Accept</button>
+                            <button onclick="respond('${r.id}', 'rejected')" class="bg-zinc-800 text-white text-[9px] font-black px-4 py-1.5 rounded-lg">Reject</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('') || `<p class="p-10 text-center text-zinc-500 text-xs">No pending requests</p>`;
+        }
+
+        window.searchMaster = async (val) => {
+            if (val.length < 2) return;
+            // First, filter locally if on general tab
+            // Then show the "Search Public" trigger
+            document.getElementById('public-search-trigger').classList.remove('hidden');
+        };
+
+        window.searchPublic = async () => {
+            const val = document.getElementById('search-input').value;
+            const container = document.getElementById('main-content');
+            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-xs font-black">SEARCHING GLOBAL SDEL...</p>`;
+            
+            const { data } = await supabase.from('profile')
+                .select('*')
+                .neq('id', currentUserId)
+                .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
+                .limit(10);
+
+            container.innerHTML = `
+                <div class="p-4 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
+                    <span class="text-[10px] font-black text-sdel italic uppercase">Public Results</span>
+                    <i data-lucide="x" size="14" onclick="loadContent()"></i>
+                </div>
+                ${data.map(u => `
+                    <div class="flex justify-between items-center p-4 border-b border-white/5">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel italic font-black">${u.first_name[0]}</div>
+                            <div>
+                                <p class="text-xs font-bold text-white">${u.first_name} ${u.last_name}</p>
+                                <p class="text-[9px] text-zinc-500 italic">@${u.username}</p>
+                            </div>
+                        </div>
+                        <button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full">ADD</button>
+                    </div>
+                `).join('')}
+            `;
+            lucide.createIcons();
+        };
+
+        window.sendHomieReq = async (id) => {
+            await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id });
+            alert('Request Sent, Homie!');
+            loadContent();
+        };
+
+        init();
+    </script>
+</head>
+<body class="pb-24">
+
+    <nav class="p-5 flex justify-between items-center sticky top-0 bg-black/95 z-50">
+        <h1 class="header-text text-xl italic">Homies</h1>
+        <div class="flex space-x-4 text-zinc-400">
+            <i data-lucide="camera"></i>
+            <i data-lucide="plus-square" onclick="location.href='explore.html'"></i>
+        </div>
+    </nav>
+
+    <div class="flex px-5 border-b border-white/5 bg-black sticky top-[68px] z-40">
+        <button id="tab-general" onclick="switchTab('general')" class="tab-btn flex-1 py-3 text-[10px] font-black uppercase tab-active">General</button>
+        <button id="tab-requests" onclick="switchTab('requests')" class="tab-btn flex-1 py-3 text-[10px] font-black uppercase">Requests</button>
+        <button id="tab-unread" onclick="switchTab('unread')" class="tab-btn flex-1 py-3 text-[10px] font-black uppercase">Unread</button>
+    </div>
+
+    <div class="p-4">
+        <div class="relative bg-zinc-900 rounded-2xl px-5 py-3 flex items-center border border-white/5">
+            <input type="text" id="search-input" oninput="searchMaster(this.value)" placeholder="Find homies..." class="bg-transparent w-full text-sm focus:outline-none">
+            <i data-lucide="search" class="text-zinc-600" size="18"></i>
+        </div>
+        <div id="public-search-trigger" onclick="searchPublic()" class="hidden mt-3 p-3 bg-zinc-900 rounded-xl border border-sdel/30 flex justify-between items-center animate-pulse">
+            <span class="text-[10px] font-black italic">No local results. Search Public Sdel?</span>
+            <i data-lucide="globe" class="text-sdel" size="14"></i>
+        </div>
+    </div>
+
+    <main id="main-content" class="flex flex-col">
+        </main>
+
+    <nav class="fixed bottom-0 inset-x-0 bg-black border-t border-white/10 p-4 flex justify-around items-center backdrop-blur-lg">
+        <div class="flex flex-col items-center text-sdel" onclick="location.href='homies.html'">
+            <i data-lucide="message-circle" size="24"></i>
+            <span class="text-[8px] font-black uppercase mt-1">Chats</span>
+        </div>
+        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='explore.html'">
+            <i data-lucide="compass" size="24"></i>
+            <span class="text-[8px] font-black uppercase mt-1">Explore</span>
+        </div>
+        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='stories.html'">
+            <i data-lucide="aperture" size="24"></i>
+            <span class="text-[8px] font-black uppercase mt-1">Stories</span>
+        </div>
+    </nav>
+
+    <script>lucide.createIcons();</script>
+</body>
+  </html>
+  
