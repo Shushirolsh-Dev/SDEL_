@@ -206,30 +206,42 @@
                 return;
             }
 
-            btn.innerHTML = '<i data-lucide="loader-2" class="spinner"></i>';
+            btn.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> TERMINATING...';
+            btn.disabled = true;
             lucide.createIcons();
 
-            // Re-verify password for security
-            const { error: signInErr } = await supabase.auth.signInWithPassword({
-                email: currentUser.email,
-                password: pass
-            });
+            try {
+                // Re-verify password for security
+                const { error: signInErr } = await supabase.auth.signInWithPassword({
+                    email: currentUser.email,
+                    password: pass
+                });
 
-            if (signInErr) {
-                alert("Incorrect password. Deletion aborted.");
-                btn.innerText = "Delete Me";
-                return;
-            }
+                if (signInErr) {
+                    alert("Incorrect password. Deletion aborted.");
+                    btn.innerText = "Delete Me";
+                    btn.disabled = false;
+                    return;
+                }
 
-            // Run the deletion
-            const { error: deleteErr } = await supabase.from('profile').delete().eq('id', currentUser.id);
-            
-            if (deleteErr) {
-                alert(deleteErr.message);
+                // Call the aggressive SQL function that wipes Auth + Profile
+                const { error: deleteErr } = await supabase.rpc('delete_user_completely');
+                
+                if (deleteErr) {
+                    alert("System Error: " + deleteErr.message);
+                    btn.innerText = "Delete Me";
+                    btn.disabled = false;
+                } else {
+                    // Sign out and nuke local session data
+                    await supabase.auth.signOut();
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.replace('join.html');
+                }
+            } catch (err) {
+                alert("Connection error. Try again.");
                 btn.innerText = "Delete Me";
-            } else {
-                await supabase.auth.signOut();
-                window.location.replace('login.html');
+                btn.disabled = false;
             }
         };
 
