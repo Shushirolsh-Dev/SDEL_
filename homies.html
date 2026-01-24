@@ -2,21 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Sdel | Homies</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
-        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: #fff; overflow-x: hidden; }
+        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        body { background-color: #000; color: #fff; overflow-x: hidden; width: 100vw; position: fixed; height: 100%; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .header-text { font-weight: 800; letter-spacing: -0.01em; }
         .tab-active { color: #FF6600; border-bottom: 2px solid #FF6600; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .glass-card { background: #0c0c0c; border: 1px solid rgba(255,255,255,0.05); }
+        
+        /* Fixed scrolling for the main content area */
+        #main-content { height: calc(100vh - 280px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     </style>
 
     <script type="module">
@@ -25,18 +27,47 @@
 
         let currentUserId = null;
         let activeTab = 'general';
+        const tabs = ['general', 'requests', 'unread'];
+
+        // SWIPE LOGIC
+        let touchstartX = 0;
+        let touchendX = 0;
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.href = 'login.html';
             currentUserId = session.user.id;
             switchTab('general');
+
+            // Handle Swiping
+            document.addEventListener('touchstart', e => touchstartX = e.changedTouches[0].screenX);
+            document.addEventListener('touchend', e => {
+                touchendX = e.changedTouches[0].screenX;
+                handleSwipe();
+            });
+        }
+
+        function handleSwipe() {
+            const threshold = 100;
+            let currentIndex = tabs.indexOf(activeTab);
+            if (touchendX < touchstartX - threshold) { // Swipe Left (Next)
+                if (currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
+            }
+            if (touchendX > touchstartX + threshold) { // Swipe Right (Prev)
+                if (currentIndex > 0) switchTab(tabs[currentIndex - 1]);
+            }
         }
 
         window.switchTab = (tab) => {
             activeTab = tab;
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
             document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            loadContent();
+        };
+
+        window.closePublicSearch = () => {
+            document.getElementById('search-input').value = '';
+            document.getElementById('public-search-trigger').classList.add('hidden');
             loadContent();
         };
 
@@ -67,9 +98,7 @@
             container.innerHTML = connections.map(c => {
                 const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
                 const avatar = partner.avatar_url ? partner.avatar_url : `https://api.dicebear.com/7.x/initials/svg?seed=${partner.first_name}`;
-                
-                return `
-                <div onclick="location.href='dm.html?id=${partner.id}'" class="flex items-center p-4 space-x-4 border-b border-white/5 active:bg-zinc-900 transition">
+                return `<div onclick="location.href='dm.html?id=${partner.id}'" class="flex items-center p-4 space-x-4 border-b border-white/5 active:bg-zinc-900 transition">
                     <img src="${avatar}" class="w-12 h-12 rounded-full border border-sdel/20 object-cover bg-zinc-800">
                     <div class="flex-1">
                         <div class="flex justify-between items-center">
@@ -105,7 +134,6 @@
         window.respond = async (id, status) => {
             const { error } = await supabase.from('connections').update({ status }).eq('id', id);
             if (!error) {
-                alert(`Homie request ${status}!`);
                 loadContent();
             }
         };
@@ -123,20 +151,33 @@
             const container = document.getElementById('main-content');
             container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-xs font-black">SEARCHING GLOBAL SDEL...</p>`;
             
-            // GLOBAL SEARCH LOGIC: Checks all 3 columns
-            const { data } = await supabase.from('profile')
+            const { data: users } = await supabase.from('profile')
                 .select('*')
                 .neq('id', currentUserId)
                 .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
                 .limit(15);
 
+            // Get existing connections to show status
+            const { data: conn } = await supabase.from('connections')
+                .select('*')
+                .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
             container.innerHTML = `
                 <div class="p-4 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
                     <span class="text-[10px] font-black text-sdel italic uppercase">Public Results</span>
-                    <i data-lucide="x" size="14" onclick="loadContent()" class="cursor-pointer"></i>
+                    <i data-lucide="x" size="18" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
                 </div>
-                ${data.map(u => {
+                ${users.map(u => {
                     const isOfficial = u.is_official === true;
+                    const relationship = conn.find(c => c.sender_id === u.id || c.receiver_id === u.id);
+                    let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full active:scale-90 transition uppercase">Add</button>`;
+                    
+                    if (isOfficial) btnHtml = `<span class="text-[8px] font-black text-zinc-700 uppercase pr-2">Official</span>`;
+                    else if (relationship) {
+                        if (relationship.status === 'pending') btnHtml = `<span class="text-[8px] font-black text-zinc-500 uppercase italic">Sent</span>`;
+                        if (relationship.status === 'accepted') btnHtml = `<span class="text-[8px] font-black text-sdel uppercase">Homie</span>`;
+                    }
+
                     return `
                     <div class="flex justify-between items-center p-4 border-b border-white/5">
                         <div class="flex items-center space-x-3">
@@ -144,15 +185,12 @@
                             <div>
                                 <p class="text-xs font-bold text-white">
                                     ${u.first_name} ${u.last_name}
-                                    ${isOfficial ? '<span class="ml-1 text-[#FF6600] text-[8px] tracking-widest font-black">VERIFIED</span>' : ''}
+                                    ${isOfficial ? '<span class="ml-1 text-[#FF6600] text-[8px] font-black">VERIFIED</span>' : ''}
                                 </p>
                                 <p class="text-[9px] text-zinc-500 italic">@${u.username}</p>
                             </div>
                         </div>
-                        ${isOfficial ? 
-                            `<span class="text-[8px] font-black text-zinc-700 uppercase tracking-tighter pr-2">Official Page</span>` : 
-                            `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full active:scale-90 transition uppercase">Add</button>`
-                        }
+                        ${btnHtml}
                     </div>`;
                 }).join('')}
             `;
@@ -160,18 +198,10 @@
         };
 
         window.sendHomieReq = async (id) => {
-            const { data: existing } = await supabase.from('connections')
-                .select('*')
-                .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUserId})`);
-
-            if (existing && existing.length > 0) {
-                alert('Connection already exists or pending!');
-                return;
+            const { error } = await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
+            if (!error) {
+                switchTab('requests'); // Redirect to requests tab
             }
-
-            await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
-            alert('Request Sent, Homie!');
-            loadContent();
         };
 
         init();
@@ -192,7 +222,7 @@
         <button id="tab-unread" onclick="switchTab('unread')" class="tab-btn flex-1 py-3 text-[10px] font-black uppercase">Unread</button>
     </div>
 
-    <div class="p-4">
+    <div class="p-4 bg-black sticky top-[118px] z-40">
         <div class="relative bg-zinc-900 rounded-2xl px-5 py-3 flex items-center border border-white/5">
             <input type="text" id="search-input" oninput="searchMaster(this.value)" placeholder="Find homies..." class="bg-transparent w-full text-sm focus:outline-none text-white font-bold">
             <i data-lucide="search" class="text-zinc-600" size="18"></i>
@@ -204,9 +234,9 @@
     </div>
 
     <main id="main-content" class="flex flex-col">
-        </main>
+    </main>
 
-    <nav class="fixed bottom-0 inset-x-0 bg-black border-t border-white/10 p-4 flex justify-around items-center backdrop-blur-lg">
+    <nav class="fixed bottom-0 inset-x-0 bg-black border-t border-white/10 p-4 flex justify-around items-center backdrop-blur-lg z-50">
         <div class="flex flex-col items-center text-sdel" onclick="location.href='homies.html'">
             <i data-lucide="message-circle" size="24"></i>
             <span class="text-[8px] font-black uppercase mt-1">Chats</span>
