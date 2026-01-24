@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Secure DM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #000; color: white; overflow: hidden; position: relative; height: 100vh; display: flex; flex-direction: column; }
+        
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(100vh); } }
+
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        
+        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(10px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
+        .msg-sent { background: rgba(9, 9, 11, 0.8); backdrop-filter: blur(10px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); }
+        
+        .status-ignored { color: #ff3b3b; font-weight: 900; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; pointer-events: none; }
+        #send-btn.active { transform: scale(1); opacity: 1; pointer-events: auto; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+
+    <nav class="flex justify-between items-center p-5 bg-black/80 backdrop-blur-xl sticky top-0 z-50 border-b border-white/10">
+        <div class="flex items-center space-x-4">
+            <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-90 transition">
+                <i data-lucide="chevron-left" size="28"></i>
+            </button>
+            <div class="relative">
+                <div id="user-avatar" class="w-11 h-11 rounded-2xl bg-zinc-900 flex items-center justify-center border border-sdel/30 text-sdel font-black italic text-lg">Z</div>
+                <div id="online-indicator" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-zinc-700 rounded-full border-2 border-black"></div>
+            </div>
+            <div>
+                <h2 id="chat-name" class="text-sm font-black uppercase tracking-tight">Loading...</h2>
+                <p id="chat-status" class="text-[8px] text-zinc-500 font-black uppercase tracking-[0.2em] italic">Off Grid</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-5 text-zinc-500">
+            <button onclick="toggleSoon()"><i data-lucide="phone" size="20"></i></button>
+            <button onclick="toggleSoon()"><i data-lucide="video" size="20"></i></button>
+        </div>
+    </nav>
+
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide">
+    </main>
+
+    <div class="p-4 bg-black/90 backdrop-blur-md border-t border-white/5">
+        <div class="relative flex items-center bg-zinc-900/60 rounded-[2rem] border border-white/10 px-2 focus-within:border-sdel transition-all">
+            <button class="p-3 text-zinc-600 hover:text-sdel"><i data-lucide="sparkles" size="20"></i></button>
+            
+            <input type="text" id="msg-input" oninput="checkInput(this.value)" placeholder="Secure message..." 
+                   class="bg-transparent flex-1 text-sm py-4 px-2 focus:outline-none placeholder:text-zinc-700 font-semibold">
+            
+            <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black p-2.5 rounded-full mr-1 shadow-lg shadow-sdel/20">
+                <i data-lucide="arrow-up" size="18" style="stroke-width: 3px;"></i>
+            </button>
+        </div>
+        <div class="flex justify-center items-center space-x-2 mt-2 opacity-30">
+            <i data-lucide="shield-check" size="8"></i>
+            <p class="text-[7px] font-black tracking-[0.3em] uppercase">Sdel Sanity Protocol: Monthly Purge</p>
+        </div>
+    </div>
+
+    <div id="soon-modal" class="fixed inset-0 bg-black/95 z-[100] hidden items-center justify-center p-10">
+        <div class="bg-zinc-950 border-2 border-sdel p-8 rounded-[2.5rem] text-center max-w-xs shadow-2xl shadow-sdel/10">
+            <i data-lucide="lock" class="text-sdel mx-auto mb-4" size="28"></i>
+            <h3 class="text-lg font-black italic uppercase mb-2 text-white">Comms Locked</h3>
+            <p class="text-[10px] text-zinc-500 font-bold leading-relaxed uppercase tracking-wider mb-6">Voice and Video protocols are being engineered by Shushirolsh.</p>
+            <button onclick="toggleSoon()" class="w-full bg-white text-black text-[10px] font-black py-3 rounded-xl uppercase tracking-widest">Return</button>
+        </div>
+    </div>
+
+    <script>
+        // SUPABASE CONNECTION
+        const SB_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+        // Fixed: Initialization from global scope
+        const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const homieId = urlParams.get('id'); 
+        let myId = null;
+
+        async function init() {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { window.location.href = 'login.html'; return; }
+            myId = session.user.id;
+
+            createStars();
+            loadHomieProfile();
+            fetchMessages();
+            
+            // Realtime listener
+            supabaseClient.channel('dm_channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages())
+                .subscribe();
+
+            lucide.createIcons();
+        }
+
+        async function loadHomieProfile() {
+            const { data: profile } = await supabaseClient.from('profile').select('*').eq('id', homieId).single();
+            if (profile) {
+                document.getElementById('chat-name').innerText = profile.first_name || profile.username;
+                document.getElementById('user-avatar').innerText = (profile.first_name || 'H')[0].toUpperCase();
+                if (profile.is_online) {
+                    document.getElementById('online-indicator').classList.replace('bg-zinc-700', 'bg-green-500');
+                    document.getElementById('chat-status').innerText = "Live on Grid";
+                    document.getElementById('chat-status').classList.add('text-green-500');
+                }
+            }
+        }
+
+        async function fetchMessages() {
+            const { data: messages } = await supabaseClient.from('dm_table')
+                .select('*')
+                .or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`)
+                .order('created_at', { ascending: true });
+
+            renderChat(messages);
+        }
+
+        function renderChat(messages) {
+            const container = document.getElementById('chat-content');
+            container.innerHTML = '';
+            const now = new Date();
+
+            messages.forEach(msg => {
+                const msgDate = new Date(msg.created_at);
+                const hoursPassed = (now - msgDate) / (1000 * 60 * 60);
+
+                // CHANGED: Hide messages only if older than 30 days (approx 720 hours)
+                if (hoursPassed > 720) return;
+
+                const isMe = msg.sender_id === myId;
+                const timeStr = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                // Sanity Logic (48hr mark)
+                const isIgnored = !msg.is_read && hoursPassed > 48;
+
+                const html = `
+                    <div class="${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%]">
+                        <p class="text-[13px] font-semibold leading-relaxed">
+                            ${isIgnored ? 'This message has reached the sanity limit...' : msg.content}
+                        </p>
+                        <div class="mt-2 flex items-center justify-between">
+                            <span class="text-[7px] text-zinc-600 font-black uppercase italic">${timeStr}</span>
+                            <div class="flex items-center space-x-2">
+                                ${isMe ? `<span class="text-[7px] text-sdel font-black uppercase tracking-widest italic">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
+                                ${isIgnored ? `<span class="status-ignored text-[7px] uppercase">Ignored</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendMsg() {
+            const input = document.getElementById('msg-input');
+            const val = input.value.trim();
+            if (!val) return;
+
+            await supabaseClient.from('dm_table').insert({
+                sender_id: myId,
+                receiver_id: homieId,
+                content: val
+            });
+
+            input.value = "";
+            checkInput("");
+        }
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 120; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const size = Math.random() * 2 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}vw`;
+                star.style.top = `${Math.random() * 100}vh`;
+                star.style.animationDuration = `${Math.random() * 100 + 60}s`;
+                container.appendChild(star);
+            }
+        }
+
+        function checkInput(val) {
+            const btn = document.getElementById('send-btn');
+            val.trim().length > 0 ? btn.classList.add('active') : btn.classList.remove('active');
+        }
+
+        function toggleSoon() {
+            const modal = document.getElementById('soon-modal');
+            modal.classList.toggle('hidden');
+            lucide.createIcons();
+        }
+
+        init();
+    </script>
+</body>
+  </html>
+  
