@@ -17,7 +17,6 @@
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* Content area height adjustment */
         #main-content { height: calc(100vh - 300px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     </style>
 
@@ -28,6 +27,7 @@
         let currentUserId = null;
         let activeTab = 'general';
         const tabs = ['general', 'requests', 'unread'];
+        let allConnections = []; // Store loaded chats for local filtering
 
         let touchstartX = 0;
         let touchendX = 0;
@@ -78,7 +78,8 @@
                     .select('*, sender:profile!sender_id(*), receiver:profile!receiver_id(*)')
                     .eq('status', 'accepted')
                     .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
-                renderChats(data);
+                allConnections = data || [];
+                renderChats(allConnections);
             } else if (activeTab === 'requests') {
                 const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
                 renderRequests(data);
@@ -87,10 +88,41 @@
             }
         }
 
+        // NEW: Local Search Logic
+        window.searchMaster = (val) => {
+            const trigger = document.getElementById('public-search-trigger');
+            
+            if (val.length < 1) {
+                trigger.classList.add('hidden');
+                renderChats(allConnections);
+                return;
+            }
+
+            // Filter the current homies list
+            const filtered = allConnections.filter(c => {
+                const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
+                const fullName = `${partner.first_name} ${partner.last_name} ${partner.username}`.toLowerCase();
+                return fullName.includes(val.toLowerCase());
+            });
+
+            if (filtered.length > 0) {
+                renderChats(filtered);
+                trigger.classList.add('hidden');
+            } else {
+                const container = document.getElementById('main-content');
+                container.innerHTML = `
+                    <div class="p-10 text-center">
+                        <p class="text-zinc-500 text-sm uppercase font-black italic">Homie not found in your list</p>
+                        <p class="text-zinc-700 text-[10px] mt-2 uppercase">Try Global Search below</p>
+                    </div>`;
+                trigger.classList.remove('hidden');
+            }
+        };
+
         function renderChats(connections) {
             const container = document.getElementById('main-content');
             if (!connections || connections.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm">No homies yet. Search to add some!</p>`;
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm">No homies yet.</p>`;
                 return;
             }
             container.innerHTML = connections.map(c => {
@@ -131,17 +163,7 @@
 
         window.respond = async (id, status) => {
             const { error } = await supabase.from('connections').update({ status }).eq('id', id);
-            if (!error) {
-                loadContent();
-            }
-        };
-
-        window.searchMaster = async (val) => {
-            if (val.length < 2) {
-                document.getElementById('public-search-trigger').classList.add('hidden');
-                return;
-            }
-            document.getElementById('public-search-trigger').classList.remove('hidden');
+            if (!error) { loadContent(); }
         };
 
         window.searchPublic = async () => {
@@ -196,9 +218,7 @@
 
         window.sendHomieReq = async (id) => {
             const { error } = await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
-            if (!error) {
-                switchTab('requests');
-            }
+            if (!error) { switchTab('requests'); }
         };
 
         init();
