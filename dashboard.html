@@ -36,11 +36,10 @@
             getUnreadCount();
         }
 
-        // FIXED: Added await and Realtime Subscription
+        // FIXED: Added 'await' and made sure the ID 'notif-badge' is targeted correctly
         async function getUnreadCount() {
             if (!currentUserId) return;
-
-            // Added await here so the 'count' is actually captured
+            
             const { count, error } = await supabase
                 .from('messages')
                 .select('*', { count: 'exact', head: true })
@@ -52,22 +51,11 @@
             if (!error && count > 0) {
                 badge.innerText = count > 9 ? '9+' : count;
                 badge.classList.remove('hidden');
+                badge.style.display = 'flex'; // Ensures it's visible
             } else {
                 badge.classList.add('hidden');
+                badge.style.display = 'none';
             }
-
-            // Realtime listener so the count updates the moment a message arrives
-            supabase
-                .channel('unread-dashboard')
-                .on('postgres_changes', { 
-                    event: 'INSERT', 
-                    schema: 'public', 
-                    table: 'messages',
-                    filter: `receiver_id=eq.${currentUserId}` 
-                }, () => {
-                    getUnreadCount(); // Re-run count on new message
-                })
-                .subscribe();
         }
 
         async function loadStories() {
@@ -210,9 +198,10 @@
         </div>
         <div class="flex items-center space-x-5">
             <i data-lucide="search" size="24" onclick="location.href='circle.html'"></i>
+            
             <div class="relative cursor-pointer" onclick="location.href='messages.html'">
                 <i data-lucide="bell" size="24"></i>
-                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black">0</span>
+                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black z-10" style="display: none;">0</span>
             </div>
         </div>
     </nav>
