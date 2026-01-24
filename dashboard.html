@@ -36,26 +36,47 @@
             getUnreadCount();
         }
 
-        // FIXED: Added 'await' and made sure the ID 'notif-badge' is targeted correctly
+        // CORRECTED FOR YOUR DB: Uses recipient_id and read_by array
         async function getUnreadCount() {
             if (!currentUserId) return;
-            
-            const { count, error } = await supabase
+
+            const { data, error } = await supabase
                 .from('messages')
-                .select('*', { count: 'exact', head: true })
-                .eq('receiver_id', currentUserId)
-                .eq('is_read', false);
+                .select('id, read_by')
+                .eq('recipient_id', currentUserId);
+
+            if (error) {
+                console.error("Dashboard Error:", error.message);
+                return;
+            }
+
+            // Count messages where your ID is NOT in the read_by array
+            const unreadCount = data.filter(msg => {
+                return !msg.read_by || !msg.read_by.includes(currentUserId);
+            }).length;
 
             const badge = document.getElementById('notif-badge');
-            
-            if (!error && count > 0) {
-                badge.innerText = count > 9 ? '9+' : count;
+            if (unreadCount > 0) {
+                badge.innerText = unreadCount > 9 ? '9+' : unreadCount;
                 badge.classList.remove('hidden');
-                badge.style.display = 'flex'; // Ensures it's visible
+                badge.style.display = 'flex';
             } else {
                 badge.classList.add('hidden');
                 badge.style.display = 'none';
             }
+
+            // Realtime update for new messages
+            supabase
+                .channel('dashboard-notifs')
+                .on('postgres_changes', { 
+                    event: 'INSERT', 
+                    schema: 'public', 
+                    table: 'messages',
+                    filter: `recipient_id=eq.${currentUserId}` 
+                }, () => {
+                    getUnreadCount();
+                })
+                .subscribe();
         }
 
         async function loadStories() {
@@ -198,7 +219,6 @@
         </div>
         <div class="flex items-center space-x-5">
             <i data-lucide="search" size="24" onclick="location.href='circle.html'"></i>
-            
             <div class="relative cursor-pointer" onclick="location.href='messages.html'">
                 <i data-lucide="bell" size="24"></i>
                 <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black z-10" style="display: none;">0</span>
