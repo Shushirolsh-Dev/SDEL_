@@ -45,7 +45,6 @@
             container.innerHTML = `<div class="p-10 text-center text-zinc-600">Loading...</div>`;
 
             if (activeTab === 'general') {
-                // FIXED: Pulls where you are EITHER sender OR receiver
                 const { data } = await supabase.from('connections')
                     .select('*, sender:profile!sender_id(*), receiver:profile!receiver_id(*)')
                     .eq('status', 'accepted')
@@ -55,7 +54,6 @@
                 const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
                 renderRequests(data);
             } else if (activeTab === 'unread') {
-                // Logic for unread messages (placeholder filter)
                 container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-xs italic uppercase">No unread messages</p>`;
             }
         }
@@ -67,7 +65,6 @@
                 return;
             }
             container.innerHTML = connections.map(c => {
-                // Determine who the "other" person is
                 const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
                 const avatar = partner.avatar_url ? partner.avatar_url : `https://api.dicebear.com/7.x/initials/svg?seed=${partner.first_name}`;
                 
@@ -105,7 +102,6 @@
             `).join('');
         }
 
-        // FIXED: Respond function logic
         window.respond = async (id, status) => {
             const { error } = await supabase.from('connections').update({ status }).eq('id', id);
             if (!error) {
@@ -127,36 +123,43 @@
             const container = document.getElementById('main-content');
             container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-xs font-black">SEARCHING GLOBAL SDEL...</p>`;
             
-            // FIXED: Searching specifically by first_name and last_name columns
+            // GLOBAL SEARCH LOGIC: Checks all 3 columns
             const { data } = await supabase.from('profile')
                 .select('*')
                 .neq('id', currentUserId)
                 .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
-                .limit(10);
+                .limit(15);
 
             container.innerHTML = `
                 <div class="p-4 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
                     <span class="text-[10px] font-black text-sdel italic uppercase">Public Results</span>
                     <i data-lucide="x" size="14" onclick="loadContent()" class="cursor-pointer"></i>
                 </div>
-                ${data.map(u => `
+                ${data.map(u => {
+                    const isOfficial = u.is_official === true;
+                    return `
                     <div class="flex justify-between items-center p-4 border-b border-white/5">
                         <div class="flex items-center space-x-3">
                             <div class="w-10 h-10 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel italic font-black">${u.first_name[0]}</div>
                             <div>
-                                <p class="text-xs font-bold text-white">${u.first_name} ${u.last_name}</p>
+                                <p class="text-xs font-bold text-white">
+                                    ${u.first_name} ${u.last_name}
+                                    ${isOfficial ? '<span class="ml-1 text-[#FF6600] text-[8px] tracking-widest font-black">VERIFIED</span>' : ''}
+                                </p>
                                 <p class="text-[9px] text-zinc-500 italic">@${u.username}</p>
                             </div>
                         </div>
-                        <button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full active:scale-90 transition">ADD</button>
-                    </div>
-                `).join('')}
+                        ${isOfficial ? 
+                            `<span class="text-[8px] font-black text-zinc-700 uppercase tracking-tighter pr-2">Official Page</span>` : 
+                            `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full active:scale-90 transition uppercase">Add</button>`
+                        }
+                    </div>`;
+                }).join('')}
             `;
             lucide.createIcons();
         };
 
         window.sendHomieReq = async (id) => {
-            // Check if connection already exists to prevent duplicates
             const { data: existing } = await supabase.from('connections')
                 .select('*')
                 .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUserId})`);
