@@ -27,7 +27,7 @@
         let currentUserId = null;
         let activeTab = 'general';
         const tabs = ['general', 'requests', 'unread'];
-        let allConnections = []; // Store loaded chats for local filtering
+        let allConnections = [];
 
         let touchstartX = 0;
         let touchendX = 0;
@@ -88,17 +88,14 @@
             }
         }
 
-        // NEW: Local Search Logic
         window.searchMaster = (val) => {
             const trigger = document.getElementById('public-search-trigger');
-            
             if (val.length < 1) {
                 trigger.classList.add('hidden');
                 renderChats(allConnections);
                 return;
             }
 
-            // Filter the current homies list
             const filtered = allConnections.filter(c => {
                 const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
                 const fullName = `${partner.first_name} ${partner.last_name} ${partner.username}`.toLowerCase();
@@ -122,7 +119,7 @@
         function renderChats(connections) {
             const container = document.getElementById('main-content');
             if (!connections || connections.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm">No homies yet.</p>`;
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase">No homies yet.</p>`;
                 return;
             }
             container.innerHTML = connections.map(c => {
@@ -176,6 +173,20 @@
                 .neq('id', currentUserId)
                 .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
                 .limit(15);
+
+            if (!users || users.length === 0) {
+                container.innerHTML = `
+                    <div class="p-5 bg-red-500/5 border-b border-red-500/20 flex justify-between items-center">
+                        <span class="text-xs font-black text-red-500 italic uppercase tracking-wider">No Global Results</span>
+                        <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
+                    </div>
+                    <div class="p-10 text-center">
+                        <p class="text-zinc-500 text-sm uppercase font-black italic">User Not Found on Sdel</p>
+                        <p class="text-zinc-700 text-[10px] mt-2 uppercase">Check spelling or try another name</p>
+                    </div>`;
+                lucide.createIcons();
+                return;
+            }
 
             const { data: conn } = await supabase.from('connections')
                 .select('*')
