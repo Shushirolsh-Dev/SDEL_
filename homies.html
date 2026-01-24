@@ -166,12 +166,21 @@
         window.searchPublic = async () => {
             const val = document.getElementById('search-input').value;
             const container = document.getElementById('main-content');
-            container.innerHTML = `<p id="searching-text" class="p-10 text-center text-sdel animate-pulse text-sm font-black italic">SEARCHING GLOBAL SDEL...</p>`;
+            container.innerHTML = `
+                <div class="p-5 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
+                    <span class="text-xs font-black text-sdel italic uppercase tracking-wider">Public Search</span>
+                    <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
+                </div>
+                <p id="searching-status" class="p-10 text-center text-sdel animate-pulse text-sm font-black italic">SEARCHING GLOBAL SDEL...</p>
+            `;
+            lucide.createIcons();
             
-            // 5-SECOND TIMEOUT LOGIC
-            let searchResolved = false;
-            const searchTimeout = setTimeout(() => {
-                if (!searchResolved) {
+            let isDone = false;
+            
+            // Hard 5 second cut-off
+            const timeout = setTimeout(() => {
+                if (!isDone) {
+                    isDone = true;
                     showSearchError(container);
                 }
             }, 5000);
@@ -182,8 +191,9 @@
                 .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
                 .limit(15);
 
-            searchResolved = true;
-            clearTimeout(searchTimeout);
+            if (isDone) return; // Already timed out
+            isDone = true;
+            clearTimeout(timeout);
 
             if (!users || users.length === 0) {
                 showSearchError(container);
@@ -201,7 +211,7 @@
                 </div>
                 ${users.map(u => {
                     const isOfficial = u.is_official === true;
-                    const relationship = conn.find(c => c.sender_id === u.id || c.receiver_id === u.id);
+                    const relationship = conn ? conn.find(c => c.sender_id === u.id || c.receiver_id === u.id) : null;
                     let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[11px] font-black px-5 py-2 rounded-full active:scale-90 transition uppercase">Add</button>`;
                     
                     if (isOfficial) btnHtml = `<span class="text-[10px] font-black text-zinc-600 uppercase pr-2 tracking-widest">Official</span>`;
@@ -237,7 +247,7 @@
                 </div>
                 <div class="p-10 text-center">
                     <p class="text-zinc-500 text-sm uppercase font-black italic">User Not Found on Sdel</p>
-                    <p class="text-zinc-700 text-[10px] mt-2 uppercase">Try again with a different name</p>
+                    <p class="text-zinc-700 text-[10px] mt-2 uppercase italic tracking-tighter">Check spelling or try another name</p>
                 </div>`;
             lucide.createIcons();
         }
