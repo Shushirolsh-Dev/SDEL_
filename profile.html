@@ -14,19 +14,16 @@
         body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-10; }
         
-        /* EXTRA SLOW Falling Stars - Overlays Everything */
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 250; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { to { transform: translateY(110vh); } }
 
-        /* Modals */
         .modal-overlay { backdrop-filter: blur(25px); z-index: 200; position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; padding: 24px; overflow-y: auto; }
         .input-zinc { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; width: 100%; padding: 16px; border-radius: 16px; font-size: 14px; outline: none; }
         .input-zinc:focus { border-color: #FF6600; }
 
-        /* Spinner Animation */
         .spinner { animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
@@ -63,7 +60,6 @@
 
         <div class="space-y-3">
             <h3 class="text-[10px] font-black uppercase text-gray-500 tracking-widest px-2">Settings</h3>
-            
             <div onclick="openModal('edit-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
                 <div class="flex items-center space-x-4">
                     <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-sdel"><i data-lucide="user" size="18"></i></div>
@@ -71,7 +67,6 @@
                 </div>
                 <i data-lucide="chevron-right" class="text-gray-600"></i>
             </div>
-
             <div onclick="openModal('security-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
                 <div class="flex items-center space-x-4">
                     <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-blue-500"><i data-lucide="shield-check" size="18"></i></div>
@@ -81,7 +76,13 @@
             </div>
         </div>
 
-        <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">Sign Out</button>
+        <div class="space-y-4 pt-4">
+            <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">Sign Out</button>
+            
+            <button onclick="confirmDelete()" class="w-full text-zinc-600 py-2 font-bold uppercase text-[9px] tracking-[0.2em] hover:text-red-600 transition">
+                Delete Account Forever
+            </button>
+        </div>
     </main>
 
     <div id="edit-modal" class="modal-overlay">
@@ -148,55 +149,68 @@
 
         async function loadProfile() {
             const { data: profile, error } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
-            
-            if (error) {
-                console.error("Profile load error:", error);
-                return;
-            }
+            if (error) return;
 
             const fName = profile?.first_name || profile?.username || "User";
             const lName = profile?.last_name || "";
-            
             document.getElementById('p-full-name').innerText = (fName + " " + lName).trim();
             document.getElementById('p-email').innerText = currentUser.email;
             document.getElementById('p-balance').innerText = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
-            
             const initial1 = fName.charAt(0);
             const initial2 = lName.charAt(0) || "";
             document.getElementById('p-initials').innerText = (initial1 + initial2).toUpperCase();
-            
             document.getElementById('edit-fname').value = profile?.first_name || "";
             document.getElementById('edit-lname').value = profile?.last_name || "";
             document.getElementById('edit-phone').value = profile?.phone || "";
         }
 
+        window.confirmDelete = async () => {
+            const confirmation = confirm("ARE YOU SURE? This will permanently delete your account and balance.");
+            if (confirmation) {
+                const password = prompt("Enter password to confirm:");
+                if (!password) return;
+
+                const { error: signInErr } = await supabase.auth.signInWithPassword({
+                    email: currentUser.email,
+                    password: password
+                });
+
+                if (signInErr) {
+                    alert("Incorrect password.");
+                    return;
+                }
+
+                const { error: deleteErr } = await supabase.from('profile').delete().eq('id', currentUser.id);
+                if (deleteErr) {
+                    alert(deleteErr.message);
+                } else {
+                    alert("Account Deleted.");
+                    await supabase.auth.signOut();
+                    window.location.replace('login.html');
+                }
+            }
+        };
+
         window.openModal = (id) => document.getElementById(id).style.display = 'block';
         window.closeModal = (id) => document.getElementById(id).style.display = 'none';
-        
         window.togglePass = (id) => {
             const el = document.getElementById(id);
             el.type = el.type === 'password' ? 'text' : 'password';
             lucide.createIcons();
-        }
+        };
 
         window.saveProfileUpdates = async () => {
             const btn = document.getElementById('save-btn');
             const text = document.getElementById('save-text');
             text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> UPDATING...';
             lucide.createIcons();
-            
             const { error } = await supabase.from('profile').update({
                 first_name: document.getElementById('edit-fname').value,
                 last_name: document.getElementById('edit-lname').value,
                 phone: document.getElementById('edit-phone').value
             }).eq('id', currentUser.id);
-
-            if (error) {
-                alert(error.message);
-                text.innerText = "Save Changes";
-            } else {
-                location.reload();
-            }
+            if (error) { alert(error.message); text.innerText = "Save Changes"; } 
+            else { location.reload(); }
         };
 
         window.updatePassword = async () => {
@@ -204,28 +218,14 @@
             const confirm = document.getElementById('confirm-pass').value;
             const msg = document.getElementById('pass-msg');
             const btnText = document.getElementById('pass-text');
-
-            if (pass !== confirm) {
-                msg.innerText = "Passwords do not match!";
-                msg.className = "text-[10px] font-bold uppercase text-center text-red-500";
-                return;
-            }
-
+            if (pass !== confirm) { msg.innerText = "Passwords do not match!"; msg.className = "text-red-500"; return; }
             btnText.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> PROCESSING...';
             lucide.createIcons();
-
             const { error } = await supabase.auth.updateUser({ password: pass });
-            if (error) {
-                msg.innerText = error.message;
-                msg.className = "text-[10px] font-bold uppercase text-center text-red-500";
-                btnText.innerText = "Update Password";
-            } else {
-                msg.innerText = "Password updated successfully!";
-                msg.className = "text-[10px] font-bold uppercase text-center text-green-500";
-                setTimeout(() => closeModal('security-modal'), 2000);
-            }
+            if (error) { msg.innerText = error.message; msg.className = "text-red-500"; btnText.innerText = "Update Password"; } 
+            else { msg.innerText = "Success!"; msg.className = "text-green-500"; setTimeout(() => closeModal('security-modal'), 2000); }
             lucide.createIcons();
-        }
+        };
 
         function createStars() {
             const container = document.getElementById('stars');
@@ -234,18 +234,17 @@
                 star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
                 star.style.left = Math.random() * 100 + 'vw';
-                if (i < 50) star.style.top = Math.random() * 100 + 'vh';
-                else star.style.top = '-' + (Math.random() * 100) + 'vh';
+                star.style.top = i < 50 ? Math.random() * 100 + 'vh' : '-' + (Math.random() * 100) + 'vh';
                 star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
                 container.appendChild(star);
             }
         }
 
         document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
+        document.getElementById('logout-btn-top').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
         createStars();
         checkSession();
         lucide.createIcons();
     </script>
 </body>
-                                                        </html>
-    
+</html>
