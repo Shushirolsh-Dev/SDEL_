@@ -84,10 +84,8 @@
     </div>
 
     <script>
-        // SUPABASE CONNECTION
         const SB_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
-        // Fixed: Initialization from global scope
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -103,12 +101,26 @@
             loadHomieProfile();
             fetchMessages();
             
-            // Realtime listener
+            // RUN OPTION 1: Monthly Database Purge
+            databasePurge();
+            
             supabaseClient.channel('dm_channel')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages())
                 .subscribe();
 
             lucide.createIcons();
+        }
+
+        // OPTION 1: Logic to physically delete from Supabase DB
+        async function databasePurge() {
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+            
+            const { error } = await supabaseClient
+                .from('dm_table')
+                .delete()
+                .lt('created_at', thirtyDaysAgo); 
+
+            if (!error) console.log("SDEL Protocol: Database optimization complete.");
         }
 
         async function loadHomieProfile() {
@@ -142,13 +154,10 @@
                 const msgDate = new Date(msg.created_at);
                 const hoursPassed = (now - msgDate) / (1000 * 60 * 60);
 
-                // CHANGED: Hide messages only if older than 30 days (approx 720 hours)
                 if (hoursPassed > 720) return;
 
                 const isMe = msg.sender_id === myId;
                 const timeStr = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
-                // Sanity Logic (48hr mark)
                 const isIgnored = !msg.is_read && hoursPassed > 48;
 
                 const html = `
@@ -214,5 +223,4 @@
         init();
     </script>
 </body>
-  </html>
-  
+</html>
