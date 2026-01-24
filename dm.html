@@ -32,6 +32,8 @@
             transform: scale(0); 
             opacity: 0; 
             width: 0;
+            min-width: 0;          /* added - helps width animation on mobile */
+            overflow: hidden;      /* added - prevents content bleed during transition */
             margin-left: 0;
             display: flex;
             align-items: center;
@@ -83,7 +85,7 @@
             <input type="text" id="msg-input" oninput="checkInput(this.value)" placeholder="Secure message..." 
                    class="bg-transparent flex-1 text-sm py-4 px-2 focus:outline-none placeholder:text-zinc-700 font-semibold text-white">
             
-            <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-11 w-11 rounded-full shadow-lg shadow-sdel/20 shrink-0">
+            <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-11 w-11 rounded-full shadow-lg shadow-sdel/20">
                 <i data-lucide="arrow-up" size="20" style="stroke-width: 3px;"></i>
             </button>
         </div>
@@ -150,7 +152,7 @@
         async function fetchMessages() {
             const { data: messages } = await supabaseClient.from('dm_table')
                 .select('*')
-                .or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`)
+                .or(`and(sender_id.eq.\( {myId},receiver_id.eq. \){homieId}),and(sender_id.eq.\( {homieId},receiver_id.eq. \){myId})`)
                 .order('created_at', { ascending: true });
 
             renderChat(messages);
@@ -178,7 +180,7 @@
                         <div class="mt-2 flex items-center justify-between">
                             <span class="text-[7px] text-zinc-600 font-black uppercase italic">${timeStr}</span>
                             <div class="flex items-center space-x-2">
-                                ${isMe ? `<span class="text-[7px] text-sdel font-black uppercase tracking-widest italic">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
+                                \( {isMe ? `<span class="text-[7px] text-sdel font-black uppercase tracking-widest italic"> \){msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
                                 ${isIgnored ? `<span class="status-ignored text-[7px] uppercase">Ignored</span>` : ''}
                             </div>
                         </div>
