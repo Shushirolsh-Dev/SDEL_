@@ -33,31 +33,40 @@
             loadFeed();
             loadAds();
             loadOrders();
-            getUnreadCount();
+            getUnreadCount(); // Now using your specific timestamp logic
         }
 
-        // FIXED: Fully dynamic unread count logic
+        // EXACT LOGIC FROM YOUR MESSAGES.HTML
         async function getUnreadCount() {
             if (!currentUserId) return;
 
-            const { data, error } = await supabase
+            // 1. Get user's last read timestamps
+            const { data: profile } = await supabase
+                .from('profile')
+                .select('last_read_general, last_read_team')
+                .eq('id', currentUserId)
+                .single();
+
+            const lastGen = new Date(profile?.last_read_general || 0);
+            const lastTeam = new Date(profile?.last_read_team || 0);
+
+            // 2. Fetch all relevant messages
+            const { data: messages, error } = await supabase
                 .from('messages')
-                .select('read_by')
-                .eq('recipient_id', currentUserId);
+                .select('type, created_at')
+                .or(`recipient_id.is.null,recipient_id.eq.${currentUserId}`);
 
-            if (error) return console.error(error);
+            if (error || !messages) return;
 
-            // Filter data to find messages where your ID is NOT in the read_by array
-            const unreadCount = data.filter(msg => {
-                const readList = msg.read_by || [];
-                return !readList.includes(currentUserId);
-            }).length;
-
-            const badge = document.getElementById('notif-badge');
+            // 3. Compare message time with last read time
+            const unreadGen = messages.filter(m => m.type === 'general' && new Date(m.created_at) > lastGen).length;
+            const unreadTeam = messages.filter(m => m.type === 'team' && new Date(m.created_at) > lastTeam).length;
             
-            if (unreadCount > 0) {
-                // Dynamic display: shows the real number, or 9+ if over 9
-                badge.innerText = unreadCount > 9 ? '9+' : unreadCount;
+            const totalUnread = unreadGen + unreadTeam;
+            const badge = document.getElementById('notif-badge');
+
+            if (totalUnread > 0) {
+                badge.innerText = totalUnread > 9 ? '9+' : totalUnread;
                 badge.classList.remove('hidden');
                 badge.style.display = 'flex';
             } else {
@@ -65,18 +74,10 @@
                 badge.style.display = 'none';
             }
 
-            // Realtime listener to update count dynamically without refresh
-            supabase
-                .channel('dashboard-notifs')
-                .on('postgres_changes', { 
-                    event: '*', 
-                    schema: 'public', 
-                    table: 'messages',
-                    filter: `recipient_id=eq.${currentUserId}` 
-                }, () => {
-                    getUnreadCount();
-                })
-                .subscribe();
+            // Realtime Update
+            supabase.channel('db-changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
+                getUnreadCount();
+            }).subscribe();
         }
 
         async function loadStories() {
@@ -221,7 +222,7 @@
             <i data-lucide="search" size="24" onclick="location.href='circle.html'"></i>
             <div class="relative cursor-pointer" onclick="location.href='messages.html'">
                 <i data-lucide="bell" size="24"></i>
-                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white min-w-4 h-4 px-1 rounded-full flex items-center justify-center border border-black z-10" style="display: none;"></span>
+                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black z-10" style="display: none;">0</span>
             </div>
         </div>
     </nav>
