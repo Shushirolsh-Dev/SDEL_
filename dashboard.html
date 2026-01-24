@@ -21,9 +21,15 @@
             if (!session) return window.location.href = 'login.html';
             currentUserId = session.user.id;
 
+            // FIX: Get first_name from MetaData first (Signup Data)
+            const metaName = session.user.user_metadata?.first_name;
+            
             const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
+            
+            // Priority: MetaData Name > Profile Name > "CHAMP"
+            document.getElementById('user-name').innerText = metaName || profile?.first_name || "CHAMP";
+
             if(profile) {
-                document.getElementById('user-name').innerText = profile.first_name || "CHAMP";
                 document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
                 if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
                 document.getElementById('xp-count').innerText = profile.xp || 0;
@@ -68,8 +74,6 @@
 
             if (error || !ads || ads.length === 0) return;
 
-            // WEIGHTING: Create a pool where high-price ads appear more often
-            // Example: Ad A ($100) vs Ad B ($10). Ad A gets 10 entries, Ad B gets 1.
             let weightedAds = [];
             ads.forEach(ad => {
                 const weight = Math.max(1, Math.floor((ad.price || 0) / 100)); 
@@ -78,11 +82,10 @@
                 }
             });
 
-            // Shuffle the pool
             activeAds = weightedAds.sort(() => Math.random() - 0.5);
             
             displayNextAd();
-            setInterval(displayNextAd, 5000); // Change every 5 seconds
+            setInterval(displayNextAd, 5000);
         }
 
         function displayNextAd() {
@@ -92,13 +95,12 @@
             const banner = document.getElementById('ad-banner');
             const adLink = document.getElementById('ad-link');
             
-            // Fade effect logic via CSS class
             banner.classList.add('opacity-0');
             
             setTimeout(() => {
                 banner.style.backgroundImage = `url(${ad.media_url})`;
                 document.getElementById('ad-text').innerText = ad.title;
-                adLink.href = ad.link_url || '#'; // Redirect link
+                adLink.href = ad.link_url || '#'; 
                 banner.classList.remove('opacity-0');
                 banner.style.display = 'flex';
             }, 300);
