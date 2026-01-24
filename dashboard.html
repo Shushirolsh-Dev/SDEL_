@@ -3,312 +3,320 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sdel | Global Feed</title>
+    <title>Sdel | Profile</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 
-        let currentUserId = null;
-        let activeAds = [];
-        let currentAdIndex = 0;
-
-        async function init() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.href = 'login.html';
-            currentUserId = session.user.id;
-
-            // FIX: Get first_name from MetaData first (Signup Data)
-            const metaName = session.user.user_metadata?.first_name;
-            
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
-            
-            // Priority: MetaData Name > Profile Name > "CHAMP"
-            document.getElementById('user-name').innerText = metaName || profile?.first_name || "CHAMP";
-
-            if(profile) {
-                document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
-                if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
-                document.getElementById('xp-count').innerText = profile.xp || 0;
-                updatePrestige(profile.xp || 0);
-            }
-
-            loadStories();
-            loadFeed();
-            loadAds(); 
-            loadOrders();
-            getUnreadCount(); 
-        }
-
-        // Logic from messages.html
-        async function getUnreadCount() {
-            if (!currentUserId) return;
-            const { data: profile } = await supabase.from('profile').select('last_read_general, last_read_team').eq('id', currentUserId).single();
-            const lastGen = new Date(profile?.last_read_general || 0);
-            const lastTeam = new Date(profile?.last_read_team || 0);
-            const { data: messages } = await supabase.from('messages').select('type, created_at').or(`recipient_id.is.null,recipient_id.eq.${currentUserId}`);
-            if (!messages) return;
-            const unreadGen = messages.filter(m => m.type === 'general' && new Date(m.created_at) > lastGen).length;
-            const unreadTeam = messages.filter(m => m.type === 'team' && new Date(m.created_at) > lastTeam).length;
-            const totalUnread = unreadGen + unreadTeam;
-            const badge = document.getElementById('notif-badge');
-            if (totalUnread > 0) {
-                badge.innerText = totalUnread > 9 ? '9+' : totalUnread;
-                badge.classList.remove('hidden');
-                badge.style.display = 'flex';
-            } else {
-                badge.classList.add('hidden');
-                badge.style.display = 'none';
-            }
-        }
-
-        // SMART CAROUSEL WITH WEIGHTED ADS
-        async function loadAds() {
-            const { data: ads, error } = await supabase
-                .from('promoted_ads') 
-                .select('*')
-                .eq('active', true);
-
-            if (error || !ads || ads.length === 0) return;
-
-            let weightedAds = [];
-            ads.forEach(ad => {
-                const weight = Math.max(1, Math.floor((ad.price || 0) / 100)); 
-                for(let i=0; i<weight; i++) {
-                    weightedAds.push(ad);
-                }
-            });
-
-            activeAds = weightedAds.sort(() => Math.random() - 0.5);
-            
-            displayNextAd();
-            setInterval(displayNextAd, 5000);
-        }
-
-        function displayNextAd() {
-            if (activeAds.length === 0) return;
-            
-            const ad = activeAds[currentAdIndex];
-            const banner = document.getElementById('ad-banner');
-            const adLink = document.getElementById('ad-link');
-            
-            banner.classList.add('opacity-0');
-            
-            setTimeout(() => {
-                banner.style.backgroundImage = `url(${ad.media_url})`;
-                document.getElementById('ad-text').innerText = ad.title;
-                adLink.href = ad.link_url || '#'; 
-                banner.classList.remove('opacity-0');
-                banner.style.display = 'flex';
-            }, 300);
-
-            currentAdIndex = (currentAdIndex + 1) % activeAds.length;
-        }
-
-        async function loadStories() {
-            const now = new Date().toISOString();
-            const { data: stories } = await supabase.from('stories').select('*').gt('expires_at', now).order('created_at', { ascending: false });
-            const rail = document.getElementById('story-rail-content');
-            if (stories?.length > 0) {
-                const uniqueStories = [];
-                const seenUsers = new Set();
-                for (const s of stories) {
-                    if (!seenUsers.has(s.author_id)) {
-                        seenUsers.add(s.author_id);
-                        uniqueStories.push(s);
-                    }
-                }
-                const authorIds = uniqueStories.map(s => s.author_id);
-                const { data: profiles } = await supabase.from('profile').select('id, first_name, is_official').in('id', authorIds);
-                const finalStories = uniqueStories.map(s => ({
-                    ...s, profile: profiles?.find(p => p.id === s.author_id) || {}
-                })).sort((a, b) => (a.author_id === currentUserId ? -1 : 1));
-
-                rail.innerHTML = finalStories.map(s => {
-                    const isSdel = s.is_official_post || s.profile?.is_official === true;
-                    return `
-                        <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='view-story.html?id=${s.id}'">
-                            <div class="w-16 h-16 p-[2px] border-2 ${isSdel ? 'border-yellow-400 sdel-pulse' : 'border-sdel'} rounded-full">
-                                <img src="${s.media_url}" class="w-full h-full rounded-full object-cover bg-zinc-900">
-                            </div>
-                            <span class="text-[9px] font-black uppercase ${isSdel ? 'text-yellow-400' : 'text-white'} truncate w-16 text-center">${isSdel ? 'SDEL' : (s.profile?.first_name || 'MEMBER')}</span>
-                        </div>`;
-                }).join('');
-            }
-        }
-
-        async function loadOrders() {
-            const { data: orders } = await supabase.from('orders').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
-            if (!orders) return;
-            allOrdersData = orders;
-            renderOrderList(orders.slice(0, 3), 'order-history-list');
-        }
-
-        function renderOrderList(data, targetId) {
-            const container = document.getElementById(targetId);
-            container.innerHTML = data.map(o => {
-                const displayId = o.order_code || `ID: ${o.id.slice(0,8)}`;
-                const itemNames = o.items ? JSON.parse(JSON.stringify(o.items)).map(i => i.name).join(', ') : 'Market Item';
-                let statusColor = 'bg-zinc-500/20 text-zinc-400';
-                if(o.status === 'accepted') statusColor = 'bg-emerald-500/20 text-emerald-500';
-                if(o.status === 'rejected') statusColor = 'bg-red-500/20 text-red-500';
-                return `
-                    <div class="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/10 select-none">
-                        <div class="max-w-[70%]">
-                            <p class="text-[9px] font-black text-white/50 uppercase">${displayId}</p>
-                            <p class="text-[11px] font-bold text-white truncate">${itemNames}</p>
-                        </div>
-                        <span class="px-2 py-1 rounded text-[8px] font-black uppercase ${statusColor}">${o.status}</span>
-                    </div>`;
-            }).join('');
-        }
-
-        window.toggleAllOrders = function(show) {
-            const modal = document.getElementById('all-orders-modal');
-            if(show) {
-                renderOrderList(allOrdersData, 'full-order-list');
-                modal.classList.remove('hidden');
-            } else {
-                modal.classList.add('hidden');
-            }
-        }
-
-        function updatePrestige(xp) {
-            const badge = document.getElementById('rank-badge');
-            const progress = document.getElementById('xp-progress-bar');
-            let rank = { n: "CITIZEN", c: "bg-zinc-700", p: (xp/500)*100 };
-            if (xp >= 10000) rank = { n: "OVERLORD", c: "bg-gradient-to-r from-red-600 to-black animate-pulse", p: 100 };
-            else if (xp >= 5000) rank = { n: "MYTHIC", c: "bg-purple-600", p: (xp/10000)*100 };
-            else if (xp >= 2500) rank = { n: "ELITE", c: "bg-blue-600", p: (xp/5000)*100 };
-            else if (xp >= 1000) rank = { n: "WRAITH", c: "bg-emerald-600", p: (xp/2500)*100 };
-            else if (xp >= 500) rank = { n: "SCOUT", c: "bg-orange-600", p: (xp/1000)*100 };
-            badge.innerText = rank.n;
-            badge.className = `px-3 py-1 rounded text-[10px] font-black italic text-white ${rank.c}`;
-            progress.style.width = `${rank.p}%`;
-        }
-
-        async function loadFeed() {
-            const { data: posts } = await supabase.from('posts').select('*, profile(first_name, avatar_url, xp)').order('created_at', { ascending: false });
-            const feed = document.getElementById('global-feed');
-            if (posts?.length > 0) {
-                feed.innerHTML = posts.map(p => `
-                    <div class="card-glass rounded-[2.5rem] overflow-hidden mb-6">
-                        <div class="p-4 flex justify-between items-center border-b border-white/5">
-                            <div class="flex items-center space-x-3">
-                                <img src="${p.profile?.avatar_url || 'https://api.dicebear.com/7.x/initials/svg?seed='+p.profile?.first_name}" class="w-8 h-8 rounded-full border border-white/20">
-                                <div><p class="header-text text-[11px]">${p.profile?.first_name || 'Scholar'}</p></div>
-                            </div>
-                        </div>
-                        ${p.media_url ? `<img src="${p.media_url}" class="w-full object-cover">` : ''}
-                        <div class="p-5"><p class="text-[13px] text-white font-bold leading-snug">${p.content}</p></div>
-                    </div>`).join('');
-                lucide.createIcons();
-            }
-        }
-        init();
-    </script>
-    
     <style>
-        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: #fff; }
+        html { opacity: 0; transition: opacity 0.3s ease; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-glass { background: #111; border: 1px solid rgba(255,255,255,0.15); }
-        .header-text { font-weight: 900; color: #FFFFFF; text-transform: uppercase; letter-spacing: -0.02em; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .select-none { user-select: none; -webkit-user-select: none; }
-        @keyframes gold-glow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
-        .sdel-pulse { animation: gold-glow 2s infinite; }
-        .transition-opacity { transition: opacity 0.5s ease-in-out; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
+        
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 250; pointer-events: none; }
+        .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(110vh); } }
+
+        .modal-overlay { backdrop-filter: blur(25px); z-index: 200; position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; padding: 24px; overflow-y: auto; }
+        .input-zinc { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; width: 100%; padding: 16px; border-radius: 16px; font-size: 14px; outline: none; }
+        .input-zinc:focus { border-color: #FF6600; }
+
+        .spinner { animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="pb-24">
+<body class="pb-32">
 
-    <nav class="p-5 flex justify-between items-center sticky top-0 bg-black/90 z-50 border-b border-white/10 backdrop-blur-xl">
-        <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 rounded-full border-2 border-white overflow-hidden shadow-lg shadow-white/10">
-                <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
-            </div>
-            <div>
-                <p class="header-text text-lg italic">HI, <span id="user-name" class="text-sdel">...</span></p>
-                <span id="wallet-pill" class="bg-white text-black text-[9px] font-black px-2 py-0.5 rounded italic">₦0.00</span>
-            </div>
-        </div>
-        <div class="flex items-center space-x-5">
-            <i data-lucide="search" size="24" onclick="location.href='circle.html'"></i>
-            <div class="relative cursor-pointer" onclick="location.href='messages.html'">
-                <i data-lucide="bell" size="24"></i>
-                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black z-10" style="display: none;">0</span>
-            </div>
-        </div>
+    <div class="stars" id="stars"></div>
+
+    <nav class="p-6 flex items-center justify-between sticky top-0 bg-black/90 backdrop-blur-md z-50">
+        <a href="dashboard.html" class="text-white"><i data-lucide="chevron-left"></i></a>
+        <h1 class="text-lg font-black uppercase tracking-tighter">My <span class="text-sdel">Account</span></h1>
+        <button id="logout-btn-top" class="text-gray-500"><i data-lucide="log-out" size="20"></i></button>
     </nav>
 
-    <section class="p-4 border-b border-white/5">
-        <div class="flex space-x-4 overflow-x-auto no-scrollbar py-2">
-            <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='post-story.html'">
-                <div class="w-16 h-16 rounded-full bg-zinc-900 border-2 border-dashed border-white/40 flex items-center justify-center">
-                    <i data-lucide="plus" size="24"></i>
+    <main class="p-6 space-y-8">
+        <div class="flex flex-col items-center text-center space-y-4">
+            <div id="p-initials" class="w-24 h-24 rounded-full bg-zinc-900 border-4 border-zinc-800 flex items-center justify-center text-3xl font-black text-sdel uppercase">--</div>
+            <div>
+                <h2 id="p-full-name" class="text-2xl font-black uppercase tracking-tight italic">Loading...</h2>
+                <p id="p-email" class="text-gray-500 text-xs font-bold uppercase tracking-widest">---</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="card-zinc p-5 rounded-3xl text-center">
+                <p class="text-[9px] font-black uppercase text-gray-500 mb-1">Balance</p>
+                <p id="p-balance" class="text-xl font-black italic">₦0</p>
+            </div>
+            <div class="card-zinc p-5 rounded-3xl text-center">
+                <p class="text-[9px] font-black uppercase text-gray-500 mb-1">Status</p>
+                <p class="text-xl font-black italic text-green-500">Active</p>
+            </div>
+        </div>
+
+        <div class="space-y-3">
+            <h3 class="text-[10px] font-black uppercase text-gray-500 tracking-widest px-2">Settings</h3>
+            <div onclick="openModal('edit-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-sdel"><i data-lucide="user" size="18"></i></div>
+                    <span class="text-sm font-bold uppercase">Personal Info</span>
                 </div>
-                <span class="text-[9px] font-black uppercase">Post</span>
+                <i data-lucide="chevron-right" class="text-gray-600"></i>
             </div>
-            <div id="story-rail-content" class="flex space-x-4"></div>
-        </div>
-    </section>
-
-    <section class="p-4">
-        <a id="ad-link" href="#" target="_blank" class="block w-full">
-            <div id="ad-banner" class="w-full h-[400px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10 transition-opacity duration-500" style="display: none;">
-                <div class="bg-black/70 backdrop-blur-md p-4 rounded-2xl w-full border border-white/5">
-                    <span class="text-[8px] bg-white text-black px-2 py-0.5 font-black rounded mb-2 inline-block">SPONSORED</span>
-                    <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Loading...</p>
+            <div onclick="openModal('security-modal')" class="card-zinc p-4 rounded-3xl flex items-center justify-between cursor-pointer hover:border-sdel/50 transition">
+                <div class="flex items-center space-x-4">
+                    <div class="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-blue-500"><i data-lucide="shield-check" size="18"></i></div>
+                    <span class="text-sm font-bold uppercase">Security</span>
                 </div>
+                <i data-lucide="chevron-right" class="text-gray-600"></i>
             </div>
-        </a>
-    </section>
+        </div>
 
-    <section class="p-4">
-        <div class="card-glass rounded-[2rem] p-5">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="header-text text-[10px] text-white/50 italic">Order History</h3>
-                <button onclick="toggleAllOrders(true)" class="text-[9px] font-black text-sdel uppercase italic">Show All</button>
+        <div class="space-y-4 pt-4">
+            <button id="logout-btn" class="w-full bg-zinc-900 text-red-500 py-4 rounded-3xl font-black uppercase text-[10px] tracking-widest border border-red-500/20 hover:bg-red-500 hover:text-white transition">Sign Out</button>
+            
+            <button onclick="openDeleteModal()" class="w-full text-zinc-600 py-2 font-bold uppercase text-[9px] tracking-[0.2em] hover:text-red-600 transition">
+                Delete Account Forever
+            </button>
+        </div>
+    </main>
+
+    <div id="delete-modal" class="modal-overlay">
+        <div class="max-w-md mx-auto mt-20 p-8 card-zinc rounded-[40px] border-red-500/30 text-center space-y-6 relative z-10">
+            <div class="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto text-red-500">
+                <i data-lucide="alert-triangle" size="40"></i>
             </div>
-            <div id="order-history-list" class="space-y-3"></div>
-        </div>
-    </section>
+            <h2 class="text-2xl font-black uppercase italic">Danger <span class="text-red-500">Zone</span></h2>
+            <p class="text-gray-400 text-xs leading-relaxed uppercase font-bold tracking-wider">
+                This action is irreversible. You will lose your account, post history, and your current balance:
+            </p>
+            <div class="bg-red-500/20 py-3 rounded-2xl">
+                <p id="delete-balance-warning" class="text-xl font-black text-red-500">₦0</p>
+            </div>
+            
+            <div class="space-y-4 text-left">
+                <p class="text-[9px] font-black uppercase text-gray-500 ml-2">Confirm with Password</p>
+                <input id="delete-pass-confirm" type="password" class="input-zinc border-red-500/20" placeholder="Your Password">
+            </div>
 
-    <div id="all-orders-modal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md hidden p-6 overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="header-text text-xl italic">Full History</h2>
-            <i data-lucide="x" class="text-white" onclick="toggleAllOrders(false)"></i>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="closeModal('delete-modal')" class="bg-zinc-900 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Cancel</button>
+                <button onclick="handleAccountDeletion()" id="final-delete-btn" class="bg-red-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Delete Me</button>
+            </div>
         </div>
-        <div id="full-order-list" class="space-y-4"></div>
     </div>
 
-    <section class="p-4">
-        <div class="card-glass rounded-[2rem] p-5">
-            <div class="flex justify-between items-center mb-4">
-                <div><p class="text-[8px] font-black text-white/40 uppercase mb-1">Status</p><div id="rank-badge">...</div></div>
-                <div class="text-right"><p class="header-text text-xl italic" id="xp-count">0</p><p class="text-[8px] font-black text-sdel uppercase">XP</p></div>
-            </div>
-            <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden"><div id="xp-progress-bar" class="h-full bg-sdel transition-all duration-1000" style="width: 0%"></div></div>
+    <div id="edit-modal" class="modal-overlay">
+        <div class="flex justify-between items-center mb-8 relative z-10">
+            <h2 class="text-xl font-black uppercase italic">Edit <span class="text-sdel">Profile</span></h2>
+            <button onclick="closeModal('edit-modal')" class="text-white"><i data-lucide="x"></i></button>
         </div>
-    </section>
+        <div class="space-y-4 relative z-10">
+            <input id="edit-fname" type="text" class="input-zinc" placeholder="First Name">
+            <input id="edit-lname" type="text" class="input-zinc" placeholder="Last Name">
+            <input id="edit-phone" type="text" class="input-zinc" placeholder="Phone Number">
+            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
+                <span id="save-text">Save Changes</span>
+            </button>
+        </div>
+    </div>
 
-    <main id="global-feed" class="p-4"></main>
+    <div id="security-modal" class="modal-overlay">
+        <div class="flex justify-between items-center mb-8 relative z-10">
+            <h2 class="text-xl font-black uppercase italic">Update <span class="text-sdel">Security</span></h2>
+            <button onclick="closeModal('security-modal')" class="text-white"><i data-lucide="x"></i></button>
+        </div>
+        <div class="space-y-4 relative z-10">
+            <div class="relative">
+                <input id="new-pass" type="password" class="input-zinc" placeholder="New Password">
+                <button onclick="togglePass('new-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
+            </div>
+            <div class="relative">
+                <input id="confirm-pass" type="password" class="input-zinc" placeholder="Confirm New Password">
+                <button onclick="togglePass('confirm-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
+            </div>
+            <p id="pass-msg" class="text-[10px] font-bold uppercase text-center"></p>
+            <button onclick="updatePassword()" id="pass-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
+                <span id="pass-text">Update Password</span>
+            </button>
+        </div>
+    </div>
 
-    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
-        <i data-lucide="home" class="text-sdel" size="28"></i>
+    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100]">
+        <i data-lucide="home" class="text-white" size="28" onclick="location.href='dashboard.html'"></i>
         <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
         <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
             <i data-lucide="camera" class="text-black" size="28"></i>
         </div>
         <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
-        <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
+        <i data-lucide="user" class="text-sdel" size="28" onclick="location.href='profile.html'"></i>
     </nav>
 
-    <script>lucide.createIcons();</script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let currentUser = null;
+
+        async function checkSession() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) { window.location.replace('login.html'); }
+            else { 
+                document.documentElement.style.opacity = "1";
+                currentUser = session.user;
+                loadProfile(); 
+            }
+        }
+
+        async function loadProfile() {
+            const { data: profile, error } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
+            if (error) return;
+
+            // Priority: Profile table data > Auth MetaData > Default
+            const fName = profile?.first_name || currentUser.user_metadata?.first_name || "User";
+            const lName = profile?.last_name || currentUser.user_metadata?.last_name || "";
+            const balance = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
+            
+            document.getElementById('p-full-name').innerText = (fName + " " + lName).trim();
+            document.getElementById('p-email').innerText = currentUser.email;
+            document.getElementById('p-balance').innerText = balance;
+            document.getElementById('delete-balance-warning').innerText = balance;
+            
+            const initial1 = fName.charAt(0);
+            const initial2 = lName.charAt(0) || "";
+            document.getElementById('p-initials').innerText = (initial1 + initial2).toUpperCase();
+            
+            // Set input defaults
+            document.getElementById('edit-fname').value = fName;
+            document.getElementById('edit-lname').value = lName;
+            document.getElementById('edit-phone').value = profile?.phone || currentUser.user_metadata?.phone || "";
+        }
+
+        window.openDeleteModal = () => {
+            document.getElementById('delete-modal').style.display = 'block';
+        };
+
+        window.handleAccountDeletion = async () => {
+            const pass = document.getElementById('delete-pass-confirm').value;
+            const btn = document.getElementById('final-delete-btn');
+            
+            if (!pass) {
+                alert("Please enter your password to confirm.");
+                return;
+            }
+
+            btn.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> TERMINATING...';
+            btn.disabled = true;
+            lucide.createIcons();
+
+            try {
+                const { error: signInErr } = await supabase.auth.signInWithPassword({
+                    email: currentUser.email,
+                    password: pass
+                });
+
+                if (signInErr) {
+                    alert("Incorrect password. Deletion aborted.");
+                    btn.innerText = "Delete Me";
+                    btn.disabled = false;
+                    return;
+                }
+
+                const { error: deleteErr } = await supabase.rpc('delete_user_completely');
+                
+                if (deleteErr) {
+                    alert("System Error: " + deleteErr.message);
+                    btn.innerText = "Delete Me";
+                    btn.disabled = false;
+                } else {
+                    await supabase.auth.signOut();
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.replace('join.html');
+                }
+            } catch (err) {
+                alert("Connection error. Try again.");
+                btn.innerText = "Delete Me";
+                btn.disabled = false;
+            }
+        };
+
+        window.openModal = (id) => document.getElementById(id).style.display = 'block';
+        window.closeModal = (id) => document.getElementById(id).style.display = 'none';
+        
+        window.togglePass = (id) => {
+            const el = document.getElementById(id);
+            el.type = el.type === 'password' ? 'text' : 'password';
+            lucide.createIcons();
+        };
+
+        window.saveProfileUpdates = async () => {
+            const text = document.getElementById('save-text');
+            const newFname = document.getElementById('edit-fname').value;
+            const newLname = document.getElementById('edit-lname').value;
+            const newPhone = document.getElementById('edit-phone').value;
+
+            text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> UPDATING...';
+            lucide.createIcons();
+
+            // 1. Update the Public Profile Table
+            const { error: profileError } = await supabase.from('profile').update({
+                first_name: newFname,
+                last_name: newLname,
+                phone: newPhone
+            }).eq('id', currentUser.id);
+
+            // 2. Update the Auth MetaData (CRITICAL for Dashboard sync)
+            const { error: authError } = await supabase.auth.updateUser({
+                data: { first_name: newFname, last_name: newLname, phone: newPhone }
+            });
+
+            if (profileError || authError) { 
+                alert("Update failed. Try again."); 
+                text.innerText = "Save Changes"; 
+            } 
+            else { 
+                location.reload(); 
+            }
+        };
+
+        window.updatePassword = async () => {
+            const pass = document.getElementById('new-pass').value;
+            const confirm = document.getElementById('confirm-pass').value;
+            const msg = document.getElementById('pass-msg');
+            const btnText = document.getElementById('pass-text');
+            if (pass !== confirm) { msg.innerText = "Passwords do not match!"; msg.className = "text-red-500"; return; }
+            btnText.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> PROCESSING...';
+            lucide.createIcons();
+            const { error } = await supabase.auth.updateUser({ password: pass });
+            if (error) { msg.innerText = error.message; msg.className = "text-red-500"; btnText.innerText = "Update Password"; } 
+            else { msg.innerText = "Success!"; msg.className = "text-green-500"; setTimeout(() => closeModal('security-modal'), 2000); }
+            lucide.createIcons();
+        };
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 150; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
+                star.style.left = Math.random() * 100 + 'vw';
+                star.style.top = i < 50 ? Math.random() * 100 + 'vh' : '-' + (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
+                container.appendChild(star);
+            }
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
+        document.getElementById('logout-btn-top').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
+        createStars();
+        checkSession();
+        lucide.createIcons();
+    </script>
 </body>
-</html>
+        </html>
+                
