@@ -45,49 +45,80 @@
             container.innerHTML = `<div class="p-10 text-center text-zinc-600">Loading...</div>`;
 
             if (activeTab === 'general') {
-                const { data } = await supabase.from('connections').select('*, profile:profile!receiver_id(*)').eq('status', 'accepted');
+                // FIXED: Pulls where you are EITHER sender OR receiver
+                const { data } = await supabase.from('connections')
+                    .select('*, sender:profile!sender_id(*), receiver:profile!receiver_id(*)')
+                    .eq('status', 'accepted')
+                    .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
                 renderChats(data);
             } else if (activeTab === 'requests') {
                 const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
                 renderRequests(data);
+            } else if (activeTab === 'unread') {
+                // Logic for unread messages (placeholder filter)
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-xs italic uppercase">No unread messages</p>`;
             }
         }
 
-        function renderChats(homies) {
+        function renderChats(connections) {
             const container = document.getElementById('main-content');
-            if (!homies || homies.length === 0) {
+            if (!connections || connections.length === 0) {
                 container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-xs">No homies yet. Search to add some!</p>`;
                 return;
             }
-            container.innerHTML = homies.map(h => `
-                <div onclick="location.href='dm.html?id=${h.profile.id}'" class="flex items-center p-4 space-x-4 border-b border-white/5 active:bg-zinc-900">
-                    <div class="w-12 h-12 rounded-full bg-zinc-800 border border-sdel/20 flex items-center justify-center text-sdel font-black">${h.profile.first_name[0]}</div>
+            container.innerHTML = connections.map(c => {
+                // Determine who the "other" person is
+                const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
+                const avatar = partner.avatar_url ? partner.avatar_url : `https://api.dicebear.com/7.x/initials/svg?seed=${partner.first_name}`;
+                
+                return `
+                <div onclick="location.href='dm.html?id=${partner.id}'" class="flex items-center p-4 space-x-4 border-b border-white/5 active:bg-zinc-900 transition">
+                    <img src="${avatar}" class="w-12 h-12 rounded-full border border-sdel/20 object-cover bg-zinc-800">
                     <div class="flex-1">
-                        <div class="flex justify-between items-center"><h3 class="text-sm font-bold text-white">${h.profile.first_name} ${h.profile.last_name}</h3><span class="text-[9px] text-zinc-600">Now</span></div>
-                        <p class="text-xs text-zinc-500 truncate italic">Tap to open encrypted chat...</p>
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-sm font-bold text-white uppercase">${partner.first_name} ${partner.last_name}</h3>
+                            <span class="text-[9px] text-zinc-600 font-black">ACTIVE</span>
+                        </div>
+                        <p class="text-[10px] text-zinc-500 truncate italic">Encrypted Connection Established</p>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderRequests(reqs) {
+            const container = document.getElementById('main-content');
+            if (!reqs || reqs.length === 0) {
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-xs">No pending requests</p>`;
+                return;
+            }
+            container.innerHTML = reqs.map(r => `
+                <div class="flex items-center p-4 space-x-4 border-b border-white/5">
+                    <div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-black border border-white/10 text-sdel">${r.sender.first_name[0]}</div>
+                    <div class="flex-1">
+                        <h3 class="text-xs font-bold text-white">${r.sender.first_name} @${r.sender.username}</h3>
+                        <div class="flex space-x-2 mt-2">
+                            <button onclick="respond('${r.id}', 'accepted')" class="bg-sdel text-black text-[9px] font-black px-4 py-1.5 rounded-lg active:scale-95 transition">Accept</button>
+                            <button onclick="respond('${r.id}', 'rejected')" class="bg-zinc-800 text-white text-[9px] font-black px-4 py-1.5 rounded-lg active:scale-95 transition">Reject</button>
+                        </div>
                     </div>
                 </div>
             `).join('');
         }
 
-        function renderRequests(reqs) {
-            const container = document.getElementById('main-content');
-            container.innerHTML = reqs.map(r => `
-                <div class="flex items-center p-4 space-x-4 border-b border-white/5">
-                    <div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-black">${r.sender.first_name[0]}</div>
-                    <div class="flex-1">
-                        <h3 class="text-xs font-bold text-white">${r.sender.first_name} @${r.sender.username}</h3>
-                        <div class="flex space-x-2 mt-2">
-                            <button onclick="respond('${r.id}', 'accepted')" class="bg-sdel text-black text-[9px] font-black px-4 py-1.5 rounded-lg">Accept</button>
-                            <button onclick="respond('${r.id}', 'rejected')" class="bg-zinc-800 text-white text-[9px] font-black px-4 py-1.5 rounded-lg">Reject</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('') || `<p class="p-10 text-center text-zinc-500 text-xs">No pending requests</p>`;
-        }
+        // FIXED: Respond function logic
+        window.respond = async (id, status) => {
+            const { error } = await supabase.from('connections').update({ status }).eq('id', id);
+            if (!error) {
+                alert(`Homie request ${status}!`);
+                loadContent();
+            }
+        };
 
         window.searchMaster = async (val) => {
-            if (val.length < 2) return;
+            if (val.length < 2) {
+                document.getElementById('public-search-trigger').classList.add('hidden');
+                return;
+            }
             document.getElementById('public-search-trigger').classList.remove('hidden');
         };
 
@@ -96,6 +127,7 @@
             const container = document.getElementById('main-content');
             container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-xs font-black">SEARCHING GLOBAL SDEL...</p>`;
             
+            // FIXED: Searching specifically by first_name and last_name columns
             const { data } = await supabase.from('profile')
                 .select('*')
                 .neq('id', currentUserId)
@@ -105,7 +137,7 @@
             container.innerHTML = `
                 <div class="p-4 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
                     <span class="text-[10px] font-black text-sdel italic uppercase">Public Results</span>
-                    <i data-lucide="x" size="14" onclick="loadContent()"></i>
+                    <i data-lucide="x" size="14" onclick="loadContent()" class="cursor-pointer"></i>
                 </div>
                 ${data.map(u => `
                     <div class="flex justify-between items-center p-4 border-b border-white/5">
@@ -116,7 +148,7 @@
                                 <p class="text-[9px] text-zinc-500 italic">@${u.username}</p>
                             </div>
                         </div>
-                        <button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full">ADD</button>
+                        <button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full active:scale-90 transition">ADD</button>
                     </div>
                 `).join('')}
             `;
@@ -124,7 +156,17 @@
         };
 
         window.sendHomieReq = async (id) => {
-            await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id });
+            // Check if connection already exists to prevent duplicates
+            const { data: existing } = await supabase.from('connections')
+                .select('*')
+                .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${id}),and(sender_id.eq.${id},receiver_id.eq.${currentUserId})`);
+
+            if (existing && existing.length > 0) {
+                alert('Connection already exists or pending!');
+                return;
+            }
+
+            await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
             alert('Request Sent, Homie!');
             loadContent();
         };
@@ -135,9 +177,9 @@
 <body class="pb-24">
 
     <nav class="p-5 flex justify-between items-center sticky top-0 bg-black/95 z-50">
-        <h1 class="header-text text-xl italic">Homies</h1>
+        <h1 class="header-text text-xl italic uppercase">Homies</h1>
         <div class="flex items-center">
-            <i data-lucide="refresh-cw" class="text-zinc-400" size="22" onclick="location.href='dashboard.html'"></i>
+            <i data-lucide="refresh-cw" class="text-zinc-400 active:rotate-180 transition-all duration-500" size="22" onclick="location.href='dashboard.html'"></i>
         </div>
     </nav>
 
@@ -149,11 +191,11 @@
 
     <div class="p-4">
         <div class="relative bg-zinc-900 rounded-2xl px-5 py-3 flex items-center border border-white/5">
-            <input type="text" id="search-input" oninput="searchMaster(this.value)" placeholder="Find homies..." class="bg-transparent w-full text-sm focus:outline-none">
+            <input type="text" id="search-input" oninput="searchMaster(this.value)" placeholder="Find homies..." class="bg-transparent w-full text-sm focus:outline-none text-white font-bold">
             <i data-lucide="search" class="text-zinc-600" size="18"></i>
         </div>
-        <div id="public-search-trigger" onclick="searchPublic()" class="hidden mt-3 p-3 bg-zinc-900 rounded-xl border border-sdel/30 flex justify-between items-center animate-pulse">
-            <span class="text-[10px] font-black italic">No local results. Search Public Sdel?</span>
+        <div id="public-search-trigger" onclick="searchPublic()" class="hidden mt-3 p-3 bg-sdel/10 rounded-xl border border-sdel/30 flex justify-between items-center animate-pulse cursor-pointer">
+            <span class="text-[10px] font-black italic text-sdel">Global Search: Browse Sdel Network</span>
             <i data-lucide="globe" class="text-sdel" size="14"></i>
         </div>
     </div>
