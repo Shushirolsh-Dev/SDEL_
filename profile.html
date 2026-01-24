@@ -176,8 +176,9 @@
             const { data: profile, error } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
             if (error) return;
 
-            const fName = profile?.first_name || profile?.username || "User";
-            const lName = profile?.last_name || "";
+            // Priority: Profile table data > Auth MetaData > Default
+            const fName = profile?.first_name || currentUser.user_metadata?.first_name || "User";
+            const lName = profile?.last_name || currentUser.user_metadata?.last_name || "";
             const balance = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
             
             document.getElementById('p-full-name').innerText = (fName + " " + lName).trim();
@@ -188,9 +189,11 @@
             const initial1 = fName.charAt(0);
             const initial2 = lName.charAt(0) || "";
             document.getElementById('p-initials').innerText = (initial1 + initial2).toUpperCase();
-            document.getElementById('edit-fname').value = profile?.first_name || "";
-            document.getElementById('edit-lname').value = profile?.last_name || "";
-            document.getElementById('edit-phone').value = profile?.phone || "";
+            
+            // Set input defaults
+            document.getElementById('edit-fname').value = fName;
+            document.getElementById('edit-lname').value = lName;
+            document.getElementById('edit-phone').value = profile?.phone || currentUser.user_metadata?.phone || "";
         }
 
         window.openDeleteModal = () => {
@@ -211,7 +214,6 @@
             lucide.createIcons();
 
             try {
-                // Re-verify password for security
                 const { error: signInErr } = await supabase.auth.signInWithPassword({
                     email: currentUser.email,
                     password: pass
@@ -224,7 +226,6 @@
                     return;
                 }
 
-                // Call the aggressive SQL function that wipes Auth + Profile
                 const { error: deleteErr } = await supabase.rpc('delete_user_completely');
                 
                 if (deleteErr) {
@@ -232,7 +233,6 @@
                     btn.innerText = "Delete Me";
                     btn.disabled = false;
                 } else {
-                    // Sign out and nuke local session data
                     await supabase.auth.signOut();
                     localStorage.clear();
                     sessionStorage.clear();
@@ -256,15 +256,32 @@
 
         window.saveProfileUpdates = async () => {
             const text = document.getElementById('save-text');
+            const newFname = document.getElementById('edit-fname').value;
+            const newLname = document.getElementById('edit-lname').value;
+            const newPhone = document.getElementById('edit-phone').value;
+
             text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> UPDATING...';
             lucide.createIcons();
-            const { error } = await supabase.from('profile').update({
-                first_name: document.getElementById('edit-fname').value,
-                last_name: document.getElementById('edit-lname').value,
-                phone: document.getElementById('edit-phone').value
+
+            // 1. Update the Public Profile Table
+            const { error: profileError } = await supabase.from('profile').update({
+                first_name: newFname,
+                last_name: newLname,
+                phone: newPhone
             }).eq('id', currentUser.id);
-            if (error) { alert(error.message); text.innerText = "Save Changes"; } 
-            else { location.reload(); }
+
+            // 2. Update the Auth MetaData (CRITICAL for Dashboard sync)
+            const { error: authError } = await supabase.auth.updateUser({
+                data: { first_name: newFname, last_name: newLname, phone: newPhone }
+            });
+
+            if (profileError || authError) { 
+                alert("Update failed. Try again."); 
+                text.innerText = "Save Changes"; 
+            } 
+            else { 
+                location.reload(); 
+            }
         };
 
         window.updatePassword = async () => {
@@ -301,4 +318,5 @@
         lucide.createIcons();
     </script>
 </body>
-</html>
+    </html>
+    
