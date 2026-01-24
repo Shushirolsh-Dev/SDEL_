@@ -14,11 +14,11 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .header-text { font-weight: 800; letter-spacing: -0.01em; }
-        .tab-active { color: #FF6600; border-bottom: 2px solid #FF6600; }
+        .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* Fixed scrolling for the main content area */
-        #main-content { height: calc(100vh - 280px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        /* Content area height adjustment */
+        #main-content { height: calc(100vh - 300px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     </style>
 
     <script type="module">
@@ -29,7 +29,6 @@
         let activeTab = 'general';
         const tabs = ['general', 'requests', 'unread'];
 
-        // SWIPE LOGIC
         let touchstartX = 0;
         let touchendX = 0;
 
@@ -39,7 +38,6 @@
             currentUserId = session.user.id;
             switchTab('general');
 
-            // Handle Swiping
             document.addEventListener('touchstart', e => touchstartX = e.changedTouches[0].screenX);
             document.addEventListener('touchend', e => {
                 touchendX = e.changedTouches[0].screenX;
@@ -50,10 +48,10 @@
         function handleSwipe() {
             const threshold = 100;
             let currentIndex = tabs.indexOf(activeTab);
-            if (touchendX < touchstartX - threshold) { // Swipe Left (Next)
+            if (touchendX < touchstartX - threshold) { 
                 if (currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
             }
-            if (touchendX > touchstartX + threshold) { // Swipe Right (Prev)
+            if (touchendX > touchstartX + threshold) { 
                 if (currentIndex > 0) switchTab(tabs[currentIndex - 1]);
             }
         }
@@ -73,7 +71,7 @@
 
         async function loadContent() {
             const container = document.getElementById('main-content');
-            container.innerHTML = `<div class="p-10 text-center text-zinc-600">Loading...</div>`;
+            container.innerHTML = `<div class="p-10 text-center text-zinc-600 text-lg">Loading...</div>`;
 
             if (activeTab === 'general') {
                 const { data } = await supabase.from('connections')
@@ -85,27 +83,27 @@
                 const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
                 renderRequests(data);
             } else if (activeTab === 'unread') {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-xs italic uppercase">No unread messages</p>`;
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm italic uppercase">No unread messages</p>`;
             }
         }
 
         function renderChats(connections) {
             const container = document.getElementById('main-content');
             if (!connections || connections.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-xs">No homies yet. Search to add some!</p>`;
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm">No homies yet. Search to add some!</p>`;
                 return;
             }
             container.innerHTML = connections.map(c => {
                 const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
                 const avatar = partner.avatar_url ? partner.avatar_url : `https://api.dicebear.com/7.x/initials/svg?seed=${partner.first_name}`;
-                return `<div onclick="location.href='dm.html?id=${partner.id}'" class="flex items-center p-4 space-x-4 border-b border-white/5 active:bg-zinc-900 transition">
-                    <img src="${avatar}" class="w-12 h-12 rounded-full border border-sdel/20 object-cover bg-zinc-800">
+                return `<div onclick="location.href='dm.html?id=${partner.id}'" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition">
+                    <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 object-cover bg-zinc-800">
                     <div class="flex-1">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-sm font-bold text-white uppercase">${partner.first_name} ${partner.last_name}</h3>
-                            <span class="text-[9px] text-zinc-600 font-black">ACTIVE</span>
+                            <h3 class="text-base font-bold text-white uppercase">${partner.first_name} ${partner.last_name}</h3>
+                            <span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>
                         </div>
-                        <p class="text-[10px] text-zinc-500 truncate italic">Encrypted Connection Established</p>
+                        <p class="text-xs text-zinc-500 truncate italic mt-0.5">Encrypted Connection Established</p>
                     </div>
                 </div>`;
             }).join('');
@@ -114,17 +112,17 @@
         function renderRequests(reqs) {
             const container = document.getElementById('main-content');
             if (!reqs || reqs.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-xs">No pending requests</p>`;
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm">No pending requests</p>`;
                 return;
             }
             container.innerHTML = reqs.map(r => `
-                <div class="flex items-center p-4 space-x-4 border-b border-white/5">
-                    <div class="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-black border border-white/10 text-sdel">${r.sender.first_name[0]}</div>
+                <div class="flex items-center p-5 space-x-5 border-b border-white/5">
+                    <div class="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-black border border-white/10 text-sdel">${r.sender.first_name[0]}</div>
                     <div class="flex-1">
-                        <h3 class="text-xs font-bold text-white">${r.sender.first_name} @${r.sender.username}</h3>
-                        <div class="flex space-x-2 mt-2">
-                            <button onclick="respond('${r.id}', 'accepted')" class="bg-sdel text-black text-[9px] font-black px-4 py-1.5 rounded-lg active:scale-95 transition">Accept</button>
-                            <button onclick="respond('${r.id}', 'rejected')" class="bg-zinc-800 text-white text-[9px] font-black px-4 py-1.5 rounded-lg active:scale-95 transition">Reject</button>
+                        <h3 class="text-sm font-bold text-white">${r.sender.first_name} @${r.sender.username}</h3>
+                        <div class="flex space-x-3 mt-3">
+                            <button onclick="respond('${r.id}', 'accepted')" class="bg-sdel text-black text-[11px] font-black px-6 py-2 rounded-xl active:scale-95 transition">Accept</button>
+                            <button onclick="respond('${r.id}', 'rejected')" class="bg-zinc-800 text-white text-[11px] font-black px-6 py-2 rounded-xl active:scale-95 transition">Reject</button>
                         </div>
                     </div>
                 </div>
@@ -149,7 +147,7 @@
         window.searchPublic = async () => {
             const val = document.getElementById('search-input').value;
             const container = document.getElementById('main-content');
-            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-xs font-black">SEARCHING GLOBAL SDEL...</p>`;
+            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-sm font-black italic">SEARCHING GLOBAL SDEL...</p>`;
             
             const { data: users } = await supabase.from('profile')
                 .select('*')
@@ -157,37 +155,36 @@
                 .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
                 .limit(15);
 
-            // Get existing connections to show status
             const { data: conn } = await supabase.from('connections')
                 .select('*')
                 .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
 
             container.innerHTML = `
-                <div class="p-4 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
-                    <span class="text-[10px] font-black text-sdel italic uppercase">Public Results</span>
-                    <i data-lucide="x" size="18" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
+                <div class="p-5 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
+                    <span class="text-xs font-black text-sdel italic uppercase tracking-wider">Public Results</span>
+                    <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
                 </div>
                 ${users.map(u => {
                     const isOfficial = u.is_official === true;
                     const relationship = conn.find(c => c.sender_id === u.id || c.receiver_id === u.id);
-                    let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full active:scale-90 transition uppercase">Add</button>`;
+                    let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[11px] font-black px-5 py-2 rounded-full active:scale-90 transition uppercase">Add</button>`;
                     
-                    if (isOfficial) btnHtml = `<span class="text-[8px] font-black text-zinc-700 uppercase pr-2">Official</span>`;
+                    if (isOfficial) btnHtml = `<span class="text-[10px] font-black text-zinc-600 uppercase pr-2 tracking-widest">Official</span>`;
                     else if (relationship) {
-                        if (relationship.status === 'pending') btnHtml = `<span class="text-[8px] font-black text-zinc-500 uppercase italic">Sent</span>`;
-                        if (relationship.status === 'accepted') btnHtml = `<span class="text-[8px] font-black text-sdel uppercase">Homie</span>`;
+                        if (relationship.status === 'pending') btnHtml = `<span class="text-[10px] font-black text-zinc-500 uppercase italic">Sent</span>`;
+                        if (relationship.status === 'accepted') btnHtml = `<span class="text-[10px] font-black text-sdel uppercase">Homie</span>`;
                     }
 
                     return `
-                    <div class="flex justify-between items-center p-4 border-b border-white/5">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-lg bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel italic font-black">${u.first_name[0]}</div>
+                    <div class="flex justify-between items-center p-5 border-b border-white/5">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel italic font-black text-lg">${u.first_name[0]}</div>
                             <div>
-                                <p class="text-xs font-bold text-white">
+                                <p class="text-sm font-bold text-white">
                                     ${u.first_name} ${u.last_name}
-                                    ${isOfficial ? '<span class="ml-1 text-[#FF6600] text-[8px] font-black">VERIFIED</span>' : ''}
+                                    ${isOfficial ? '<span class="ml-1 text-[#FF6600] text-[9px] font-black tracking-widest">VERIFIED</span>' : ''}
                                 </p>
-                                <p class="text-[9px] text-zinc-500 italic">@${u.username}</p>
+                                <p class="text-xs text-zinc-500 italic mt-0.5">@${u.username}</p>
                             </div>
                         </div>
                         ${btnHtml}
@@ -200,7 +197,7 @@
         window.sendHomieReq = async (id) => {
             const { error } = await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
             if (!error) {
-                switchTab('requests'); // Redirect to requests tab
+                switchTab('requests');
             }
         };
 
@@ -209,45 +206,45 @@
 </head>
 <body class="pb-24">
 
-    <nav class="p-5 flex justify-between items-center sticky top-0 bg-black/95 z-50">
-        <h1 class="header-text text-xl italic uppercase">Homies</h1>
+    <nav class="p-6 flex justify-between items-center sticky top-0 bg-black/95 z-50">
+        <h1 class="header-text text-2xl italic uppercase">Homies</h1>
         <div class="flex items-center">
-            <i data-lucide="refresh-cw" class="text-zinc-400 active:rotate-180 transition-all duration-500" size="22" onclick="location.href='dashboard.html'"></i>
+            <i data-lucide="refresh-cw" class="text-zinc-400 active:rotate-180 transition-all duration-500" size="26" onclick="location.href='dashboard.html'"></i>
         </div>
     </nav>
 
-    <div class="flex px-5 border-b border-white/5 bg-black sticky top-[68px] z-40">
-        <button id="tab-general" onclick="switchTab('general')" class="tab-btn flex-1 py-3 text-[10px] font-black uppercase tab-active">General</button>
-        <button id="tab-requests" onclick="switchTab('requests')" class="tab-btn flex-1 py-3 text-[10px] font-black uppercase">Requests</button>
-        <button id="tab-unread" onclick="switchTab('unread')" class="tab-btn flex-1 py-3 text-[10px] font-black uppercase">Unread</button>
+    <div class="flex px-6 border-b border-white/5 bg-black sticky top-[80px] z-40">
+        <button id="tab-general" onclick="switchTab('general')" class="tab-btn flex-1 py-4 text-xs font-black uppercase tab-active">General</button>
+        <button id="tab-requests" onclick="switchTab('requests')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Requests</button>
+        <button id="tab-unread" onclick="switchTab('unread')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Unread</button>
     </div>
 
-    <div class="p-4 bg-black sticky top-[118px] z-40">
-        <div class="relative bg-zinc-900 rounded-2xl px-5 py-3 flex items-center border border-white/5">
-            <input type="text" id="search-input" oninput="searchMaster(this.value)" placeholder="Find homies..." class="bg-transparent w-full text-sm focus:outline-none text-white font-bold">
-            <i data-lucide="search" class="text-zinc-600" size="18"></i>
+    <div class="p-5 bg-black sticky top-[138px] z-40">
+        <div class="relative bg-zinc-900 rounded-2xl px-6 py-4 flex items-center border border-white/5">
+            <input type="text" id="search-input" oninput="searchMaster(this.value)" placeholder="Find homies..." class="bg-transparent w-full text-base focus:outline-none text-white font-bold">
+            <i data-lucide="search" class="text-zinc-600" size="22"></i>
         </div>
-        <div id="public-search-trigger" onclick="searchPublic()" class="hidden mt-3 p-3 bg-sdel/10 rounded-xl border border-sdel/30 flex justify-between items-center animate-pulse cursor-pointer">
-            <span class="text-[10px] font-black italic text-sdel">Global Search: Browse Sdel Network</span>
-            <i data-lucide="globe" class="text-sdel" size="14"></i>
+        <div id="public-search-trigger" onclick="searchPublic()" class="hidden mt-4 p-4 bg-sdel/10 rounded-xl border border-sdel/30 flex justify-between items-center cursor-pointer">
+            <span class="text-xs font-black italic text-sdel uppercase tracking-tight">Global Search: Browse Sdel Network</span>
+            <i data-lucide="globe" class="text-sdel" size="18"></i>
         </div>
     </div>
 
     <main id="main-content" class="flex flex-col">
     </main>
 
-    <nav class="fixed bottom-0 inset-x-0 bg-black border-t border-white/10 p-4 flex justify-around items-center backdrop-blur-lg z-50">
+    <nav class="fixed bottom-0 inset-x-0 bg-black border-t border-white/10 p-5 flex justify-around items-center backdrop-blur-lg z-50">
         <div class="flex flex-col items-center text-sdel" onclick="location.href='homies.html'">
-            <i data-lucide="message-circle" size="24"></i>
-            <span class="text-[8px] font-black uppercase mt-1">Chats</span>
+            <i data-lucide="message-circle" size="28"></i>
+            <span class="text-[10px] font-black uppercase mt-1">Chats</span>
         </div>
         <div class="flex flex-col items-center text-zinc-500" onclick="location.href='explore.html'">
-            <i data-lucide="compass" size="24"></i>
-            <span class="text-[8px] font-black uppercase mt-1">Explore</span>
+            <i data-lucide="compass" size="28"></i>
+            <span class="text-[10px] font-black uppercase mt-1">Explore</span>
         </div>
         <div class="flex flex-col items-center text-zinc-500" onclick="location.href='stories.html'">
-            <i data-lucide="aperture" size="24"></i>
-            <span class="text-[8px] font-black uppercase mt-1">Stories</span>
+            <i data-lucide="aperture" size="28"></i>
+            <span class="text-[10px] font-black uppercase mt-1">Stories</span>
         </div>
     </nav>
 
