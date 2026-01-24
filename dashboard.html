@@ -36,27 +36,27 @@
             getUnreadCount();
         }
 
-        // CORRECTED FOR YOUR DB: Uses recipient_id and read_by array
+        // FIXED: Fully dynamic unread count logic
         async function getUnreadCount() {
             if (!currentUserId) return;
 
             const { data, error } = await supabase
                 .from('messages')
-                .select('id, read_by')
+                .select('read_by')
                 .eq('recipient_id', currentUserId);
 
-            if (error) {
-                console.error("Dashboard Error:", error.message);
-                return;
-            }
+            if (error) return console.error(error);
 
-            // Count messages where your ID is NOT in the read_by array
+            // Filter data to find messages where your ID is NOT in the read_by array
             const unreadCount = data.filter(msg => {
-                return !msg.read_by || !msg.read_by.includes(currentUserId);
+                const readList = msg.read_by || [];
+                return !readList.includes(currentUserId);
             }).length;
 
             const badge = document.getElementById('notif-badge');
+            
             if (unreadCount > 0) {
+                // Dynamic display: shows the real number, or 9+ if over 9
                 badge.innerText = unreadCount > 9 ? '9+' : unreadCount;
                 badge.classList.remove('hidden');
                 badge.style.display = 'flex';
@@ -65,11 +65,11 @@
                 badge.style.display = 'none';
             }
 
-            // Realtime update for new messages
+            // Realtime listener to update count dynamically without refresh
             supabase
                 .channel('dashboard-notifs')
                 .on('postgres_changes', { 
-                    event: 'INSERT', 
+                    event: '*', 
                     schema: 'public', 
                     table: 'messages',
                     filter: `recipient_id=eq.${currentUserId}` 
@@ -221,7 +221,7 @@
             <i data-lucide="search" size="24" onclick="location.href='circle.html'"></i>
             <div class="relative cursor-pointer" onclick="location.href='messages.html'">
                 <i data-lucide="bell" size="24"></i>
-                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black z-10" style="display: none;">0</span>
+                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white min-w-4 h-4 px-1 rounded-full flex items-center justify-center border border-black z-10" style="display: none;"></span>
             </div>
         </div>
     </nav>
