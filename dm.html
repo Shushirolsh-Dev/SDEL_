@@ -11,12 +11,10 @@
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; overflow: hidden; position: relative; height: 100vh; display: flex; flex-direction: column; }
+        body { background-color: #000; color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; position: fixed; width: 100%; }
         
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
-        
-        /* FIX: Infinite falling stars */
         @keyframes fall { 
             0% { transform: translateY(-10vh); opacity: 0; }
             10% { opacity: 1; }
@@ -30,37 +28,28 @@
         .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(10px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
         .msg-sent { background: rgba(9, 9, 11, 0.8); backdrop-filter: blur(10px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); }
         
-        .status-ignored { color: #ff3b3b; font-weight: 900; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-        /* FIX: Send button visibility and space */
         #send-btn { 
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-            transform: scale(0); 
-            opacity: 0; 
-            width: 0; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-            flex-shrink: 0; /* Prevents input from squishing it */
+            transform: scale(0); opacity: 0; width: 0; display: flex;
+            align-items: center; justify-content: center; pointer-events: none; flex-shrink: 0;
         }
-        #send-btn.active { 
-            transform: scale(1); 
-            opacity: 1; 
-            width: 42px; 
-            margin-left: 8px; 
-            pointer-events: auto;
-        }
+        #send-btn.active { transform: scale(1); opacity: 1; width: 42px; margin-left: 8px; pointer-events: auto; }
         
+        /* Auto-expanding textarea logic */
+        #msg-input {
+            resize: none;
+            max-height: 120px;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .input-container { padding-bottom: calc(30px + env(safe-area-inset-bottom)); }
     </style>
 </head>
 <body>
     <div class="stars" id="stars"></div>
 
-    <nav class="flex justify-between items-center p-5 bg-black/80 backdrop-blur-xl sticky top-0 z-50 border-b border-white/10">
+    <nav class="flex-none flex justify-between items-center p-5 bg-black/80 backdrop-blur-xl border-b border-white/10 z-50">
         <div class="flex items-center space-x-4">
             <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-90 transition">
                 <i data-lucide="chevron-left" size="28"></i>
@@ -80,19 +69,20 @@
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide">
-    </main>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide"></main>
 
-    <div class="input-container px-4 bg-black/90 backdrop-blur-md border-t border-white/5">
-        <div class="mt-4 relative flex items-center bg-zinc-900/60 rounded-[2rem] border border-white/10 px-3 focus-within:border-sdel transition-all overflow-hidden">
-            <button class="p-2 text-zinc-600 flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
+    <div class="flex-none px-4 bg-black/90 backdrop-blur-md border-t border-white/5 pb-[calc(20px+env(safe-area-inset-bottom))]">
+        <div class="mt-4 flex items-end bg-zinc-900/60 rounded-[1.5rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
+            <button class="p-3 text-zinc-600 flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
             
-            <input type="text" id="msg-input" oninput="checkInput(this.value)" placeholder="Secure message..." 
-                   class="bg-transparent flex-1 text-sm py-4 px-2 focus:outline-none placeholder:text-zinc-700 font-semibold text-white min-w-0">
+            <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." 
+                   class="bg-transparent flex-1 text-sm py-4 px-2 focus:outline-none placeholder:text-zinc-700 font-semibold text-white min-w-0"></textarea>
             
-            <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-lg shadow-sdel/20">
-                <i data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
-            </button>
+            <div class="pb-2">
+                <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-lg shadow-sdel/20">
+                    <i data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
+                </button>
+            </div>
         </div>
         <div class="flex justify-center items-center space-x-2 mt-3 opacity-30">
             <i data-lucide="shield-check" size="8"></i>
@@ -113,7 +103,6 @@
         const SB_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
-
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
         let myId = null;
@@ -122,23 +111,17 @@
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) { window.location.href = 'login.html'; return; }
             myId = session.user.id;
-
             createStars();
             loadHomieProfile();
             fetchMessages();
             databasePurge();
-            
-            supabaseClient.channel('dm_channel')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages())
-                .subscribe();
-
+            supabaseClient.channel('dm_channel').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages()).subscribe();
             lucide.createIcons();
         }
 
         async function databasePurge() {
             const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-            const { error } = await supabaseClient.from('dm_table').delete().lt('created_at', thirtyDaysAgo); 
-            if (!error) console.log("SDEL Protocol: Database optimization complete.");
+            await supabaseClient.from('dm_table').delete().lt('created_at', thirtyDaysAgo); 
         }
 
         async function loadHomieProfile() {
@@ -156,10 +139,8 @@
 
         async function fetchMessages() {
             const { data: messages } = await supabaseClient.from('dm_table')
-                .select('*')
-                .or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`)
+                .select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`)
                 .order('created_at', { ascending: true });
-
             renderChat(messages);
         }
 
@@ -167,19 +148,24 @@
             const container = document.getElementById('chat-content');
             container.innerHTML = '';
             messages.forEach(msg => {
-                const msgDate = new Date(msg.created_at);
                 const isMe = msg.sender_id === myId;
-                const timeStr = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const html = `
-                    <div class="${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%]">
-                        <p class="text-[13px] font-semibold leading-relaxed">${msg.content}</p>
-                        <div class="mt-2 flex items-center justify-between">
-                            <span class="text-[7px] text-zinc-600 font-black uppercase italic">${timeStr}</span>
-                            ${isMe ? `<span class="text-[7px] text-sdel font-black uppercase tracking-widest italic">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
-                        </div>
+                const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const bubble = document.createElement('div');
+                bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%]`;
+                
+                // Security: Plain text only, no code execution
+                const textPara = document.createElement('p');
+                textPara.className = "text-[13px] font-semibold leading-relaxed whitespace-pre-wrap";
+                textPara.textContent = msg.content;
+                
+                bubble.appendChild(textPara);
+                bubble.innerHTML += `
+                    <div class="mt-2 flex items-center justify-between">
+                        <span class="text-[7px] text-zinc-600 font-black uppercase italic">${timeStr}</span>
+                        ${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest italic ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
                     </div>
                 `;
-                container.insertAdjacentHTML('beforeend', html);
+                container.appendChild(bubble);
             });
             container.scrollTop = container.scrollHeight;
         }
@@ -190,42 +176,34 @@
             if (!val) return;
             await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: val });
             input.value = "";
-            checkInput("");
+            handleInput(input);
+        }
+
+        function handleInput(el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+            const btn = document.getElementById('send-btn');
+            el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active');
         }
 
         function createStars() {
             const container = document.getElementById('stars');
-            container.innerHTML = ''; // Clear previous
             for (let i = 0; i < 150; i++) {
                 const star = document.createElement('div');
                 star.classList.add('star');
                 const size = Math.random() * 2 + 1;
-                star.style.width = `${size}px`;
-                star.style.height = `${size}px`;
+                star.style.width = star.style.height = `${size}px`;
                 star.style.left = `${Math.random() * 100}vw`;
-                star.style.top = `-${Math.random() * 100}vh`; // Start above screen
-                star.style.animationDuration = `${Math.random() * 5 + 3}s`; // Faster fall
+                star.style.top = `-${Math.random() * 100}vh`;
+                star.style.animationDuration = `${Math.random() * 5 + 3}s`;
                 star.style.animationDelay = `${Math.random() * 5}s`;
                 container.appendChild(star);
             }
         }
 
-        function checkInput(val) {
-            const btn = document.getElementById('send-btn');
-            if (val.length > 0) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        }
-
-        function toggleSoon() {
-            const modal = document.getElementById('soon-modal');
-            modal.classList.toggle('hidden');
-            lucide.createIcons();
-        }
-
+        function toggleSoon() { document.getElementById('soon-modal').classList.toggle('hidden'); lucide.createIcons(); }
         init();
     </script>
 </body>
-</html>
+                    </html>
+                    
