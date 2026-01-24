@@ -224,33 +224,16 @@
 
             btn.innerText = "PROCESSING..."; btn.disabled = true;
             
-            // DIAGNOSTIC SCRIPT: Create user and catch the EXACT database message
             const { data, error } = await sb.auth.signUp({
-                email: em, 
-                password: pw,
-                options: { 
-                    data: { 
-                        first_name: fn, 
-                        last_name: ln, 
-                        username: un, 
-                        phone: "+234" + ph,
-                        school_name: sc 
-                    } 
-                }
+                email: em, password: pw,
+                options: { data: { first_name: fn, last_name: ln, username: un, phone: "+234"+ph, school_name: sc } }
             });
 
             if (error) { 
-                // This will now alert the RAW error from Supabase/Postgres
-                console.error("DB REJECTION REASON:", error);
-                
-                let detailedError = error.message;
-                if(error.message.includes("Database error saving new user")) {
-                   detailedError = "TRIGGER ERROR: Check if '" + un + "' or '" + ph + "' already exists in the profile table.";
-                }
-                
-                showMsg(detailedError, "red"); 
-                btn.innerText = "CREATE ACCOUNT"; 
-                btn.disabled = false; 
+                // DIAGNOSTIC ALERT: Shows the RAW error so we know EXACTLY what Postgres is saying.
+                console.error("DEBUG:", error);
+                showMsg(error.message + (error.status ? " (Status: "+error.status+")" : ""), "red"); 
+                btn.innerText = "CREATE ACCOUNT"; btn.disabled = false; 
             } else { 
                 showMsg("SUCCESS! REDIRECTING...", "green");
                 setTimeout(() => { window.location.href = 'dashboard.html'; }, 1500);
@@ -260,4 +243,10 @@
         function showMsg(t, type) {
             const m = document.getElementById('msg');
             m.innerText = t.toUpperCase();
-            m.className = `p-4 mb-5 rounded border text-sm font-black te
+            m.className = `p-4 mb-5 rounded border text-sm font-black text-center uppercase block ${type === 'red' ? 'bg-red-900/20 text-red-500 border-red-500/30' : 'bg-green-900/20 text-green-500 border-green-500/30'}`;
+            m.classList.remove('hidden');
+            setTimeout(() => { m.classList.add('hidden'); }, 4000);
+        }
+    </script>
+</body>
+</html>
