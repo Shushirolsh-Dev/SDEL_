@@ -33,7 +33,7 @@
         .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
         
-        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; }
+        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; pointer-events: none; user-select: none; }
         .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
         .reply-box { background: rgba(255,255,255,0.05); border-left: 3px solid #FF6600; padding: 6px 10px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
@@ -169,7 +169,7 @@
                 bubble.id = `msg-${msg.id}`;
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] msg-bubble transition-transform active:scale-95`;
                 
-                // Logic update: The main bubble opens the tab/menu
+                // Clicking the bubble (the area below qBox) triggers the menu
                 bubble.onclick = () => {
                     const now = Date.now();
                     if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
@@ -185,7 +185,7 @@
                     qBox.className = 'reply-box';
                     qBox.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${meta[2].replace(/"/g, '')}</p>`;
                     
-                    // Logic update: Top card (box) jumps back to original message
+                    // Clicking this specific internal box jumps to message
                     qBox.onclick = (e) => { 
                         e.stopPropagation(); 
                         scrollToMessage(refId); 
@@ -202,7 +202,8 @@
                 
                 if (msg.reaction_me || msg.reaction_them) {
                     const wrap = document.createElement('div');
-                    wrap.className = `react-wrap ${isMe ? 'right-0' : 'left-0'}`;
+                    // pointer-events-none and select-none ensures emojis don't interfere with clicks/tabs
+                    wrap.className = `react-wrap select-none pointer-events-none ${isMe ? 'right-0' : 'left-0'}`;
                     if (msg.reaction_me) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span></div>`;
                     if (msg.reaction_them) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span></div>`;
                     bubble.appendChild(wrap);
@@ -290,5 +291,4 @@
         init();
     </script>
 </body>
-    </html>
-                                                                                                                                                         
+</html>
