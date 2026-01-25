@@ -154,9 +154,20 @@
                 container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase font-black tracking-widest">${isUnreadTab ? 'No unread messages' : 'No homies yet.'}</p>`;
                 return;
             }
+
+            // AGGRESSIVE SYSTEM STRIP
+            const getCleanPreview = (str) => {
+                if (!str) return "";
+                if (str.includes('»')) return str.split('»').pop().trim();
+                return str.replace(/Replying to .*?\|RID:.*?\|".*?"/g, '').trim();
+            };
+
             container.innerHTML = connections.map(c => {
                 const avatar = c.partner.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.partner.first_name}`;
-                let preview = c.lastMsg ? c.lastMsg.content : `@${c.partner.username}`;
+                
+                // Correction: Only display the actual human message
+                let preview = c.lastMsg ? getCleanPreview(c.lastMsg.content) : `@${c.partner.username}`;
+                
                 if (preview.length > 35) preview = preview.substring(0, 35) + '...';
                 const statusHtml = c.unreadCount > 0 
                     ? `<span class="unread-badge bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>`
