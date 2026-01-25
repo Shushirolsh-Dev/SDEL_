@@ -37,7 +37,6 @@
         .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
         .menu-opt:active { background: #222; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
         
         .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; }
         .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
@@ -46,8 +45,9 @@
         .highlight-msg { animation: pulse-orange 1.5s ease-out; }
         @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.4); } 100% { background: transparent; } }
 
-        #cancel-reply-btn { display: none; }
-        #cancel-reply-btn.active { display: flex; }
+        /* WhatsApp Style Reply Preview */
+        #whatsapp-reply-ui { display: none; background: #111; border-top: 1px solid rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 20px 20px 0 0; margin-bottom: -15px; border-left: 4px solid #FF6600; }
+        #whatsapp-reply-ui.active { display: block; }
 
         .avatar-box { transition: all 0.4s ease; border: 1px solid rgba(255,255,255,0.1); }
         .avatar-online { border-color: #22c55e !important; box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); color: #22c55e !important; }
@@ -77,14 +77,20 @@
     <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scrollbar-hide"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
-        <div id="reply-label" class="hidden px-4 py-2 text-[10px] font-black text-sdel uppercase bg-zinc-900/50 rounded-t-2xl border-x border-t border-white/5">Replying to...</div>
+        <div id="whatsapp-reply-ui" class="mx-2">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p id="reply-ui-name" class="text-[10px] font-black text-sdel uppercase"></p>
+                    <p id="reply-ui-text" class="text-xs text-zinc-400 truncate max-w-[200px]"></p>
+                </div>
+                <button onclick="cancelReply()" class="text-zinc-500"><i data-lucide="x" size="14"></i></button>
+            </div>
+        </div>
+
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
             <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
             <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
             <div class="pb-2.5 flex items-center">
-                <button id="cancel-reply-btn" onclick="cancelReply()" class="p-2 text-zinc-500 hover:text-red-500 transition-colors">
-                    <i data-lucide="x-circle" size="20"></i>
-                </button>
                 <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20">
                     <i id="send-icon" data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
                 </button>
@@ -103,15 +109,6 @@
             <button class="menu-opt" onclick="handleReplyAction()"><i data-lucide="reply" size="18"></i> Reply</button>
             <button id="delete-btn-opt" class="menu-opt text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> Delete</button>
             <button class="menu-opt text-zinc-500" onclick="closeMenu()">Cancel</button>
-        </div>
-    </div>
-
-    <div id="soon-modal" class="fixed inset-0 bg-black/95 z-[100] hidden items-center justify-center p-10 backdrop-blur-sm">
-        <div class="bg-zinc-950 border-2 border-sdel p-8 rounded-[2.5rem] text-center max-w-xs shadow-2xl">
-            <i data-lucide="lock" class="text-sdel mx-auto mb-4" size="28"></i>
-            <h3 class="text-lg font-black uppercase mb-2 text-white">Comms Locked</h3>
-            <p class="text-[10px] text-zinc-500 font-bold leading-relaxed uppercase tracking-wider mb-6">Voice and Video protocols are being engineered by Shushirolsh.</p>
-            <button onclick="toggleSoon()" class="w-full bg-white text-black text-[10px] font-black py-4 rounded-xl uppercase tracking-widest active:scale-95 transition">Return</button>
         </div>
     </div>
 
@@ -153,8 +150,6 @@
                     document.getElementById('online-indicator').classList.replace('bg-zinc-700', 'bg-green-500');
                     document.getElementById('chat-status').innerText = "Live on Grid";
                     document.getElementById('chat-status').classList.add('text-green-500');
-                } else {
-                    av.classList.add('avatar-offline');
                 }
             }
         }
@@ -174,7 +169,6 @@
             setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
         }
 
-        // AGGRESSIVE STRIPPING OF SYSTEM CODES
         function getCleanText(str) {
             if (!str) return "";
             if (str.includes('»')) return str.split('»').pop().trim();
@@ -191,6 +185,7 @@
                 bubble.id = `msg-${msg.id}`;
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] msg-bubble transition-transform active:scale-95`;
                 
+                // Clicking the bubble opens menu ONLY if not clicking the reply box
                 bubble.onclick = () => {
                     const now = Date.now();
                     if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
@@ -206,16 +201,19 @@
                     
                     const qBox = document.createElement('div');
                     qBox.className = 'reply-box';
-                    // Strip code from the quoted text too
-                    const quotedContent = meta[2].replace(/"/g, '');
-                    qBox.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${quotedContent}</p>`;
-                    qBox.onclick = (e) => { e.stopImmediatePropagation(); scrollToMessage(refId); };
+                    qBox.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${meta[2].replace(/"/g, '')}</p>`;
+                    
+                    // AGGRESSIVE JUMP: Stops propagation to avoid opening edit menu
+                    qBox.onclick = (e) => { 
+                        e.stopPropagation(); 
+                        scrollToMessage(refId); 
+                    };
                     bubble.appendChild(qBox);
                 }
 
                 const tPara = document.createElement('p');
                 tPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
-                tPara.textContent = getCleanText(msg.content); // Aggressive hide applied here
+                tPara.textContent = getCleanText(msg.content);
                 bubble.appendChild(tPara);
 
                 bubble.innerHTML += `<div class="mt-2 flex items-center justify-between gap-4 pointer-events-none"><span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}</div>`;
@@ -232,28 +230,39 @@
             scrollToBottom(); lucide.createIcons();
         }
 
+        // WHATSAPP STYLE REPLY HANDLER
         function handleReply(msgId, content, sender) {
             replyTargetId = msgId;
             replyTargetSender = sender;
             replyTargetText = getCleanText(content);
-            document.getElementById('reply-label').innerText = `Replying to ${sender}`;
-            document.getElementById('reply-label').classList.remove('hidden');
+            
+            document.getElementById('reply-ui-name').innerText = sender;
+            document.getElementById('reply-ui-text').innerText = replyTargetText;
+            document.getElementById('whatsapp-reply-ui').classList.add('active');
+            
             const input = document.getElementById('msg-input');
-            input.focus(); handleInput(input);
+            input.focus(); 
+            handleInput(input);
+            lucide.createIcons();
         }
 
         function cancelReply() {
             replyTargetId = null; editingId = null;
-            document.getElementById('reply-label').classList.add('hidden');
+            document.getElementById('whatsapp-reply-ui').classList.remove('active');
             const input = document.getElementById('msg-input');
-            input.value = ""; handleInput(input);
+            input.value = ""; 
             document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
+            handleInput(input);
             lucide.createIcons();
         }
 
         function scrollToMessage(id) {
             const el = document.getElementById(`msg-${id}`);
-            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 2000); }
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('highlight-msg');
+                setTimeout(() => el.classList.remove('highlight-msg'), 1500);
+            }
         }
 
         function handleReplyAction() { handleReply(selectedId, selectedText, (selectedIsMe ? myName : theirName)); closeMenu(); }
@@ -283,7 +292,8 @@
             editingId = selectedId;
             const input = document.getElementById('msg-input');
             input.value = getCleanText(selectedText);
-            input.focus(); handleInput(input);
+            input.focus(); 
+            handleInput(input);
             document.getElementById('send-icon').setAttribute('data-lucide', 'check');
             lucide.createIcons(); closeMenu();
         }
@@ -310,23 +320,18 @@
                 await supabaseClient.from('dm_table').update({ content: finalContent, is_edited: true }).eq('id', editingId);
                 editingId = null; 
                 document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up'); 
-                lucide.createIcons();
             } else {
                 await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: finalContent, is_read: false });
             }
             
-            replyTargetId = null;
-            document.getElementById('reply-label').classList.add('hidden');
-            input.value = ""; handleInput(input);
+            cancelReply();
         }
 
         function handleInput(el) { 
             el.style.height = 'auto'; 
             el.style.height = (el.scrollHeight) + 'px'; 
             const btn = document.getElementById('send-btn'); 
-            const cancelBtn = document.getElementById('cancel-reply-btn');
             el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
-            (replyTargetId || editingId) ? cancelBtn.classList.add('active') : cancelBtn.classList.remove('active');
         }
 
         function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; container.appendChild(star); } }
