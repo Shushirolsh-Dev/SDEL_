@@ -51,24 +51,27 @@
             });
         }
 
-        // UPDATED: Logic to clear count instantly via UI + DB background task
+        // FIXED: Using AWAIT strictly to ensure DB clears before navigation
         window.openChat = async (partnerId, element) => {
-            // 1. Instant UI Clear: find the badge in the clicked element and hide it
+            // 1. Instant UI Clear
             if (element) {
                 const badge = element.querySelector('.unread-badge');
-                if (badge) badge.classList.add('hidden');
+                if (badge) badge.style.display = 'none';
             }
 
-            // 2. Clear Database (Background - No 'await' to keep navigation fast)
-            supabase
-                .from('dm_table')
-                .update({ is_read: true })
-                .eq('sender_id', partnerId)
-                .eq('receiver_id', currentUserId)
-                .eq('is_read', false)
-                .then(() => console.log('Cleared unread count in DB'));
+            // 2. Force DB update to finish before moving
+            try {
+                await supabase
+                    .from('dm_table')
+                    .update({ is_read: true })
+                    .eq('sender_id', partnerId)
+                    .eq('receiver_id', currentUserId)
+                    .eq('is_read', false);
+            } catch (err) {
+                console.error("Error clearing count:", err);
+            }
             
-            // 3. Navigate immediately
+            // 3. Move to DM page
             location.href = `dm.html?id=${partnerId}`;
         };
 
@@ -184,7 +187,6 @@
                 let preview = c.lastMsg ? c.lastMsg.content : `@${partner.username}`;
                 if (preview.length > 35) preview = preview.substring(0, 35) + '...';
 
-                // Added 'unread-badge' class here for the JS selector
                 const statusHtml = c.unreadCount > 0 
                     ? `<span class="unread-badge bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>`
                     : `<span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>`;
