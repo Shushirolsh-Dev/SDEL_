@@ -49,9 +49,8 @@
         #cancel-reply-btn { display: none; }
         #cancel-reply-btn.active { display: flex; }
 
-        /* Glow States for Avatar Box */
         .avatar-box { transition: all 0.4s ease; border: 1px solid rgba(255,255,255,0.1); }
-        .avatar-online { border-color: #22c55e !important; box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); color: #22c55e !important; }
+        .avatar-online { border-color: #22c55e !important; box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); color: #22c55e !important; }
         .avatar-offline { border-color: rgba(255,255,255,0.1); color: #71717a; }
     </style>
 </head>
@@ -78,7 +77,7 @@
     <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scrollbar-hide"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
-        <div id="reply-preview-label" class="hidden px-4 py-1.5 text-[9px] font-black text-sdel uppercase bg-white/5 rounded-t-xl border-x border-t border-white/10">Replying to...</div>
+        <div id="reply-label" class="hidden px-4 py-2 text-[10px] font-black text-sdel uppercase bg-zinc-900/50 rounded-t-2xl border-x border-t border-white/5">Replying to...</div>
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
             <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
             <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
@@ -147,18 +146,15 @@
             if (profile) {
                 theirName = profile.first_name || profile.username || "Them";
                 document.getElementById('chat-name').innerText = theirName;
-                const avatar = document.getElementById('user-avatar');
-                avatar.innerText = theirName[0].toUpperCase();
-                
+                const av = document.getElementById('user-avatar');
+                av.innerText = theirName[0].toUpperCase();
                 if (profile.is_online) {
-                    avatar.classList.add('avatar-online');
-                    avatar.classList.remove('avatar-offline');
+                    av.classList.add('avatar-online');
                     document.getElementById('online-indicator').classList.replace('bg-zinc-700', 'bg-green-500');
                     document.getElementById('chat-status').innerText = "Live on Grid";
                     document.getElementById('chat-status').classList.add('text-green-500');
                 } else {
-                    avatar.classList.add('avatar-offline');
-                    avatar.classList.remove('avatar-online');
+                    av.classList.add('avatar-offline');
                 }
             }
         }
@@ -176,6 +172,13 @@
         function scrollToBottom() {
             const container = document.getElementById('chat-content');
             setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+        }
+
+        // AGGRESSIVE STRIPPING OF SYSTEM CODES
+        function getCleanText(str) {
+            if (!str) return "";
+            if (str.includes('»')) return str.split('»').pop().trim();
+            return str;
         }
 
         function renderChat(messages) {
@@ -200,31 +203,21 @@
                     const meta = parts[0].split('|');
                     const refId = meta[1].replace('RID:', '');
                     const refUser = meta[0].replace('Replying to ', '');
-                    const actualMsg = parts.slice(1).join('»').trim();
                     
                     const qBox = document.createElement('div');
                     qBox.className = 'reply-box';
-                    qBox.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${meta[2].replace(/"/g, '')}</p>`;
-                    
-                    // Fixed: stops bubble from opening action menu when jumping
-                    qBox.onclick = (e) => { 
-                        e.stopImmediatePropagation(); 
-                        scrollToMessage(refId); 
-                    };
-                    
+                    // Strip code from the quoted text too
+                    const quotedContent = meta[2].replace(/"/g, '');
+                    qBox.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${quotedContent}</p>`;
+                    qBox.onclick = (e) => { e.stopImmediatePropagation(); scrollToMessage(refId); };
                     bubble.appendChild(qBox);
-                    const tPara = document.createElement('p');
-                    tPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
-                    tPara.textContent = actualMsg;
-                    bubble.appendChild(tPara);
-                } else {
-                    const tPara = document.createElement('p');
-                    tPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
-                    tPara.textContent = msg.content;
-                    bubble.appendChild(tPara);
                 }
 
-                // Strict (Edited) text display for all users
+                const tPara = document.createElement('p');
+                tPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
+                tPara.textContent = getCleanText(msg.content); // Aggressive hide applied here
+                bubble.appendChild(tPara);
+
                 bubble.innerHTML += `<div class="mt-2 flex items-center justify-between gap-4 pointer-events-none"><span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}</div>`;
                 
                 if (msg.reaction_me || msg.reaction_them) {
@@ -242,41 +235,28 @@
         function handleReply(msgId, content, sender) {
             replyTargetId = msgId;
             replyTargetSender = sender;
-            replyTargetText = content.includes('»') ? content.split('»').pop().trim() : content;
-            
-            const label = document.getElementById('reply-preview-label');
-            label.innerText = `Replying to ${sender}`;
-            label.classList.remove('hidden');
-            
+            replyTargetText = getCleanText(content);
+            document.getElementById('reply-label').innerText = `Replying to ${sender}`;
+            document.getElementById('reply-label').classList.remove('hidden');
             const input = document.getElementById('msg-input');
-            input.focus(); 
-            handleInput(input);
+            input.focus(); handleInput(input);
         }
 
         function cancelReply() {
-            replyTargetId = null;
-            editingId = null;
-            document.getElementById('reply-preview-label').classList.add('hidden');
+            replyTargetId = null; editingId = null;
+            document.getElementById('reply-label').classList.add('hidden');
             const input = document.getElementById('msg-input');
-            input.value = "";
-            handleInput(input);
+            input.value = ""; handleInput(input);
             document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
             lucide.createIcons();
         }
 
         function scrollToMessage(id) {
             const el = document.getElementById(`msg-${id}`);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.add('highlight-msg');
-                setTimeout(() => el.classList.remove('highlight-msg'), 2000);
-            }
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 2000); }
         }
 
-        function handleReplyAction() {
-            handleReply(selectedId, selectedText, (selectedIsMe ? myName : theirName));
-            closeMenu();
-        }
+        function handleReplyAction() { handleReply(selectedId, selectedText, (selectedIsMe ? myName : theirName)); closeMenu(); }
 
         function openMenu(id, text, isMe) {
             selectedId = id; selectedText = text; selectedIsMe = isMe;
@@ -288,11 +268,7 @@
             lucide.createIcons();
         }
 
-        function closeMenu() {
-            const content = document.querySelector('.sheet-content');
-            if(content) content.classList.remove('show');
-            setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300);
-        }
+        function closeMenu() { const content = document.querySelector('.sheet-content'); if(content) content.classList.remove('show'); setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300); }
 
         async function react(emoji) {
             const { data: msg } = await supabaseClient.from('dm_table').select('*').eq('id', selectedId).single();
@@ -301,18 +277,13 @@
             closeMenu();
         }
 
-        async function copyToClipboard() {
-            const cleanText = selectedText.includes('»') ? selectedText.split('»').pop().trim() : selectedText;
-            await navigator.clipboard.writeText(cleanText); closeMenu();
-        }
+        async function copyToClipboard() { await navigator.clipboard.writeText(getCleanText(selectedText)); closeMenu(); }
 
         function startEdit() {
             editingId = selectedId;
             const input = document.getElementById('msg-input');
-            const cleanText = selectedText.includes('»') ? selectedText.split('»').pop().trim() : selectedText;
-            input.value = cleanText;
-            input.focus(); 
-            handleInput(input);
+            input.value = getCleanText(selectedText);
+            input.focus(); handleInput(input);
             document.getElementById('send-icon').setAttribute('data-lucide', 'check');
             lucide.createIcons(); closeMenu();
         }
@@ -325,7 +296,6 @@
             if (!rawVal) return;
 
             let finalContent = rawVal;
-            
             if (replyTargetId) {
                 finalContent = `Replying to ${replyTargetSender}|RID:${replyTargetId}|"${replyTargetText.substring(0, 25)}..." \n» ${rawVal}`;
             } else if (editingId) {
@@ -346,9 +316,8 @@
             }
             
             replyTargetId = null;
-            document.getElementById('reply-preview-label').classList.add('hidden');
-            input.value = ""; 
-            handleInput(input);
+            document.getElementById('reply-label').classList.add('hidden');
+            input.value = ""; handleInput(input);
         }
 
         function handleInput(el) { 
