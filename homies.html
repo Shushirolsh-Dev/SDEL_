@@ -10,14 +10,16 @@
     
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        body { background-color: #000; color: #fff; overflow-x: hidden; width: 100vw; position: fixed; height: 100%; }
+        /* Changed: Removed position: fixed to allow the container height calculation to work naturally */
+        body { background-color: #000; color: #fff; overflow-x: hidden; width: 100vw; height: 100%; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .header-text { font-weight: 800; letter-spacing: -0.01em; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        #main-content { height: calc(100vh - 300px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        /* Changed: Adjusted height to ensure it takes up the remaining screen space and is scrollable */
+        #main-content { height: calc(100vh - 310px); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 80px; }
     </style>
 
     <script type="module">
@@ -98,8 +100,9 @@
 
             const filtered = allConnections.filter(c => {
                 const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
-                const fullName = `${partner.first_name} ${partner.last_name} ${partner.username}`.toLowerCase();
-                return fullName.includes(val.toLowerCase());
+                // Updated: Logic now checks first name, last name, and username
+                const searchString = `${partner.first_name} ${partner.last_name} ${partner.username}`.toLowerCase();
+                return searchString.includes(val.toLowerCase());
             });
 
             if (filtered.length > 0) {
@@ -132,7 +135,7 @@
                             <h3 class="text-base font-bold text-white uppercase">${partner.first_name} ${partner.last_name}</h3>
                             <span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>
                         </div>
-                        <p class="text-xs text-zinc-500 truncate italic mt-0.5">Encrypted Connection Established</p>
+                        <p class="text-xs text-zinc-500 truncate italic mt-0.5">@${partner.username}</p>
                     </div>
                 </div>`;
             }).join('');
@@ -177,7 +180,6 @@
             
             let isDone = false;
             
-            // Hard 5 second cut-off
             const timeout = setTimeout(() => {
                 if (!isDone) {
                     isDone = true;
@@ -191,7 +193,7 @@
                 .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
                 .limit(15);
 
-            if (isDone) return; // Already timed out
+            if (isDone) return;
             isDone = true;
             clearTimeout(timeout);
 
