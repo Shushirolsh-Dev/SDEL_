@@ -12,7 +12,6 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        /* Fixed body to prevent entire page from bouncing on mobile */
         body { 
             background-color: #000; 
             color: white; 
@@ -27,7 +26,6 @@
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
         
-        /* SLOWER STAR ANIMATION */
         @keyframes fall { 
             0% { transform: translateY(-10vh); opacity: 0; }
             20% { opacity: 0.6; }
@@ -38,11 +36,9 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        /* Message bubbles with blur */
         .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
         .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); }
         
-        /* Send Button Pop Animation */
         #send-btn { 
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
             transform: scale(0); opacity: 0; width: 0; display: flex;
@@ -50,12 +46,16 @@
         }
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; pointer-events: auto; }
         
-        /* Multi-line input area */
         #msg-input {
             resize: none;
             max-height: 150px;
             overflow-y: auto;
             line-height: 1.5;
+        }
+
+        /* Smooth scrolling for incoming messages */
+        #chat-content {
+            scroll-behavior: smooth;
         }
 
         .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -129,11 +129,19 @@
             
             createStars();
             loadHomieProfile();
-            fetchMessages();
+            await fetchMessages();
             
-            // Listen for NEW messages and updates
-            supabaseClient.channel('dm_channel')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages())
+            // FIXED: Real-time listener for instant updates
+            supabaseClient
+                .channel('public:dm_table')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'dm_table' 
+                }, (payload) => {
+                    console.log('Change received!', payload);
+                    fetchMessages(); 
+                })
                 .subscribe();
 
             lucide.createIcons();
@@ -158,7 +166,20 @@
                 .or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`)
                 .order('created_at', { ascending: true });
             
-            if (!error) renderChat(messages);
+            if (!error) {
+                renderChat(messages);
+                // Mark incoming messages as read instantly
+                markAsRead();
+            }
+        }
+
+        async function markAsRead() {
+            await supabaseClient
+                .from('dm_table')
+                .update({ is_read: true })
+                .eq('receiver_id', myId)
+                .eq('sender_id', homieId)
+                .eq('is_read', false);
         }
 
         function renderChat(messages) {
@@ -174,7 +195,6 @@
                 
                 const textPara = document.createElement('p');
                 textPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
-                // SECURE: Treats all input as plain text
                 textPara.textContent = msg.content;
                 
                 bubble.appendChild(textPara);
@@ -194,14 +214,17 @@
             const val = input.value.trim();
             if (!val) return;
             
-            await supabaseClient.from('dm_table').insert({ 
+            const { error } = await supabaseClient.from('dm_table').insert({ 
                 sender_id: myId, 
                 receiver_id: homieId, 
                 content: val 
             });
             
-            input.value = "";
-            handleInput(input);
+            if(!error) {
+                input.value = "";
+                handleInput(input);
+                fetchMessages(); // Force a quick local update
+            }
         }
 
         function handleInput(el) {
@@ -220,7 +243,6 @@
                 star.style.width = star.style.height = `${size}px`;
                 star.style.left = `${Math.random() * 100}vw`;
                 star.style.top = `-${Math.random() * 100}vh`;
-                // Slower fall: 10 to 20 seconds
                 star.style.animationDuration = `${Math.random() * 10 + 10}s`;
                 star.style.animationDelay = `${Math.random() * 10}s`;
                 container.appendChild(star);
