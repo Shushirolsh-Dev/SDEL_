@@ -33,7 +33,7 @@
         .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
         
-        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; pointer-events: none; user-select: none; }
+        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; pointer-events: none; user-select: none !important; -webkit-user-select: none !important; }
         .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
         .reply-box { background: rgba(255,255,255,0.05); border-left: 3px solid #FF6600; padding: 6px 10px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
@@ -152,7 +152,6 @@
             await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false);
         }
 
-        // AGGRESSIVE SYSTEM STRIP
         function getCleanText(str) {
             if (!str) return "";
             if (str.includes('»')) return str.split('»').pop().trim();
@@ -165,47 +164,60 @@
             messages.forEach(msg => {
                 const isMe = msg.sender_id === myId;
                 const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
                 const bubble = document.createElement('div');
                 bubble.id = `msg-${msg.id}`;
-                bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] msg-bubble transition-transform active:scale-95`;
                 
-                // Clicking the bubble (the area below qBox) triggers the menu
-                bubble.onclick = () => {
-                    const now = Date.now();
-                    if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
-                    else { openMenu(msg.id, msg.content, isMe); }
-                    lastTap = now;
-                };
-
                 if (msg.content.includes('|RID:')) {
                     const meta = msg.content.split('»')[0].split('|');
                     const refId = meta[1].replace('RID:', '');
                     const refUser = meta[0].replace('Replying to ', '');
-                    const qBox = document.createElement('div');
-                    qBox.className = 'reply-box';
-                    qBox.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${meta[2].replace(/"/g, '')}</p>`;
                     
-                    // Clicking this specific internal box jumps to message
-                    qBox.onclick = (e) => { 
-                        e.stopPropagation(); 
-                        scrollToMessage(refId); 
+                    // Card B identity logic: Use the style of the person who was replied to
+                    const originalWasMe = refUser === myName;
+                    bubble.className = `${originalWasMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] transition-transform active:scale-95`;
+
+                    // Top Card (Card B) - Jumps back
+                    const cardB = document.createElement('div');
+                    cardB.className = "opacity-50 border-b border-white/10 pb-2 mb-2 cursor-pointer";
+                    cardB.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] truncate italic">${meta[2].replace(/"/g, '')}</p>`;
+                    cardB.onclick = (e) => { e.stopPropagation(); scrollToMessage(refId); };
+                    bubble.appendChild(cardB);
+
+                    // Bottom Card (Card C) - Opens Tab
+                    const cardC = document.createElement('div');
+                    cardC.className = "cursor-pointer";
+                    cardC.innerHTML = `<p class="text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words">${getCleanText(msg.content)}</p>`;
+                    cardC.onclick = (e) => {
+                        e.stopPropagation();
+                        const now = Date.now();
+                        if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
+                        else { openMenu(msg.id, msg.content, isMe); }
+                        lastTap = now;
                     };
-                    bubble.appendChild(qBox);
+                    bubble.appendChild(cardC);
+                } else {
+                    // Normal Message
+                    bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] transition-transform active:scale-95`;
+                    bubble.onclick = () => {
+                        const now = Date.now();
+                        if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
+                        else { openMenu(msg.id, msg.content, isMe); }
+                        lastTap = now;
+                    };
+                    const tPara = document.createElement('p');
+                    tPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
+                    tPara.textContent = getCleanText(msg.content);
+                    bubble.appendChild(tPara);
                 }
 
-                const tPara = document.createElement('p');
-                tPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
-                tPara.textContent = getCleanText(msg.content);
-                bubble.appendChild(tPara);
-
-                bubble.innerHTML += `<div class="mt-2 flex items-center justify-between gap-4 pointer-events-none"><span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}</div>`;
+                bubble.innerHTML += `<div class="mt-2 flex items-center justify-between gap-4 pointer-events-none select-none"><span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}</div>`;
                 
                 if (msg.reaction_me || msg.reaction_them) {
                     const wrap = document.createElement('div');
-                    // pointer-events-none and select-none ensures emojis don't interfere with clicks/tabs
                     wrap.className = `react-wrap select-none pointer-events-none ${isMe ? 'right-0' : 'left-0'}`;
-                    if (msg.reaction_me) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span></div>`;
-                    if (msg.reaction_them) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span></div>`;
+                    if (msg.reaction_me) wrap.innerHTML += `<div class="react-badge"><span class="select-none">${msg.reaction_me}</span></div>`;
+                    if (msg.reaction_them) wrap.innerHTML += `<div class="react-badge"><span class="select-none">${msg.reaction_them}</span></div>`;
                     bubble.appendChild(wrap);
                 }
                 container.appendChild(bubble);
