@@ -18,7 +18,6 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         #main-content { height: calc(100vh - 310px); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 80px; }
 
-        /* Rotating Refresh Icon Animation */
         @keyframes full-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .rotate-icon { animation: full-rotate 4s linear infinite; }
         .refresh-active { transform: scale(0.7) rotate(180deg); transition: all 0.3s ease; }
@@ -32,7 +31,6 @@
         let activeTab = 'general';
         const tabs = ['general', 'requests', 'unread'];
         let allConnections = [];
-
         let touchstartX = 0;
         let touchendX = 0;
 
@@ -48,17 +46,10 @@
                 .subscribe();
 
             switchTab('general');
-
             document.addEventListener('touchstart', e => touchstartX = e.changedTouches[0].screenX);
             document.addEventListener('touchend', e => {
                 touchendX = e.changedTouches[0].screenX;
                 handleSwipe();
-            });
-
-            window.addEventListener('pageshow', (event) => {
-                if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
-                    loadContent();
-                }
             });
             lucide.createIcons();
         }
@@ -68,31 +59,14 @@
                 const badge = element.querySelector('.unread-badge');
                 if (badge) badge.style.display = 'none';
             }
-            const connIdx = allConnections.findIndex(c => c.partner.id === partnerId);
-            if (connIdx !== -1) allConnections[connIdx].unreadCount = 0;
-
-            try {
-                await supabase
-                    .from('dm_table')
-                    .update({ is_read: true, read_at: new Date().toISOString() })
-                    .eq('sender_id', partnerId)
-                    .eq('receiver_id', currentUserId)
-                    .eq('is_read', false);
-            } catch (err) {
-                console.error("Failed to mark as read:", err);
-            }
             location.href = `dm.html?id=${partnerId}`;
         };
 
         function handleSwipe() {
             const threshold = 100;
             let currentIndex = tabs.indexOf(activeTab);
-            if (touchendX < touchstartX - threshold) { 
-                if (currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
-            }
-            if (touchendX > touchstartX + threshold) { 
-                if (currentIndex > 0) switchTab(tabs[currentIndex - 1]);
-            }
+            if (touchendX < touchstartX - threshold && currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
+            if (touchendX > touchstartX + threshold && currentIndex > 0) switchTab(tabs[currentIndex - 1]);
         }
 
         window.switchTab = (tab) => {
@@ -104,7 +78,6 @@
         };
 
         async function loadContent() {
-            const container = document.getElementById('main-content');
             if (activeTab === 'general' || activeTab === 'unread') {
                 const { data: connections } = await supabase.from('connections')
                     .select('*, sender:profile!sender_id(*), receiver:profile!receiver_id(*)')
@@ -155,17 +128,23 @@
                 return;
             }
 
-            // AGGRESSIVE SYSTEM STRIP
+            // REFINED AGGRESSIVE CLEANER
             const getCleanPreview = (str) => {
                 if (!str) return "";
-                if (str.includes('»')) return str.split('»').pop().trim();
+                // This splits by the arrow and takes everything after it. 
+                // It is the most professional way to hide the reply metadata.
+                if (str.includes('»')) {
+                    const parts = str.split('»');
+                    return parts[parts.length - 1].trim();
+                }
+                // Fallback for older messages or non-reply messages
                 return str.replace(/Replying to .*?\|RID:.*?\|".*?"/g, '').trim();
             };
 
             container.innerHTML = connections.map(c => {
                 const avatar = c.partner.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.partner.first_name}`;
                 
-                // Correction: Only display the actual human message
+                // Correction: Using the Refined Aggressive Cleaner
                 let preview = c.lastMsg ? getCleanPreview(c.lastMsg.content) : `@${c.partner.username}`;
                 
                 if (preview.length > 35) preview = preview.substring(0, 35) + '...';
@@ -177,7 +156,7 @@
                     <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 object-cover bg-zinc-800">
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-center"><h3 class="text-base font-bold text-white uppercase truncate mr-2">${c.partner.first_name} ${c.partner.last_name}</h3>${statusHtml}</div>
-                        <p class="text-xs text-zinc-500 truncate mt-0.5">${preview}</p>
+                        <p class="text-xs text-zinc-500 truncate mt-0.5 font-medium">${preview}</p>
                     </div>
                 </div>`;
             }).join('');
@@ -223,7 +202,7 @@
             }).join('');
         };
 
-        window.sendHomieReq = async (id) => { const { error } = await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' }); if (!error) switchTab('requests'); };
+        window.sendHomieReq = async (id) => { await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' }); if (!error) switchTab('requests'); };
 
         window.goToDashboard = (el) => {
             el.classList.add('refresh-active');
@@ -234,7 +213,6 @@
     </script>
 </head>
 <body class="pb-24">
-
     <nav class="p-6 flex justify-between items-center sticky top-0 bg-black/95 z-50">
         <h1 class="header-text text-2xl italic uppercase">Homies</h1>
         <div class="flex items-center pr-2">
@@ -275,6 +253,5 @@
             <span class="text-[10px] font-black uppercase mt-1">Planets</span>
         </div>
     </nav>
-
 </body>
 </html>
