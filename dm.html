@@ -36,8 +36,8 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
-        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); }
+        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; }
+        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; }
         
         #send-btn { 
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
@@ -53,10 +53,17 @@
             line-height: 1.5;
         }
 
-        /* Smooth scrolling for incoming messages */
         #chat-content {
             scroll-behavior: smooth;
         }
+
+        /* NEW: Action Sheet Styles */
+        #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
+        .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
+        .sheet-content.show { transform: translateY(0); }
+        .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
+        .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; }
+        .menu-opt:active { background: #222; }
 
         .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
@@ -95,13 +102,24 @@
             
             <div class="pb-2.5">
                 <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20">
-                    <i data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
+                    <i id="send-icon" data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
                 </button>
             </div>
         </div>
         <div class="flex justify-center items-center space-x-2 mt-4 opacity-20">
             <i data-lucide="shield-check" size="8"></i>
             <p class="text-[7px] font-black tracking-[0.4em] uppercase">Sdel Protocol: Secure End-to-End</p>
+        </div>
+    </div>
+
+    <div id="action-sheet" onclick="closeMenu()">
+        <div class="sheet-content" onclick="event.stopPropagation()">
+            <div class="reaction-row">
+                <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span><span onclick="react('‼️')">‼️</span>
+            </div>
+            <button id="edit-btn-opt" class="menu-opt" onclick="startEdit()"><i data-lucide="edit-2" size="18"></i> Edit</button>
+            <button id="delete-btn-opt" class="menu-opt text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> Delete</button>
+            <button class="menu-opt text-zinc-500" onclick="closeMenu()">Cancel</button>
         </div>
     </div>
 
@@ -121,6 +139,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
         let myId = null;
+        let holdTimer, selectedId, selectedText, editingId = null;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -131,7 +150,6 @@
             loadHomieProfile();
             await fetchMessages();
             
-            // FIXED: Real-time listener for instant updates
             supabaseClient
                 .channel('public:dm_table')
                 .on('postgres_changes', { 
@@ -139,7 +157,6 @@
                     schema: 'public', 
                     table: 'dm_table' 
                 }, (payload) => {
-                    console.log('Change received!', payload);
                     fetchMessages(); 
                 })
                 .subscribe();
@@ -168,7 +185,6 @@
             
             if (!error) {
                 renderChat(messages);
-                // Mark incoming messages as read instantly
                 markAsRead();
             }
         }
@@ -193,20 +209,76 @@
                 const bubble = document.createElement('div');
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%]`;
                 
+                // 0.5s Hold Logic
+                bubble.ontouchstart = bubble.onmousedown = () => {
+                    holdTimer = setTimeout(() => openMenu(msg.id, msg.content, isMe), 500);
+                };
+                bubble.ontouchend = bubble.onmouseup = () => clearTimeout(holdTimer);
+                bubble.ontouchmove = () => clearTimeout(holdTimer);
+
                 const textPara = document.createElement('p');
                 textPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
                 textPara.textContent = msg.content;
                 
                 bubble.appendChild(textPara);
                 bubble.innerHTML += `
-                    <div class="mt-2 flex items-center justify-between">
-                        <span class="text-[7px] text-zinc-600 font-black uppercase italic">${timeStr}</span>
+                    <div class="mt-2 flex items-center justify-between gap-4">
+                        <span class="text-[7px] text-zinc-600 font-black uppercase italic">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>
                         ${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest italic ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
                     </div>
                 `;
+
+                // Reaction Display
+                if (msg.reaction) {
+                    const reactBadge = document.createElement('div');
+                    reactBadge.className = `absolute -bottom-2 ${isMe ? '-left-1' : '-right-1'} bg-zinc-900 border border-white/10 rounded-full px-1.5 py-0.5 text-[10px]`;
+                    reactBadge.innerText = msg.reaction;
+                    bubble.appendChild(reactBadge);
+                }
+
                 container.appendChild(bubble);
             });
             container.scrollTop = container.scrollHeight;
+        }
+
+        // Action Menu Functions
+        function openMenu(id, text, isMe) {
+            selectedId = id; selectedText = text;
+            document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none';
+            document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none';
+            const sheet = document.getElementById('action-sheet');
+            sheet.style.display = 'flex';
+            setTimeout(() => sheet.querySelector('.sheet-content').classList.add('show'), 10);
+            lucide.createIcons();
+        }
+
+        function closeMenu() {
+            const content = document.querySelector('.sheet-content');
+            content.classList.remove('show');
+            setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300);
+        }
+
+        async function react(emoji) {
+            await supabaseClient.from('dm_table').update({ reaction: emoji }).eq('id', selectedId);
+            closeMenu();
+        }
+
+        function startEdit() {
+            editingId = selectedId;
+            const input = document.getElementById('msg-input');
+            input.value = selectedText;
+            input.focus();
+            handleInput(input);
+            document.getElementById('send-icon').setAttribute('data-lucide', 'check');
+            lucide.createIcons();
+            closeMenu();
+        }
+
+        async function deleteMsg() {
+            if(confirm("Delete message?")) {
+                await supabaseClient.from('dm_table').delete().eq('id', selectedId);
+                closeMenu();
+            }
         }
 
         async function sendMsg() {
@@ -214,17 +286,24 @@
             const val = input.value.trim();
             if (!val) return;
             
-            const { error } = await supabaseClient.from('dm_table').insert({ 
-                sender_id: myId, 
-                receiver_id: homieId, 
-                content: val 
-            });
-            
-            if(!error) {
-                input.value = "";
-                handleInput(input);
-                fetchMessages(); // Force a quick local update
+            if (editingId) {
+                const { error } = await supabaseClient.from('dm_table').update({ content: val, is_edited: true }).eq('id', editingId);
+                if (!error) {
+                    editingId = null;
+                    document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
+                    lucide.createIcons();
+                }
+            } else {
+                await supabaseClient.from('dm_table').insert({ 
+                    sender_id: myId, 
+                    receiver_id: homieId, 
+                    content: val 
+                });
             }
+            
+            input.value = "";
+            handleInput(input);
+            fetchMessages();
         }
 
         function handleInput(el) {
