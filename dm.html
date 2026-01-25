@@ -18,11 +18,7 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        .msg-bubble, .react-badge, .reaction-row span { 
-            user-select: none !important; 
-            -webkit-user-select: none !important; 
-            touch-action: manipulation;
-        }
+        .msg-bubble { user-select: none !important; -webkit-user-select: none !important; }
 
         .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; }
         .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; }
@@ -36,7 +32,6 @@
         .sheet-content.show { transform: translateY(0); }
         .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
-        .menu-opt:active { background: #222; }
         
         .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; }
         .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
@@ -45,13 +40,12 @@
         .highlight-msg { animation: pulse-orange 1.5s ease-out; }
         @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.4); } 100% { background: transparent; } }
 
-        /* WhatsApp Style Reply Preview */
-        #whatsapp-reply-ui { display: none; background: #111; border-top: 1px solid rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 20px 20px 0 0; margin-bottom: -15px; border-left: 4px solid #FF6600; }
+        /* Aggressive WhatsApp-Style UI */
+        #whatsapp-reply-ui { display: none; background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.1); padding: 12px 16px; border-radius: 20px 20px 0 0; border-left: 4px solid #FF6600; margin-bottom: -10px; }
         #whatsapp-reply-ui.active { display: block; }
 
         .avatar-box { transition: all 0.4s ease; border: 1px solid rgba(255,255,255,0.1); }
-        .avatar-online { border-color: #22c55e !important; box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); color: #22c55e !important; }
-        .avatar-offline { border-color: rgba(255,255,255,0.1); color: #71717a; }
+        .avatar-online { border-color: #22c55e !important; box-shadow: 0 0 15px rgba(34, 197, 94, 0.3); color: #22c55e !important; }
     </style>
 </head>
 <body>
@@ -79,11 +73,11 @@
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
         <div id="whatsapp-reply-ui" class="mx-2">
             <div class="flex justify-between items-start">
-                <div>
+                <div class="min-w-0">
                     <p id="reply-ui-name" class="text-[10px] font-black text-sdel uppercase"></p>
-                    <p id="reply-ui-text" class="text-xs text-zinc-400 truncate max-w-[200px]"></p>
+                    <p id="reply-ui-text" class="text-xs text-zinc-500 truncate"></p>
                 </div>
-                <button onclick="cancelReply()" class="text-zinc-500"><i data-lucide="x" size="14"></i></button>
+                <button onclick="cancelReply()" class="text-zinc-600 ml-4"><i data-lucide="x" size="16"></i></button>
             </div>
         </div>
 
@@ -120,9 +114,7 @@
         const homieId = urlParams.get('id'); 
         let myId = null, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null, selectedIsMe = false;
         
-        let replyTargetId = null;
-        let replyTargetText = "";
-        let replyTargetSender = "";
+        let replyTargetId = null, replyTargetText = "", replyTargetSender = "";
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -131,10 +123,7 @@
             const { data: me } = await supabaseClient.from('profile').select('first_name, username').eq('id', myId).single();
             myName = me?.first_name || me?.username || "Me";
             createStars(); loadHomieProfile(); await fetchMessages(); await markAsRead(); 
-            supabaseClient.channel('public:dm_table').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, (payload) => {
-                fetchMessages();
-                if (payload.new && payload.new.receiver_id === myId) markAsRead();
-            }).subscribe();
+            supabaseClient.channel('public:dm_table').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages()).subscribe();
             lucide.createIcons();
         }
 
@@ -155,24 +144,19 @@
         }
 
         async function fetchMessages() {
-            const { data: messages, error } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
-            if (!error) { renderChat(messages); }
+            const { data: messages } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
+            if (messages) renderChat(messages);
         }
 
         async function markAsRead() {
-            if (!myId || !homieId) return;
             await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false);
         }
 
-        function scrollToBottom() {
-            const container = document.getElementById('chat-content');
-            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
-        }
-
+        // AGGRESSIVE SYSTEM STRIP
         function getCleanText(str) {
             if (!str) return "";
             if (str.includes('»')) return str.split('»').pop().trim();
-            return str;
+            return str.replace(/Replying to .*?\|RID:.*?\|".*?"/g, '').trim();
         }
 
         function renderChat(messages) {
@@ -185,7 +169,6 @@
                 bubble.id = `msg-${msg.id}`;
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] msg-bubble transition-transform active:scale-95`;
                 
-                // Clicking the bubble opens menu ONLY if not clicking the reply box
                 bubble.onclick = () => {
                     const now = Date.now();
                     if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
@@ -194,20 +177,13 @@
                 };
 
                 if (msg.content.includes('|RID:')) {
-                    const parts = msg.content.split('»');
-                    const meta = parts[0].split('|');
+                    const meta = msg.content.split('»')[0].split('|');
                     const refId = meta[1].replace('RID:', '');
                     const refUser = meta[0].replace('Replying to ', '');
-                    
                     const qBox = document.createElement('div');
                     qBox.className = 'reply-box';
                     qBox.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${meta[2].replace(/"/g, '')}</p>`;
-                    
-                    // AGGRESSIVE JUMP: Stops propagation to avoid opening edit menu
-                    qBox.onclick = (e) => { 
-                        e.stopPropagation(); 
-                        scrollToMessage(refId); 
-                    };
+                    qBox.onclick = (e) => { e.stopPropagation(); scrollToMessage(refId); };
                     bubble.appendChild(qBox);
                 }
 
@@ -221,48 +197,36 @@
                 if (msg.reaction_me || msg.reaction_them) {
                     const wrap = document.createElement('div');
                     wrap.className = `react-wrap ${isMe ? 'right-0' : 'left-0'}`;
-                    if (msg.reaction_me) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${isMe ? 'Me' : theirName}</span></div>`;
-                    if (msg.reaction_them) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${isMe ? theirName : 'Me'}</span></div>`;
+                    if (msg.reaction_me) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span></div>`;
+                    if (msg.reaction_them) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span></div>`;
                     bubble.appendChild(wrap);
                 }
                 container.appendChild(bubble);
             });
-            scrollToBottom(); lucide.createIcons();
+            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
         }
 
-        // WHATSAPP STYLE REPLY HANDLER
         function handleReply(msgId, content, sender) {
-            replyTargetId = msgId;
-            replyTargetSender = sender;
+            replyTargetId = msgId; replyTargetSender = sender;
             replyTargetText = getCleanText(content);
-            
             document.getElementById('reply-ui-name').innerText = sender;
             document.getElementById('reply-ui-text').innerText = replyTargetText;
             document.getElementById('whatsapp-reply-ui').classList.add('active');
-            
             const input = document.getElementById('msg-input');
-            input.focus(); 
-            handleInput(input);
-            lucide.createIcons();
+            input.focus(); handleInput(input); lucide.createIcons();
         }
 
         function cancelReply() {
             replyTargetId = null; editingId = null;
             document.getElementById('whatsapp-reply-ui').classList.remove('active');
             const input = document.getElementById('msg-input');
-            input.value = ""; 
-            document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
-            handleInput(input);
-            lucide.createIcons();
+            input.value = ""; document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
+            handleInput(input); lucide.createIcons();
         }
 
         function scrollToMessage(id) {
             const el = document.getElementById(`msg-${id}`);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.add('highlight-msg');
-                setTimeout(() => el.classList.remove('highlight-msg'), 1500);
-            }
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 1500); }
         }
 
         function handleReplyAction() { handleReply(selectedId, selectedText, (selectedIsMe ? myName : theirName)); closeMenu(); }
@@ -281,7 +245,7 @@
 
         async function react(emoji) {
             const { data: msg } = await supabaseClient.from('dm_table').select('*').eq('id', selectedId).single();
-            const updates = msg.sender_id === myId ? { reaction_me: msg.reaction_me === emoji ? null : emoji } : { reaction_them: msg.reaction_them === emoji ? null : emoji };
+            const updates = msg.sender_id === myId ? { reaction_me: emoji } : { reaction_them: emoji };
             await supabaseClient.from('dm_table').update(updates).eq('id', selectedId);
             closeMenu();
         }
@@ -292,8 +256,7 @@
             editingId = selectedId;
             const input = document.getElementById('msg-input');
             input.value = getCleanText(selectedText);
-            input.focus(); 
-            handleInput(input);
+            input.focus(); handleInput(input);
             document.getElementById('send-icon').setAttribute('data-lucide', 'check');
             lucide.createIcons(); closeMenu();
         }
@@ -304,36 +267,18 @@
             const input = document.getElementById('msg-input');
             const rawVal = input.value.trim();
             if (!rawVal) return;
-
             let finalContent = rawVal;
-            if (replyTargetId) {
-                finalContent = `Replying to ${replyTargetSender}|RID:${replyTargetId}|"${replyTargetText.substring(0, 25)}..." \n» ${rawVal}`;
-            } else if (editingId) {
+            if (replyTargetId) { finalContent = `Replying to ${replyTargetSender}|RID:${replyTargetId}|"${replyTargetText.substring(0, 20)}..." \n» ${rawVal}`; }
+            else if (editingId) {
                 const { data: original } = await supabaseClient.from('dm_table').select('content').eq('id', editingId).single();
-                if (original.content.includes('|RID:')) {
-                    const prefix = original.content.split('»')[0];
-                    finalContent = `${prefix}» ${rawVal}`;
-                }
+                if (original.content.includes('|RID:')) { finalContent = `${original.content.split('»')[0]}» ${rawVal}`; }
             }
-
-            if (editingId) {
-                await supabaseClient.from('dm_table').update({ content: finalContent, is_edited: true }).eq('id', editingId);
-                editingId = null; 
-                document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up'); 
-            } else {
-                await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: finalContent, is_read: false });
-            }
-            
+            if (editingId) { await supabaseClient.from('dm_table').update({ content: finalContent, is_edited: true }).eq('id', editingId); }
+            else { await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: finalContent, is_read: false }); }
             cancelReply();
         }
 
-        function handleInput(el) { 
-            el.style.height = 'auto'; 
-            el.style.height = (el.scrollHeight) + 'px'; 
-            const btn = document.getElementById('send-btn'); 
-            el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
-        }
-
+        function handleInput(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); }
         function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; container.appendChild(star); } }
         function toggleSoon() { document.getElementById('soon-modal').classList.toggle('hidden'); lucide.createIcons(); }
         init();
