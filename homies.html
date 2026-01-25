@@ -10,15 +10,12 @@
     
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        /* Changed: Removed position: fixed to allow the container height calculation to work naturally */
         body { background-color: #000; color: #fff; overflow-x: hidden; width: 100vw; height: 100%; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .header-text { font-weight: 800; letter-spacing: -0.01em; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        
-        /* Changed: Adjusted height to ensure it takes up the remaining screen space and is scrollable */
         #main-content { height: calc(100vh - 310px); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 80px; }
     </style>
 
@@ -38,6 +35,19 @@
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.href = 'login.html';
             currentUserId = session.user.id;
+            
+            // REAL-TIME LISTENER: Watches for any changes in the dm_table
+            supabase.channel('homies-live-updates')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'dm_table' 
+                }, () => {
+                    // Refresh content when any message activity occurs
+                    loadContent();
+                })
+                .subscribe();
+
             switchTab('general');
 
             document.addEventListener('touchstart', e => touchstartX = e.changedTouches[0].screenX);
@@ -73,20 +83,57 @@
 
         async function loadContent() {
             const container = document.getElementById('main-content');
-            container.innerHTML = `<div class="p-10 text-center text-zinc-600 text-lg">Loading...</div>`;
+            // Removed "Loading..." text here to prevent flicking during real-time updates
 
-            if (activeTab === 'general') {
-                const { data } = await supabase.from('connections')
+            if (activeTab === 'general' || activeTab === 'unread') {
+                const { data: connections } = await supabase.from('connections')
                     .select('*, sender:profile!sender_id(*), receiver:profile!receiver_id(*)')
                     .eq('status', 'accepted')
                     .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
-                allConnections = data || [];
-                renderChats(allConnections);
+                
+                if (!connections) return renderChats([]);
+
+                // Fetch latest messages and unread counts for all connections
+                const chatData = await Promise.all(connections.map(async (c) => {
+                    const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
+                    
+                    // Get latest message
+                    const { data: lastMsg } = await supabase.from('dm_table')
+                        .select('*')
+                        .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partner.id}),and(sender_id.eq.${partner.id},receiver_id.eq.${currentUserId})`)
+                        .order('created_at', { ascending: false })
+                        .limit(1)
+                        .maybeSingle(); // Used maybeSingle to avoid errors if no messages exist
+
+                    // Get unread count
+                    const { count: unreadCount } = await supabase.from('dm_table')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('sender_id', partner.id)
+                        .eq('receiver_id', currentUserId)
+                        .eq('is_read', false);
+
+                    return { ...c, partner, lastMsg, unreadCount: unreadCount || 0 };
+                }));
+
+                // Sort by last message time (descending)
+                chatData.sort((a, b) => {
+                    const timeA = a.lastMsg ? new Date(a.lastMsg.created_at) : new Date(0);
+                    const timeB = b.lastMsg ? new Date(b.lastMsg.created_at) : new Date(0);
+                    return timeB - timeA;
+                });
+
+                allConnections = chatData;
+                
+                if (activeTab === 'unread') {
+                    const unreadOnly = allConnections.filter(c => c.unreadCount > 0);
+                    renderChats(unreadOnly, true);
+                } else {
+                    renderChats(allConnections);
+                }
+
             } else if (activeTab === 'requests') {
                 const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
                 renderRequests(data);
-            } else if (activeTab === 'unread') {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm italic uppercase">No unread messages</p>`;
             }
         }
 
@@ -99,8 +146,7 @@
             }
 
             const filtered = allConnections.filter(c => {
-                const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
-                // Updated: Logic now checks first name, last name, and username
+                const partner = c.partner;
                 const searchString = `${partner.first_name} ${partner.last_name} ${partner.username}`.toLowerCase();
                 return searchString.includes(val.toLowerCase());
             });
@@ -119,23 +165,33 @@
             }
         };
 
-        function renderChats(connections) {
+        function renderChats(connections, isUnreadTab = false) {
             const container = document.getElementById('main-content');
             if (!connections || connections.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase">No homies yet.</p>`;
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase">${isUnreadTab ? 'No unread messages' : 'No homies yet.'}</p>`;
                 return;
             }
             container.innerHTML = connections.map(c => {
-                const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
+                const partner = c.partner;
                 const avatar = partner.avatar_url ? partner.avatar_url : `https://api.dicebear.com/7.x/initials/svg?seed=${partner.first_name}`;
+                
+                // Truncate logic
+                let preview = c.lastMsg ? c.lastMsg.content : `@${partner.username}`;
+                if (preview.length > 35) preview = preview.substring(0, 35) + '...';
+
+                // Unread Badge logic
+                const statusHtml = c.unreadCount > 0 
+                    ? `<span class="bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>`
+                    : `<span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>`;
+
                 return `<div onclick="location.href='dm.html?id=${partner.id}'" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition">
                     <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 object-cover bg-zinc-800">
-                    <div class="flex-1">
+                    <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-base font-bold text-white uppercase">${partner.first_name} ${partner.last_name}</h3>
-                            <span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>
+                            <h3 class="text-base font-bold text-white uppercase truncate mr-2">${partner.first_name} ${partner.last_name}</h3>
+                            ${statusHtml}
                         </div>
-                        <p class="text-xs text-zinc-500 truncate italic mt-0.5">@${partner.username}</p>
+                        <p class="text-xs text-zinc-500 truncate italic mt-0.5">${preview}</p>
                     </div>
                 </div>`;
             }).join('');
