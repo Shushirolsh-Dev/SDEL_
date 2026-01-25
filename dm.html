@@ -17,6 +17,14 @@
         @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 20% { opacity: 0.6; } 80% { opacity: 0.6; } 100% { transform: translateY(110vh); opacity: 0; } }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
+        
+        /* Disable Copying on bubbles */
+        .msg-received, .msg-sent { 
+            user-select: none; 
+            -webkit-user-select: none; 
+            cursor: default;
+        }
+
         .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; }
         .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; }
         #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; flex-shrink: 0; }
@@ -27,9 +35,13 @@
         .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
         .sheet-content.show { transform: translateY(0); }
         .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
-        .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; }
+        .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
         .menu-opt:active { background: #222; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
+        
+        /* Multi-reaction Badge style */
+        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; }
+        .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -72,6 +84,7 @@
             <div class="reaction-row">
                 <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span><span onclick="react('‼️')">‼️</span>
             </div>
+            <button class="menu-opt" onclick="copyToClipboard()"><i data-lucide="copy" size="18"></i> Copy Text</button>
             <button id="edit-btn-opt" class="menu-opt" onclick="startEdit()"><i data-lucide="edit-2" size="18"></i> Edit</button>
             <button id="delete-btn-opt" class="menu-opt text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> Delete</button>
             <button class="menu-opt text-zinc-500" onclick="closeMenu()">Cancel</button>
@@ -93,12 +106,17 @@
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
-        let myId = null, holdTimer, selectedId, selectedText, editingId = null;
+        let myId = null, myName = "Me", theirName = "Them", holdTimer, selectedId, selectedText, editingId = null;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) { window.location.href = 'login.html'; return; }
             myId = session.user.id;
+            
+            // Get My Name
+            const { data: me } = await supabaseClient.from('profile').select('first_name, username').eq('id', myId).single();
+            myName = me?.first_name || me?.username || "Me";
+
             createStars(); loadHomieProfile(); await fetchMessages();
             supabaseClient.channel('public:dm_table').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages()).subscribe();
             lucide.createIcons();
@@ -107,8 +125,9 @@
         async function loadHomieProfile() {
             const { data: profile } = await supabaseClient.from('profile').select('*').eq('id', homieId).single();
             if (profile) {
-                document.getElementById('chat-name').innerText = profile.first_name || profile.username;
-                document.getElementById('user-avatar').innerText = (profile.first_name || profile.username || 'H')[0].toUpperCase();
+                theirName = profile.first_name || profile.username || "Them";
+                document.getElementById('chat-name').innerText = theirName;
+                document.getElementById('user-avatar').innerText = theirName[0].toUpperCase();
                 if (profile.is_online) {
                     document.getElementById('online-indicator').classList.replace('bg-zinc-700', 'bg-green-500');
                     document.getElementById('chat-status').innerText = "Live on Grid";
@@ -134,15 +153,16 @@
                 const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const bubble = document.createElement('div');
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%]`;
-                bubble.ontouchstart = bubble.onmousedown = () => holdTimer = setTimeout(() => openMenu(msg.id, msg.content, isMe), 500);
-                bubble.ontouchend = bubble.onmouseup = bubble.ontouchmove = () => clearTimeout(holdTimer);
+                
+                // Triggers for menu
+                bubble.onclick = () => openMenu(msg.id, msg.content, isMe);
+                bubble.oncontextmenu = (e) => { e.preventDefault(); openMenu(msg.id, msg.content, isMe); };
 
                 const textPara = document.createElement('p');
                 textPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
                 textPara.textContent = msg.content;
                 bubble.appendChild(textPara);
 
-                // PEN ICON for Edited
                 const editInfo = msg.is_edited ? `<i data-lucide="pen" size="8" class="inline ml-1 opacity-50"></i>` : '';
 
                 bubble.innerHTML += `
@@ -152,13 +172,20 @@
                     </div>
                 `;
 
-                // REACTION POSITIONING: Bottom Right (Me), Bottom Left (Them)
-                if (msg.reaction) {
-                    const reactBadge = document.createElement('div');
-                    reactBadge.className = `absolute -bottom-2 ${isMe ? '-right-1' : '-left-1'} bg-zinc-900 border border-white/10 rounded-full px-1.5 py-0.5 text-[10px] z-10`;
-                    reactBadge.innerText = msg.reaction;
-                    bubble.appendChild(reactBadge);
+                // DOUBLE REACTION LOGIC
+                if (msg.reaction_me || msg.reaction_them) {
+                    const wrap = document.createElement('div');
+                    wrap.className = `react-wrap ${isMe ? 'right-0' : 'left-0'}`;
+                    
+                    if (msg.reaction_me) {
+                        wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${msg.my_name}</span></div>`;
+                    }
+                    if (msg.reaction_them) {
+                        wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${msg.their_name}</span></div>`;
+                    }
+                    bubble.appendChild(wrap);
                 }
+                
                 container.appendChild(bubble);
             });
             container.scrollTop = container.scrollHeight; lucide.createIcons();
@@ -181,7 +208,22 @@
         }
 
         async function react(emoji) {
-            await supabaseClient.from('dm_table').update({ reaction: emoji }).eq('id', selectedId);
+            // Find if I am the sender or receiver to update the correct reaction slot
+            const { data: msg } = await supabaseClient.from('dm_table').select('sender_id').eq('id', selectedId).single();
+            const updates = {};
+            if (msg.sender_id === myId) {
+                updates.reaction_me = emoji;
+                updates.my_name = myName;
+            } else {
+                updates.reaction_them = emoji;
+                updates.their_name = myName;
+            }
+            await supabaseClient.from('dm_table').update(updates).eq('id', selectedId);
+            closeMenu();
+        }
+
+        async function copyToClipboard() {
+            await navigator.clipboard.writeText(selectedText);
             closeMenu();
         }
 
@@ -194,7 +236,6 @@
         }
 
         async function deleteMsg() {
-            // NO ALERT - Direct delete
             await supabaseClient.from('dm_table').delete().eq('id', selectedId);
             closeMenu();
         }
@@ -209,7 +250,7 @@
             } else {
                 await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: val });
             }
-            input.value = ""; handleInput(input); fetchMessages();
+            input.value = ""; handleInput(input);
         }
 
         function handleInput(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); }
