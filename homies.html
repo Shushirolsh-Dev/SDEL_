@@ -36,6 +36,7 @@
             if (!session) return window.location.href = 'login.html';
             currentUserId = session.user.id;
             
+            // Real-time listener for new messages
             supabase.channel('homies-live-updates')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => {
                     loadContent();
@@ -44,21 +45,21 @@
 
             switchTab('general');
 
+            // Swipe Logic
             document.addEventListener('touchstart', e => touchstartX = e.changedTouches[0].screenX);
             document.addEventListener('touchend', e => {
                 touchendX = e.changedTouches[0].screenX;
                 handleSwipe();
             });
 
-            // NEW: Listen for "back" navigation to force content reload
+            // CRITICAL: Force reload when returning via Back Button
             window.addEventListener('pageshow', (event) => {
-                if (event.persisted || performance.getEntriesByType("navigation")[0].type === 'back_forward') {
+                if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
                     loadContent();
                 }
             });
         }
 
-        // UPDATED: Ensuring state is cleared locally and in DB
         window.openChat = async (partnerId, element) => {
             // 1. Instant UI Clear
             if (element) {
@@ -66,22 +67,26 @@
                 if (badge) badge.style.display = 'none';
             }
 
-            // 2. Update local state immediately so reload doesn't show old count
-            const chatIdx = allConnections.findIndex(c => c.partner.id === partnerId);
-            if (chatIdx !== -1) allConnections[chatIdx].unreadCount = 0;
+            // 2. Update local state so it doesn't flicker back on re-render
+            const connIdx = allConnections.findIndex(c => c.partner.id === partnerId);
+            if (connIdx !== -1) allConnections[connIdx].unreadCount = 0;
 
-            // 3. Clear Database
+            // 3. Update DB (Awaiting to ensure it's saved before page transition)
             try {
                 await supabase
                     .from('dm_table')
-                    .update({ is_read: true })
+                    .update({ 
+                        is_read: true,
+                        read_at: new Date().toISOString()
+                    })
                     .eq('sender_id', partnerId)
                     .eq('receiver_id', currentUserId)
                     .eq('is_read', false);
             } catch (err) {
-                console.error("Error clearing count:", err);
+                console.error("Failed to mark as read:", err);
             }
             
+            // 4. Navigate
             location.href = `dm.html?id=${partnerId}`;
         };
 
@@ -99,13 +104,8 @@
         window.switchTab = (tab) => {
             activeTab = tab;
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
-            document.getElementById(`tab-${tab}`).classList.add('tab-active');
-            loadContent();
-        };
-
-        window.closePublicSearch = () => {
-            document.getElementById('search-input').value = '';
-            document.getElementById('public-search-trigger').classList.add('hidden');
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            if (activeBtn) activeBtn.classList.add('tab-active');
             loadContent();
         };
 
@@ -148,8 +148,7 @@
                 allConnections = chatData;
                 
                 if (activeTab === 'unread') {
-                    const unreadOnly = allConnections.filter(c => c.unreadCount > 0);
-                    renderChats(unreadOnly, true);
+                    renderChats(allConnections.filter(c => c.unreadCount > 0), true);
                 } else {
                     renderChats(allConnections);
                 }
@@ -187,7 +186,7 @@
         function renderChats(connections, isUnreadTab = false) {
             const container = document.getElementById('main-content');
             if (!connections || connections.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase">${isUnreadTab ? 'No unread messages' : 'No homies yet.'}</p>`;
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase font-black tracking-widest">${isUnreadTab ? 'No unread messages' : 'No homies yet.'}</p>`;
                 return;
             }
             container.innerHTML = connections.map(c => {
@@ -201,7 +200,7 @@
                     ? `<span class="unread-badge bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>`
                     : `<span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>`;
 
-                return `<div onclick="openChat('${partner.id}', this)" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition">
+                return `<div onclick="openChat('${partner.id}', this)" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition cursor-pointer">
                     <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 object-cover bg-zinc-800">
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-center">
@@ -217,7 +216,7 @@
         function renderRequests(reqs) {
             const container = document.getElementById('main-content');
             if (!reqs || reqs.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm">No pending requests</p>`;
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm font-black uppercase tracking-widest">No pending requests</p>`;
                 return;
             }
             container.innerHTML = reqs.map(r => `
@@ -242,7 +241,7 @@
         window.searchPublic = async () => {
             const val = document.getElementById('search-input').value;
             const container = document.getElementById('main-content');
-            container.innerHTML = `<p id="searching-status" class="p-10 text-center text-sdel animate-pulse text-sm font-black">SEARCHING GLOBAL SDEL...</p>`;
+            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-sm font-black uppercase">Searching Global Sdel...</p>`;
             
             const { data: users } = await supabase.from('profile')
                 .select('*')
@@ -251,7 +250,7 @@
                 .limit(15);
 
             if (!users || users.length === 0) {
-                container.innerHTML = `<div class="p-10 text-center text-zinc-500">No Global Results</div>`;
+                container.innerHTML = `<div class="p-10 text-center text-zinc-500 uppercase font-black text-sm">No Global Results</div>`;
                 return;
             }
 
@@ -321,11 +320,5 @@
             <span class="text-[10px] font-black uppercase mt-1">Explore</span>
         </div>
         <div class="flex flex-col items-center text-zinc-500" onclick="location.href='stories.html'">
-            <i data-lucide="aperture" size="28"></i>
-            <span class="text-[10px] font-black uppercase mt-1">Stories</span>
-        </div>
-    </nav>
-
-    <script>lucide.createIcons();</script>
-</body>
-</html>
+            <i data-lucide="aperture" size="28">
+                
