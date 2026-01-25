@@ -19,8 +19,9 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
 
-        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; margin-bottom: 8px; }
-        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; margin-bottom: 8px; }
+        /* Fixed Message Layout */
+        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; margin-bottom: 4px; }
+        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; margin-bottom: 4px; }
         
         .msg-deleted { opacity: 0.4; font-style: italic; border: 1px dashed rgba(255,255,255,0.2) !important; background: transparent !important; }
 
@@ -30,6 +31,7 @@
         #msg-input { resize: none; max-height: 150px; overflow-y: auto; line-height: 1.5; }
         #chat-content { scroll-behavior: smooth; }
 
+        /* Fixed Action Sheet & Reactions */
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
         .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
         .sheet-content.show { transform: translateY(0); }
@@ -40,9 +42,6 @@
 
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border: none; color: white; }
         .menu-opt:active { background: #222; }
-        
-        /* Input Visibility Persistence */
-        .input-bar-fixed { position: relative; z-index: 50; background: #000; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
 </head>
@@ -67,10 +66,10 @@
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col scrollbar-hide"></main>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-4 scrollbar-hide"></main>
 
-    <div class="flex-none px-4 input-bar-fixed">
-        <div class="flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
+    <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
+        <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
             <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
             <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
             <div class="pb-2.5">
@@ -111,7 +110,7 @@
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
-        let myId = null, holdTimer, selectedId, selectedText, currentReaction = null, editingId = null;
+        let myId = null, holdTimer, selectedId, selectedText, editingId = null;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -154,10 +153,10 @@
                 const bubble = document.createElement('div');
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] ${msg.is_deleted ? 'msg-deleted' : ''}`;
                 
-                // Reaction/Menu Triggers for ALL messages
                 if (!msg.is_deleted) {
-                    bubble.onclick = (e) => { e.stopPropagation(); openMenu(msg.id, msg.content, isMe, msg.reaction); };
-                    bubble.oncontextmenu = (e) => { e.preventDefault(); openMenu(msg.id, msg.content, isMe, msg.reaction); };
+                    bubble.oncontextmenu = (e) => { e.preventDefault(); openMenu(msg.id, msg.content, isMe); };
+                    bubble.ontouchstart = () => holdTimer = setTimeout(() => openMenu(msg.id, msg.content, isMe), 500);
+                    bubble.ontouchend = bubble.ontouchmove = () => clearTimeout(holdTimer);
                 }
 
                 const textPara = document.createElement('p');
@@ -168,7 +167,7 @@
                 const editInfo = (msg.is_edited && !msg.is_deleted) ? `<i data-lucide="pen" size="8" class="inline ml-1 opacity-50"></i>` : '';
 
                 bubble.innerHTML += `
-                    <div class="mt-2 flex items-center justify-between gap-4 pointer-events-none">
+                    <div class="mt-2 flex items-center justify-between gap-4">
                         <span class="text-[7px] text-zinc-600 font-black uppercase italic">${timeStr}${editInfo}</span>
                         ${(isMe && !msg.is_deleted) ? `<span class="text-[7px] font-black uppercase tracking-widest italic ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
                     </div>
@@ -185,10 +184,8 @@
             container.scrollTop = container.scrollHeight; lucide.createIcons();
         }
 
-        function openMenu(id, text, isMe, reaction) {
-            selectedId = id; 
-            selectedText = text;
-            currentReaction = reaction;
+        function openMenu(id, text, isMe) {
+            selectedId = id; selectedText = text;
             document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none';
             document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none';
             const sheet = document.getElementById('action-sheet');
@@ -203,9 +200,7 @@
         }
 
         async function react(emoji) {
-            // UNREACT LOGIC: if same emoji clicked, set to null
-            const newReaction = (currentReaction === emoji) ? null : emoji;
-            await supabaseClient.from('dm_table').update({ reaction: newReaction }).eq('id', selectedId);
+            await supabaseClient.from('dm_table').update({ reaction: emoji }).eq('id', selectedId);
             closeMenu();
         }
 
