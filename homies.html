@@ -10,16 +10,16 @@
     
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        /* Changed: Removed position: fixed to allow the container height calculation to work naturally */
         body { background-color: #000; color: #fff; overflow-x: hidden; width: 100vw; height: 100%; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .header-text { font-weight: 800; letter-spacing: -0.01em; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        #main-content { height: calc(100vh - 310px); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 80px; }
         
-        /* New Notification Badge Style */
-        .notification-badge { position: absolute; top: 10px; right: 10px; background: #FF6600; color: #000; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 50%; border: 2px solid #000; }
+        /* Changed: Adjusted height to ensure it takes up the remaining screen space and is scrollable */
+        #main-content { height: calc(100vh - 310px); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 80px; }
     </style>
 
     <script type="module">
@@ -38,11 +38,6 @@
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.href = 'login.html';
             currentUserId = session.user.id;
-            
-            // Listen for new requests live
-            setupRealtime();
-            updateRequestBadge();
-            
             switchTab('general');
 
             document.addEventListener('touchstart', e => touchstartX = e.changedTouches[0].screenX);
@@ -50,25 +45,6 @@
                 touchendX = e.changedTouches[0].screenX;
                 handleSwipe();
             });
-        }
-
-        function setupRealtime() {
-            supabase.channel('public:connections')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'connections', filter: `receiver_id=eq.${currentUserId}` }, () => {
-                    updateRequestBadge();
-                })
-                .subscribe();
-        }
-
-        async function updateRequestBadge() {
-            const { count } = await supabase.from('connections').select('*', { count: 'exact', head: true }).eq('receiver_id', currentUserId).eq('status', 'pending');
-            const badge = document.getElementById('req-badge');
-            if (count > 0) {
-                badge.innerText = count;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
         }
 
         function handleSwipe() {
@@ -99,14 +75,18 @@
             const container = document.getElementById('main-content');
             container.innerHTML = `<div class="p-10 text-center text-zinc-600 text-lg">Loading...</div>`;
 
-            if (activeTab === 'general' || activeTab === 'unread') {
-                const { data, error } = await supabase.rpc('get_homie_chats', { user_id: currentUserId });
+            if (activeTab === 'general') {
+                const { data } = await supabase.from('connections')
+                    .select('*, sender:profile!sender_id(*), receiver:profile!receiver_id(*)')
+                    .eq('status', 'accepted')
+                    .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
                 allConnections = data || [];
-                renderChats(activeTab === 'unread' ? allConnections.filter(c => c.unread_count > 0) : allConnections);
+                renderChats(allConnections);
             } else if (activeTab === 'requests') {
                 const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
                 renderRequests(data);
-                updateRequestBadge();
+            } else if (activeTab === 'unread') {
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm italic uppercase">No unread messages</p>`;
             }
         }
 
@@ -119,7 +99,9 @@
             }
 
             const filtered = allConnections.filter(c => {
-                const searchString = `${c.partner_first_name} ${c.partner_last_name} ${c.partner_username}`.toLowerCase();
+                const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
+                // Updated: Logic now checks first name, last name, and username
+                const searchString = `${partner.first_name} ${partner.last_name} ${partner.username}`.toLowerCase();
                 return searchString.includes(val.toLowerCase());
             });
 
@@ -128,7 +110,11 @@
                 trigger.classList.add('hidden');
             } else {
                 const container = document.getElementById('main-content');
-                container.innerHTML = `<div class="p-10 text-center"><p class="text-zinc-500 text-sm uppercase font-black italic">Homie not found in your list</p></div>`;
+                container.innerHTML = `
+                    <div class="p-10 text-center">
+                        <p class="text-zinc-500 text-sm uppercase font-black italic">Homie not found in your list</p>
+                        <p class="text-zinc-700 text-[10px] mt-2 uppercase">Try Global Search below</p>
+                    </div>`;
                 trigger.classList.remove('hidden');
             }
         };
@@ -140,17 +126,16 @@
                 return;
             }
             container.innerHTML = connections.map(c => {
-                const avatar = c.partner_avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.partner_first_name}`;
-                const lastMsg = c.last_message || "Encrypted connection established";
-                
-                return `<div onclick="location.href='dm.html?id=${c.partner_id}'" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition">
+                const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
+                const avatar = partner.avatar_url ? partner.avatar_url : `https://api.dicebear.com/7.x/initials/svg?seed=${partner.first_name}`;
+                return `<div onclick="location.href='dm.html?id=${partner.id}'" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition">
                     <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 object-cover bg-zinc-800">
-                    <div class="flex-1 min-w-0">
+                    <div class="flex-1">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-base font-bold text-white uppercase truncate">${c.partner_first_name} ${c.partner_last_name}</h3>
-                            ${c.unread_count > 0 ? `<span class="bg-sdel text-black text-[10px] font-black px-2 py-0.5 rounded-full">${c.unread_count}</span>` : `<span class="text-[10px] text-zinc-600 font-black tracking-widest uppercase">Active</span>`}
+                            <h3 class="text-base font-bold text-white uppercase">${partner.first_name} ${partner.last_name}</h3>
+                            <span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>
                         </div>
-                        <p class="text-xs text-zinc-500 truncate italic mt-0.5">${lastMsg}</p>
+                        <p class="text-xs text-zinc-500 truncate italic mt-0.5">@${partner.username}</p>
                     </div>
                 </div>`;
             }).join('');
@@ -159,7 +144,7 @@
         function renderRequests(reqs) {
             const container = document.getElementById('main-content');
             if (!reqs || reqs.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase">No pending requests</p>`;
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm">No pending requests</p>`;
                 return;
             }
             container.innerHTML = reqs.map(r => `
@@ -172,53 +157,123 @@
                             <button onclick="respond('${r.id}', 'rejected')" class="bg-zinc-800 text-white text-[11px] font-black px-6 py-2 rounded-xl active:scale-95 transition">Reject</button>
                         </div>
                     </div>
-                </div>`).join('');
+                </div>
+            `).join('');
         }
 
         window.respond = async (id, status) => {
             const { error } = await supabase.from('connections').update({ status }).eq('id', id);
-            if (!error) { loadContent(); updateRequestBadge(); }
+            if (!error) { loadContent(); }
         };
 
         window.searchPublic = async () => {
             const val = document.getElementById('search-input').value;
             const container = document.getElementById('main-content');
-            container.innerHTML = `<div class="p-5 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center"><span class="text-xs font-black text-sdel italic uppercase tracking-wider">Public Search</span><i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i></div><p class="p-10 text-center text-sdel animate-pulse text-sm font-black italic uppercase">Searching...</p>`;
+            container.innerHTML = `
+                <div class="p-5 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
+                    <span class="text-xs font-black text-sdel italic uppercase tracking-wider">Public Search</span>
+                    <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
+                </div>
+                <p id="searching-status" class="p-10 text-center text-sdel animate-pulse text-sm font-black italic">SEARCHING GLOBAL SDEL...</p>
+            `;
             lucide.createIcons();
             
-            const { data: users } = await supabase.from('profile').select('*').neq('id', currentUserId).or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`).limit(15);
-            if (!users || users.length === 0) { showSearchError(container); return; }
+            let isDone = false;
+            
+            const timeout = setTimeout(() => {
+                if (!isDone) {
+                    isDone = true;
+                    showSearchError(container);
+                }
+            }, 5000);
 
-            container.innerHTML = `<div class="p-5 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center"><span class="text-xs font-black text-sdel italic uppercase tracking-wider">Results</span><i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i></div>` + 
-                users.map(u => `<div class="flex justify-between items-center p-5 border-b border-white/5"><div class="flex items-center space-x-4"><div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel italic font-black text-lg">${u.first_name[0]}</div><div><p class="text-sm font-bold text-white">${u.first_name} ${u.last_name}</p><p class="text-xs text-zinc-500 italic">@${u.username}</p></div></div><button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[11px] font-black px-5 py-2 rounded-full uppercase">Add</button></div>`).join('');
+            const { data: users, error } = await supabase.from('profile')
+                .select('*')
+                .neq('id', currentUserId)
+                .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
+                .limit(15);
+
+            if (isDone) return;
+            isDone = true;
+            clearTimeout(timeout);
+
+            if (!users || users.length === 0) {
+                showSearchError(container);
+                return;
+            }
+
+            const { data: conn } = await supabase.from('connections')
+                .select('*')
+                .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+            container.innerHTML = `
+                <div class="p-5 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
+                    <span class="text-xs font-black text-sdel italic uppercase tracking-wider">Public Results</span>
+                    <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
+                </div>
+                ${users.map(u => {
+                    const isOfficial = u.is_official === true;
+                    const relationship = conn ? conn.find(c => c.sender_id === u.id || c.receiver_id === u.id) : null;
+                    let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[11px] font-black px-5 py-2 rounded-full active:scale-90 transition uppercase">Add</button>`;
+                    
+                    if (isOfficial) btnHtml = `<span class="text-[10px] font-black text-zinc-600 uppercase pr-2 tracking-widest">Official</span>`;
+                    else if (relationship) {
+                        if (relationship.status === 'pending') btnHtml = `<span class="text-[10px] font-black text-zinc-500 uppercase italic">Sent</span>`;
+                        if (relationship.status === 'accepted') btnHtml = `<span class="text-[10px] font-black text-sdel uppercase">Homie</span>`;
+                    }
+
+                    return `
+                    <div class="flex justify-between items-center p-5 border-b border-white/5">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel italic font-black text-lg">${u.first_name[0]}</div>
+                            <div>
+                                <p class="text-sm font-bold text-white">
+                                    ${u.first_name} ${u.last_name}
+                                    ${isOfficial ? '<span class="ml-1 text-[#FF6600] text-[9px] font-black tracking-widest">VERIFIED</span>' : ''}
+                                </p>
+                                <p class="text-xs text-zinc-500 italic mt-0.5">@${u.username}</p>
+                            </div>
+                        </div>
+                        ${btnHtml}
+                    </div>`;
+                }).join('')}
+            `;
             lucide.createIcons();
         };
 
         function showSearchError(container) {
-            container.innerHTML = `<div class="p-5 bg-red-500/5 border-b border-red-500/20 flex justify-between items-center"><span class="text-xs font-black text-red-500 italic uppercase tracking-wider">No Results</span><i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i></div><p class="p-10 text-center text-zinc-500 text-sm font-black uppercase italic">Not Found</p>`;
+            container.innerHTML = `
+                <div class="p-5 bg-red-500/5 border-b border-red-500/20 flex justify-between items-center">
+                    <span class="text-xs font-black text-red-500 italic uppercase tracking-wider">No Global Results</span>
+                    <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
+                </div>
+                <div class="p-10 text-center">
+                    <p class="text-zinc-500 text-sm uppercase font-black italic">User Not Found on Sdel</p>
+                    <p class="text-zinc-700 text-[10px] mt-2 uppercase italic tracking-tighter">Check spelling or try another name</p>
+                </div>`;
             lucide.createIcons();
         }
 
         window.sendHomieReq = async (id) => {
-            await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
-            switchTab('requests');
+            const { error } = await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
+            if (!error) { switchTab('requests'); }
         };
 
         init();
     </script>
 </head>
 <body class="pb-24">
+
     <nav class="p-6 flex justify-between items-center sticky top-0 bg-black/95 z-50">
         <h1 class="header-text text-2xl italic uppercase">Homies</h1>
-        <i data-lucide="refresh-cw" class="text-zinc-400" size="26" onclick="location.href='dashboard.html'"></i>
+        <div class="flex items-center">
+            <i data-lucide="refresh-cw" class="text-zinc-400 active:rotate-180 transition-all duration-500" size="26" onclick="location.href='dashboard.html'"></i>
+        </div>
     </nav>
 
     <div class="flex px-6 border-b border-white/5 bg-black sticky top-[80px] z-40">
         <button id="tab-general" onclick="switchTab('general')" class="tab-btn flex-1 py-4 text-xs font-black uppercase tab-active">General</button>
-        <button id="tab-requests" onclick="switchTab('requests')" class="tab-btn flex-1 py-4 text-xs font-black uppercase relative">
-            Requests
-            <span id="req-badge" class="notification-badge hidden">0</span>
-        </button>
+        <button id="tab-requests" onclick="switchTab('requests')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Requests</button>
         <button id="tab-unread" onclick="switchTab('unread')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Unread</button>
     </div>
 
@@ -233,13 +288,24 @@
         </div>
     </div>
 
-    <main id="main-content" class="flex flex-col"></main>
+    <main id="main-content" class="flex flex-col">
+    </main>
 
     <nav class="fixed bottom-0 inset-x-0 bg-black border-t border-white/10 p-5 flex justify-around items-center backdrop-blur-lg z-50">
-        <div class="flex flex-col items-center text-sdel" onclick="location.href='homies.html'"><i data-lucide="message-circle" size="28"></i><span class="text-[10px] font-black uppercase mt-1">Chats</span></div>
-        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='explore.html'"><i data-lucide="compass" size="28"></i><span class="text-[10px] font-black uppercase mt-1">Explore</span></div>
-        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='stories.html'"><i data-lucide="aperture" size="28"></i><span class="text-[10px] font-black uppercase mt-1">Stories</span></div>
+        <div class="flex flex-col items-center text-sdel" onclick="location.href='homies.html'">
+            <i data-lucide="message-circle" size="28"></i>
+            <span class="text-[10px] font-black uppercase mt-1">Chats</span>
+        </div>
+        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='explore.html'">
+            <i data-lucide="compass" size="28"></i>
+            <span class="text-[10px] font-black uppercase mt-1">Explore</span>
+        </div>
+        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='stories.html'">
+            <i data-lucide="aperture" size="28"></i>
+            <span class="text-[10px] font-black uppercase mt-1">Stories</span>
+        </div>
     </nav>
+
     <script>lucide.createIcons();</script>
 </body>
 </html>
