@@ -46,7 +46,6 @@
         .highlight-msg { animation: pulse-orange 1.5s ease-out; }
         @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.4); } 100% { background: transparent; } }
 
-        /* Cancel Button Styling */
         #cancel-reply-btn { display: none; }
         #cancel-reply-btn.active { display: flex; }
     </style>
@@ -217,12 +216,11 @@
 
         function handleReply(msgId, content, sender) {
             const input = document.getElementById('msg-input');
-            const clean = content.includes('»') ? content.split('»').pop().trim() : content;
-            input.value = `Replying to ${sender}|RID:${msgId}|"${clean.substring(0, 25)}..." \n» `;
+            const cleanText = content.includes('»') ? content.split('»').pop().trim() : content;
+            input.value = `Replying to ${sender}|RID:${msgId}|"${cleanText.substring(0, 25)}..." \n» `;
             input.focus(); handleInput(input);
         }
 
-        /* Cancel Reply Logic */
         function cancelReply() {
             const input = document.getElementById('msg-input');
             input.value = "";
@@ -272,15 +270,21 @@
         }
 
         async function copyToClipboard() {
-            const clean = selectedText.includes('»') ? selectedText.split('»').pop().trim() : selectedText;
-            await navigator.clipboard.writeText(clean); closeMenu();
+            const cleanText = selectedText.includes('»') ? selectedText.split('»').pop().trim() : selectedText;
+            await navigator.clipboard.writeText(cleanText); closeMenu();
         }
 
         function startEdit() {
             editingId = selectedId;
             const input = document.getElementById('msg-input');
-            const clean = selectedText.includes('»') ? selectedText.split('»').pop().trim() : selectedText;
-            input.value = clean; input.focus(); handleInput(input);
+            // If it's a reply, keep the quote structure but only let user edit the text after »
+            if (selectedText.includes('»')) {
+                const parts = selectedText.split('»');
+                input.value = parts[0] + '» ' + parts[1].trim();
+            } else {
+                input.value = selectedText;
+            }
+            input.focus(); handleInput(input);
             document.getElementById('send-icon').setAttribute('data-lucide', 'check');
             lucide.createIcons(); closeMenu();
         }
@@ -307,11 +311,7 @@
             el.style.height = (el.scrollHeight) + 'px'; 
             const btn = document.getElementById('send-btn'); 
             const cancelBtn = document.getElementById('cancel-reply-btn');
-            
-        // Show send button if text exists
             el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
-            
-            // Show cancel button if replying or editing
             (el.value.includes('|RID:') || editingId) ? cancelBtn.classList.add('active') : cancelBtn.classList.remove('active');
         }
 
