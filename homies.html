@@ -49,9 +49,16 @@
                 touchendX = e.changedTouches[0].screenX;
                 handleSwipe();
             });
+
+            // NEW: Listen for "back" navigation to force content reload
+            window.addEventListener('pageshow', (event) => {
+                if (event.persisted || performance.getEntriesByType("navigation")[0].type === 'back_forward') {
+                    loadContent();
+                }
+            });
         }
 
-        // FIXED: Using AWAIT strictly to ensure DB clears before navigation
+        // UPDATED: Ensuring state is cleared locally and in DB
         window.openChat = async (partnerId, element) => {
             // 1. Instant UI Clear
             if (element) {
@@ -59,7 +66,11 @@
                 if (badge) badge.style.display = 'none';
             }
 
-            // 2. Force DB update to finish before moving
+            // 2. Update local state immediately so reload doesn't show old count
+            const chatIdx = allConnections.findIndex(c => c.partner.id === partnerId);
+            if (chatIdx !== -1) allConnections[chatIdx].unreadCount = 0;
+
+            // 3. Clear Database
             try {
                 await supabase
                     .from('dm_table')
@@ -71,7 +82,6 @@
                 console.error("Error clearing count:", err);
             }
             
-            // 3. Move to DM page
             location.href = `dm.html?id=${partnerId}`;
         };
 
