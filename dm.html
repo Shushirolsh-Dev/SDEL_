@@ -48,6 +48,11 @@
 
         #cancel-reply-btn { display: none; }
         #cancel-reply-btn.active { display: flex; }
+
+        /* Glow States for Avatar Box */
+        .avatar-box { transition: all 0.4s ease; border: 1px solid rgba(255,255,255,0.1); }
+        .avatar-online { border-color: #22c55e !important; box-shadow: 0 0 15px rgba(34, 197, 94, 0.2); color: #22c55e !important; }
+        .avatar-offline { border-color: rgba(255,255,255,0.1); color: #71717a; }
     </style>
 </head>
 <body>
@@ -56,7 +61,7 @@
         <div class="flex items-center space-x-4">
             <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-75 transition"><i data-lucide="chevron-left" size="28"></i></button>
             <div class="relative">
-                <div id="user-avatar" class="w-11 h-11 rounded-2xl bg-zinc-900 flex items-center justify-center border border-sdel/30 text-sdel font-black text-lg shadow-lg shadow-sdel/5">?</div>
+                <div id="user-avatar" class="avatar-box w-11 h-11 rounded-2xl bg-zinc-900 flex items-center justify-center font-black text-lg">?</div>
                 <div id="online-indicator" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-zinc-700 rounded-full border-2 border-black"></div>
             </div>
             <div>
@@ -73,6 +78,7 @@
     <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scrollbar-hide"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
+        <div id="reply-preview-label" class="hidden px-4 py-1.5 text-[9px] font-black text-sdel uppercase bg-white/5 rounded-t-xl border-x border-t border-white/10">Replying to...</div>
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
             <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
             <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
@@ -118,7 +124,6 @@
         const homieId = urlParams.get('id'); 
         let myId = null, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null, selectedIsMe = false;
         
-        // HIDDEN DATA FOR REPLIES
         let replyTargetId = null;
         let replyTargetText = "";
         let replyTargetSender = "";
@@ -142,11 +147,18 @@
             if (profile) {
                 theirName = profile.first_name || profile.username || "Them";
                 document.getElementById('chat-name').innerText = theirName;
-                document.getElementById('user-avatar').innerText = theirName[0].toUpperCase();
+                const avatar = document.getElementById('user-avatar');
+                avatar.innerText = theirName[0].toUpperCase();
+                
                 if (profile.is_online) {
+                    avatar.classList.add('avatar-online');
+                    avatar.classList.remove('avatar-offline');
                     document.getElementById('online-indicator').classList.replace('bg-zinc-700', 'bg-green-500');
                     document.getElementById('chat-status').innerText = "Live on Grid";
                     document.getElementById('chat-status').classList.add('text-green-500');
+                } else {
+                    avatar.classList.add('avatar-offline');
+                    avatar.classList.remove('avatar-online');
                 }
             }
         }
@@ -189,10 +201,17 @@
                     const refId = meta[1].replace('RID:', '');
                     const refUser = meta[0].replace('Replying to ', '');
                     const actualMsg = parts.slice(1).join('»').trim();
+                    
                     const qBox = document.createElement('div');
                     qBox.className = 'reply-box';
                     qBox.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${meta[2].replace(/"/g, '')}</p>`;
-                    qBox.onclick = (e) => { e.stopPropagation(); scrollToMessage(refId); };
+                    
+                    // Fixed: stops bubble from opening action menu when jumping
+                    qBox.onclick = (e) => { 
+                        e.stopImmediatePropagation(); 
+                        scrollToMessage(refId); 
+                    };
+                    
                     bubble.appendChild(qBox);
                     const tPara = document.createElement('p');
                     tPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
@@ -205,6 +224,7 @@
                     bubble.appendChild(tPara);
                 }
 
+                // Strict (Edited) text display for all users
                 bubble.innerHTML += `<div class="mt-2 flex items-center justify-between gap-4 pointer-events-none"><span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}</div>`;
                 
                 if (msg.reaction_me || msg.reaction_them) {
@@ -219,14 +239,16 @@
             scrollToBottom(); lucide.createIcons();
         }
 
-        // UPDATED: Strictly hides data from the input field
         function handleReply(msgId, content, sender) {
             replyTargetId = msgId;
             replyTargetSender = sender;
             replyTargetText = content.includes('»') ? content.split('»').pop().trim() : content;
             
+            const label = document.getElementById('reply-preview-label');
+            label.innerText = `Replying to ${sender}`;
+            label.classList.remove('hidden');
+            
             const input = document.getElementById('msg-input');
-            input.placeholder = `Replying to ${sender}...`;
             input.focus(); 
             handleInput(input);
         }
@@ -234,9 +256,9 @@
         function cancelReply() {
             replyTargetId = null;
             editingId = null;
+            document.getElementById('reply-preview-label').classList.add('hidden');
             const input = document.getElementById('msg-input');
             input.value = "";
-            input.placeholder = "Secure message...";
             handleInput(input);
             document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
             lucide.createIcons();
@@ -304,11 +326,9 @@
 
             let finalContent = rawVal;
             
-            // AUTOMATICALLY RE-ATTACH HIDDEN RID CODE ON SEND
             if (replyTargetId) {
                 finalContent = `Replying to ${replyTargetSender}|RID:${replyTargetId}|"${replyTargetText.substring(0, 25)}..." \n» ${rawVal}`;
             } else if (editingId) {
-                // If we are editing an existing reply, we check if original was a reply
                 const { data: original } = await supabaseClient.from('dm_table').select('content').eq('id', editingId).single();
                 if (original.content.includes('|RID:')) {
                     const prefix = original.content.split('»')[0];
@@ -325,9 +345,9 @@
                 await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: finalContent, is_read: false });
             }
             
-            replyTargetId = null; // Clear hidden reply data
+            replyTargetId = null;
+            document.getElementById('reply-preview-label').classList.add('hidden');
             input.value = ""; 
-            input.placeholder = "Secure message...";
             handleInput(input);
         }
 
