@@ -41,6 +41,10 @@
         
         .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; }
         .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+
+        /* Reply Preview Styles */
+        #reply-preview { display: none; background: rgba(255, 102, 0, 0.1); border-left: 3px solid #FF6600; padding: 8px 12px; margin-bottom: 8px; border-radius: 8px; position: relative; animation: slideIn 0.2s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
@@ -66,6 +70,16 @@
     <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scrollbar-hide"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
+        <div id="reply-preview">
+            <div class="flex justify-between items-start">
+                <div>
+                    <p id="reply-user" class="text-[10px] font-black text-sdel uppercase tracking-widest"></p>
+                    <p id="reply-text" class="text-xs text-zinc-400 truncate mt-0.5"></p>
+                </div>
+                <button onclick="cancelReply()" class="text-zinc-600"><i data-lucide="x" size="14"></i></button>
+            </div>
+        </div>
+
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
             <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
             <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
@@ -83,6 +97,7 @@
             <div class="reaction-row">
                 <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span><span onclick="react('‼️')">‼️</span>
             </div>
+            <button class="menu-opt" onclick="triggerReply()"><i data-lucide="reply" size="18"></i> Reply</button>
             <button class="menu-opt" onclick="copyToClipboard()"><i data-lucide="copy" size="18"></i> Copy Text</button>
             <button id="edit-btn-opt" class="menu-opt" onclick="startEdit()"><i data-lucide="edit-2" size="18"></i> Edit</button>
             <button id="delete-btn-opt" class="menu-opt text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> Delete</button>
@@ -106,6 +121,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
         let myId = null, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null;
+        let replyData = null; // Store reply context
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -174,7 +190,7 @@
                     if (now - lastTap < 300) {
                         handleReply(msg.content, isMe ? myName : theirName);
                     } else {
-                        openMenu(msg.id, msg.content, isMe);
+                        openMenu(msg.id, msg.content, isMe, isMe ? myName : theirName);
                     }
                     lastTap = now;
                 };
@@ -213,16 +229,38 @@
             lucide.createIcons();
         }
 
+        // Feature: Handle Reply Visual Tab
         function handleReply(content, sender) {
-            const input = document.getElementById('msg-input');
+            replyData = { content, sender };
+            const preview = document.getElementById('reply-preview');
+            const userTxt = document.getElementById('reply-user');
+            const textTxt = document.getElementById('reply-text');
+            
+            // Clean content if it's already a reply to prevent nested mess
             const clean = content.includes('»') ? content.split('»').pop().trim() : content;
-            input.value = `Replying to ${sender}: "${clean.substring(0, 25)}..." \n» `;
+            
+            userTxt.innerText = sender;
+            textTxt.innerText = clean;
+            preview.style.display = 'block';
+            
+            const input = document.getElementById('msg-input');
             input.focus();
-            handleInput(input);
+            lucide.createIcons();
         }
 
-        function openMenu(id, text, isMe) {
-            selectedId = id; selectedText = text;
+        function cancelReply() {
+            replyData = null;
+            document.getElementById('reply-preview').style.display = 'none';
+        }
+
+        function triggerReply() {
+            handleReply(selectedText, selectedSender);
+            closeMenu();
+        }
+
+        let selectedSender = "";
+        function openMenu(id, text, isMe, sender) {
+            selectedId = id; selectedText = text; selectedSender = sender;
             document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none';
             document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none';
             const sheet = document.getElementById('action-sheet');
@@ -271,8 +309,15 @@
 
         async function sendMsg() {
             const input = document.getElementById('msg-input');
-            const val = input.value.trim();
+            let val = input.value.trim();
             if (!val) return;
+
+            // If it's a reply, prepend the context
+            if (replyData && !editingId) {
+                const clean = replyData.content.includes('»') ? replyData.content.split('»').pop().trim() : replyData.content;
+                val = `Replying to ${replyData.sender}: "${clean.substring(0, 25)}..." \n» ${val}`;
+            }
+
             if (editingId) {
                 await supabaseClient.from('dm_table').update({ content: val, is_edited: true }).eq('id', editingId);
                 editingId = null; 
@@ -287,6 +332,7 @@
                 });
             }
             input.value = ""; 
+            cancelReply(); // Hide preview tab after sending
             handleInput(input);
         }
 
