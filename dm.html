@@ -11,63 +11,33 @@
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        
-        body { 
-            background-color: #000; 
-            color: white; 
-            overflow: hidden; 
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            position: fixed; 
-            width: 100%; 
-        }
-        
+        body { background-color: #000; color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; position: fixed; width: 100%; }
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
-        
-        @keyframes fall { 
-            0% { transform: translateY(-10vh); opacity: 0; }
-            20% { opacity: 0.6; }
-            80% { opacity: 0.6; }
-            100% { transform: translateY(110vh); opacity: 0; } 
-        }
+        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 20% { opacity: 0.6; } 80% { opacity: 0.6; } 100% { transform: translateY(110vh); opacity: 0; } }
 
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
-        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); }
+        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; }
+        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; }
         
-        #send-btn { 
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-            transform: scale(0); opacity: 0; width: 0; display: flex;
-            align-items: center; justify-content: center; pointer-events: none; flex-shrink: 0;
-        }
+        #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; flex-shrink: 0; }
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; pointer-events: auto; }
         
-        #msg-input {
-            resize: none;
-            max-height: 150px;
-            overflow-y: auto;
-            line-height: 1.5;
-        }
+        #msg-input { resize: none; max-height: 150px; overflow-y: auto; line-height: 1.5; }
+        #chat-content { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
 
-        /* Smooth scrolling for incoming messages */
-        #chat-content {
-            scroll-behavior: smooth;
-        }
-
-        .unread-divider {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 20px 0;
-            position: relative;
-        }
+        .unread-divider { width: 100%; display: flex; align-items: center; justify-content: center; margin: 20px 0; }
         .unread-line { height: 1px; flex-grow: 1; background: rgba(255, 102, 0, 0.3); }
         .unread-text { padding: 0 15px; color: #FF6600; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
+
+        /* Action Menu Styles */
+        #action-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .menu-card { background: #111; border: 1px solid #333; border-radius: 24px; width: 100%; max-width: 280px; overflow: hidden; }
+        .menu-item { padding: 16px; display: flex; items-center: center; gap: 12px; font-size: 13px; font-weight: 600; color: #eee; border-bottom: 1px solid #222; }
+        .menu-item:active { background: #1a1a1a; }
+        .reaction-bar { display: flex; justify-content: space-around; padding: 15px; border-bottom: 1px solid #222; font-size: 20px; }
 
         .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
@@ -77,9 +47,7 @@
 
     <nav class="flex-none flex justify-between items-center p-5 bg-black/80 backdrop-blur-xl border-b border-white/10 z-50">
         <div class="flex items-center space-x-4">
-            <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-75 transition">
-                <i data-lucide="chevron-left" size="28"></i>
-            </button>
+            <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-75 transition"><i data-lucide="chevron-left" size="28"></i></button>
             <div class="relative">
                 <div id="user-avatar" class="w-11 h-11 rounded-2xl bg-zinc-900 flex items-center justify-center border border-sdel/30 text-sdel font-black italic text-lg shadow-lg shadow-sdel/5">?</div>
                 <div id="online-indicator" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-zinc-700 rounded-full border-2 border-black"></div>
@@ -95,24 +63,25 @@
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide" onscroll="checkUnreadVanish()"></main>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
             <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
-            
-            <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." 
-                   class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
-            
+            <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
             <div class="pb-2.5">
-                <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20">
-                    <i data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
-                </button>
+                <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20"><i data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i></button>
             </div>
         </div>
-        <div class="flex justify-center items-center space-x-2 mt-4 opacity-20">
-            <i data-lucide="shield-check" size="8"></i>
-            <p class="text-[7px] font-black tracking-[0.4em] uppercase">Sdel Protocol: Secure End-to-End</p>
+    </div>
+
+    <div id="action-menu" onclick="closeMenu()">
+        <div class="menu-card" onclick="event.stopPropagation()">
+            <div class="reaction-bar">
+                <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span>
+            </div>
+            <div id="edit-option" class="menu-item" onclick="startEdit()"><i data-lucide="edit-3" size="16"></i> Edit Message</div>
+            <div id="delete-option" class="menu-item text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="16"></i> Delete for Everyone</div>
         </div>
     </div>
 
@@ -120,7 +89,6 @@
         <div class="bg-zinc-950 border-2 border-sdel p-8 rounded-[2.5rem] text-center max-w-xs shadow-2xl">
             <i data-lucide="lock" class="text-sdel mx-auto mb-4" size="28"></i>
             <h3 class="text-lg font-black italic uppercase mb-2 text-white">Comms Locked</h3>
-            <p class="text-[10px] text-zinc-500 font-bold leading-relaxed uppercase tracking-wider mb-6">Voice and Video protocols are being engineered by Shushirolsh.</p>
             <button onclick="toggleSoon()" class="w-full bg-white text-black text-[10px] font-black py-4 rounded-xl uppercase tracking-widest active:scale-95 transition">Return</button>
         </div>
     </div>
@@ -131,29 +99,14 @@
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
-        let myId = null;
-        let unreadDividerAdded = false;
+        let myId, selectedMsgId, selectedMsgText, holdTimer, editingId = null;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) { window.location.href = 'login.html'; return; }
             myId = session.user.id;
-            
-            createStars();
-            loadHomieProfile();
-            await fetchMessages(true);
-            
-            supabaseClient
-                .channel('public:dm_table')
-                .on('postgres_changes', { 
-                    event: '*', 
-                    schema: 'public', 
-                    table: 'dm_table' 
-                }, (payload) => {
-                    fetchMessages(false); 
-                })
-                .subscribe();
-
+            createStars(); loadHomieProfile(); await fetchMessages(true);
+            supabaseClient.channel('dm_channel').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages(false)).subscribe();
             lucide.createIcons();
         }
 
@@ -162,133 +115,115 @@
             if (profile) {
                 document.getElementById('chat-name').innerText = profile.first_name || profile.username;
                 document.getElementById('user-avatar').innerText = (profile.first_name || profile.username || 'H')[0].toUpperCase();
-                if (profile.is_online) {
-                    document.getElementById('online-indicator').classList.replace('bg-zinc-700', 'bg-green-500');
-                    document.getElementById('chat-status').innerText = "Live on Grid";
-                    document.getElementById('chat-status').classList.add('text-green-500');
-                }
             }
         }
 
         async function fetchMessages(isFirstLoad) {
             const { data: messages, error } = await supabaseClient.from('dm_table')
-                .select('*')
-                .or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`)
-                .order('created_at', { ascending: true });
-            
-            if (!error) {
-                renderChat(messages, isFirstLoad);
-                markAsRead();
-            }
-        }
-
-        async function markAsRead() {
-            await supabaseClient
-                .from('dm_table')
-                .update({ is_read: true })
-                .eq('receiver_id', myId)
-                .eq('sender_id', homieId)
-                .eq('is_read', false);
+                .select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
+            if (!error) renderChat(messages, isFirstLoad);
         }
 
         function renderChat(messages, isFirstLoad) {
             const container = document.getElementById('chat-content');
             container.innerHTML = '';
-            let firstUnreadFound = false;
-            
+            let unreadMarker = false;
+
             messages.forEach((msg) => {
                 const isMe = msg.sender_id === myId;
-                const isUnread = !msg.is_read && !isMe;
-
-                // Add Unread Line if it's the first unread message during first load
-                if (isFirstLoad && isUnread && !firstUnreadFound) {
-                    const divider = document.createElement('div');
-                    divider.id = "unread-divider";
-                    divider.className = "unread-divider";
-                    divider.innerHTML = '<div class="unread-line"></div><div class="unread-text">Unread Messages</div><div class="unread-line"></div>';
-                    container.appendChild(divider);
-                    firstUnreadFound = true;
-                    unreadDividerAdded = true;
+                if (isFirstLoad && !msg.is_read && !isMe && !unreadMarker) {
+                    container.innerHTML += `<div class="unread-divider"><div class="unread-line"></div><div class="unread-text">Unread</div><div class="unread-line"></div></div>`;
+                    unreadMarker = true;
                 }
 
-                const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const bubble = document.createElement('div');
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%]`;
-                
-                const textPara = document.createElement('p');
-                textPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
-                textPara.textContent = msg.content;
-                
-                bubble.appendChild(textPara);
-                bubble.innerHTML += `
-                    <div class="mt-2 flex items-center justify-between">
-                        <span class="text-[7px] text-zinc-600 font-black uppercase italic">${timeStr}</span>
-                        ${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest italic ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
+                bubble.innerHTML = `
+                    <p class="text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words">${msg.content}</p>
+                    <div class="mt-1 flex items-center justify-between gap-4">
+                        <span class="text-[7px] text-zinc-600 font-black uppercase italic">${new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}${msg.is_edited ? ' (Edited)' : ''}</span>
+                        ${isMe ? `<span class="text-[7px] font-black uppercase italic ${msg.is_read ? 'text-green-500' : 'text-zinc-700'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
                     </div>
+                    ${msg.reaction ? `<div class="absolute -bottom-2 -right-1 bg-zinc-900 border border-white/10 rounded-full px-1.5 py-0.5 text-[10px]">${msg.reaction}</div>` : ''}
                 `;
+
+                // 2.5s Hold Logic
+                bubble.onmousedown = bubble.ontouchstart = () => {
+                    holdTimer = setTimeout(() => openMenu(msg.id, msg.content, isMe), 2500);
+                };
+                bubble.onmouseup = bubble.ontouchend = () => clearTimeout(holdTimer);
+
                 container.appendChild(bubble);
             });
-            
-            // Auto-scroll to bottom
-            container.scrollTop = container.scrollHeight;
+            if (isFirstLoad) container.scrollTop = container.scrollHeight;
+            markAsRead();
         }
 
-        function checkUnreadVanish() {
-            const container = document.getElementById('chat-content');
-            const divider = document.getElementById('unread-divider');
-            if (divider && (container.scrollHeight - container.scrollTop <= container.clientHeight + 10)) {
-                divider.remove();
-                unreadDividerAdded = false;
-            }
+        function openMenu(id, text, isMe) {
+            selectedMsgId = id; selectedMsgText = text;
+            document.getElementById('edit-option').style.display = isMe ? 'flex' : 'none';
+            document.getElementById('delete-option').style.display = isMe ? 'flex' : 'none';
+            document.getElementById('action-menu').style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        function closeMenu() { document.getElementById('action-menu').style.display = 'none'; }
+
+        async function react(emoji) {
+            await supabaseClient.from('dm_table').update({ reaction: emoji }).eq('id', selectedMsgId);
+            closeMenu();
+        }
+
+        async function startEdit() {
+            editingId = selectedMsgId;
+            const input = document.getElementById('msg-input');
+            input.value = selectedMsgText;
+            input.focus();
+            handleInput(input);
+            closeMenu();
+        }
+
+        async function deleteMsg() {
+            await supabaseClient.from('dm_table').delete().eq('id', selectedMsgId);
+            closeMenu();
         }
 
         async function sendMsg() {
             const input = document.getElementById('msg-input');
             const val = input.value.trim();
             if (!val) return;
-            
-            const { error } = await supabaseClient.from('dm_table').insert({ 
-                sender_id: myId, 
-                receiver_id: homieId, 
-                content: val 
-            });
-            
-            if(!error) {
-                input.value = "";
-                handleInput(input);
-                fetchMessages(false);
+
+            if (editingId) {
+                await supabaseClient.from('dm_table').update({ content: val, is_edited: true }).eq('id', editingId);
+                editingId = null;
+            } else {
+                await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: val });
             }
+            input.value = ""; handleInput(input);
+        }
+
+        async function markAsRead() {
+            await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false);
         }
 
         function handleInput(el) {
-            el.style.height = 'auto';
-            el.style.height = (el.scrollHeight) + 'px';
-            const btn = document.getElementById('send-btn');
-            el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active');
+            el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+            document.getElementById('send-btn').classList.toggle('active', el.value.length > 0);
         }
 
         function createStars() {
-            const container = document.getElementById('stars');
+            const c = document.getElementById('stars');
             for (let i = 0; i < 80; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                const size = Math.random() * 2 + 1;
-                star.style.width = star.style.height = `${size}px`;
-                star.style.left = `${Math.random() * 100}vw`;
-                star.style.top = `-${Math.random() * 100}vh`;
-                star.style.animationDuration = `${Math.random() * 10 + 10}s`;
-                star.style.animationDelay = `${Math.random() * 10}s`;
-                container.appendChild(star);
+                const s = document.createElement('div'); s.className = 'star';
+                s.style.width = s.style.height = `${Math.random()*2+1}px`;
+                s.style.left = `${Math.random()*100}vw`; s.style.top = `-${Math.random()*100}vh`;
+                s.style.animationDuration = `${Math.random()*10+10}s`; s.style.animationDelay = `${Math.random()*10}s`;
+                c.appendChild(s);
             }
         }
-
-        function toggleSoon() { 
-            document.getElementById('soon-modal').classList.toggle('hidden'); 
-            lucide.createIcons(); 
-        }
-
+        function toggleSoon() { document.getElementById('soon-modal').classList.toggle('hidden'); lucide.createIcons(); }
         init();
     </script>
 </body>
-    </html>
-    
+                    </html>
+                    
