@@ -25,7 +25,6 @@
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; }
         #msg-input { resize: none; max-height: 120px; overflow-y: auto; line-height: 1.5; }
         
-        /* Fixed Input Positioning */
         .input-wrapper { position: sticky; bottom: 0; width: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid rgba(255,255,255,0.05); z-index: 100; }
         
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
@@ -40,7 +39,10 @@
 
         #typing-indicator { display: none; font-size: 10px; font-weight: 800; color: #FF6600; text-transform: uppercase; letter-spacing: 0.1em; margin-left: 15px; margin-bottom: 5px; animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        #scroll-down-btn { position: absolute; bottom: 120px; right: 20px; background: #FF6600; color: black; width: 35px; height: 35px; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 40; }
+        
+        /* New Message Badge & Scroll UI */
+        #scroll-down-btn { position: absolute; bottom: 120px; right: 20px; background: #FF6600; color: black; width: 45px; height: 45px; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 40; box-shadow: 0 4px 20px rgba(255,102,0,0.4); }
+        #new-msg-count { position: absolute; top: -5px; right: -5px; background: white; color: black; font-size: 10px; font-weight: 900; width: 18px; height: 18px; border-radius: 50%; display: none; align-items: center; justify-content: center; border: 2px solid #FF6600; }
     </style>
 </head>
 <body>
@@ -61,7 +63,10 @@
 
     <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scroll-smooth"></main>
 
-    <button id="scroll-down-btn" onclick="scrollToLast()"><i data-lucide="arrow-down" size="18"></i></button>
+    <button id="scroll-down-btn" onclick="scrollToLastAggressive()">
+        <span id="new-msg-count">0</span>
+        <i data-lucide="arrow-down" size="20" style="stroke-width: 3px;"></i>
+    </button>
 
     <div class="input-wrapper">
         <div id="typing-indicator">Typing...</div>
@@ -107,6 +112,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
         let myId, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null, activeReply = null, typingTimeout;
+        let unreadScrollCount = 0;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -117,8 +123,23 @@
             
             createStars(); loadHomieProfile(); await fetchMessages(); await markAsRead(); 
             
+            // Watch for DOM changes to force scroll
+            const container = document.getElementById('chat-content');
+            const observer = new MutationObserver(() => {
+                const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+                if (isNearBottom) {
+                    scrollToLastAggressive();
+                } else {
+                    // Logic for "New Message" badge if user is scrolled up
+                    updateUnreadBadge(true);
+                }
+            });
+            observer.observe(container, { childList: true });
+
             const chatChannel = supabaseClient.channel(`chat_${homieId}`);
-            chatChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages())
+            chatChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, (payload) => {
+                fetchMessages();
+            })
             .on('broadcast', { event: 'typing' }, (payload) => {
                 if(payload.payload.user === homieId) showTyping(payload.payload.isTyping);
             }).subscribe();
@@ -136,10 +157,31 @@
 
             lucide.createIcons();
             detectScroll();
+            setTimeout(scrollToLastAggressive, 500);
+        }
+
+        function scrollToLastAggressive() {
+            const container = document.getElementById('chat-content');
+            container.scrollTo({ top: container.scrollHeight, behavior: 'auto' });
+            updateUnreadBadge(false);
+        }
+
+        function updateUnreadBadge(increment) {
+            const btn = document.getElementById('scroll-down-btn');
+            const badge = document.getElementById('new-msg-count');
+            if (increment) {
+                unreadScrollCount++;
+                badge.innerText = unreadScrollCount;
+                badge.style.display = 'flex';
+                btn.style.display = 'flex';
+            } else {
+                unreadScrollCount = 0;
+                badge.style.display = 'none';
+                btn.style.display = 'none';
+            }
         }
 
         async function updateLastSeen() {
-            // Overwrites current last_seen with device local ISO time
             const localTime = new Date().toISOString();
             await supabaseClient.from('profile').update({ last_seen: localTime }).eq('id', myId);
         }
@@ -158,7 +200,6 @@
             const dot = document.getElementById('online-dot');
             const statusText = document.getElementById('chat-status');
             dot.className = isOnline ? 'absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-black rounded-full' : 'absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-zinc-700 border-2 border-black rounded-full';
-            
             if (isOnline) {
                 statusText.innerText = 'Online';
                 statusText.className = 'text-[8px] text-green-500 font-black uppercase';
@@ -170,20 +211,25 @@
         }
 
         function showTyping(isTyping) { document.getElementById('typing-indicator').style.display = isTyping ? 'block' : 'none'; }
-        function detectScroll() { const container = document.getElementById('chat-content'); const btn = document.getElementById('scroll-down-btn'); container.onscroll = () => { const diff = container.scrollHeight - container.scrollTop - container.clientHeight; btn.style.display = diff > 300 ? 'flex' : 'none'; }; }
+        
+        function detectScroll() { 
+            const container = document.getElementById('chat-content'); 
+            const btn = document.getElementById('scroll-down-btn'); 
+            container.onscroll = () => { 
+                const diff = container.scrollHeight - container.scrollTop - container.clientHeight; 
+                if (diff < 50) updateUnreadBadge(false);
+                else if (unreadScrollCount > 0) btn.style.display = 'flex';
+                else btn.style.display = diff > 400 ? 'flex' : 'none';
+            }; 
+        }
+
         async function loadHomieProfile() { const { data: profile } = await supabaseClient.from('profile').select('*').eq('id', homieId).single(); if (profile) { theirName = profile.first_name || profile.username || "Them"; document.getElementById('chat-name').innerText = theirName; document.getElementById('user-avatar').innerText = theirName[0].toUpperCase(); } }
 
         async function fetchMessages() {
             const { data: messages, error } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
-            if (!error) {
-                const container = document.getElementById('chat-content');
-                const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-                renderChat(messages);
-                if (isAtBottom) scrollToLast();
-            }
+            if (!error) renderChat(messages);
         }
 
-        function scrollToLast() { const container = document.getElementById('chat-content'); container.scrollTop = container.scrollHeight; }
         async function markAsRead() { await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false); }
 
         function renderChat(messages) {
@@ -194,14 +240,12 @@
                 const bubble = document.createElement('div');
                 bubble.id = `msg-${msg.id}`;
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] msg-bubble transition-all`;
-                
                 bubble.onclick = () => {
                     const now = Date.now();
                     if (now - lastTap < 300) setReply(msg.id, msg.content, isMe ? myName : theirName);
                     else openMenu(msg.id, msg.content, isMe, isMe ? myName : theirName);
                     lastTap = now;
                 };
-
                 if (msg.content.startsWith("<<RP:")) {
                     const parts = msg.content.split(">>");
                     const meta = parts[0].replace("<<RP:", "").split("|");
@@ -209,7 +253,6 @@
                 } else {
                     bubble.innerHTML = `<p class="text-[14px] font-semibold">${msg.content}</p>`;
                 }
-
                 const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 bubble.innerHTML += `<div class="mt-2 flex items-center justify-between"><span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}</span>${isMe ? `<span class="text-[7px] font-black uppercase ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}</div>`;
                 container.appendChild(bubble);
@@ -227,7 +270,6 @@
             let content = input.value.trim();
             if (!content) return;
             if (activeReply) content = `<<RP:${activeReply.id}|${activeReply.user}|${activeReply.text.substring(0,30)}>>${content}`;
-            
             if (editingId) {
                 await supabaseClient.from('dm_table').update({ content, is_edited: true }).eq('id', editingId);
                 editingId = null;
@@ -237,20 +279,15 @@
             input.value = ""; cancelReply(); handleInput(input);
             sendTypingStatus(false);
             updateLastSeen();
+            scrollToLastAggressive();
         }
 
         function sendTypingStatus(isTyping) { supabaseClient.channel(`chat_${homieId}`).send({ type: 'broadcast', event: 'typing', payload: { user: myId, isTyping } }); }
-
         function handleInput(el) { 
-            el.style.height = 'auto'; 
-            el.style.height = (el.scrollHeight) + 'px'; 
-            const btn = document.getElementById('send-btn'); 
-            el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
-            sendTypingStatus(true);
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => sendTypingStatus(false), 2000);
+            el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; 
+            const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
+            sendTypingStatus(true); clearTimeout(typingTimeout); typingTimeout = setTimeout(() => sendTypingStatus(false), 2000);
         }
-
         let selectedSender = "";
         function openMenu(id, text, isMe, sender) { selectedId = id; selectedText = text; selectedSender = sender; document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none'; document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none'; document.getElementById('action-sheet').style.display = 'flex'; setTimeout(() => document.querySelector('.sheet-content').classList.add('show'), 10); lucide.createIcons(); }
         function closeMenu() { document.querySelector('.sheet-content').classList.remove('show'); setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300); }
@@ -263,5 +300,4 @@
         init();
     </script>
 </body>
-    </html>
-    
+</html>
