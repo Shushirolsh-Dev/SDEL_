@@ -11,7 +11,8 @@
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; height: 100vh; display: flex; flex-direction: column; width: 100%; position: fixed; }
+        /* Changed position from fixed to allow proper flex stacking */
+        body { background-color: #000; color: white; height: 100vh; display: flex; flex-direction: column; width: 100%; overflow: hidden; }
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 100% { transform: translateY(110vh); opacity: 0; } }
@@ -25,11 +26,17 @@
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; }
         #msg-input { resize: none; max-height: 120px; overflow-y: auto; line-height: 1.5; }
         
-        .input-wrapper { position: sticky; bottom: 0; width: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid rgba(255,255,255,0.05); z-index: 100; }
+        /* The Wrapper now pushes the content up correctly */
+        .input-wrapper { width: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid rgba(255,255,255,0.05); z-index: 100; flex-shrink: 0; }
         
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
         .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
         .sheet-content.show { transform: translateY(0); }
+        
+        /* Emoji Button Styling */
+        .reaction-btn { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 10px; font-size: 24px; transition: transform 0.2s; }
+        .reaction-btn:active { transform: scale(1.2); background: #222; }
+
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
         
         .quote-box { background: rgba(255,102,0,0.1); border-left: 4px solid #FF6600; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
@@ -39,9 +46,7 @@
 
         #typing-indicator { display: none; font-size: 10px; font-weight: 800; color: #FF6600; text-transform: uppercase; letter-spacing: 0.1em; margin-left: 15px; margin-bottom: 5px; animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        
-        /* New Message Badge & Scroll UI */
-        #scroll-down-btn { position: absolute; bottom: 120px; right: 20px; background: #FF6600; color: black; width: 45px; height: 45px; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 40; box-shadow: 0 4px 20px rgba(255,102,0,0.4); }
+        #scroll-down-btn { position: absolute; bottom: 120px; right: 20px; background: #FF6600; color: black; width: 45px; height: 45px; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 40; }
         #new-msg-count { position: absolute; top: -5px; right: -5px; background: white; color: black; font-size: 10px; font-weight: 900; width: 18px; height: 18px; border-radius: 50%; display: none; align-items: center; justify-content: center; border: 2px solid #FF6600; }
     </style>
 </head>
@@ -65,7 +70,7 @@
 
     <button id="scroll-down-btn" onclick="scrollToLastAggressive()">
         <span id="new-msg-count">0</span>
-        <i data-lucide="arrow-down" size="20" style="stroke-width: 3px;"></i>
+        <i data-lucide="arrow-down" size="20"></i>
     </button>
 
     <div class="input-wrapper">
@@ -95,8 +100,12 @@
 
     <div id="action-sheet" onclick="closeMenu()">
         <div class="sheet-content" onclick="event.stopPropagation()">
-            <div class="reaction-row flex justify-around mb-5 font-size-[24px]">
-                <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span><span onclick="react('‼️')">‼️</span>
+            <div class="reaction-row flex justify-around mb-5">
+                <button class="reaction-btn" onclick="react('❤️')">❤️</button>
+                <button class="reaction-btn" onclick="react('😂')">😂</button>
+                <button class="reaction-btn" onclick="react('🔥')">🔥</button>
+                <button class="reaction-btn" onclick="react('👍')">👍</button>
+                <button class="reaction-btn" onclick="react('‼️')">‼️</button>
             </div>
             <button class="menu-opt" onclick="triggerReply()"><i data-lucide="reply" size="18"></i> Reply</button>
             <button class="menu-opt" onclick="copyToClipboard()"><i data-lucide="copy" size="18"></i> Copy Text</button>
@@ -123,23 +132,19 @@
             
             createStars(); loadHomieProfile(); await fetchMessages(); await markAsRead(); 
             
-            // Watch for DOM changes to force scroll
             const container = document.getElementById('chat-content');
             const observer = new MutationObserver(() => {
                 const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
                 if (isNearBottom) {
                     scrollToLastAggressive();
                 } else {
-                    // Logic for "New Message" badge if user is scrolled up
                     updateUnreadBadge(true);
                 }
             });
             observer.observe(container, { childList: true });
 
             const chatChannel = supabaseClient.channel(`chat_${homieId}`);
-            chatChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, (payload) => {
-                fetchMessages();
-            })
+            chatChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages())
             .on('broadcast', { event: 'typing' }, (payload) => {
                 if(payload.payload.user === homieId) showTyping(payload.payload.isTyping);
             }).subscribe();
@@ -151,7 +156,6 @@
             }).subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     await presenceChannel.track({ online_at: new Date().toISOString() });
-                    window.addEventListener('beforeunload', () => updateLastSeen());
                 }
             });
 
@@ -162,23 +166,15 @@
 
         function scrollToLastAggressive() {
             const container = document.getElementById('chat-content');
-            container.scrollTo({ top: container.scrollHeight, behavior: 'auto' });
+            container.scrollTop = container.scrollHeight;
             updateUnreadBadge(false);
         }
 
         function updateUnreadBadge(increment) {
             const btn = document.getElementById('scroll-down-btn');
             const badge = document.getElementById('new-msg-count');
-            if (increment) {
-                unreadScrollCount++;
-                badge.innerText = unreadScrollCount;
-                badge.style.display = 'flex';
-                btn.style.display = 'flex';
-            } else {
-                unreadScrollCount = 0;
-                badge.style.display = 'none';
-                btn.style.display = 'none';
-            }
+            if (increment) { unreadScrollCount++; badge.innerText = unreadScrollCount; badge.style.display = 'flex'; btn.style.display = 'flex'; }
+            else { unreadScrollCount = 0; badge.style.display = 'none'; btn.style.display = 'none'; }
         }
 
         async function updateLastSeen() {
@@ -200,36 +196,14 @@
             const dot = document.getElementById('online-dot');
             const statusText = document.getElementById('chat-status');
             dot.className = isOnline ? 'absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-black rounded-full' : 'absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-zinc-700 border-2 border-black rounded-full';
-            if (isOnline) {
-                statusText.innerText = 'Online';
-                statusText.className = 'text-[8px] text-green-500 font-black uppercase';
-            } else {
-                const { data: profile } = await supabaseClient.from('profile').select('last_seen').eq('id', homieId).single();
-                statusText.innerText = formatLastSeen(profile?.last_seen);
-                statusText.className = 'text-[8px] text-zinc-500 font-black uppercase';
-            }
+            if (isOnline) { statusText.innerText = 'Online'; statusText.className = 'text-[8px] text-green-500 font-black uppercase'; }
+            else { const { data: profile } = await supabaseClient.from('profile').select('last_seen').eq('id', homieId).single(); statusText.innerText = formatLastSeen(profile?.last_seen); statusText.className = 'text-[8px] text-zinc-500 font-black uppercase'; }
         }
 
         function showTyping(isTyping) { document.getElementById('typing-indicator').style.display = isTyping ? 'block' : 'none'; }
-        
-        function detectScroll() { 
-            const container = document.getElementById('chat-content'); 
-            const btn = document.getElementById('scroll-down-btn'); 
-            container.onscroll = () => { 
-                const diff = container.scrollHeight - container.scrollTop - container.clientHeight; 
-                if (diff < 50) updateUnreadBadge(false);
-                else if (unreadScrollCount > 0) btn.style.display = 'flex';
-                else btn.style.display = diff > 400 ? 'flex' : 'none';
-            }; 
-        }
-
+        function detectScroll() { const container = document.getElementById('chat-content'); const btn = document.getElementById('scroll-down-btn'); container.onscroll = () => { const diff = container.scrollHeight - container.scrollTop - container.clientHeight; if (diff < 50) updateUnreadBadge(false); else if (unreadScrollCount > 0) btn.style.display = 'flex'; else btn.style.display = diff > 400 ? 'flex' : 'none'; }; }
         async function loadHomieProfile() { const { data: profile } = await supabaseClient.from('profile').select('*').eq('id', homieId).single(); if (profile) { theirName = profile.first_name || profile.username || "Them"; document.getElementById('chat-name').innerText = theirName; document.getElementById('user-avatar').innerText = theirName[0].toUpperCase(); } }
-
-        async function fetchMessages() {
-            const { data: messages, error } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
-            if (!error) renderChat(messages);
-        }
-
+        async function fetchMessages() { const { data: messages, error } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true }); if (!error) renderChat(messages); }
         async function markAsRead() { await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false); }
 
         function renderChat(messages) {
@@ -239,20 +213,10 @@
                 const isMe = msg.sender_id === myId;
                 const bubble = document.createElement('div');
                 bubble.id = `msg-${msg.id}`;
-                bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] msg-bubble transition-all`;
-                bubble.onclick = () => {
-                    const now = Date.now();
-                    if (now - lastTap < 300) setReply(msg.id, msg.content, isMe ? myName : theirName);
-                    else openMenu(msg.id, msg.content, isMe, isMe ? myName : theirName);
-                    lastTap = now;
-                };
-                if (msg.content.startsWith("<<RP:")) {
-                    const parts = msg.content.split(">>");
-                    const meta = parts[0].replace("<<RP:", "").split("|");
-                    bubble.innerHTML = `<div class="quote-box" onclick="event.stopPropagation(); jumpTo('${meta[0]}')"><p class="text-[9px] font-black text-sdel uppercase mb-1">${meta[1]}</p><p class="text-[11px] text-zinc-400 truncate">${meta[2]}</p></div><p class="text-[14px] font-semibold">${parts.slice(1).join(">>")}</p>`;
-                } else {
-                    bubble.innerHTML = `<p class="text-[14px] font-semibold">${msg.content}</p>`;
-                }
+                bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] transition-all`;
+                bubble.onclick = () => { const now = Date.now(); if (now - lastTap < 300) setReply(msg.id, msg.content, isMe ? myName : theirName); else openMenu(msg.id, msg.content, isMe, isMe ? myName : theirName); lastTap = now; };
+                if (msg.content.startsWith("<<RP:")) { const parts = msg.content.split(">>"); const meta = parts[0].replace("<<RP:", "").split("|"); bubble.innerHTML = `<div class="quote-box" onclick="event.stopPropagation(); jumpTo('${meta[0]}')"><p class="text-[9px] font-black text-sdel uppercase mb-1">${meta[1]}</p><p class="text-[11px] text-zinc-400 truncate">${meta[2]}</p></div><p class="text-[14px] font-semibold">${parts.slice(1).join(">>")}</p>`; }
+                else { bubble.innerHTML = `<p class="text-[14px] font-semibold">${msg.content}</p>`; }
                 const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 bubble.innerHTML += `<div class="mt-2 flex items-center justify-between"><span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}</span>${isMe ? `<span class="text-[7px] font-black uppercase ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}</div>`;
                 container.appendChild(bubble);
@@ -270,24 +234,14 @@
             let content = input.value.trim();
             if (!content) return;
             if (activeReply) content = `<<RP:${activeReply.id}|${activeReply.user}|${activeReply.text.substring(0,30)}>>${content}`;
-            if (editingId) {
-                await supabaseClient.from('dm_table').update({ content, is_edited: true }).eq('id', editingId);
-                editingId = null;
-            } else {
-                await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content, is_read: false });
-            }
-            input.value = ""; cancelReply(); handleInput(input);
-            sendTypingStatus(false);
-            updateLastSeen();
-            scrollToLastAggressive();
+            if (editingId) { await supabaseClient.from('dm_table').update({ content, is_edited: true }).eq('id', editingId); editingId = null; }
+            else { await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content, is_read: false }); }
+            input.value = ""; cancelReply(); handleInput(input); sendTypingStatus(false); updateLastSeen(); scrollToLastAggressive();
         }
 
         function sendTypingStatus(isTyping) { supabaseClient.channel(`chat_${homieId}`).send({ type: 'broadcast', event: 'typing', payload: { user: myId, isTyping } }); }
-        function handleInput(el) { 
-            el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; 
-            const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
-            sendTypingStatus(true); clearTimeout(typingTimeout); typingTimeout = setTimeout(() => sendTypingStatus(false), 2000);
-        }
+        function handleInput(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); sendTypingStatus(true); clearTimeout(typingTimeout); typingTimeout = setTimeout(() => sendTypingStatus(false), 2000); }
+        
         let selectedSender = "";
         function openMenu(id, text, isMe, sender) { selectedId = id; selectedText = text; selectedSender = sender; document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none'; document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none'; document.getElementById('action-sheet').style.display = 'flex'; setTimeout(() => document.querySelector('.sheet-content').classList.add('show'), 10); lucide.createIcons(); }
         function closeMenu() { document.querySelector('.sheet-content').classList.remove('show'); setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300); }
