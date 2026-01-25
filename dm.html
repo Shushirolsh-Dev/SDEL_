@@ -41,6 +41,12 @@
         
         .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; }
         .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+
+        /* Reply UI Styles */
+        .reply-box { background: rgba(255,255,255,0.05); border-left: 3px solid #FF6600; padding: 6px 10px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+        .reply-box:active { background: rgba(255,255,255,0.1); }
+        .highlight-msg { animation: pulse-orange 1.5s ease-out; }
+        @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.4); } 100% { background: transparent; } }
     </style>
 </head>
 <body>
@@ -85,6 +91,7 @@
             </div>
             <button class="menu-opt" onclick="copyToClipboard()"><i data-lucide="copy" size="18"></i> Copy Text</button>
             <button id="edit-btn-opt" class="menu-opt" onclick="startEdit()"><i data-lucide="edit-2" size="18"></i> Edit</button>
+            <button class="menu-opt" onclick="handleReplyAction()"><i data-lucide="reply" size="18"></i> Reply</button>
             <button id="delete-btn-opt" class="menu-opt text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> Delete</button>
             <button class="menu-opt text-zinc-500" onclick="closeMenu()">Cancel</button>
         </div>
@@ -167,22 +174,46 @@
                 const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
                 const bubble = document.createElement('div');
+                bubble.id = `msg-${msg.id}`;
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] msg-bubble transition-transform active:scale-95`;
                 
                 bubble.onclick = (e) => {
                     const now = Date.now();
                     if (now - lastTap < 300) {
-                        handleReply(msg.content, isMe ? myName : theirName);
+                        handleReply(msg.id, msg.content, isMe ? myName : theirName);
                     } else {
                         openMenu(msg.id, msg.content, isMe);
                     }
                     lastTap = now;
                 };
 
-                const textPara = document.createElement('p');
-                textPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
-                textPara.textContent = msg.content;
-                bubble.appendChild(textPara);
+                // Handle quoted replies in UI
+                if (msg.content.includes('|RID:')) {
+                    const parts = msg.content.split('»');
+                    const meta = parts[0].split('|');
+                    const refId = meta[1].replace('RID:', '');
+                    const refUser = meta[0].replace('Replying to ', '');
+                    const actualMsg = parts.slice(1).join('»').trim();
+
+                    const replyQuote = document.createElement('div');
+                    replyQuote.className = 'reply-box';
+                    replyQuote.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${meta[2].replace(/"/g, '')}</p>`;
+                    replyQuote.onclick = (e) => {
+                        e.stopPropagation();
+                        scrollToMessage(refId);
+                    };
+                    bubble.appendChild(replyQuote);
+
+                    const textPara = document.createElement('p');
+                    textPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
+                    textPara.textContent = actualMsg;
+                    bubble.appendChild(textPara);
+                } else {
+                    const textPara = document.createElement('p');
+                    textPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
+                    textPara.textContent = msg.content;
+                    bubble.appendChild(textPara);
+                }
 
                 const editInfo = msg.is_edited ? `<i data-lucide="pen" size="8" class="inline ml-1 opacity-50"></i>` : '';
 
@@ -213,16 +244,32 @@
             lucide.createIcons();
         }
 
-        function handleReply(content, sender) {
+        function handleReply(msgId, content, sender) {
             const input = document.getElementById('msg-input');
             const clean = content.includes('»') ? content.split('»').pop().trim() : content;
-            input.value = `Replying to ${sender}: "${clean.substring(0, 25)}..." \n» `;
+            input.value = `Replying to ${sender}|RID:${msgId}|"${clean.substring(0, 25)}..." \n» `;
             input.focus();
             handleInput(input);
         }
 
+        function scrollToMessage(id) {
+            const el = document.getElementById(`msg-${id}`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('highlight-msg');
+                setTimeout(() => el.classList.remove('highlight-msg'), 2000);
+            }
+        }
+
+        function handleReplyAction() {
+            const isMe = (selectedSenderId === myId); // Logic placeholder
+            handleReply(selectedId, selectedText, (selectedIsMe ? myName : theirName));
+            closeMenu();
+        }
+
+        let selectedIsMe = false;
         function openMenu(id, text, isMe) {
-            selectedId = id; selectedText = text;
+            selectedId = id; selectedText = text; selectedIsMe = isMe;
             document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none';
             document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none';
             const sheet = document.getElementById('action-sheet');
@@ -252,14 +299,16 @@
         }
 
         async function copyToClipboard() {
-            await navigator.clipboard.writeText(selectedText);
+            const clean = selectedText.includes('»') ? selectedText.split('»').pop().trim() : selectedText;
+            await navigator.clipboard.writeText(clean);
             closeMenu();
         }
 
         function startEdit() {
             editingId = selectedId;
             const input = document.getElementById('msg-input');
-            input.value = selectedText; input.focus(); handleInput(input);
+            const clean = selectedText.includes('»') ? selectedText.split('»').pop().trim() : selectedText;
+            input.value = clean; input.focus(); handleInput(input);
             document.getElementById('send-icon').setAttribute('data-lucide', 'check');
             lucide.createIcons(); closeMenu();
         }
