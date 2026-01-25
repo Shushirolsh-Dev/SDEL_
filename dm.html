@@ -11,7 +11,7 @@
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; position: fixed; width: 100%; }
+        body { background-color: #000; color: white; height: 100vh; display: flex; flex-direction: column; width: 100%; position: fixed; }
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 100% { transform: translateY(110vh); opacity: 0; } }
@@ -23,22 +23,24 @@
         
         #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; }
-        #msg-input { resize: none; max-height: 150px; overflow-y: auto; line-height: 1.5; }
+        #msg-input { resize: none; max-height: 120px; overflow-y: auto; line-height: 1.5; }
+        
+        /* Fixed Input Positioning */
+        .input-wrapper { position: sticky; bottom: 0; width: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid rgba(255,255,255,0.05); z-index: 100; }
         
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
         .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
         .sheet-content.show { transform: translateY(0); }
-        .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
         
         .quote-box { background: rgba(255,102,0,0.1); border-left: 4px solid #FF6600; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
-        #reply-preview-container { display: none; padding: 12px; background: #0a0a0a; border-top: 1px solid rgba(255,102,0,0.2); }
+        #reply-preview-container { display: none; padding: 12px; background: #0a0a0a; }
         .highlight-msg { animation: pulse-orange 2s ease-out; }
         @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.5); } 100% { background: transparent; } }
 
-        #typing-indicator { display: none; font-size: 10px; font-weight: 800; color: #FF6600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 10px; padding-left: 5px; animation: blink 1s infinite; }
+        #typing-indicator { display: none; font-size: 10px; font-weight: 800; color: #FF6600; text-transform: uppercase; letter-spacing: 0.1em; margin-left: 15px; margin-bottom: 5px; animation: blink 1s infinite; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        #scroll-down-btn { position: absolute; bottom: 100px; right: 20px; background: #FF6600; color: black; width: 35px; height: 35px; border-radius: 50%; display: none; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(255,102,0,0.3); z-index: 40; }
+        #scroll-down-btn { position: absolute; bottom: 120px; right: 20px; background: #FF6600; color: black; width: 35px; height: 35px; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 40; }
     </style>
 </head>
 <body>
@@ -61,10 +63,10 @@
 
     <button id="scroll-down-btn" onclick="scrollToLast()"><i data-lucide="arrow-down" size="18"></i></button>
 
-    <div class="flex-none bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
+    <div class="input-wrapper">
         <div id="typing-indicator">Typing...</div>
         <div id="reply-preview-container">
-            <div class="flex items-center justify-between bg-zinc-900/50 p-3 rounded-xl">
+            <div class="flex items-center justify-between bg-zinc-900/50 p-3 mx-4 rounded-xl">
                 <div class="border-l-4 border-sdel pl-3 overflow-hidden">
                     <p id="reply-user-title" class="text-[10px] font-black text-sdel uppercase"></p>
                     <p id="reply-text-body" class="text-xs text-zinc-500 truncate"></p>
@@ -73,8 +75,8 @@
             </div>
         </div>
 
-        <div class="px-4">
-            <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
+        <div class="px-4 pb-4 mt-2">
+            <div class="flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
                 <button class="p-3.5 text-zinc-600"><i data-lucide="sparkles" size="20"></i></button>
                 <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none text-white"></textarea>
                 <div class="pb-2.5">
@@ -88,7 +90,7 @@
 
     <div id="action-sheet" onclick="closeMenu()">
         <div class="sheet-content" onclick="event.stopPropagation()">
-            <div class="reaction-row">
+            <div class="reaction-row flex justify-around mb-5 font-size-[24px]">
                 <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span><span onclick="react('‼️')">‼️</span>
             </div>
             <button class="menu-opt" onclick="triggerReply()"><i data-lucide="reply" size="18"></i> Reply</button>
@@ -104,7 +106,7 @@
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
-        let myId = null, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null, activeReply = null, typingTimeout;
+        let myId, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null, activeReply = null, typingTimeout;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -128,7 +130,6 @@
             }).subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     await presenceChannel.track({ online_at: new Date().toISOString() });
-                    // Update my last seen on leave
                     window.addEventListener('beforeunload', () => updateLastSeen());
                 }
             });
@@ -138,15 +139,16 @@
         }
 
         async function updateLastSeen() {
-            await supabaseClient.from('profile').update({ last_seen: new Date().toISOString() }).eq('id', myId);
+            // Overwrites current last_seen with device local ISO time
+            const localTime = new Date().toISOString();
+            await supabaseClient.from('profile').update({ last_seen: localTime }).eq('id', myId);
         }
 
         function formatLastSeen(dateStr) {
             if (!dateStr) return "Offline";
             const date = new Date(dateStr);
             const now = new Date();
-            const diffMs = now - date;
-            const diffMins = Math.floor(diffMs / 60000);
+            const diffMins = Math.floor((now - date) / 60000);
             if (diffMins < 1) return "Last seen just now";
             if (diffMins < 60) return `Last seen ${diffMins}m ago`;
             return `Last seen ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -167,27 +169,9 @@
             }
         }
 
-        function showTyping(isTyping) {
-            document.getElementById('typing-indicator').style.display = isTyping ? 'block' : 'none';
-        }
-
-        function detectScroll() {
-            const container = document.getElementById('chat-content');
-            const btn = document.getElementById('scroll-down-btn');
-            container.onscroll = () => {
-                const diff = container.scrollHeight - container.scrollTop - container.clientHeight;
-                btn.style.display = diff > 300 ? 'flex' : 'none';
-            };
-        }
-
-        async function loadHomieProfile() {
-            const { data: profile } = await supabaseClient.from('profile').select('*').eq('id', homieId).single();
-            if (profile) {
-                theirName = profile.first_name || profile.username || "Them";
-                document.getElementById('chat-name').innerText = theirName;
-                document.getElementById('user-avatar').innerText = theirName[0].toUpperCase();
-            }
-        }
+        function showTyping(isTyping) { document.getElementById('typing-indicator').style.display = isTyping ? 'block' : 'none'; }
+        function detectScroll() { const container = document.getElementById('chat-content'); const btn = document.getElementById('scroll-down-btn'); container.onscroll = () => { const diff = container.scrollHeight - container.scrollTop - container.clientHeight; btn.style.display = diff > 300 ? 'flex' : 'none'; }; }
+        async function loadHomieProfile() { const { data: profile } = await supabaseClient.from('profile').select('*').eq('id', homieId).single(); if (profile) { theirName = profile.first_name || profile.username || "Them"; document.getElementById('chat-name').innerText = theirName; document.getElementById('user-avatar').innerText = theirName[0].toUpperCase(); } }
 
         async function fetchMessages() {
             const { data: messages, error } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
@@ -199,14 +183,8 @@
             }
         }
 
-        function scrollToLast() {
-            const container = document.getElementById('chat-content');
-            container.scrollTop = container.scrollHeight;
-        }
-
-        async function markAsRead() {
-            await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false);
-        }
+        function scrollToLast() { const container = document.getElementById('chat-content'); container.scrollTop = container.scrollHeight; }
+        async function markAsRead() { await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false); }
 
         function renderChat(messages) {
             const container = document.getElementById('chat-content');
@@ -227,14 +205,7 @@
                 if (msg.content.startsWith("<<RP:")) {
                     const parts = msg.content.split(">>");
                     const meta = parts[0].replace("<<RP:", "").split("|");
-                    const actualMsg = parts.slice(1).join(">>");
-                    bubble.innerHTML = `
-                        <div class="quote-box" onclick="event.stopPropagation(); jumpTo('${meta[0]}')">
-                            <p class="text-[9px] font-black text-sdel uppercase mb-1">${meta[1]}</p>
-                            <p class="text-[11px] text-zinc-400 truncate">${meta[2]}</p>
-                        </div>
-                        <p class="text-[14px] font-semibold">${actualMsg}</p>
-                    `;
+                    bubble.innerHTML = `<div class="quote-box" onclick="event.stopPropagation(); jumpTo('${meta[0]}')"><p class="text-[9px] font-black text-sdel uppercase mb-1">${meta[1]}</p><p class="text-[11px] text-zinc-400 truncate">${meta[2]}</p></div><p class="text-[14px] font-semibold">${parts.slice(1).join(">>")}</p>`;
                 } else {
                     bubble.innerHTML = `<p class="text-[14px] font-semibold">${msg.content}</p>`;
                 }
@@ -246,24 +217,8 @@
             lucide.createIcons();
         }
 
-        function jumpTo(id) {
-            const el = document.getElementById(`msg-${id}`);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.add('highlight-msg');
-                setTimeout(() => el.classList.remove('highlight-msg'), 2000);
-            }
-        }
-
-        function setReply(id, text, user) {
-            let cleanText = text.startsWith("<<RP:") ? text.split(">>")[1] : text;
-            activeReply = { id, text: cleanText, user };
-            document.getElementById('reply-user-title').innerText = user;
-            document.getElementById('reply-text-body').innerText = cleanText;
-            document.getElementById('reply-preview-container').style.display = 'block';
-            document.getElementById('msg-input').focus();
-        }
-
+        function jumpTo(id) { const el = document.getElementById(`msg-${id}`); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 2000); } }
+        function setReply(id, text, user) { let cleanText = text.startsWith("<<RP:") ? text.split(">>")[1] : text; activeReply = { id, text: cleanText, user }; document.getElementById('reply-user-title').innerText = user; document.getElementById('reply-text-body').innerText = cleanText; document.getElementById('reply-preview-container').style.display = 'block'; document.getElementById('msg-input').focus(); }
         function cancelReply() { activeReply = null; document.getElementById('reply-preview-container').style.display = 'none'; }
         function triggerReply() { setReply(selectedId, selectedText, selectedSender); closeMenu(); }
 
@@ -284,13 +239,7 @@
             updateLastSeen();
         }
 
-        function sendTypingStatus(isTyping) {
-            supabaseClient.channel(`chat_${homieId}`).send({
-                type: 'broadcast',
-                event: 'typing',
-                payload: { user: myId, isTyping }
-            });
-        }
+        function sendTypingStatus(isTyping) { supabaseClient.channel(`chat_${homieId}`).send({ type: 'broadcast', event: 'typing', payload: { user: myId, isTyping } }); }
 
         function handleInput(el) { 
             el.style.height = 'auto'; 
@@ -303,27 +252,9 @@
         }
 
         let selectedSender = "";
-        function openMenu(id, text, isMe, sender) {
-            selectedId = id; selectedText = text; selectedSender = sender;
-            document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none';
-            document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none';
-            document.getElementById('action-sheet').style.display = 'flex';
-            setTimeout(() => document.querySelector('.sheet-content').classList.add('show'), 10);
-            lucide.createIcons();
-        }
-
-        function closeMenu() {
-            document.querySelector('.sheet-content').classList.remove('show');
-            setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300);
-        }
-
-        async function react(emoji) {
-            const { data: msg } = await supabaseClient.from('dm_table').select('*').eq('id', selectedId).single();
-            const updates = msg.sender_id === myId ? { reaction_me: emoji } : { reaction_them: emoji };
-            await supabaseClient.from('dm_table').update(updates).eq('id', selectedId);
-            closeMenu();
-        }
-
+        function openMenu(id, text, isMe, sender) { selectedId = id; selectedText = text; selectedSender = sender; document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none'; document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none'; document.getElementById('action-sheet').style.display = 'flex'; setTimeout(() => document.querySelector('.sheet-content').classList.add('show'), 10); lucide.createIcons(); }
+        function closeMenu() { document.querySelector('.sheet-content').classList.remove('show'); setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300); }
+        async function react(emoji) { const { data: msg } = await supabaseClient.from('dm_table').select('*').eq('id', selectedId).single(); const updates = msg.sender_id === myId ? { reaction_me: emoji } : { reaction_them: emoji }; await supabaseClient.from('dm_table').update(updates).eq('id', selectedId); closeMenu(); }
         async function copyToClipboard() { await navigator.clipboard.writeText(selectedText); closeMenu(); }
         function startEdit() { editingId = selectedId; document.getElementById('msg-input').value = selectedText; closeMenu(); }
         async function deleteMsg() { await supabaseClient.from('dm_table').delete().eq('id', selectedId); closeMenu(); }
@@ -332,4 +263,5 @@
         init();
     </script>
 </body>
-</html>
+    </html>
+    
