@@ -26,18 +26,21 @@
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; pointer-events: auto; }
         
         #msg-input { resize: none; max-height: 150px; overflow-y: auto; line-height: 1.5; }
-        #chat-content { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+        #chat-content { scroll-behavior: smooth; }
 
         .unread-divider { width: 100%; display: flex; align-items: center; justify-content: center; margin: 20px 0; }
         .unread-line { height: 1px; flex-grow: 1; background: rgba(255, 102, 0, 0.3); }
         .unread-text { padding: 0 15px; color: #FF6600; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
 
-        /* Action Menu Styles */
-        #action-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
-        .menu-card { background: #111; border: 1px solid #333; border-radius: 24px; width: 100%; max-width: 280px; overflow: hidden; }
-        .menu-item { padding: 16px; display: flex; items-center: center; gap: 12px; font-size: 13px; font-weight: 600; color: #eee; border-bottom: 1px solid #222; }
-        .menu-item:active { background: #1a1a1a; }
-        .reaction-bar { display: flex; justify-content: space-around; padding: 15px; border-bottom: 1px solid #222; font-size: 20px; }
+        /* Mobile Bottom Sheet Menu */
+        #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; display: none; flex-direction: column; justify-content: flex-end; }
+        .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
+        .sheet-content.show { transform: translateY(0); }
+        .reaction-row { display: flex; justify-content: space-between; margin-bottom: 25px; padding: 0 10px; }
+        .reaction-row span { font-size: 24px; transition: transform 0.1s; }
+        .reaction-row span:active { transform: scale(1.5); }
+        .menu-btn { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; }
+        .menu-btn:active { background: #222; }
 
         .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
@@ -63,25 +66,26 @@
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide"></main>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide" onscroll="checkUnreadVanish()"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
             <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
             <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
             <div class="pb-2.5">
-                <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20"><i data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i></button>
+                <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20"><i id="send-icon" data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i></button>
             </div>
         </div>
     </div>
 
-    <div id="action-menu" onclick="closeMenu()">
-        <div class="menu-card" onclick="event.stopPropagation()">
-            <div class="reaction-bar">
-                <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span>
+    <div id="action-sheet" onclick="closeMenu()">
+        <div class="sheet-content" onclick="event.stopPropagation()">
+            <div class="reaction-row">
+                <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span><span onclick="react('‼️')">‼️</span>
             </div>
-            <div id="edit-option" class="menu-item" onclick="startEdit()"><i data-lucide="edit-3" size="16"></i> Edit Message</div>
-            <div id="delete-option" class="menu-item text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="16"></i> Delete for Everyone</div>
+            <button id="edit-btn" class="menu-btn" onclick="startEdit()"><i data-lucide="edit-2" size="18"></i> Edit Message</button>
+            <button id="delete-btn" class="menu-btn text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> Delete</button>
+            <button class="menu-btn text-zinc-500" onclick="closeMenu()">Cancel</button>
         </div>
     </div>
 
@@ -99,7 +103,8 @@
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
-        let myId, selectedMsgId, selectedMsgText, holdTimer, editingId = null;
+        let myId, holdTimer, editingId = null;
+        let selectedMsgId, selectedMsgText;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -119,39 +124,39 @@
         }
 
         async function fetchMessages(isFirstLoad) {
-            const { data: messages, error } = await supabaseClient.from('dm_table')
-                .select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
+            const { data: messages, error } = await supabaseClient.from('dm_table').select('*')
+                .or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
             if (!error) renderChat(messages, isFirstLoad);
         }
 
         function renderChat(messages, isFirstLoad) {
             const container = document.getElementById('chat-content');
             container.innerHTML = '';
-            let unreadMarker = false;
+            let unreadMarkerAdded = false;
 
             messages.forEach((msg) => {
                 const isMe = msg.sender_id === myId;
-                if (isFirstLoad && !msg.is_read && !isMe && !unreadMarker) {
-                    container.innerHTML += `<div class="unread-divider"><div class="unread-line"></div><div class="unread-text">Unread</div><div class="unread-line"></div></div>`;
-                    unreadMarker = true;
+                if (isFirstLoad && !msg.is_read && !isMe && !unreadMarkerAdded) {
+                    container.innerHTML += `<div class="unread-divider" id="unread-divider"><div class="unread-line"></div><div class="unread-text">Unread</div><div class="unread-line"></div></div>`;
+                    unreadMarkerAdded = true;
                 }
 
                 const bubble = document.createElement('div');
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%]`;
                 bubble.innerHTML = `
                     <p class="text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words">${msg.content}</p>
-                    <div class="mt-1 flex items-center justify-between gap-4">
+                    <div class="mt-2 flex items-center justify-between gap-4">
                         <span class="text-[7px] text-zinc-600 font-black uppercase italic">${new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}${msg.is_edited ? ' (Edited)' : ''}</span>
                         ${isMe ? `<span class="text-[7px] font-black uppercase italic ${msg.is_read ? 'text-green-500' : 'text-zinc-700'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
                     </div>
-                    ${msg.reaction ? `<div class="absolute -bottom-2 -right-1 bg-zinc-900 border border-white/10 rounded-full px-1.5 py-0.5 text-[10px]">${msg.reaction}</div>` : ''}
+                    ${msg.reaction ? `<div class="absolute -bottom-2 ${isMe ? '-left-1' : '-right-1'} bg-zinc-900 border border-white/10 rounded-full px-1.5 py-0.5 text-[10px]">${msg.reaction}</div>` : ''}
                 `;
 
-                // 2.5s Hold Logic
-                bubble.onmousedown = bubble.ontouchstart = () => {
-                    holdTimer = setTimeout(() => openMenu(msg.id, msg.content, isMe), 2500);
-                };
-                bubble.onmouseup = bubble.ontouchend = () => clearTimeout(holdTimer);
+                // Improved Hold Logic (2.5s)
+                const startHold = () => holdTimer = setTimeout(() => openMenu(msg.id, msg.content, isMe), 2500);
+                const endHold = () => clearTimeout(holdTimer);
+                bubble.ontouchstart = bubble.onmousedown = startHold;
+                bubble.ontouchend = bubble.onmouseup = bubble.onmouseleave = endHold;
 
                 container.appendChild(bubble);
             });
@@ -161,25 +166,33 @@
 
         function openMenu(id, text, isMe) {
             selectedMsgId = id; selectedMsgText = text;
-            document.getElementById('edit-option').style.display = isMe ? 'flex' : 'none';
-            document.getElementById('delete-option').style.display = isMe ? 'flex' : 'none';
-            document.getElementById('action-menu').style.display = 'flex';
+            document.getElementById('edit-btn').style.display = isMe ? 'flex' : 'none';
+            document.getElementById('delete-btn').style.display = isMe ? 'flex' : 'none';
+            const sheet = document.getElementById('action-sheet');
+            sheet.style.display = 'flex';
+            setTimeout(() => sheet.querySelector('.sheet-content').classList.add('show'), 10);
             lucide.createIcons();
         }
 
-        function closeMenu() { document.getElementById('action-menu').style.display = 'none'; }
+        function closeMenu() {
+            const content = document.querySelector('.sheet-content');
+            content.classList.remove('show');
+            setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300);
+        }
 
         async function react(emoji) {
             await supabaseClient.from('dm_table').update({ reaction: emoji }).eq('id', selectedMsgId);
             closeMenu();
         }
 
-        async function startEdit() {
+        function startEdit() {
             editingId = selectedMsgId;
             const input = document.getElementById('msg-input');
             input.value = selectedMsgText;
             input.focus();
             handleInput(input);
+            document.getElementById('send-icon').setAttribute('data-lucide', 'check');
+            lucide.createIcons();
             closeMenu();
         }
 
@@ -192,10 +205,11 @@
             const input = document.getElementById('msg-input');
             const val = input.value.trim();
             if (!val) return;
-
             if (editingId) {
                 await supabaseClient.from('dm_table').update({ content: val, is_edited: true }).eq('id', editingId);
                 editingId = null;
+                document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
+                lucide.createIcons();
             } else {
                 await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: val });
             }
@@ -211,13 +225,19 @@
             document.getElementById('send-btn').classList.toggle('active', el.value.length > 0);
         }
 
+        function checkUnreadVanish() {
+            const c = document.getElementById('chat-content');
+            const d = document.getElementById('unread-divider');
+            if (d && (c.scrollHeight - c.scrollTop <= c.clientHeight + 50)) d.remove();
+        }
+
         function createStars() {
             const c = document.getElementById('stars');
             for (let i = 0; i < 80; i++) {
                 const s = document.createElement('div'); s.className = 'star';
                 s.style.width = s.style.height = `${Math.random()*2+1}px`;
                 s.style.left = `${Math.random()*100}vw`; s.style.top = `-${Math.random()*100}vh`;
-                s.style.animationDuration = `${Math.random()*10+10}s`; s.style.animationDelay = `${Math.random()*10}s`;
+                s.style.animationDuration = `${Math.random()*10+10}s`;
                 c.appendChild(s);
             }
         }
@@ -225,5 +245,4 @@
         init();
     </script>
 </body>
-                    </html>
-                    
+</html>
