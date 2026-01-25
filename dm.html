@@ -15,33 +15,39 @@
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 20% { opacity: 0.6; } 80% { opacity: 0.6; } 100% { transform: translateY(110vh); opacity: 0; } }
+        
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; }
-        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; }
+
+        /* Fixed Message Layout */
+        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; margin-bottom: 4px; }
+        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; margin-bottom: 4px; }
         
-        /* Deleted Message Style */
         .msg-deleted { opacity: 0.4; font-style: italic; border: 1px dashed rgba(255,255,255,0.2) !important; background: transparent !important; }
 
         #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; flex-shrink: 0; }
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; pointer-events: auto; }
+        
         #msg-input { resize: none; max-height: 150px; overflow-y: auto; line-height: 1.5; }
         #chat-content { scroll-behavior: smooth; }
+
+        /* Fixed Action Sheet & Reactions */
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
         .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
         .sheet-content.show { transform: translateY(0); }
-        .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
-        /* Fixed Reaction Buttons */
-        .react-btn { font-size: 24px; padding: 8px; border-radius: 10px; transition: transform 0.1s; }
-        .react-btn:active { transform: scale(1.4); background: rgba(255,102,0,0.2); }
         
-        .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; }
+        .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 18px; }
+        .react-btn { font-size: 26px; border: none; background: none; outline: none; transition: transform 0.15s; cursor: pointer; padding: 5px; }
+        .react-btn:active { transform: scale(1.5); }
+
+        .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border: none; color: white; }
         .menu-opt:active { background: #222; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
     <div class="stars" id="stars"></div>
+    
     <nav class="flex-none flex justify-between items-center p-5 bg-black/80 backdrop-blur-xl border-b border-white/10 z-50">
         <div class="flex items-center space-x-4">
             <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-75 transition"><i data-lucide="chevron-left" size="28"></i></button>
@@ -60,7 +66,7 @@
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide"></main>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-4 scrollbar-hide"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
@@ -72,7 +78,6 @@
                 </button>
             </div>
         </div>
-        <div class="flex justify-center items-center space-x-2 mt-4 opacity-20"><i data-lucide="shield-check" size="8"></i><p class="text-[7px] font-black tracking-[0.4em] uppercase">Sdel Protocol: Secure End-to-End</p></div>
     </div>
 
     <div id="action-sheet" onclick="closeMenu()">
@@ -148,10 +153,10 @@
                 const bubble = document.createElement('div');
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] ${msg.is_deleted ? 'msg-deleted' : ''}`;
                 
-                // Block actions on deleted messages
                 if (!msg.is_deleted) {
-                    bubble.ontouchstart = bubble.onmousedown = () => holdTimer = setTimeout(() => openMenu(msg.id, msg.content, isMe), 500);
-                    bubble.ontouchend = bubble.onmouseup = bubble.ontouchmove = () => clearTimeout(holdTimer);
+                    bubble.oncontextmenu = (e) => { e.preventDefault(); openMenu(msg.id, msg.content, isMe); };
+                    bubble.ontouchstart = () => holdTimer = setTimeout(() => openMenu(msg.id, msg.content, isMe), 500);
+                    bubble.ontouchend = bubble.ontouchmove = () => clearTimeout(holdTimer);
                 }
 
                 const textPara = document.createElement('p');
@@ -208,7 +213,6 @@
         }
 
         async function deleteMsg() {
-            // TRANSPARENCY FIX: Update instead of Delete
             await supabaseClient.from('dm_table').update({ is_deleted: true, reaction: null }).eq('id', selectedId);
             closeMenu();
         }
@@ -223,9 +227,13 @@
             } else {
                 await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: val });
             }
-            input.value = ""; handleInput(input); fetchMessages();
+            input.value = ""; handleInput(input);
         }
 
         function handleInput(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); }
-        function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; star
-        
+        function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; star.style.animationDelay = `${Math.random() * 10}s`; container.appendChild(star); } }
+        function toggleSoon() { document.getElementById('soon-modal').classList.toggle('hidden'); lucide.createIcons(); }
+        init();
+    </script>
+</body>
+</html>
