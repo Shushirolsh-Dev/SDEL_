@@ -36,14 +36,8 @@
             if (!session) return window.location.href = 'login.html';
             currentUserId = session.user.id;
             
-            // REAL-TIME LISTENER: Watches for any changes in the dm_table
             supabase.channel('homies-live-updates')
-                .on('postgres_changes', { 
-                    event: '*', 
-                    schema: 'public', 
-                    table: 'dm_table' 
-                }, () => {
-                    // Refresh content when any message activity occurs
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => {
                     loadContent();
                 })
                 .subscribe();
@@ -56,6 +50,18 @@
                 handleSwipe();
             });
         }
+
+        // NEW: Function to clear unread count and then navigate
+        window.openChat = async (partnerId) => {
+            await supabase
+                .from('dm_table')
+                .update({ is_read: true })
+                .eq('sender_id', partnerId)
+                .eq('receiver_id', currentUserId)
+                .eq('is_read', false);
+            
+            location.href = `dm.html?id=${partnerId}`;
+        };
 
         function handleSwipe() {
             const threshold = 100;
@@ -83,7 +89,6 @@
 
         async function loadContent() {
             const container = document.getElementById('main-content');
-            // Removed "Loading..." text here to prevent flicking during real-time updates
 
             if (activeTab === 'general' || activeTab === 'unread') {
                 const { data: connections } = await supabase.from('connections')
@@ -93,19 +98,16 @@
                 
                 if (!connections) return renderChats([]);
 
-                // Fetch latest messages and unread counts for all connections
                 const chatData = await Promise.all(connections.map(async (c) => {
                     const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
                     
-                    // Get latest message
                     const { data: lastMsg } = await supabase.from('dm_table')
                         .select('*')
                         .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partner.id}),and(sender_id.eq.${partner.id},receiver_id.eq.${currentUserId})`)
                         .order('created_at', { ascending: false })
                         .limit(1)
-                        .maybeSingle(); // Used maybeSingle to avoid errors if no messages exist
+                        .maybeSingle();
 
-                    // Get unread count
                     const { count: unreadCount } = await supabase.from('dm_table')
                         .select('*', { count: 'exact', head: true })
                         .eq('sender_id', partner.id)
@@ -115,7 +117,6 @@
                     return { ...c, partner, lastMsg, unreadCount: unreadCount || 0 };
                 }));
 
-                // Sort by last message time (descending)
                 chatData.sort((a, b) => {
                     const timeA = a.lastMsg ? new Date(a.lastMsg.created_at) : new Date(0);
                     const timeB = b.lastMsg ? new Date(b.lastMsg.created_at) : new Date(0);
@@ -156,11 +157,7 @@
                 trigger.classList.add('hidden');
             } else {
                 const container = document.getElementById('main-content');
-                container.innerHTML = `
-                    <div class="p-10 text-center">
-                        <p class="text-zinc-500 text-sm uppercase font-black italic">Homie not found in your list</p>
-                        <p class="text-zinc-700 text-[10px] mt-2 uppercase">Try Global Search below</p>
-                    </div>`;
+                container.innerHTML = `<div class="p-10 text-center"><p class="text-zinc-500 text-sm uppercase font-black italic">Homie not found</p></div>`;
                 trigger.classList.remove('hidden');
             }
         };
@@ -175,16 +172,15 @@
                 const partner = c.partner;
                 const avatar = partner.avatar_url ? partner.avatar_url : `https://api.dicebear.com/7.x/initials/svg?seed=${partner.first_name}`;
                 
-                // Truncate logic
                 let preview = c.lastMsg ? c.lastMsg.content : `@${partner.username}`;
                 if (preview.length > 35) preview = preview.substring(0, 35) + '...';
 
-                // Unread Badge logic
                 const statusHtml = c.unreadCount > 0 
                     ? `<span class="bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>`
                     : `<span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>`;
 
-                return `<div onclick="location.href='dm.html?id=${partner.id}'" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition">
+                // Changed: onclick now calls openChat()
+                return `<div onclick="openChat('${partner.id}')" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition">
                     <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 object-cover bg-zinc-800">
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-center">
@@ -225,90 +221,38 @@
         window.searchPublic = async () => {
             const val = document.getElementById('search-input').value;
             const container = document.getElementById('main-content');
-            container.innerHTML = `
-                <div class="p-5 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
-                    <span class="text-xs font-black text-sdel italic uppercase tracking-wider">Public Search</span>
-                    <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
-                </div>
-                <p id="searching-status" class="p-10 text-center text-sdel animate-pulse text-sm font-black italic">SEARCHING GLOBAL SDEL...</p>
-            `;
-            lucide.createIcons();
+            container.innerHTML = `<p id="searching-status" class="p-10 text-center text-sdel animate-pulse text-sm font-black italic">SEARCHING GLOBAL SDEL...</p>`;
             
-            let isDone = false;
-            
-            const timeout = setTimeout(() => {
-                if (!isDone) {
-                    isDone = true;
-                    showSearchError(container);
-                }
-            }, 5000);
-
-            const { data: users, error } = await supabase.from('profile')
+            const { data: users } = await supabase.from('profile')
                 .select('*')
                 .neq('id', currentUserId)
                 .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`)
                 .limit(15);
 
-            if (isDone) return;
-            isDone = true;
-            clearTimeout(timeout);
-
             if (!users || users.length === 0) {
-                showSearchError(container);
+                container.innerHTML = `<div class="p-10 text-center text-zinc-500">No Global Results</div>`;
                 return;
             }
 
-            const { data: conn } = await supabase.from('connections')
-                .select('*')
-                .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+            const { data: conn } = await supabase.from('connections').select('*').or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
 
-            container.innerHTML = `
-                <div class="p-5 bg-sdel/5 border-b border-sdel/20 flex justify-between items-center">
-                    <span class="text-xs font-black text-sdel italic uppercase tracking-wider">Public Results</span>
-                    <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
-                </div>
-                ${users.map(u => {
-                    const isOfficial = u.is_official === true;
-                    const relationship = conn ? conn.find(c => c.sender_id === u.id || c.receiver_id === u.id) : null;
-                    let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[11px] font-black px-5 py-2 rounded-full active:scale-90 transition uppercase">Add</button>`;
-                    
-                    if (isOfficial) btnHtml = `<span class="text-[10px] font-black text-zinc-600 uppercase pr-2 tracking-widest">Official</span>`;
-                    else if (relationship) {
-                        if (relationship.status === 'pending') btnHtml = `<span class="text-[10px] font-black text-zinc-500 uppercase italic">Sent</span>`;
-                        if (relationship.status === 'accepted') btnHtml = `<span class="text-[10px] font-black text-sdel uppercase">Homie</span>`;
-                    }
+            container.innerHTML = users.map(u => {
+                const relationship = conn ? conn.find(c => c.sender_id === u.id || c.receiver_id === u.id) : null;
+                let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[11px] font-black px-5 py-2 rounded-full active:scale-90 transition uppercase">Add</button>`;
+                if (relationship) {
+                    if (relationship.status === 'pending') btnHtml = `<span class="text-[10px] font-black text-zinc-500 uppercase italic">Sent</span>`;
+                    if (relationship.status === 'accepted') btnHtml = `<span class="text-[10px] font-black text-sdel uppercase">Homie</span>`;
+                }
 
-                    return `
-                    <div class="flex justify-between items-center p-5 border-b border-white/5">
-                        <div class="flex items-center space-x-4">
-                            <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel italic font-black text-lg">${u.first_name[0]}</div>
-                            <div>
-                                <p class="text-sm font-bold text-white">
-                                    ${u.first_name} ${u.last_name}
-                                    ${isOfficial ? '<span class="ml-1 text-[#FF6600] text-[9px] font-black tracking-widest">VERIFIED</span>' : ''}
-                                </p>
-                                <p class="text-xs text-zinc-500 italic mt-0.5">@${u.username}</p>
-                            </div>
-                        </div>
-                        ${btnHtml}
-                    </div>`;
-                }).join('')}
-            `;
-            lucide.createIcons();
-        };
-
-        function showSearchError(container) {
-            container.innerHTML = `
-                <div class="p-5 bg-red-500/5 border-b border-red-500/20 flex justify-between items-center">
-                    <span class="text-xs font-black text-red-500 italic uppercase tracking-wider">No Global Results</span>
-                    <i data-lucide="x" size="24" onclick="closePublicSearch()" class="cursor-pointer text-white p-2"></i>
-                </div>
-                <div class="p-10 text-center">
-                    <p class="text-zinc-500 text-sm uppercase font-black italic">User Not Found on Sdel</p>
-                    <p class="text-zinc-700 text-[10px] mt-2 uppercase italic tracking-tighter">Check spelling or try another name</p>
+                return `<div class="flex justify-between items-center p-5 border-b border-white/5">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel italic font-black text-lg">${u.first_name[0]}</div>
+                        <div><p class="text-sm font-bold text-white">${u.first_name} ${u.last_name}</p><p class="text-xs text-zinc-500 italic mt-0.5">@${u.username}</p></div>
+                    </div>
+                    ${btnHtml}
                 </div>`;
-            lucide.createIcons();
-        }
+            }).join('');
+        };
 
         window.sendHomieReq = async (id) => {
             const { error } = await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
@@ -344,8 +288,7 @@
         </div>
     </div>
 
-    <main id="main-content" class="flex flex-col">
-    </main>
+    <main id="main-content" class="flex flex-col"></main>
 
     <nav class="fixed bottom-0 inset-x-0 bg-black border-t border-white/10 p-5 flex justify-around items-center backdrop-blur-lg z-50">
         <div class="flex flex-col items-center text-sdel" onclick="location.href='homies.html'">
