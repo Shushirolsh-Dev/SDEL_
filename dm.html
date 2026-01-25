@@ -117,6 +117,11 @@
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
         let myId = null, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null, selectedIsMe = false;
+        
+        // HIDDEN DATA FOR REPLIES
+        let replyTargetId = null;
+        let replyTargetText = "";
+        let replyTargetSender = "";
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -214,22 +219,27 @@
             scrollToBottom(); lucide.createIcons();
         }
 
+        // UPDATED: Strictly hides data from the input field
         function handleReply(msgId, content, sender) {
+            replyTargetId = msgId;
+            replyTargetSender = sender;
+            replyTargetText = content.includes('»') ? content.split('»').pop().trim() : content;
+            
             const input = document.getElementById('msg-input');
-            const cleanText = content.includes('»') ? content.split('»').pop().trim() : content;
-            input.value = `Replying to ${sender}|RID:${msgId}|"${cleanText.substring(0, 25)}..." \n» `;
-            input.focus(); handleInput(input);
+            input.placeholder = `Replying to ${sender}...`;
+            input.focus(); 
+            handleInput(input);
         }
 
         function cancelReply() {
+            replyTargetId = null;
+            editingId = null;
             const input = document.getElementById('msg-input');
             input.value = "";
+            input.placeholder = "Secure message...";
             handleInput(input);
-            if (editingId) {
-                editingId = null;
-                document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
-                lucide.createIcons();
-            }
+            document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
+            lucide.createIcons();
         }
 
         function scrollToMessage(id) {
@@ -277,14 +287,10 @@
         function startEdit() {
             editingId = selectedId;
             const input = document.getElementById('msg-input');
-            // If it's a reply, keep the quote structure but only let user edit the text after »
-            if (selectedText.includes('»')) {
-                const parts = selectedText.split('»');
-                input.value = parts[0] + '» ' + parts[1].trim();
-            } else {
-                input.value = selectedText;
-            }
-            input.focus(); handleInput(input);
+            const cleanText = selectedText.includes('»') ? selectedText.split('»').pop().trim() : selectedText;
+            input.value = cleanText;
+            input.focus(); 
+            handleInput(input);
             document.getElementById('send-icon').setAttribute('data-lucide', 'check');
             lucide.createIcons(); closeMenu();
         }
@@ -293,17 +299,36 @@
 
         async function sendMsg() {
             const input = document.getElementById('msg-input');
-            const val = input.value.trim();
-            if (!val) return;
+            const rawVal = input.value.trim();
+            if (!rawVal) return;
+
+            let finalContent = rawVal;
+            
+            // AUTOMATICALLY RE-ATTACH HIDDEN RID CODE ON SEND
+            if (replyTargetId) {
+                finalContent = `Replying to ${replyTargetSender}|RID:${replyTargetId}|"${replyTargetText.substring(0, 25)}..." \n» ${rawVal}`;
+            } else if (editingId) {
+                // If we are editing an existing reply, we check if original was a reply
+                const { data: original } = await supabaseClient.from('dm_table').select('content').eq('id', editingId).single();
+                if (original.content.includes('|RID:')) {
+                    const prefix = original.content.split('»')[0];
+                    finalContent = `${prefix}» ${rawVal}`;
+                }
+            }
+
             if (editingId) {
-                await supabaseClient.from('dm_table').update({ content: val, is_edited: true }).eq('id', editingId);
+                await supabaseClient.from('dm_table').update({ content: finalContent, is_edited: true }).eq('id', editingId);
                 editingId = null; 
                 document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up'); 
                 lucide.createIcons();
             } else {
-                await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: val, is_read: false });
+                await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: finalContent, is_read: false });
             }
-            input.value = ""; handleInput(input);
+            
+            replyTargetId = null; // Clear hidden reply data
+            input.value = ""; 
+            input.placeholder = "Secure message...";
+            handleInput(input);
         }
 
         function handleInput(el) { 
@@ -312,7 +337,7 @@
             const btn = document.getElementById('send-btn'); 
             const cancelBtn = document.getElementById('cancel-reply-btn');
             el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
-            (el.value.includes('|RID:') || editingId) ? cancelBtn.classList.add('active') : cancelBtn.classList.remove('active');
+            (replyTargetId || editingId) ? cancelBtn.classList.add('active') : cancelBtn.classList.remove('active');
         }
 
         function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; container.appendChild(star); } }
