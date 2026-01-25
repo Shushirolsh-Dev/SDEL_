@@ -11,38 +11,53 @@
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; position: fixed; width: 100%; }
+        
+        body { 
+            background-color: #000; 
+            color: white; 
+            overflow: hidden; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            position: fixed; 
+            width: 100%; 
+        }
         
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
-        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 100% { transform: translateY(110vh); opacity: 0; } }
+        
+        @keyframes fall { 
+            0% { transform: translateY(-10vh); opacity: 0; }
+            20% { opacity: 0.6; }
+            80% { opacity: 0.6; }
+            100% { transform: translateY(110vh); opacity: 0; } 
+        }
 
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        #chat-content { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; padding-bottom: 20px; }
-
-        /* Message Bubbles */
-        .msg-container { display: flex; flex-direction: column; width: 100%; margin-bottom: 12px; }
-        .bubble { padding: 14px; max-width: 80%; position: relative; transition: opacity 0.2s; }
-        .msg-received .bubble { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 18px 18px 18px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
-        .msg-sent .bubble { background: rgba(30, 30, 35, 0.6); backdrop-filter: blur(12px); border-radius: 18px 18px 4px 18px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.15); }
+        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
+        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); }
         
-        /* Action Sheet UI */
-        #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; display: none; flex-direction: column; justify-content: flex-end; }
-        .sheet-content { background: #0a0a0a; border-top: 2px solid #FF6600; border-radius: 30px 30px 0 0; padding: 25px; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .sheet-content.active { transform: translateY(0); }
-        .reaction-bar { display: flex; justify-content: space-around; margin-bottom: 25px; font-size: 26px; }
-        .menu-opt { width: 100%; padding: 18px; border-radius: 16px; background: #111; margin-bottom: 10px; display: flex; align-items: center; gap: 15px; font-weight: 800; color: #fff; }
-        .menu-opt:active { background: #222; transform: scale(0.98); }
-
-        .unread-divider { width: 100%; display: flex; align-items: center; justify-content: center; margin: 20px 0; }
-        .unread-line { height: 1px; flex: 1; background: rgba(255,102,0,0.3); }
-        .unread-text { padding: 0 12px; color: #FF6600; font-size: 8px; font-weight: 900; letter-spacing: 2px; }
-
-        #send-btn { transition: all 0.3s; transform: scale(0); opacity: 0; width: 0; pointer-events: none; }
+        #send-btn { 
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            transform: scale(0); opacity: 0; width: 0; display: flex;
+            align-items: center; justify-content: center; pointer-events: none; flex-shrink: 0;
+        }
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; pointer-events: auto; }
         
+        #msg-input {
+            resize: none;
+            max-height: 150px;
+            overflow-y: auto;
+            line-height: 1.5;
+        }
+
+        /* Smooth scrolling for incoming messages */
+        #chat-content {
+            scroll-behavior: smooth;
+        }
+
         .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
 </head>
@@ -51,37 +66,51 @@
 
     <nav class="flex-none flex justify-between items-center p-5 bg-black/80 backdrop-blur-xl border-b border-white/10 z-50">
         <div class="flex items-center space-x-4">
-            <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-75 transition"><i data-lucide="chevron-left" size="28"></i></button>
-            <div id="user-avatar" class="w-11 h-11 rounded-2xl bg-zinc-900 flex items-center justify-center border border-sdel/30 text-sdel font-black italic text-lg shadow-lg shadow-sdel/5">?</div>
+            <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-75 transition">
+                <i data-lucide="chevron-left" size="28"></i>
+            </button>
+            <div class="relative">
+                <div id="user-avatar" class="w-11 h-11 rounded-2xl bg-zinc-900 flex items-center justify-center border border-sdel/30 text-sdel font-black italic text-lg shadow-lg shadow-sdel/5">?</div>
+                <div id="online-indicator" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-zinc-700 rounded-full border-2 border-black"></div>
+            </div>
             <div>
                 <h2 id="chat-name" class="text-sm font-black uppercase tracking-tight">Syncing...</h2>
-                <p id="chat-status" class="text-[8px] text-zinc-500 font-black uppercase tracking-widest italic">Encrypted</p>
+                <p id="chat-status" class="text-[8px] text-zinc-500 font-black uppercase tracking-[0.2em] italic">Encrypted</p>
             </div>
+        </div>
+        <div class="flex items-center space-x-5 text-zinc-400">
+            <button onclick="toggleSoon()"><i data-lucide="phone" size="20"></i></button>
+            <button onclick="toggleSoon()"><i data-lucide="video" size="20"></i></button>
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col scrollbar-hide"></main>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide"></main>
 
-    <div class="flex-none px-4 bg-black/95 border-t border-white/5 pb-8">
+    <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
-            <button class="p-3.5 text-zinc-600"><i data-lucide="sparkles" size="20"></i></button>
-            <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none text-white"></textarea>
+            <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
+            
+            <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." 
+                   class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
+            
             <div class="pb-2.5">
-                <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full">
-                    <i id="send-icon" data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
+                <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20">
+                    <i data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
                 </button>
             </div>
         </div>
+        <div class="flex justify-center items-center space-x-2 mt-4 opacity-20">
+            <i data-lucide="shield-check" size="8"></i>
+            <p class="text-[7px] font-black tracking-[0.4em] uppercase">Sdel Protocol: Secure End-to-End</p>
+        </div>
     </div>
 
-    <div id="action-sheet" onclick="closeMenu()">
-        <div class="sheet-content" onclick="event.stopPropagation()">
-            <div class="reaction-bar">
-                <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span><span onclick="react('😮')">😮</span>
-            </div>
-            <button id="edit-btn" class="menu-opt" onclick="startEdit()"><i data-lucide="edit-3" size="18"></i> Edit Message</button>
-            <button id="delete-btn" class="menu-opt text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> Delete for Everyone</button>
-            <button class="menu-opt text-zinc-500" onclick="closeMenu()">Cancel</button>
+    <div id="soon-modal" class="fixed inset-0 bg-black/95 z-[100] hidden items-center justify-center p-10 backdrop-blur-sm">
+        <div class="bg-zinc-950 border-2 border-sdel p-8 rounded-[2.5rem] text-center max-w-xs shadow-2xl">
+            <i data-lucide="lock" class="text-sdel mx-auto mb-4" size="28"></i>
+            <h3 class="text-lg font-black italic uppercase mb-2 text-white">Comms Locked</h3>
+            <p class="text-[10px] text-zinc-500 font-bold leading-relaxed uppercase tracking-wider mb-6">Voice and Video protocols are being engineered by Shushirolsh.</p>
+            <button onclick="toggleSoon()" class="w-full bg-white text-black text-[10px] font-black py-4 rounded-xl uppercase tracking-widest active:scale-95 transition">Return</button>
         </div>
     </div>
 
@@ -91,18 +120,30 @@
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
-        let myId, holdTimer, editingId = null;
-        let selectedId, selectedText;
+        let myId = null;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) { window.location.href = 'login.html'; return; }
             myId = session.user.id;
-            loadHomieProfile();
-            await fetchMessages(true);
             
-            supabaseClient.channel('chat_realtime').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages(false)).subscribe();
             createStars();
+            loadHomieProfile();
+            await fetchMessages();
+            
+            // FIXED: Real-time listener for instant updates
+            supabaseClient
+                .channel('public:dm_table')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'dm_table' 
+                }, (payload) => {
+                    console.log('Change received!', payload);
+                    fetchMessages(); 
+                })
+                .subscribe();
+
             lucide.createIcons();
         }
 
@@ -111,131 +152,108 @@
             if (profile) {
                 document.getElementById('chat-name').innerText = profile.first_name || profile.username;
                 document.getElementById('user-avatar').innerText = (profile.first_name || profile.username || 'H')[0].toUpperCase();
+                if (profile.is_online) {
+                    document.getElementById('online-indicator').classList.replace('bg-zinc-700', 'bg-green-500');
+                    document.getElementById('chat-status').innerText = "Live on Grid";
+                    document.getElementById('chat-status').classList.add('text-green-500');
+                }
             }
         }
 
-        async function fetchMessages(isFirstLoad) {
-            const { data: messages } = await supabaseClient.from('dm_table').select('*')
+        async function fetchMessages() {
+            const { data: messages, error } = await supabaseClient.from('dm_table')
+                .select('*')
                 .or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`)
                 .order('created_at', { ascending: true });
-            if (messages) renderChat(messages, isFirstLoad);
+            
+            if (!error) {
+                renderChat(messages);
+                // Mark incoming messages as read instantly
+                markAsRead();
+            }
         }
 
-        function renderChat(messages, isFirstLoad) {
+        async function markAsRead() {
+            await supabaseClient
+                .from('dm_table')
+                .update({ is_read: true })
+                .eq('receiver_id', myId)
+                .eq('sender_id', homieId)
+                .eq('is_read', false);
+        }
+
+        function renderChat(messages) {
             const container = document.getElementById('chat-content');
             container.innerHTML = '';
-            let unreadAdded = false;
-
-            messages.forEach((msg) => {
+            
+            messages.forEach(msg => {
                 const isMe = msg.sender_id === myId;
+                const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
-                if (isFirstLoad && !msg.is_read && !isMe && !unreadAdded) {
-                    container.insertAdjacentHTML('beforeend', `<div class="unread-divider"><div class="unread-line"></div><div class="unread-text">Unread Messages</div><div class="unread-line"></div></div>`);
-                    unreadAdded = true;
-                }
-
-                const msgHtml = `
-                    <div class="msg-container ${isMe ? 'msg-sent' : 'msg-received'}" id="msg-${msg.id}">
-                        <div class="bubble">
-                            <p class="text-[14px] font-semibold leading-relaxed break-words">${msg.content}</p>
-                            <div class="mt-1.5 flex items-center justify-between gap-3">
-                                <span class="text-[7px] text-zinc-500 font-bold uppercase">${new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}${msg.is_edited ? ' (EDITED)' : ''}</span>
-                                ${isMe ? `<span class="text-[7px] font-black italic tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'SEEN' : 'SENT'}</span>` : ''}
-                            </div>
-                            ${msg.reaction ? `<div class="absolute -bottom-2 ${isMe ? '-left-1' : '-right-1'} bg-zinc-900 border border-white/10 rounded-full px-1.5 py-0.5 text-[11px]">${msg.reaction}</div>` : ''}
-                        </div>
+                const bubble = document.createElement('div');
+                bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%]`;
+                
+                const textPara = document.createElement('p');
+                textPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
+                textPara.textContent = msg.content;
+                
+                bubble.appendChild(textPara);
+                bubble.innerHTML += `
+                    <div class="mt-2 flex items-center justify-between">
+                        <span class="text-[7px] text-zinc-600 font-black uppercase italic">${timeStr}</span>
+                        ${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest italic ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
                     </div>
                 `;
-                container.insertAdjacentHTML('beforeend', msgHtml);
-
-                const element = document.getElementById(`msg-${msg.id}`);
-                
-                // Set hold timer to 0.5s (500ms)
-                const startHold = () => holdTimer = setTimeout(() => openMenu(msg.id, msg.content, isMe), 500);
-                const endHold = () => clearTimeout(holdTimer);
-
-                element.ontouchstart = element.onmousedown = startHold;
-                element.ontouchend = element.onmouseup = element.onmouseleave = endHold;
-                element.ontouchmove = endHold; // Cancel if user scrolls
+                container.appendChild(bubble);
             });
-
-            if (isFirstLoad) container.scrollTop = container.scrollHeight;
-            markRead();
-        }
-
-        async function markRead() {
-            await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false);
-        }
-
-        function openMenu(id, text, isMe) {
-            selectedId = id; selectedText = text;
-            document.getElementById('edit-btn').style.display = isMe ? 'flex' : 'none';
-            document.getElementById('delete-btn').style.display = isMe ? 'flex' : 'none';
-            const sheet = document.getElementById('action-sheet');
-            sheet.style.display = 'flex';
-            setTimeout(() => sheet.querySelector('.sheet-content').classList.add('active'), 10);
-            lucide.createIcons();
-        }
-
-        function closeMenu() {
-            const content = document.querySelector('.sheet-content');
-            content.classList.remove('active');
-            setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300);
-        }
-
-        async function react(emoji) {
-            await supabaseClient.from('dm_table').update({ reaction: emoji }).eq('id', selectedId);
-            closeMenu();
-        }
-
-        function startEdit() {
-            editingId = selectedId;
-            const input = document.getElementById('msg-input');
-            input.value = selectedText;
-            input.focus();
-            handleInput(input);
-            document.getElementById('send-icon').setAttribute('data-lucide', 'check');
-            lucide.createIcons();
-            closeMenu();
-        }
-
-        async function deleteMsg() {
-            await supabaseClient.from('dm_table').delete().eq('id', selectedId);
-            closeMenu();
+            container.scrollTop = container.scrollHeight;
         }
 
         async function sendMsg() {
             const input = document.getElementById('msg-input');
             const val = input.value.trim();
             if (!val) return;
-
-            if (editingId) {
-                await supabaseClient.from('dm_table').update({ content: val, is_edited: true }).eq('id', editingId);
-                editingId = null;
-                document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
-                lucide.createIcons();
-            } else {
-                await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: val });
+            
+            const { error } = await supabaseClient.from('dm_table').insert({ 
+                sender_id: myId, 
+                receiver_id: homieId, 
+                content: val 
+            });
+            
+            if(!error) {
+                input.value = "";
+                handleInput(input);
+                fetchMessages(); // Force a quick local update
             }
-            input.value = ""; handleInput(input);
         }
 
         function handleInput(el) {
-            el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
-            document.getElementById('send-btn').classList.toggle('active', el.value.length > 0);
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+            const btn = document.getElementById('send-btn');
+            el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active');
         }
 
         function createStars() {
-            const c = document.getElementById('stars');
-            for (let i = 0; i < 60; i++) {
-                const s = document.createElement('div'); s.className = 'star';
-                s.style.width = s.style.height = '1.5px';
-                s.style.left = Math.random() * 100 + 'vw';
-                s.style.top = Math.random() * 100 + 'vh';
-                s.style.animationDuration = (Math.random() * 10 + 10) + 's';
-                c.appendChild(s);
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 80; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const size = Math.random() * 2 + 1;
+                star.style.width = star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}vw`;
+                star.style.top = `-${Math.random() * 100}vh`;
+                star.style.animationDuration = `${Math.random() * 10 + 10}s`;
+                star.style.animationDelay = `${Math.random() * 10}s`;
+                container.appendChild(star);
             }
         }
+
+        function toggleSoon() { 
+            document.getElementById('soon-modal').classList.toggle('hidden'); 
+            lucide.createIcons(); 
+        }
+
         init();
     </script>
 </body>
