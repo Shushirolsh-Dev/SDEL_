@@ -18,8 +18,7 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        /* Disable text selection inside cards */
-        .msg-bubble { 
+        .msg-bubble, .react-badge, .reaction-row span { 
             user-select: none !important; 
             -webkit-user-select: none !important; 
             touch-action: manipulation;
@@ -28,10 +27,9 @@
         .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; }
         .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; }
         
-        #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; flex-shrink: 0; }
-        #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; pointer-events: auto; }
+        #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; pointer-events: auto; flex-shrink: 0; }
+        #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; }
         #msg-input { resize: none; max-height: 150px; overflow-y: auto; line-height: 1.5; }
-        #chat-content { scroll-behavior: smooth; }
         
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
         .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
@@ -41,7 +39,7 @@
         .menu-opt:active { background: #222; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         
-        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; max-width: 150px; flex-wrap: wrap; }
+        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; }
         .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
     </style>
 </head>
@@ -65,7 +63,7 @@
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-8 scrollbar-hide"></main>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scrollbar-hide"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
@@ -119,12 +117,12 @@
 
             createStars(); 
             loadHomieProfile(); 
-            await markAsRead();
             await fetchMessages();
+            await markAsRead(); 
             
             supabaseClient.channel('public:dm_table').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, (payload) => {
                 fetchMessages();
-                markAsRead();
+                if (payload.new && payload.new.receiver_id === myId) markAsRead();
             }).subscribe();
             lucide.createIcons();
         }
@@ -153,9 +151,15 @@
             await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false);
         }
 
+        function scrollToBottom() {
+            const container = document.getElementById('chat-content');
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 100);
+        }
+
         function renderChat(messages) {
             const container = document.getElementById('chat-content');
-            const shouldScroll = container.scrollTop + container.clientHeight >= container.scrollHeight - 100;
             container.innerHTML = '';
             
             messages.forEach(msg => {
@@ -165,13 +169,11 @@
                 const bubble = document.createElement('div');
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] msg-bubble transition-transform active:scale-95`;
                 
-                // Double tap to reply, single hold to open menu
                 bubble.onclick = (e) => {
                     const now = Date.now();
                     if (now - lastTap < 300) {
                         handleReply(msg.content, isMe ? myName : theirName);
                     } else {
-                        // Open menu on long tap or regular tap for mobile convenience
                         openMenu(msg.id, msg.content, isMe);
                     }
                     lastTap = now;
@@ -196,10 +198,10 @@
                     wrap.className = `react-wrap ${isMe ? 'right-0' : 'left-0'}`;
                     
                     if (msg.reaction_me) {
-                        wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${msg.my_name}</span></div>`;
+                        wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${isMe ? 'Me' : theirName}</span></div>`;
                     }
                     if (msg.reaction_them) {
-                        wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${msg.their_name}</span></div>`;
+                        wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${isMe ? theirName : 'Me'}</span></div>`;
                     }
                     bubble.appendChild(wrap);
                 }
@@ -207,14 +209,14 @@
                 container.appendChild(bubble);
             });
             
-            // Scroll to bottom
-            container.scrollTop = container.scrollHeight;
+            scrollToBottom();
             lucide.createIcons();
         }
 
         function handleReply(content, sender) {
             const input = document.getElementById('msg-input');
-            input.value = `Replying to ${sender}: "${content.substring(0, 20)}..." \n» `;
+            const clean = content.includes('»') ? content.split('»').pop().trim() : content;
+            input.value = `Replying to ${sender}: "${clean.substring(0, 25)}..." \n» `;
             input.focus();
             handleInput(input);
         }
@@ -236,22 +238,13 @@
         }
 
         async function react(emoji) {
-            // Fetch the message sender to decide which reaction column to update
-            const { data: msg } = await supabaseClient.from('dm_table').select('sender_id').eq('id', selectedId).single();
+            const { data: msg } = await supabaseClient.from('dm_table').select('*').eq('id', selectedId).single();
             const updates = {};
             
-            // If I am the one reacting, we check if the message was sent by me or received
-            // Both users can now react to any message. 
-            // We use reaction_me if it's the message owner reacting, reaction_them if it's the partner.
             if (msg.sender_id === myId) {
-                // If it's my message, "me" is me.
-                updates.reaction_me = emoji;
-                updates.my_name = myName;
+                updates.reaction_me = (msg.reaction_me === emoji) ? null : emoji;
             } else {
-                // If it's their message, "them" column from their perspective is actually me.
-                // To keep it simple for your schema: 
-                updates.reaction_them = emoji;
-                updates.their_name = myName;
+                updates.reaction_them = (msg.reaction_them === emoji) ? null : emoji;
             }
             
             await supabaseClient.from('dm_table').update(updates).eq('id', selectedId);
@@ -281,17 +274,48 @@
             const val = input.value.trim();
             if (!val) return;
             if (editingId) {
-                const { error } = await supabaseClient.from('dm_table').update({ content: val, is_edited: true }).eq('id', editingId);
-                if (!error) { editingId = null; document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up'); lucide.createIcons(); }
+                await supabaseClient.from('dm_table').update({ content: val, is_edited: true }).eq('id', editingId);
+                editingId = null; 
+                document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up'); 
+                lucide.createIcons();
             } else {
-                await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: val, is_read: false });
+                await supabaseClient.from('dm_table').insert({ 
+                    sender_id: myId, 
+                    receiver_id: homieId, 
+                    content: val, 
+                    is_read: false
+                });
             }
-            input.value = ""; handleInput(input);
+            input.value = ""; 
+            handleInput(input);
         }
 
-        function handleInput(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); }
-        function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; star.style.animationDelay = `${Math.random() * 10}s`; container.appendChild(star); } }
-        function toggleSoon() { document.getElementById('soon-modal').classList.toggle('hidden'); lucide.createIcons(); }
+        function handleInput(el) { 
+            el.style.height = 'auto'; 
+            el.style.height = (el.scrollHeight) + 'px'; 
+            const btn = document.getElementById('send-btn'); 
+            el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
+        }
+
+        function createStars() { 
+            const container = document.getElementById('stars'); 
+            for (let i = 0; i < 80; i++) { 
+                const star = document.createElement('div'); 
+                star.classList.add('star'); 
+                star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; 
+                star.style.left = `${Math.random() * 100}vw`; 
+                star.style.top = `-${Math.random() * 100}vh`; 
+                star.style.animationDuration = `${Math.random() * 10 + 10}s`; 
+                star.style.animationDelay = `${Math.random() * 10}s`; 
+                container.appendChild(star); 
+            } 
+        }
+
+        function toggleSoon() { 
+            document.getElementById('soon-modal').classList.toggle('hidden'); 
+            lucide.createIcons(); 
+        }
+        
         init();
     </script>
 </body>
