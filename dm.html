@@ -58,6 +58,17 @@
             scroll-behavior: smooth;
         }
 
+        .unread-divider {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .unread-line { height: 1px; flex-grow: 1; background: rgba(255, 102, 0, 0.3); }
+        .unread-text { padding: 0 15px; color: #FF6600; font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; }
+
         .scrollbar-hide::-webkit-scrollbar { display: none; }
     </style>
 </head>
@@ -84,7 +95,7 @@
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide"></main>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-6 scrollbar-hide" onscroll="checkUnreadVanish()"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
@@ -121,6 +132,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
         let myId = null;
+        let unreadDividerAdded = false;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -129,9 +141,8 @@
             
             createStars();
             loadHomieProfile();
-            await fetchMessages();
+            await fetchMessages(true);
             
-            // FIXED: Real-time listener for instant updates
             supabaseClient
                 .channel('public:dm_table')
                 .on('postgres_changes', { 
@@ -139,8 +150,7 @@
                     schema: 'public', 
                     table: 'dm_table' 
                 }, (payload) => {
-                    console.log('Change received!', payload);
-                    fetchMessages(); 
+                    fetchMessages(false); 
                 })
                 .subscribe();
 
@@ -160,15 +170,14 @@
             }
         }
 
-        async function fetchMessages() {
+        async function fetchMessages(isFirstLoad) {
             const { data: messages, error } = await supabaseClient.from('dm_table')
                 .select('*')
                 .or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`)
                 .order('created_at', { ascending: true });
             
             if (!error) {
-                renderChat(messages);
-                // Mark incoming messages as read instantly
+                renderChat(messages, isFirstLoad);
                 markAsRead();
             }
         }
@@ -182,14 +191,27 @@
                 .eq('is_read', false);
         }
 
-        function renderChat(messages) {
+        function renderChat(messages, isFirstLoad) {
             const container = document.getElementById('chat-content');
             container.innerHTML = '';
+            let firstUnreadFound = false;
             
-            messages.forEach(msg => {
+            messages.forEach((msg) => {
                 const isMe = msg.sender_id === myId;
+                const isUnread = !msg.is_read && !isMe;
+
+                // Add Unread Line if it's the first unread message during first load
+                if (isFirstLoad && isUnread && !firstUnreadFound) {
+                    const divider = document.createElement('div');
+                    divider.id = "unread-divider";
+                    divider.className = "unread-divider";
+                    divider.innerHTML = '<div class="unread-line"></div><div class="unread-text">Unread Messages</div><div class="unread-line"></div>';
+                    container.appendChild(divider);
+                    firstUnreadFound = true;
+                    unreadDividerAdded = true;
+                }
+
                 const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
                 const bubble = document.createElement('div');
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%]`;
                 
@@ -206,7 +228,18 @@
                 `;
                 container.appendChild(bubble);
             });
+            
+            // Auto-scroll to bottom
             container.scrollTop = container.scrollHeight;
+        }
+
+        function checkUnreadVanish() {
+            const container = document.getElementById('chat-content');
+            const divider = document.getElementById('unread-divider');
+            if (divider && (container.scrollHeight - container.scrollTop <= container.clientHeight + 10)) {
+                divider.remove();
+                unreadDividerAdded = false;
+            }
         }
 
         async function sendMsg() {
@@ -223,7 +256,7 @@
             if(!error) {
                 input.value = "";
                 handleInput(input);
-                fetchMessages(); // Force a quick local update
+                fetchMessages(false);
             }
         }
 
@@ -257,4 +290,5 @@
         init();
     </script>
 </body>
-</html>
+    </html>
+    
