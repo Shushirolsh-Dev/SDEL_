@@ -18,40 +18,36 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        .msg-bubble, .react-badge, .reaction-row span { 
-            user-select: none !important; 
-            -webkit-user-select: none !important; 
-            touch-action: manipulation;
-        }
-
+        /* Message Alignment & Styling */
         .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; }
         .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; }
         
+        /* Inner Reply Card (Card B) */
+        .reply-inner-card { background: rgba(255,255,255,0.05); border-left: 3px solid #FF6600; padding: 8px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+        .highlight-msg { animation: pulse-orange 1.5s ease-out; }
+        @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.4); } 100% { background: transparent; } }
+
+        /* Reaction Badges - Fixed select/click */
+        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; pointer-events: none; user-select: none !important; -webkit-user-select: none !important; }
+        .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .react-badge span { user-select: none !important; pointer-events: none; }
+
         #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; pointer-events: auto; flex-shrink: 0; }
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; }
         #msg-input { resize: none; max-height: 150px; overflow-y: auto; line-height: 1.5; }
         
+        /* Action Sheet */
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
         .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
         .sheet-content.show { transform: translateY(0); }
         .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
-        .menu-opt:active { background: #222; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
         
-        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; }
-        .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-
-        .reply-box { background: rgba(255,255,255,0.05); border-left: 3px solid #FF6600; padding: 6px 10px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
-        .highlight-msg { animation: pulse-orange 1.5s ease-out; }
-        @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.4); } 100% { background: transparent; } }
-
-        #cancel-reply-btn { display: none; }
-        #cancel-reply-btn.active { display: flex; }
+        #whatsapp-reply-ui { display: none; background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.1); padding: 12px 16px; border-radius: 20px 20px 0 0; border-left: 4px solid #FF6600; margin-bottom: -10px; }
+        #whatsapp-reply-ui.active { display: block; }
 
         .avatar-box { transition: all 0.4s ease; border: 1px solid rgba(255,255,255,0.1); }
-        .avatar-online { border-color: #22c55e !important; box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); color: #22c55e !important; }
-        .avatar-offline { border-color: rgba(255,255,255,0.1); color: #71717a; }
+        .avatar-online { border-color: #22c55e !important; box-shadow: 0 0 15px rgba(34, 197, 94, 0.3); color: #22c55e !important; }
     </style>
 </head>
 <body>
@@ -77,14 +73,20 @@
     <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scrollbar-hide"></main>
 
     <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
-        <div id="reply-label" class="hidden px-4 py-2 text-[10px] font-black text-sdel uppercase bg-zinc-900/50 rounded-t-2xl border-x border-t border-white/5">Replying to...</div>
+        <div id="whatsapp-reply-ui" class="mx-2">
+            <div class="flex justify-between items-start">
+                <div class="min-w-0">
+                    <p id="reply-ui-name" class="text-[10px] font-black text-sdel uppercase"></p>
+                    <p id="reply-ui-text" class="text-xs text-zinc-500 truncate"></p>
+                </div>
+                <button onclick="cancelReply()" class="text-zinc-600 ml-4"><i data-lucide="x" size="16"></i></button>
+            </div>
+        </div>
+
         <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
             <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
             <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
             <div class="pb-2.5 flex items-center">
-                <button id="cancel-reply-btn" onclick="cancelReply()" class="p-2 text-zinc-500 hover:text-red-500 transition-colors">
-                    <i data-lucide="x-circle" size="20"></i>
-                </button>
                 <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20">
                     <i id="send-icon" data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
                 </button>
@@ -106,15 +108,6 @@
         </div>
     </div>
 
-    <div id="soon-modal" class="fixed inset-0 bg-black/95 z-[100] hidden items-center justify-center p-10 backdrop-blur-sm">
-        <div class="bg-zinc-950 border-2 border-sdel p-8 rounded-[2.5rem] text-center max-w-xs shadow-2xl">
-            <i data-lucide="lock" class="text-sdel mx-auto mb-4" size="28"></i>
-            <h3 class="text-lg font-black uppercase mb-2 text-white">Comms Locked</h3>
-            <p class="text-[10px] text-zinc-500 font-bold leading-relaxed uppercase tracking-wider mb-6">Voice and Video protocols are being engineered by Shushirolsh.</p>
-            <button onclick="toggleSoon()" class="w-full bg-white text-black text-[10px] font-black py-4 rounded-xl uppercase tracking-widest active:scale-95 transition">Return</button>
-        </div>
-    </div>
-
     <script>
         const SB_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
@@ -123,9 +116,7 @@
         const homieId = urlParams.get('id'); 
         let myId = null, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null, selectedIsMe = false;
         
-        let replyTargetId = null;
-        let replyTargetText = "";
-        let replyTargetSender = "";
+        let replyTargetId = null, replyTargetText = "", replyTargetSender = "";
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
@@ -134,10 +125,7 @@
             const { data: me } = await supabaseClient.from('profile').select('first_name, username').eq('id', myId).single();
             myName = me?.first_name || me?.username || "Me";
             createStars(); loadHomieProfile(); await fetchMessages(); await markAsRead(); 
-            supabaseClient.channel('public:dm_table').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, (payload) => {
-                fetchMessages();
-                if (payload.new && payload.new.receiver_id === myId) markAsRead();
-            }).subscribe();
+            supabaseClient.channel('public:dm_table').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages()).subscribe();
             lucide.createIcons();
         }
 
@@ -153,32 +141,23 @@
                     document.getElementById('online-indicator').classList.replace('bg-zinc-700', 'bg-green-500');
                     document.getElementById('chat-status').innerText = "Live on Grid";
                     document.getElementById('chat-status').classList.add('text-green-500');
-                } else {
-                    av.classList.add('avatar-offline');
                 }
             }
         }
 
         async function fetchMessages() {
-            const { data: messages, error } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
-            if (!error) { renderChat(messages); }
+            const { data: messages } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
+            if (messages) renderChat(messages);
         }
 
         async function markAsRead() {
-            if (!myId || !homieId) return;
             await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false);
         }
 
-        function scrollToBottom() {
-            const container = document.getElementById('chat-content');
-            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
-        }
-
-        // AGGRESSIVE STRIPPING OF SYSTEM CODES
         function getCleanText(str) {
             if (!str) return "";
             if (str.includes('»')) return str.split('»').pop().trim();
-            return str;
+            return str.replace(/Replying to .*?\|RID:.*?\|".*?"/g, '').trim();
         }
 
         function renderChat(messages) {
@@ -187,73 +166,92 @@
             messages.forEach(msg => {
                 const isMe = msg.sender_id === myId;
                 const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
                 const bubble = document.createElement('div');
                 bubble.id = `msg-${msg.id}`;
-                bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] msg-bubble transition-transform active:scale-95`;
-                
-                bubble.onclick = () => {
-                    const now = Date.now();
-                    if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
-                    else { openMenu(msg.id, msg.content, isMe); }
-                    lastTap = now;
-                };
+                // Bubble Alignment Fix: Always right for Sent, always left for Received
+                bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] transition-transform active:scale-[0.98]`;
 
                 if (msg.content.includes('|RID:')) {
-                    const parts = msg.content.split('»');
-                    const meta = parts[0].split('|');
+                    const meta = msg.content.split('»')[0].split('|');
                     const refId = meta[1].replace('RID:', '');
                     const refUser = meta[0].replace('Replying to ', '');
                     
-                    const qBox = document.createElement('div');
-                    qBox.className = 'reply-box';
-                    // Strip code from the quoted text too
-                    const quotedContent = meta[2].replace(/"/g, '');
-                    qBox.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] opacity-60 truncate">${quotedContent}</p>`;
-                    qBox.onclick = (e) => { e.stopImmediatePropagation(); scrollToMessage(refId); };
-                    bubble.appendChild(qBox);
+                    // CARD B: The original message reference inside the reply bubble
+                    const cardB = document.createElement('div');
+                    cardB.className = "reply-inner-card opacity-80 cursor-pointer";
+                    cardB.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] truncate italic">${meta[2].replace(/"/g, '')}</p>`;
+                    cardB.onclick = (e) => { e.stopPropagation(); scrollToMessage(refId); };
+                    bubble.appendChild(cardB);
+
+                    // CARD C: The actual reply text (triggers the menu/tab)
+                    const cardC = document.createElement('div');
+                    cardC.className = "cursor-pointer";
+                    cardC.innerHTML = `<p class="text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words">${getCleanText(msg.content)}</p>`;
+                    cardC.onclick = (e) => {
+                        e.stopPropagation();
+                        const now = Date.now();
+                        if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
+                        else { openMenu(msg.id, msg.content, isMe); }
+                        lastTap = now;
+                    };
+                    bubble.appendChild(cardC);
+                } else {
+                    // Regular Message click
+                    bubble.onclick = () => {
+                        const now = Date.now();
+                        if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
+                        else { openMenu(msg.id, msg.content, isMe); }
+                        lastTap = now;
+                    };
+                    const textP = document.createElement('p');
+                    textP.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
+                    textP.textContent = getCleanText(msg.content);
+                    bubble.appendChild(textP);
                 }
 
-                const tPara = document.createElement('p');
-                tPara.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
-                tPara.textContent = getCleanText(msg.content); // Aggressive hide applied here
-                bubble.appendChild(tPara);
+                // Metadata Footer
+                const footer = document.createElement('div');
+                footer.className = "mt-2 flex items-center justify-between gap-4 pointer-events-none select-none";
+                footer.innerHTML = `<span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>
+                                    ${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}`;
+                bubble.appendChild(footer);
 
-                bubble.innerHTML += `<div class="mt-2 flex items-center justify-between gap-4 pointer-events-none"><span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}</div>`;
-                
+                // Reactions (Fixed no-select)
                 if (msg.reaction_me || msg.reaction_them) {
                     const wrap = document.createElement('div');
-                    wrap.className = `react-wrap ${isMe ? 'right-0' : 'left-0'}`;
-                    if (msg.reaction_me) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${isMe ? 'Me' : theirName}</span></div>`;
-                    if (msg.reaction_them) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span><span style="font-size:7px; font-weight:900; opacity:0.6">${isMe ? theirName : 'Me'}</span></div>`;
+                    wrap.className = `react-wrap select-none pointer-events-none ${isMe ? 'right-0' : 'left-0'}`;
+                    if (msg.reaction_me) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span></div>`;
+                    if (msg.reaction_them) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span></div>`;
                     bubble.appendChild(wrap);
                 }
+
                 container.appendChild(bubble);
             });
-            scrollToBottom(); lucide.createIcons();
+            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
         }
 
         function handleReply(msgId, content, sender) {
-            replyTargetId = msgId;
-            replyTargetSender = sender;
+            replyTargetId = msgId; replyTargetSender = sender;
             replyTargetText = getCleanText(content);
-            document.getElementById('reply-label').innerText = `Replying to ${sender}`;
-            document.getElementById('reply-label').classList.remove('hidden');
+            document.getElementById('reply-ui-name').innerText = sender;
+            document.getElementById('reply-ui-text').innerText = replyTargetText;
+            document.getElementById('whatsapp-reply-ui').classList.add('active');
             const input = document.getElementById('msg-input');
-            input.focus(); handleInput(input);
+            input.focus(); handleInput(input); lucide.createIcons();
         }
 
         function cancelReply() {
             replyTargetId = null; editingId = null;
-            document.getElementById('reply-label').classList.add('hidden');
+            document.getElementById('whatsapp-reply-ui').classList.remove('active');
             const input = document.getElementById('msg-input');
-            input.value = ""; handleInput(input);
-            document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
-            lucide.createIcons();
+            input.value = ""; document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
+            handleInput(input); lucide.createIcons();
         }
 
         function scrollToMessage(id) {
             const el = document.getElementById(`msg-${id}`);
-            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 2000); }
+            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 1500); }
         }
 
         function handleReplyAction() { handleReply(selectedId, selectedText, (selectedIsMe ? myName : theirName)); closeMenu(); }
@@ -272,7 +270,7 @@
 
         async function react(emoji) {
             const { data: msg } = await supabaseClient.from('dm_table').select('*').eq('id', selectedId).single();
-            const updates = msg.sender_id === myId ? { reaction_me: msg.reaction_me === emoji ? null : emoji } : { reaction_them: msg.reaction_them === emoji ? null : emoji };
+            const updates = msg.sender_id === myId ? { reaction_me: emoji } : { reaction_them: emoji };
             await supabaseClient.from('dm_table').update(updates).eq('id', selectedId);
             closeMenu();
         }
@@ -294,41 +292,18 @@
             const input = document.getElementById('msg-input');
             const rawVal = input.value.trim();
             if (!rawVal) return;
-
             let finalContent = rawVal;
-            if (replyTargetId) {
-                finalContent = `Replying to ${replyTargetSender}|RID:${replyTargetId}|"${replyTargetText.substring(0, 25)}..." \n» ${rawVal}`;
-            } else if (editingId) {
+            if (replyTargetId) { finalContent = `Replying to ${replyTargetSender}|RID:${replyTargetId}|"${replyTargetText.substring(0, 20)}..." \n» ${rawVal}`; }
+            else if (editingId) {
                 const { data: original } = await supabaseClient.from('dm_table').select('content').eq('id', editingId).single();
-                if (original.content.includes('|RID:')) {
-                    const prefix = original.content.split('»')[0];
-                    finalContent = `${prefix}» ${rawVal}`;
-                }
+                if (original.content.includes('|RID:')) { finalContent = `${original.content.split('»')[0]}» ${rawVal}`; }
             }
-
-            if (editingId) {
-                await supabaseClient.from('dm_table').update({ content: finalContent, is_edited: true }).eq('id', editingId);
-                editingId = null; 
-                document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up'); 
-                lucide.createIcons();
-            } else {
-                await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: finalContent, is_read: false });
-            }
-            
-            replyTargetId = null;
-            document.getElementById('reply-label').classList.add('hidden');
-            input.value = ""; handleInput(input);
+            if (editingId) { await supabaseClient.from('dm_table').update({ content: finalContent, is_edited: true }).eq('id', editingId); }
+            else { await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: finalContent, is_read: false }); }
+            cancelReply();
         }
 
-        function handleInput(el) { 
-            el.style.height = 'auto'; 
-            el.style.height = (el.scrollHeight) + 'px'; 
-            const btn = document.getElementById('send-btn'); 
-            const cancelBtn = document.getElementById('cancel-reply-btn');
-            el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
-            (replyTargetId || editingId) ? cancelBtn.classList.add('active') : cancelBtn.classList.remove('active');
-        }
-
+        function handleInput(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); }
         function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; container.appendChild(star); } }
         function toggleSoon() { document.getElementById('soon-modal').classList.toggle('hidden'); lucide.createIcons(); }
         init();
