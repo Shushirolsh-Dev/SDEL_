@@ -80,7 +80,6 @@
         let currentMode = 'campus';
         let searchQuery = '';
 
-        // Expose functions to window
         Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost });
 
         async function init() {
@@ -89,7 +88,7 @@
 
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             userProfile = profile;
-            document.getElementById('my-avatar').innerText = userProfile.username?.charAt(0) || 'H';
+            document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
             
             loadFeed();
         }
@@ -98,18 +97,18 @@
             const container = document.getElementById('search-container');
             container.style.display = container.style.display === 'block' ? 'none' : 'block';
             if (container.style.display === 'block') document.getElementById('search-input').focus();
-        };
+        }
 
         function handleSearch(val) {
             searchQuery = val.trim();
             loadFeed();
-        };
+        }
 
         function toggleActions(el) {
             el.style.height = 'auto'; 
             el.style.height = el.scrollHeight + 'px';
             document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
-        };
+        }
 
         async function publishPost() {
             const content = document.getElementById('post-input').value.trim();
@@ -146,14 +145,11 @@
 
             if (searchQuery) {
                 query = query.or(`content.ilike.%${searchQuery}%,school_name.ilike.%${searchQuery}%`);
-            } else if (currentMode === 'campus') {
-                // If they have a school, show only school posts. Otherwise, show everything.
-                if (userProfile?.school_name) {
-                    query = query.eq('school_name', userProfile.school_name);
-                }
+            } else if (currentMode === 'campus' && userProfile?.school_name) {
+                query = query.eq('school_name', userProfile.school_name);
             }
 
-            const { data: posts, error } = await query.order('created_at', { ascending: false });
+            const { data: posts, error } = await query.order('created_at', { ascending: false }).limit(50);
 
             if (error) {
                 container.innerHTML = `<div class="py-20 text-center text-red-500 text-[10px] font-black uppercase">Load Error</div>`;
@@ -165,19 +161,21 @@
                 return;
             }
 
-            container.innerHTML = posts.map(post => `
+            container.innerHTML = posts.map(post => {
+                const username = post.profile?.username || 'user_' + post.user_id.slice(0, 4);
+                return `
                 <div class="post-card p-4 relative">
                     <div class="flex space-x-3 relative z-10">
                         <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex-shrink-0 flex items-center justify-center font-black text-sdel text-xs uppercase">
-                            ${post.profile?.username?.charAt(0) || 'S'}
+                            ${username.charAt(0)}
                         </div>
                         <div class="flex-1">
                             <div class="flex items-center justify-between mb-0.5">
                                 <div class="flex items-center gap-1">
-                                    <span class="text-[13px] font-black uppercase italic tracking-tighter">@${post.profile?.username || 'anon'}</span>
+                                    <span class="text-[13px] font-black uppercase italic tracking-tighter">@${username}</span>
                                     ${post.profile?.is_official ? '<i data-lucide="badge-check" class="text-sdel fill-sdel/20" size="12"></i>' : ''}
                                 </div>
-                                ${ (userProfile?.is_official || post.user_id === userProfile?.id) ? `<button onclick="deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-800"></i></button>` : ''}
+                                ${ (post.user_id === userProfile?.id) ? `<button onclick="deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-800"></i></button>` : ''}
                             </div>
                             <p class="text-[14px] text-zinc-200 leading-relaxed font-medium mb-3">${post.content}</p>
                             <div class="flex items-center space-x-6 text-zinc-500">
@@ -187,7 +185,8 @@
                             </div>
                         </div>
                     </div>
-                </div>`).join('');
+                </div>`;
+            }).join('');
             lucide.createIcons();
         }
 
@@ -196,16 +195,17 @@
                 await supabase.from('posts').delete().eq('id', id);
                 loadFeed();
             }
-        };
+        }
 
         function switchTab(mode) {
             currentMode = mode;
             document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
             document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
             loadFeed();
-        };
+        }
 
         init();
     </script>
 </body>
-</html>
+    </html>
+    
