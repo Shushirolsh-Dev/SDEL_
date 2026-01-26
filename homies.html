@@ -10,7 +10,26 @@
     
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        body { background-color: #000; color: #fff; overflow-x: hidden; width: 100vw; height: 100%; }
+        
+        /* Disable text selection across the whole page */
+        body { 
+            background-color: #000; 
+            color: #fff; 
+            overflow-x: hidden; 
+            width: 100vw; 
+            height: 100%;
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10 and 11 */
+            user-select: none; /* Standard syntax */
+        }
+
+        /* Re-enable selection for inputs so searching still works */
+        input, textarea {
+            -webkit-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .header-text { font-weight: 800; letter-spacing: -0.01em; }
@@ -128,25 +147,18 @@
                 return;
             }
 
-            // REFINED AGGRESSIVE CLEANER
             const getCleanPreview = (str) => {
                 if (!str) return "";
-                // This splits by the arrow and takes everything after it. 
-                // It is the most professional way to hide the reply metadata.
                 if (str.includes('»')) {
                     const parts = str.split('»');
                     return parts[parts.length - 1].trim();
                 }
-                // Fallback for older messages or non-reply messages
                 return str.replace(/Replying to .*?\|RID:.*?\|".*?"/g, '').trim();
             };
 
             container.innerHTML = connections.map(c => {
                 const avatar = c.partner.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.partner.first_name}`;
-                
-                // Correction: Using the Refined Aggressive Cleaner
                 let preview = c.lastMsg ? getCleanPreview(c.lastMsg.content) : `@${c.partner.username}`;
-                
                 if (preview.length > 35) preview = preview.substring(0, 35) + '...';
                 const statusHtml = c.unreadCount > 0 
                     ? `<span class="unread-badge bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>`
@@ -202,7 +214,7 @@
             }).join('');
         };
 
-        window.sendHomieReq = async (id) => { await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' }); if (!error) switchTab('requests'); };
+        window.sendHomieReq = async (id) => { await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' }); loadContent(); };
 
         window.goToDashboard = (el) => {
             el.classList.add('refresh-active');
@@ -253,5 +265,6 @@
             <span class="text-[10px] font-black uppercase mt-1">Planets</span>
         </div>
     </nav>
+    <script>lucide.createIcons();</script>
 </body>
 </html>
