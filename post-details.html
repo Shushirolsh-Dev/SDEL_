@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sdel | Thread</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #000; color: white; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        
+        /* The connecting thread line */
+        .thread-line { position: absolute; left: 31px; top: 55px; bottom: 0; width: 2px; background: #1a1a1a; }
+        .reply-card:last-child .thread-line { display: none; }
+        
+        #reply-input { resize: none; background: #111; border: 1px solid #222; outline: none; width: 100%; color: white; font-size: 14px; border-radius: 12px; padding: 12px; }
+    </style>
+</head>
+<body class="pb-32">
+
+    <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-[100] border-b border-white/5 pt-env(safe-area-inset-top)">
+        <div class="p-4 flex items-center space-x-4">
+            <button onclick="history.back()"><i data-lucide="arrow-left" size="24"></i></button>
+            <h1 class="text-sm font-black uppercase italic tracking-widest">Gist Thread</h1>
+        </div>
+    </nav>
+
+    <div id="main-post-container" class="p-4 border-b border-white/5 bg-zinc-900/20">
+        </div>
+
+    <div id="replies-container" class="flex flex-col">
+        </div>
+
+    <div class="fixed bottom-0 inset-x-0 p-4 bg-black border-t border-white/10 pb-[calc(16px+env(safe-area-inset-bottom))]">
+        <div class="flex items-end space-x-3">
+            <textarea id="reply-input" placeholder="Post your reply..." rows="1" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+            <button onclick="publishReply()" class="bg-sdel text-black p-3 rounded-xl active:scale-90 transition">
+                <i data-lucide="send" size="20"></i>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = urlParams.get('id');
+        let userProfile = null;
+
+        async function init() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.replace('login.html');
+
+            const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
+            userProfile = profile;
+
+            loadThread();
+        }
+
+        async function loadThread() {
+            // 1. Fetch Main Post
+            const { data: post } = await supabase.from('posts')
+                .select('*, profile:user_id(username, is_official)')
+                .eq('id', postId).single();
+
+            if (!post) return document.body.innerHTML = "Post not found";
+
+            document.getElementById('main-post-container').innerHTML = `
+                <div class="flex space-x-3">
+                    <div class="w-12 h-12 rounded-full bg-zinc-800 flex-shrink-0 flex items-center justify-center font-black text-sdel text-lg uppercase border border-white/10">
+                        ${post.profile?.username?.charAt(0) || 'S'}
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-1">
+                            <span class="text-[15px] font-black uppercase italic tracking-tighter">@${post.profile?.username}</span>
+                            ${post.profile?.is_official ? '<i data-lucide="badge-check" class="text-sdel fill-sdel/20" size="14"></i>' : ''}
+                        </div>
+                        <p class="text-[17px] text-white mt-2 leading-relaxed">${post.content}</p>
+                        <div class="text-[10px] text-zinc-500 mt-4 font-bold uppercase">${new Date(post.created_at).toLocaleString()}</div>
+                    </div>
+                </div>
+            `;
+
+            // 2. Fetch Replies
+            const { data: replies } = await supabase.from('posts')
+                .select('*, profile:user_id(username, is_official)')
+                .eq('parent_post_id', postId)
+                .order('created_at', { ascending: true });
+
+            const container = document.getElementById('replies-container');
+            if (!replies || replies.length === 0) {
+                container.innerHTML = `<div class="p-10 text-center text-zinc-700 text-[10px] font-black uppercase italic tracking-widest">No replies yet. Be the first!</div>`;
+            } else {
+                container.innerHTML = replies.map(reply => `
+                    <div class="reply-card p-4 relative flex space-x-3">
+                        <div class="thread-line"></div>
+                        <div class="w-9 h-9 rounded-full bg-zinc-900 border border-white/5 flex-shrink-0 flex items-center justify-center font-black text-sdel text-xs uppercase z-10">
+                            ${reply.profile?.username?.charAt(0) || 'S'}
+                        </div>
+                        <div class="flex-1 pb-4 border-b border-white/5">
+                            <div class="flex items-center gap-1">
+                                <span class="text-[12px] font-black uppercase italic tracking-tighter">@${reply.profile?.username}</span>
+                            </div>
+                            <p class="text-[14px] text-zinc-300 mt-1">${reply.content}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            lucide.createIcons();
+        }
+
+        window.publishReply = async function() {
+            const content = document.getElementById('reply-input').value.trim();
+            if (!content) return;
+
+            const { error } = await supabase.from('posts').insert({
+                user_id: userProfile.id,
+                content: content,
+                parent_post_id: postId,
+                school_name: userProfile.school_name || 'Global'
+            });
+
+            if (error) alert(error.message);
+            else {
+                document.getElementById('reply-input').value = '';
+                loadThread();
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
