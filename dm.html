@@ -11,112 +11,92 @@
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; overflow: hidden; height: 100vh; display: flex; flex-direction: column; position: fixed; width: 100%; }
+        body { background-color: #000; color: white; height: 100vh; display: flex; flex-direction: column; width: 100%; position: fixed; }
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
-        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 20% { opacity: 0.6; } 80% { opacity: 0.6; } 100% { transform: translateY(110vh); opacity: 0; } }
+        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 100% { transform: translateY(110vh); opacity: 0; } }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        .msg-bubble, .react-badge, .reaction-row span { 
-            user-select: none !important; 
-            -webkit-user-select: none !important; 
-            touch-action: manipulation;
-        }
-
         .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; }
         .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; }
         
-        #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; pointer-events: auto; flex-shrink: 0; }
+        #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; }
-        #msg-input { resize: none; max-height: 150px; overflow-y: auto; line-height: 1.5; }
+        #msg-input { resize: none; max-height: 120px; overflow-y: auto; line-height: 1.5; }
+        
+        /* Fixed Input Positioning */
+        .input-wrapper { position: sticky; bottom: 0; width: 100%; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid rgba(255,255,255,0.05); z-index: 100; }
         
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
         .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
         .sheet-content.show { transform: translateY(0); }
-        .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
-        .menu-opt:active { background: #222; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
         
-        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; }
-        .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .quote-box { background: rgba(255,102,0,0.1); border-left: 4px solid #FF6600; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
+        #reply-preview-container { display: none; padding: 12px; background: #0a0a0a; }
+        .highlight-msg { animation: pulse-orange 2s ease-out; }
+        @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.5); } 100% { background: transparent; } }
 
-        /* Advanced Reply UI */
-        #reply-preview-container { display: none; padding: 10px; background: #0a0a0a; border-top: 1px solid rgba(255,102,0,0.2); animation: slideUp 0.2s ease-out; }
-        .quote-box { background: rgba(255,102,0,0.1); border-left: 4px solid #FF6600; padding: 8px 12px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: opacity 0.2s; }
-        .quote-box:active { opacity: 0.6; }
-        .highlight-msg { animation: pulse-orange 1.5s ease-out; }
-        @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.4); } 100% { background: transparent; } }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        #typing-indicator { display: none; font-size: 10px; font-weight: 800; color: #FF6600; text-transform: uppercase; letter-spacing: 0.1em; margin-left: 15px; margin-bottom: 5px; animation: blink 1s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        #scroll-down-btn { position: absolute; bottom: 120px; right: 20px; background: #FF6600; color: black; width: 35px; height: 35px; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 40; }
     </style>
 </head>
 <body>
     <div class="stars" id="stars"></div>
     <nav class="flex-none flex justify-between items-center p-5 bg-black/80 backdrop-blur-xl border-b border-white/10 z-50">
         <div class="flex items-center space-x-4">
-            <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-75 transition"><i data-lucide="chevron-left" size="28"></i></button>
+            <button onclick="location.href='homies.html'" class="text-zinc-400"><i data-lucide="chevron-left" size="28"></i></button>
             <div class="relative">
-                <div id="user-avatar" class="w-11 h-11 rounded-2xl bg-zinc-900 flex items-center justify-center border border-sdel/30 text-sdel font-black text-lg shadow-lg shadow-sdel/5">?</div>
-                <div id="online-indicator" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-zinc-700 rounded-full border-2 border-black"></div>
+                <div id="user-avatar" class="w-11 h-11 rounded-2xl bg-zinc-900 flex items-center justify-center border border-sdel/30 text-sdel font-black text-lg">?</div>
+                <div id="online-dot" class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-zinc-700 border-2 border-black rounded-full transition-colors"></div>
             </div>
             <div>
-                <h2 id="chat-name" class="text-sm font-black uppercase tracking-tight">Syncing...</h2>
-                <p id="chat-status" class="text-[8px] text-zinc-500 font-black uppercase tracking-[0.2em]">Encrypted</p>
+                <h2 id="chat-name" class="text-sm font-black uppercase">Syncing...</h2>
+                <p id="chat-status" class="text-[8px] text-zinc-500 font-black uppercase">Offline</p>
             </div>
-        </div>
-        <div class="flex items-center space-x-5 text-zinc-400">
-            <button onclick="toggleSoon()"><i data-lucide="phone" size="20"></i></button>
-            <button onclick="toggleSoon()"><i data-lucide="video" size="20"></i></button>
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scrollbar-hide"></main>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scroll-smooth"></main>
 
-    <div class="flex-none bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
+    <button id="scroll-down-btn" onclick="scrollToLast()"><i data-lucide="arrow-down" size="18"></i></button>
+
+    <div class="input-wrapper">
+        <div id="typing-indicator">Typing...</div>
         <div id="reply-preview-container">
-            <div class="flex items-center justify-between">
+            <div class="flex items-center justify-between bg-zinc-900/50 p-3 mx-4 rounded-xl">
                 <div class="border-l-4 border-sdel pl-3 overflow-hidden">
-                    <p id="reply-user-title" class="text-[10px] font-black text-sdel uppercase tracking-widest"></p>
+                    <p id="reply-user-title" class="text-[10px] font-black text-sdel uppercase"></p>
                     <p id="reply-text-body" class="text-xs text-zinc-500 truncate"></p>
                 </div>
-                <button onclick="cancelReply()" class="p-2 text-zinc-500"><i data-lucide="x" size="18"></i></button>
+                <button onclick="cancelReply()" class="text-zinc-500"><i data-lucide="x" size="18"></i></button>
             </div>
         </div>
 
-        <div class="px-4">
-            <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
-                <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
-                <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
+        <div class="px-4 pb-4 mt-2">
+            <div class="flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
+                <button class="p-3.5 text-zinc-600"><i data-lucide="sparkles" size="20"></i></button>
+                <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none text-white"></textarea>
                 <div class="pb-2.5">
-                    <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20">
+                    <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full">
                         <i id="send-icon" data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
                     </button>
                 </div>
             </div>
-            <div class="flex justify-center items-center space-x-2 mt-4 opacity-20"><i data-lucide="shield-check" size="8"></i><p class="text-[7px] font-black tracking-[0.4em] uppercase">Sdel Protocol: Secure End-to-End</p></div>
         </div>
     </div>
 
     <div id="action-sheet" onclick="closeMenu()">
         <div class="sheet-content" onclick="event.stopPropagation()">
-            <div class="reaction-row">
+            <div class="reaction-row flex justify-around mb-5 font-size-[24px]">
                 <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span><span onclick="react('‼️')">‼️</span>
             </div>
             <button class="menu-opt" onclick="triggerReply()"><i data-lucide="reply" size="18"></i> Reply</button>
             <button class="menu-opt" onclick="copyToClipboard()"><i data-lucide="copy" size="18"></i> Copy Text</button>
             <button id="edit-btn-opt" class="menu-opt" onclick="startEdit()"><i data-lucide="edit-2" size="18"></i> Edit</button>
             <button id="delete-btn-opt" class="menu-opt text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> Delete</button>
-            <button class="menu-opt text-zinc-500" onclick="closeMenu()">Cancel</button>
-        </div>
-    </div>
-
-    <div id="soon-modal" class="fixed inset-0 bg-black/95 z-[100] hidden items-center justify-center p-10 backdrop-blur-sm">
-        <div class="bg-zinc-950 border-2 border-sdel p-8 rounded-[2.5rem] text-center max-w-xs shadow-2xl">
-            <i data-lucide="lock" class="text-sdel mx-auto mb-4" size="28"></i>
-            <h3 class="text-lg font-black uppercase mb-2 text-white">Comms Locked</h3>
-            <p class="text-[10px] text-zinc-500 font-bold leading-relaxed uppercase tracking-wider mb-6">Voice and Video protocols are being engineered by Shushirolsh.</p>
-            <button onclick="toggleSoon()" class="w-full bg-white text-black text-[10px] font-black py-4 rounded-xl uppercase tracking-widest active:scale-95 transition">Return</button>
         </div>
     </div>
 
@@ -126,37 +106,85 @@
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
-        let myId = null, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null;
-        let activeReply = null;
+        let myId, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null, activeReply = null, typingTimeout;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) { window.location.href = 'login.html'; return; }
+            if (!session) return window.location.href = 'login.html';
             myId = session.user.id;
             const { data: me } = await supabaseClient.from('profile').select('first_name, username').eq('id', myId).single();
             myName = me?.first_name || me?.username || "Me";
+            
             createStars(); loadHomieProfile(); await fetchMessages(); await markAsRead(); 
-            supabaseClient.channel('public:dm_table').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages()).subscribe();
+            
+            const chatChannel = supabaseClient.channel(`chat_${homieId}`);
+            chatChannel.on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages())
+            .on('broadcast', { event: 'typing' }, (payload) => {
+                if(payload.payload.user === homieId) showTyping(payload.payload.isTyping);
+            }).subscribe();
+
+            const presenceChannel = supabaseClient.channel('online-users', { config: { presence: { key: myId } } });
+            presenceChannel.on('presence', { event: 'sync' }, () => {
+                const state = presenceChannel.presenceState();
+                updateOnlineUI(!!state[homieId]);
+            }).subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await presenceChannel.track({ online_at: new Date().toISOString() });
+                    window.addEventListener('beforeunload', () => updateLastSeen());
+                }
+            });
+
             lucide.createIcons();
+            detectScroll();
         }
 
-        async function loadHomieProfile() {
-            const { data: profile } = await supabaseClient.from('profile').select('*').eq('id', homieId).single();
-            if (profile) {
-                theirName = profile.first_name || profile.username || "Them";
-                document.getElementById('chat-name').innerText = theirName;
-                document.getElementById('user-avatar').innerText = theirName[0].toUpperCase();
+        async function updateLastSeen() {
+            // Overwrites current last_seen with device local ISO time
+            const localTime = new Date().toISOString();
+            await supabaseClient.from('profile').update({ last_seen: localTime }).eq('id', myId);
+        }
+
+        function formatLastSeen(dateStr) {
+            if (!dateStr) return "Offline";
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diffMins = Math.floor((now - date) / 60000);
+            if (diffMins < 1) return "Last seen just now";
+            if (diffMins < 60) return `Last seen ${diffMins}m ago`;
+            return `Last seen ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        }
+
+        async function updateOnlineUI(isOnline) {
+            const dot = document.getElementById('online-dot');
+            const statusText = document.getElementById('chat-status');
+            dot.className = isOnline ? 'absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-black rounded-full' : 'absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-zinc-700 border-2 border-black rounded-full';
+            
+            if (isOnline) {
+                statusText.innerText = 'Online';
+                statusText.className = 'text-[8px] text-green-500 font-black uppercase';
+            } else {
+                const { data: profile } = await supabaseClient.from('profile').select('last_seen').eq('id', homieId).single();
+                statusText.innerText = formatLastSeen(profile?.last_seen);
+                statusText.className = 'text-[8px] text-zinc-500 font-black uppercase';
             }
         }
 
+        function showTyping(isTyping) { document.getElementById('typing-indicator').style.display = isTyping ? 'block' : 'none'; }
+        function detectScroll() { const container = document.getElementById('chat-content'); const btn = document.getElementById('scroll-down-btn'); container.onscroll = () => { const diff = container.scrollHeight - container.scrollTop - container.clientHeight; btn.style.display = diff > 300 ? 'flex' : 'none'; }; }
+        async function loadHomieProfile() { const { data: profile } = await supabaseClient.from('profile').select('*').eq('id', homieId).single(); if (profile) { theirName = profile.first_name || profile.username || "Them"; document.getElementById('chat-name').innerText = theirName; document.getElementById('user-avatar').innerText = theirName[0].toUpperCase(); } }
+
         async function fetchMessages() {
             const { data: messages, error } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
-            if (!error) renderChat(messages);
+            if (!error) {
+                const container = document.getElementById('chat-content');
+                const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+                renderChat(messages);
+                if (isAtBottom) scrollToLast();
+            }
         }
 
-        async function markAsRead() {
-            await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false);
-        }
+        function scrollToLast() { const container = document.getElementById('chat-content'); container.scrollTop = container.scrollHeight; }
+        async function markAsRead() { await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false); }
 
         function renderChat(messages) {
             const container = document.getElementById('chat-content');
@@ -174,113 +202,66 @@
                     lastTap = now;
                 };
 
-                // Parse Reply Quote
-                if (msg.content.startsWith("<<REPLY:")) {
+                if (msg.content.startsWith("<<RP:")) {
                     const parts = msg.content.split(">>");
-                    const meta = parts[0].replace("<<REPLY:", "").split("|");
-                    const quotedId = meta[0];
-                    const quotedUser = meta[1];
-                    const actualMsg = parts.slice(1).join(">>");
-                    
-                    bubble.innerHTML = `
-                        <div class="quote-box" onclick="event.stopPropagation(); jumpTo('${quotedId}')">
-                            <p class="text-[9px] font-black text-sdel uppercase mb-1">${quotedUser}</p>
-                            <p class="text-[11px] text-zinc-400 truncate opacity-80">${meta[2]}</p>
-                        </div>
-                        <p class="text-[14px] font-semibold leading-relaxed">${actualMsg}</p>
-                    `;
+                    const meta = parts[0].replace("<<RP:", "").split("|");
+                    bubble.innerHTML = `<div class="quote-box" onclick="event.stopPropagation(); jumpTo('${meta[0]}')"><p class="text-[9px] font-black text-sdel uppercase mb-1">${meta[1]}</p><p class="text-[11px] text-zinc-400 truncate">${meta[2]}</p></div><p class="text-[14px] font-semibold">${parts.slice(1).join(">>")}</p>`;
                 } else {
-                    bubble.innerHTML = `<p class="text-[14px] font-semibold leading-relaxed">${msg.content}</p>`;
+                    bubble.innerHTML = `<p class="text-[14px] font-semibold">${msg.content}</p>`;
                 }
 
                 const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                bubble.innerHTML += `
-                    <div class="mt-2 flex items-center justify-between gap-4">
-                        <span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}</span>
-                        ${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}
-                    </div>
-                `;
+                bubble.innerHTML += `<div class="mt-2 flex items-center justify-between"><span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}</span>${isMe ? `<span class="text-[7px] font-black uppercase ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}</div>`;
                 container.appendChild(bubble);
             });
-            container.scrollTop = container.scrollHeight;
             lucide.createIcons();
         }
 
-        function setReply(id, text, user) {
-            activeReply = { id, text: text.startsWith("<<REPLY:") ? text.split(">>")[1] : text, user };
-            document.getElementById('reply-user-title').innerText = user;
-            document.getElementById('reply-text-body').innerText = activeReply.text;
-            document.getElementById('reply-preview-container').style.display = 'block';
-            document.getElementById('msg-input').focus();
-        }
-
-        function cancelReply() {
-            activeReply = null;
-            document.getElementById('reply-preview-container').style.display = 'none';
-        }
-
+        function jumpTo(id) { const el = document.getElementById(`msg-${id}`); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 2000); } }
+        function setReply(id, text, user) { let cleanText = text.startsWith("<<RP:") ? text.split(">>")[1] : text; activeReply = { id, text: cleanText, user }; document.getElementById('reply-user-title').innerText = user; document.getElementById('reply-text-body').innerText = cleanText; document.getElementById('reply-preview-container').style.display = 'block'; document.getElementById('msg-input').focus(); }
+        function cancelReply() { activeReply = null; document.getElementById('reply-preview-container').style.display = 'none'; }
         function triggerReply() { setReply(selectedId, selectedText, selectedSender); closeMenu(); }
-
-        function jumpTo(id) {
-            const el = document.getElementById(`msg-${id}`);
-            if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.add('highlight-msg');
-                setTimeout(() => el.classList.remove('highlight-msg'), 1500);
-            }
-        }
 
         async function sendMsg() {
             const input = document.getElementById('msg-input');
             let content = input.value.trim();
             if (!content) return;
-
-            if (activeReply) {
-                content = `<<REPLY:${activeReply.id}|${activeReply.user}|${activeReply.text.substring(0,30)}>>${content}`;
-            }
-
+            if (activeReply) content = `<<RP:${activeReply.id}|${activeReply.user}|${activeReply.text.substring(0,30)}>>${content}`;
+            
             if (editingId) {
                 await supabaseClient.from('dm_table').update({ content, is_edited: true }).eq('id', editingId);
-                editingId = null; 
+                editingId = null;
             } else {
                 await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content, is_read: false });
             }
             input.value = ""; cancelReply(); handleInput(input);
+            sendTypingStatus(false);
+            updateLastSeen();
+        }
+
+        function sendTypingStatus(isTyping) { supabaseClient.channel(`chat_${homieId}`).send({ type: 'broadcast', event: 'typing', payload: { user: myId, isTyping } }); }
+
+        function handleInput(el) { 
+            el.style.height = 'auto'; 
+            el.style.height = (el.scrollHeight) + 'px'; 
+            const btn = document.getElementById('send-btn'); 
+            el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); 
+            sendTypingStatus(true);
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => sendTypingStatus(false), 2000);
         }
 
         let selectedSender = "";
-        function openMenu(id, text, isMe, sender) {
-            selectedId = id; selectedText = text; selectedSender = sender;
-            document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none';
-            document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none';
-            const sheet = document.getElementById('action-sheet');
-            sheet.style.display = 'flex';
-            setTimeout(() => sheet.querySelector('.sheet-content').classList.add('show'), 10);
-            lucide.createIcons();
-        }
-
-        function closeMenu() {
-            const content = document.querySelector('.sheet-content');
-            if(content) content.classList.remove('show');
-            setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300);
-        }
-
-        async function react(emoji) {
-            const { data: msg } = await supabaseClient.from('dm_table').select('*').eq('id', selectedId).single();
-            const updates = msg.sender_id === myId ? { reaction_me: emoji } : { reaction_them: emoji };
-            await supabaseClient.from('dm_table').update(updates).eq('id', selectedId);
-            closeMenu();
-        }
-
+        function openMenu(id, text, isMe, sender) { selectedId = id; selectedText = text; selectedSender = sender; document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none'; document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none'; document.getElementById('action-sheet').style.display = 'flex'; setTimeout(() => document.querySelector('.sheet-content').classList.add('show'), 10); lucide.createIcons(); }
+        function closeMenu() { document.querySelector('.sheet-content').classList.remove('show'); setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300); }
+        async function react(emoji) { const { data: msg } = await supabaseClient.from('dm_table').select('*').eq('id', selectedId).single(); const updates = msg.sender_id === myId ? { reaction_me: emoji } : { reaction_them: emoji }; await supabaseClient.from('dm_table').update(updates).eq('id', selectedId); closeMenu(); }
         async function copyToClipboard() { await navigator.clipboard.writeText(selectedText); closeMenu(); }
         function startEdit() { editingId = selectedId; document.getElementById('msg-input').value = selectedText; closeMenu(); }
         async function deleteMsg() { await supabaseClient.from('dm_table').delete().eq('id', selectedId); closeMenu(); }
-
-        function handleInput(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); }
-        function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; container.appendChild(star); } }
-        function toggleSoon() { document.getElementById('soon-modal').classList.toggle('hidden'); lucide.createIcons(); }
+        function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 50; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random()*2+1}px`; star.style.left = `${Math.random()*100}vw`; star.style.top = `-${Math.random()*100}vh`; star.style.animationDuration = `${Math.random()*10+10}s`; container.appendChild(star); } }
         
         init();
     </script>
 </body>
-</html>
+    </html>
+    
