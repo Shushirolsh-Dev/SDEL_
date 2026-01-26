@@ -40,6 +40,9 @@
             <span class="text-3xl font-black tracking-tighter uppercase">S<span class="text-sdel">del</span></span>
         </div>
         <div class="flex items-center space-x-4">
+            <button id="pwa-install-btn" class="hidden border-2 border-sdel text-sdel px-4 py-1.5 rounded-xl font-black text-[10px] transition-all hover:bg-sdel hover:text-black uppercase tracking-tighter">
+                Install App
+            </button>
             <a href="login.html" class="text-sm font-black hover:text-sdel transition uppercase">Log In</a>
             <a href="signup.html" class="bg-sdel text-black px-6 py-2 rounded-xl font-black text-sm transition-all hover:scale-105 uppercase">Join Now</a>
         </div>
@@ -203,6 +206,32 @@
                 buttons.forEach(b => b.disabled = false);
             }, 2000);
         }
+
+        // --- PWA SMART INSTALL BUTTON LOGIC ---
+        let deferredPrompt;
+        const pwaBtn = document.getElementById('pwa-install-btn');
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            pwaBtn.classList.remove('hidden');
+        });
+
+        pwaBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') pwaBtn.classList.add('hidden');
+                deferredPrompt = null;
+            }
+        });
     </script>
 </body>
-</html>
+    </html>
+    
