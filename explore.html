@@ -15,12 +15,8 @@
         .bg-sdel { background-color: #FF6600; }
         
         .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.3s; }
-        .post-card:active { background: rgba(255,255,255,0.02); }
-        
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
-        
-        .notification-badge { position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; background: #FF6600; border-radius: 50%; border: 2px solid #000; }
         
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -36,10 +32,7 @@
             <h1 class="text-2xl font-black italic tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
             <div class="flex items-center space-x-5">
                 <button onclick="location.href='search-users.html'"><i data-lucide="search" size="22"></i></button>
-                <button onclick="location.href='notifications.html'" class="relative">
-                    <i data-lucide="bell" size="22"></i>
-                    <div class="notification-badge"></div>
-                </button>
+                <button onclick="location.href='notifications.html'" class="relative"><i data-lucide="bell" size="22"></i></button>
                 <button onclick="location.href='chats.html'"><i data-lucide="message-square" size="22"></i></button>
             </div>
         </div>
@@ -53,19 +46,16 @@
     <div class="p-4 border-b border-white/5 flex space-x-3">
         <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase">H</div>
         <div class="flex-1 pt-1">
-            <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"></textarea>
+            <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
             <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
-                <span id="ban-status-text" class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest italic">Text Only Mode</span>
-                <button id="post-btn" onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-tighter active:scale-95 transition">Post</button>
+                <span class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest italic">Text Mode</span>
+                <button id="post-btn" onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-tighter">Post</button>
             </div>
         </div>
     </div>
 
     <main id="feed-container" class="flex flex-col">
-        <div class="flex flex-col items-center justify-center py-20 space-y-4">
-            <i data-lucide="loader-2" class="spinner text-sdel" size="32"></i>
-        </div>
-    </main>
+        </main>
 
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20px+env(safe-area-inset-bottom))]">
         <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
@@ -92,26 +82,21 @@
 
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             userProfile = profile;
-
             document.getElementById('my-avatar').innerText = userProfile.username?.charAt(0) || 'H';
-
-            if(userProfile.is_banned) {
-                document.getElementById('post-input').disabled = true;
-                document.getElementById('post-input').placeholder = "Account Restricted.";
-                document.getElementById('ban-status-text').innerText = "RESTRICTED";
-                document.getElementById('ban-status-text').style.color = "red";
-            }
-
-            document.getElementById('post-input').addEventListener('focus', () => {
-                if(!userProfile.is_banned) document.getElementById('composer-actions').classList.remove('hidden');
-            });
-
+            
             loadFeed();
         }
+
+        window.toggleActions = (el) => {
+            el.style.height = ''; el.style.height = el.scrollHeight + 'px';
+            document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
+        };
 
         async function publishPost() {
             const content = document.getElementById('post-input').value.trim();
             if (!content) return;
+            const btn = document.getElementById('post-btn');
+            btn.disabled = true;
 
             const { error } = await supabase.from('posts').insert({
                 user_id: userProfile.id,
@@ -123,17 +108,18 @@
                 document.getElementById('post-input').value = '';
                 document.getElementById('composer-actions').classList.add('hidden');
                 loadFeed();
-            } else {
-                alert("Post failed: " + error.message);
             }
+            btn.disabled = false;
         }
 
         async function loadFeed() {
             const container = document.getElementById('feed-container');
-            let query = supabase.from('posts').select('*, profile:user_id(username, is_official, school_name)');
+            container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
+            lucide.createIcons();
 
-            query = query.gt('expires_at', new Date().toISOString());
+            let query = supabase.from('posts').select('*, profile:user_id(username, is_official)');
 
+            // Tab logic: Universe shows all, Campus filters by your school
             if (currentMode === 'campus' && userProfile.school_name) {
                 query = query.eq('school_name', userProfile.school_name);
             }
@@ -141,15 +127,11 @@
             const { data: posts, error } = await query.order('created_at', { ascending: false });
 
             if (error || !posts || posts.length === 0) {
-                container.innerHTML = `<div class="py-20 text-center text-zinc-800 text-[10px] font-black uppercase italic tracking-widest">Quiet in the ${currentMode}...</div>`;
+                container.innerHTML = `<div class="py-20 text-center text-zinc-700 text-[10px] font-black uppercase italic tracking-widest">Quiet in the ${currentMode}...</div>`;
                 return;
             }
 
-            container.innerHTML = posts.map(post => {
-                const isOwner = post.user_id === userProfile.id;
-                const isAdmin = userProfile.is_official;
-
-                return `
+            container.innerHTML = posts.map(post => `
                 <div class="post-card p-4 relative">
                     <div class="thread-line"></div>
                     <div class="flex space-x-3 relative z-10">
@@ -161,45 +143,24 @@
                                 <div class="flex items-center gap-1">
                                     <span class="text-[13px] font-black uppercase italic tracking-tighter">@${post.profile?.username || 'anon'}</span>
                                     ${post.profile?.is_official ? '<i data-lucide="badge-check" class="text-sdel fill-sdel/20" size="12"></i>' : ''}
-                                    <span class="text-[10px] text-zinc-600 font-bold ml-2">• ${timeAgo(post.created_at)}</span>
                                 </div>
-                                <div class="flex items-center gap-3">
-                                    ${isAdmin && !isOwner ? `<button onclick="window.banUser('${post.user_id}')" class="text-[8px] font-black text-red-600">BAN</button>` : ''}
-                                    ${isAdmin || isOwner ? `<button onclick="window.deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-700"></i></button>` : ''}
-                                    <i data-lucide="more-horizontal" class="text-zinc-700" size="16"></i>
-                                </div>
+                                ${ (userProfile.is_official || post.user_id === userProfile.id) ? `<button onclick="window.deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-800"></i></button>` : '<i data-lucide="more-horizontal" class="text-zinc-700" size="16"></i>'}
                             </div>
                             <p class="text-[14px] text-zinc-200 leading-relaxed font-medium mb-3">${post.content}</p>
                             <div class="flex items-center space-x-6 text-zinc-500">
-                                <button class="flex items-center space-x-1.5 active:scale-125 transition"><i data-lucide="heart" size="18"></i><span class="text-[10px] font-bold">${post.likes_count || 0}</span></button>
-                                <button class="flex items-center space-x-1.5"><i data-lucide="message-circle" size="18"></i><span class="text-[10px] font-bold">${post.comments_count || 0}</span></button>
-                                <button class="flex items-center space-x-1.5"><i data-lucide="repeat" size="18"></i></button>
-                                <button><i data-lucide="send" size="17"></i></button>
+                                <i data-lucide="heart" size="18"></i>
+                                <i data-lucide="message-circle" size="18"></i>
+                                <i data-lucide="send" size="17"></i>
                             </div>
                         </div>
                     </div>
-                </div>`;
-            }).join('');
+                </div>`).join('');
             lucide.createIcons();
         }
 
         window.deletePost = async (id) => {
-            if(confirm("Delete gist?")) { await supabase.from('posts').delete().eq('id', id); loadFeed(); }
-        }
-
-        window.banUser = async (uid) => {
-            if(confirm("Ban user?")) { await supabase.rpc('ban_user', { target_uid: uid, reason_text: 'Admin Action' }); loadFeed(); }
-        }
-
-        function timeAgo(date) {
-            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-            if (seconds < 60) return 'now';
-            const minutes = Math.floor(seconds / 60);
-            if (minutes < 60) return minutes + 'm';
-            const hours = Math.floor(minutes / 60);
-            if (hours < 24) return hours + 'h';
-            return Math.floor(hours / 24) + 'd';
-        }
+            if(confirm("Delete?")) { await supabase.from('posts').delete().eq('id', id); loadFeed(); }
+        };
 
         window.switchTab = (mode) => {
             currentMode = mode;
@@ -208,7 +169,6 @@
             loadFeed();
         };
 
-        window.publishPost = publishPost;
         init();
     </script>
 </body>
