@@ -10,17 +10,24 @@
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; overflow-x: hidden; }
+        body { background-color: #000; color: white; overflow-x: hidden; overscroll-behavior-y: contain; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); }
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
+        
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
         #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; min-height: 24px; }
-        #search-container { display: none; padding: 10px 15px; background: #0a0a0a; border-bottom: 1px solid #1a1a1a; }
-        #search-input { background: #151515; border: 1px solid #333; border-radius: 8px; padding: 8px 12px; width: 100%; color: white; font-size: 13px; outline: none; }
+        
+        #pull-indicator { 
+            height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; 
+            background: #000; transition: height 0.2s ease; font-size: 10px; font-weight: 900; 
+            text-transform: uppercase; color: #FF6600; letter-spacing: 2px;
+        }
+
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; box-shadow: 0 10px 30px rgba(255, 102, 0, 0.3); }
         #toast.show { transform: translateX(-50%) translateY(0); }
     </style>
@@ -28,6 +35,7 @@
 <body class="pb-32">
 
     <div id="toast">Gist Published!</div>
+    <div id="pull-indicator"><i data-lucide="refresh-cw" class="spinner mr-2" size="14"></i> Updating Feed...</div>
 
     <nav class="sticky top-0 bg-black/95 backdrop-blur-xl z-[100] border-b border-white/5 pt-env(safe-area-inset-top)">
         <div class="p-6 pb-2 flex items-center justify-between">
@@ -39,8 +47,8 @@
             </div>
         </div>
 
-        <div id="search-container">
-            <input type="text" id="search-input" placeholder="Search usernames or #hashtags..." oninput="handleSearch(this.value)">
+        <div id="search-container" class="hidden px-4 pb-3">
+            <input type="text" id="search-input" placeholder="Search vibes..." class="bg-zinc-900 border border-white/10 rounded-lg p-2 w-full text-sm" oninput="handleSearch(this.value)">
         </div>
         
         <div class="flex justify-around">
@@ -64,7 +72,7 @@
 
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20px+env(safe-area-inset-bottom))]">
         <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
-        <i data-lucide="compass" class="text-sdel" size="28" onclick="location.href='explore.html'"></i>
+        <i data-lucide="compass" class="text-sdel" size="28"></i>
         <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition-all duration-300" onclick="document.getElementById('post-input').focus()">
             <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
         </div>
@@ -79,6 +87,7 @@
         let userProfile = null;
         let currentMode = 'campus';
         let searchQuery = '';
+        let startY = 0;
 
         Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost });
 
@@ -91,12 +100,43 @@
             document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
             
             loadFeed();
+            setupPullToRefresh();
+            subscribeToPosts(); // Start Live Listener
+        }
+
+        // --- LIVE LISTENER ---
+        function subscribeToPosts() {
+            supabase
+                .channel('public:posts')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, (payload) => {
+                    console.log('New vibe detected!', payload);
+                    loadFeed(); // Silently refresh when anyone posts or deletes
+                })
+                .subscribe();
+        }
+
+        function setupPullToRefresh() {
+            window.addEventListener('touchstart', (e) => { startY = e.touches[0].pageY; });
+            window.addEventListener('touchmove', (e) => {
+                const y = e.touches[0].pageY;
+                if (window.scrollY === 0 && y > startY) {
+                    const diff = Math.min((y - startY) / 2, 60);
+                    document.getElementById('pull-indicator').style.height = diff + 'px';
+                }
+            });
+            window.addEventListener('touchend', async (e) => {
+                const indicator = document.getElementById('pull-indicator');
+                if (parseInt(indicator.style.height) >= 50) {
+                    await loadFeed();
+                }
+                indicator.style.height = '0px';
+            });
         }
 
         function toggleSearch() {
             const container = document.getElementById('search-container');
-            container.style.display = container.style.display === 'block' ? 'none' : 'block';
-            if (container.style.display === 'block') document.getElementById('search-input').focus();
+            container.classList.toggle('hidden');
+            if (!container.classList.contains('hidden')) document.getElementById('search-input').focus();
         }
 
         function handleSearch(val) {
@@ -122,24 +162,26 @@
                 school_name: userProfile.school_name || 'Global'
             });
 
-            if (error) {
-                alert("Post failed: " + error.message);
-            } else {
+            if (!error) {
                 const toast = document.getElementById('toast');
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 3000);
                 document.getElementById('post-input').value = '';
                 document.getElementById('post-input').style.height = '24px';
                 document.getElementById('composer-actions').classList.add('hidden');
-                loadFeed();
+                
+                await loadFeed();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
             btn.disabled = false;
         }
 
         async function loadFeed() {
             const container = document.getElementById('feed-container');
-            container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
-            lucide.createIcons();
+            if (container.innerHTML === "") {
+                container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
+                lucide.createIcons();
+            }
 
             let query = supabase.from('posts').select('*, profile:user_id(username, is_official)');
 
@@ -151,24 +193,19 @@
 
             const { data: posts, error } = await query.order('created_at', { ascending: false }).limit(50);
 
-            if (error) {
-                container.innerHTML = `<div class="py-20 text-center text-red-500 text-[10px] font-black uppercase">Load Error</div>`;
-                return;
-            }
+            if (error) return;
 
             if (!posts || posts.length === 0) {
-                container.innerHTML = `<div class="py-20 text-center text-zinc-700 text-[10px] font-black uppercase italic tracking-widest">Quiet in the ${currentMode}...</div>`;
+                container.innerHTML = `<div class="py-20 text-center text-zinc-700 text-[10px] font-black uppercase italic tracking-widest">No threads yet.</div>`;
                 return;
             }
 
             container.innerHTML = posts.map(post => {
                 const username = post.profile?.username || 'user_' + post.user_id.slice(0, 4);
                 return `
-                <div class="post-card p-4 relative">
-                    <div class="flex space-x-3 relative z-10">
-                        <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex-shrink-0 flex items-center justify-center font-black text-sdel text-xs uppercase">
-                            ${username.charAt(0)}
-                        </div>
+                <div class="post-card p-4">
+                    <div class="flex space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex-shrink-0 flex items-center justify-center font-black text-sdel text-xs uppercase">${username.charAt(0)}</div>
                         <div class="flex-1">
                             <div class="flex items-center justify-between mb-0.5">
                                 <div class="flex items-center gap-1">
@@ -191,7 +228,7 @@
         }
 
         async function deletePost(id) {
-            if(confirm("Delete gist?")) {
+            if(confirm("Delete thread?")) {
                 await supabase.from('posts').delete().eq('id', id);
                 loadFeed();
             }
@@ -202,10 +239,10 @@
             document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
             document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
             loadFeed();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         init();
     </script>
 </body>
-    </html>
-    
+</html>
