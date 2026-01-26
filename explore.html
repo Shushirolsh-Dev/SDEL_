@@ -24,7 +24,6 @@
         #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; min-height: 24px; }
         .thread-line { position: absolute; left: 19px; top: 50px; bottom: 10px; width: 2px; background: #1a1a1a; border-radius: 1px; }
         
-        /* Search Bar Style */
         #search-container { display: none; padding: 10px 15px; background: #0a0a0a; border-bottom: 1px solid #1a1a1a; }
         #search-input { background: #151515; border: 1px solid #333; border-radius: 8px; padding: 8px 12px; width: 100%; color: white; font-size: 13px; outline: none; }
     </style>
@@ -84,6 +83,14 @@
         let currentMode = 'campus';
         let searchQuery = '';
 
+        // ATTACH TO WINDOW SO BUTTONS CAN SEE THEM
+        window.publishPost = publishPost;
+        window.toggleSearch = toggleSearch;
+        window.handleSearch = handleSearch;
+        window.toggleActions = toggleActions;
+        window.switchTab = switchTab;
+        window.deletePost = deletePost;
+
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.replace('login.html');
@@ -95,19 +102,20 @@
             loadFeed();
         }
 
-        window.toggleSearch = () => {
+        function toggleSearch() {
             const container = document.getElementById('search-container');
             container.style.display = container.style.display === 'block' ? 'none' : 'block';
             if (container.style.display === 'block') document.getElementById('search-input').focus();
         };
 
-        window.handleSearch = (val) => {
+        function handleSearch(val) {
             searchQuery = val.trim();
             loadFeed();
         };
 
-        window.toggleActions = (el) => {
-            el.style.height = ''; el.style.height = el.scrollHeight + 'px';
+        function toggleActions(el) {
+            el.style.height = 'auto'; 
+            el.style.height = el.scrollHeight + 'px';
             document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
         };
 
@@ -116,6 +124,7 @@
             if (!content) return;
             const btn = document.getElementById('post-btn');
             btn.disabled = true;
+            btn.innerText = "...";
 
             const { error } = await supabase.from('posts').insert({
                 user_id: userProfile.id,
@@ -128,10 +137,12 @@
                 alert("Post failed: " + error.message);
             } else {
                 document.getElementById('post-input').value = '';
+                document.getElementById('post-input').style.height = '24px';
                 document.getElementById('composer-actions').classList.add('hidden');
                 loadFeed();
             }
             btn.disabled = false;
+            btn.innerText = "Post";
         }
 
         async function loadFeed() {
@@ -139,13 +150,11 @@
             container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
             lucide.createIcons();
 
-            // Correction: Fetch with Search and Profile logic
             let query = supabase.from('posts').select('*, profile:user_id(username, is_official)');
 
             if (searchQuery) {
-                // Search across content or school name (hashtags included in content)
                 query = query.or(`content.ilike.%${searchQuery}%,school_name.ilike.%${searchQuery}%`);
-            } else if (currentMode === 'campus' && userProfile.school_name) {
+            } else if (currentMode === 'campus' && userProfile?.school_name) {
                 query = query.eq('school_name', userProfile.school_name);
             }
 
@@ -169,7 +178,7 @@
                                     <span class="text-[13px] font-black uppercase italic tracking-tighter">@${post.profile?.username || 'anon'}</span>
                                     ${post.profile?.is_official ? '<i data-lucide="badge-check" class="text-sdel fill-sdel/20" size="12"></i>' : ''}
                                 </div>
-                                ${ (userProfile.is_official || post.user_id === userProfile.id) ? `<button onclick="window.deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-800"></i></button>` : '<i data-lucide="more-horizontal" class="text-zinc-700" size="16"></i>'}
+                                ${ (userProfile?.is_official || post.user_id === userProfile?.id) ? `<button onclick="deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-800"></i></button>` : '<i data-lucide="more-horizontal" class="text-zinc-700" size="16"></i>'}
                             </div>
                             <p class="text-[14px] text-zinc-200 leading-relaxed font-medium mb-3">${post.content}</p>
                             <div class="flex items-center space-x-6 text-zinc-500">
@@ -183,13 +192,12 @@
             lucide.createIcons();
         }
 
-        window.deletePost = async (id) => {
+        async function deletePost(id) {
             if(confirm("Delete gist?")) { await supabase.from('posts').delete().eq('id', id); loadFeed(); }
         };
 
-        window.switchTab = (mode) => {
+        function switchTab(mode) {
             currentMode = mode;
-            // Clear search when switching tabs to avoid confusion
             searchQuery = '';
             document.getElementById('search-input').value = '';
             document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
