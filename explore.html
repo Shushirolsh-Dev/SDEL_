@@ -2,20 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Sdel | Explore</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        .post-card { background: rgba(15, 15, 15, 0.7); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(10px); border-radius: 32px; overflow: hidden; margin-bottom: 24px; }
+        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.3s; }
+        .post-card:active { background: rgba(255,255,255,0.02); }
+        
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
         
@@ -23,58 +24,56 @@
         
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        
-        .skeleton { background: linear-gradient(90deg, #0a0a0a 25%, #1a1a1a 50%, #0a0a0a 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
-        @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; }
+        .thread-line { position: absolute; left: 19px; top: 50px; bottom: 10px; width: 2px; background: #1a1a1a; border-radius: 1px; }
     </style>
 </head>
 <body class="pb-32">
 
-    <nav class="sticky top-0 bg-black/95 backdrop-blur-xl z-[100] border-b border-white/5">
+    <nav class="sticky top-0 bg-black/95 backdrop-blur-xl z-[100] border-b border-white/5 pt-env(safe-area-inset-top)">
         <div class="p-6 pb-2 flex items-center justify-between">
             <h1 class="text-2xl font-black italic tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
             <div class="flex items-center space-x-5">
-                <button onclick="location.href='search-users.html'" class="relative">
-                    <i data-lucide="search" class="text-white" size="22"></i>
-                </button>
+                <button onclick="location.href='search-users.html'"><i data-lucide="search" size="22"></i></button>
                 <button onclick="location.href='notifications.html'" class="relative">
-                    <i data-lucide="bell" class="text-white" size="22"></i>
+                    <i data-lucide="bell" size="22"></i>
                     <div class="notification-badge"></div>
-                </button>
-                <button onclick="location.href='chats.html'" class="relative">
-                    <i data-lucide="message-square" class="text-white" size="22"></i>
                 </button>
             </div>
         </div>
         
-        <div class="flex justify-around mt-2">
+        <div class="flex justify-around">
             <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active px-6 py-4 text-[10px] font-black uppercase tracking-widest italic">The Campus</button>
             <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn px-6 py-4 text-[10px] font-black uppercase tracking-widest italic">Universe</button>
         </div>
     </nav>
 
-    <section id="post-input-container" class="p-4"></section>
-
-    <main id="feed-container" class="p-4 space-y-4">
-        <div class="post-card p-5 space-y-4">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-full skeleton"></div>
-                <div class="w-32 h-4 skeleton rounded-lg"></div>
+    <div class="p-4 border-b border-white/5 flex space-x-3">
+        <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase">H</div>
+        <div class="flex-1 pt-1">
+            <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"></textarea>
+            <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
+                <span id="ban-status-text" class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Text Only Mode</span>
+                <button id="post-btn" onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-tighter active:scale-95 transition">Post</button>
             </div>
-            <div class="w-full aspect-square skeleton rounded-[2rem]"></div>
+        </div>
+    </div>
+
+    <main id="feed-container" class="flex flex-col">
+        <div class="flex flex-col items-center justify-center py-20 space-y-4">
+            <i data-lucide="loader-2" class="spinner text-sdel" size="32"></i>
         </div>
     </main>
 
-    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl">
-        <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
-        <i data-lucide="compass" class="text-sdel" size="28" onclick="location.href='explore.html'"></i>
-        
-        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition-all duration-300" onclick="location.href='post-story.html'">
-            <i data-lucide="camera" class="text-black" stroke-width="3" size="28"></i>
+    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20px+env(safe-area-inset-bottom))]">
+        <i data-lucide="home" class="text-white/60" size="26" onclick="location.href='dashboard.html'"></i>
+        <i data-lucide="compass" class="text-sdel" size="26"></i>
+        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center -mt-8 shadow-2xl active:scale-90 transition-all" onclick="document.getElementById('post-input').focus()">
+            <i data-lucide="plus" class="text-black" stroke-width="3" size="24"></i>
         </div>
-        
-        <i data-lucide="shopping-cart" class="text-white/60" size="28" onclick="location.href='market.html'"></i>
-        <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
+        <i data-lucide="shopping-cart" class="text-white/60" size="26" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-white/60" size="26" onclick="location.href='profile.html'"></i>
     </nav>
 
     <script type="module">
@@ -90,57 +89,53 @@
 
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             userProfile = profile;
-            
-            renderPostInput();
+
+            // Set Avatar
+            document.getElementById('my-avatar').innerText = userProfile.username?.charAt(0) || 'H';
+
+            // Check Ban Status
+            if(userProfile.is_banned) {
+                document.getElementById('post-input').disabled = true;
+                document.getElementById('post-input').placeholder = "Posting privileges revoked.";
+                document.getElementById('ban-status-text').innerText = "Account Restricted";
+                document.getElementById('ban-status-text').classList.add('text-red-600');
+            }
+
+            document.getElementById('post-input').addEventListener('focus', () => {
+                document.getElementById('composer-actions').classList.remove('hidden');
+            });
+
             loadFeed();
         }
 
-        function renderPostInput() {
-            const container = document.getElementById('post-input-container');
-            if (userProfile.is_banned) {
-                container.innerHTML = `<div class="p-4 bg-red-900/20 border border-red-900/40 rounded-3xl text-center text-[10px] font-black uppercase text-red-500 italic">Posting Privileges Revoked</div>`;
-                return;
-            }
-            container.innerHTML = `
-                <div class="bg-zinc-900/40 border border-white/5 p-4 rounded-[2rem] backdrop-blur-xl">
-                    <div class="flex items-start space-x-3">
-                        <div class="w-10 h-10 rounded-full bg-sdel/10 flex items-center justify-center font-black text-sdel text-xs">${userProfile.username?.charAt(0)}</div>
-                        <textarea id="quick-post-text" placeholder="Drop the gist..." class="flex-1 bg-transparent border-none text-sm p-2 focus:ring-0 text-white placeholder-zinc-600 resize-none h-12"></textarea>
-                    </div>
-                    <div class="flex justify-end mt-2">
-                        <button id="submit-post" class="bg-sdel text-black text-[10px] font-black uppercase px-6 py-2 rounded-xl active:scale-95 transition">Post Now</button>
-                    </div>
-                </div>`;
-            document.getElementById('submit-post').onclick = publishInstantPost;
-        }
+        async function publishPost() {
+            const content = document.getElementById('post-input').value.trim();
+            if (!content || userProfile.is_banned) return;
 
-        async function publishInstantPost() {
-            const text = document.getElementById('quick-post-text').value;
-            if(!text.trim()) return;
-            
-            const btn = document.getElementById('submit-post');
-            btn.innerHTML = '...';
+            const btn = document.getElementById('post-btn');
             btn.disabled = true;
+            btn.innerText = "...";
 
             const { error } = await supabase.from('posts').insert({
                 user_id: userProfile.id,
-                content: text,
+                content: content,
                 school_name: userProfile.school_name
             });
 
-            if(!error) {
-                document.getElementById('quick-post-text').value = '';
+            if (!error) {
+                document.getElementById('post-input').value = '';
+                document.getElementById('composer-actions').classList.add('hidden');
                 loadFeed();
             }
-            btn.innerHTML = 'Post Now';
             btn.disabled = false;
+            btn.innerText = "Post";
         }
 
         async function loadFeed() {
             const container = document.getElementById('feed-container');
-            let query = supabase.from('posts').select('*, profile(username, first_name, school_name, is_official)');
+            let query = supabase.from('posts').select('*, profile:user_id(username, is_official, school_name)');
 
-            // 72 Hour Expiry Check
+            // 72hr expiry filter
             query = query.gt('expires_at', new Date().toISOString());
 
             if (currentMode === 'campus') {
@@ -150,97 +145,98 @@
             const { data: posts, error } = await query.order('created_at', { ascending: false });
 
             if (error || !posts || posts.length === 0) {
-                container.innerHTML = `<div class="text-center py-24 uppercase font-black text-zinc-700 italic text-xs tracking-[0.2em]">No gists found in ${currentMode === 'campus' ? 'this campus' : 'the universe'}</div>`;
+                container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-zinc-700 text-[10px] font-black uppercase tracking-widest italic">No gists found in the ${currentMode}</div>`;
                 return;
             }
 
             container.innerHTML = posts.map(post => {
                 const isOwner = post.user_id === userProfile.id;
                 const isAdmin = userProfile.is_official;
-                const canEdit = isOwner && (new Date() - new Date(post.created_at) < 900000);
 
                 return `
-                <div class="post-card">
-                    <div class="p-4 flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center font-black text-sdel border border-white/5 uppercase">${post.profile?.username?.charAt(0) || 'S'}</div>
-                            <div>
+                <div class="post-card p-4 relative">
+                    <div class="thread-line"></div>
+                    <div class="flex space-x-3 relative z-10">
+                        <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex-shrink-0 flex items-center justify-center font-black text-sdel text-xs uppercase">
+                            ${post.profile?.username?.charAt(0) || 'S'}
+                        </div>
+                        
+                        <div class="flex-1 pb-2">
+                            <div class="flex items-center justify-between mb-0.5">
                                 <div class="flex items-center gap-1">
-                                    <h3 class="text-sm font-black uppercase italic tracking-tighter">@${post.profile?.username || 'user'}</h3>
-                                    ${post.profile?.is_official ? '<i data-lucide="badge-check" class="text-sdel fill-sdel/20" size="14"></i>' : ''}
+                                    <span class="text-[13px] font-black uppercase italic tracking-tighter">@${post.profile?.username || 'anon'}</span>
+                                    ${post.profile?.is_official ? '<i data-lucide="badge-check" class="text-sdel fill-sdel/20" size="12"></i>' : ''}
+                                    <span class="text-[10px] text-zinc-600 font-bold ml-2">• ${timeAgo(post.created_at)}</span>
                                 </div>
-                                <p class="text-[9px] text-zinc-500 font-black uppercase tracking-widest">${post.school_name || 'Universe'}</p>
+                                <div class="flex items-center gap-3">
+                                    ${isAdmin && !isOwner ? `<button onclick="window.banUser('${post.user_id}')" class="text-[8px] font-black text-red-600 border border-red-900 px-1 rounded">BAN</button>` : ''}
+                                    ${isAdmin || isOwner ? `<button onclick="window.deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-700"></i></button>` : ''}
+                                    <i data-lucide="more-horizontal" class="text-zinc-700" size="16"></i>
+                                </div>
                             </div>
-                        </div>
-                        <div class="flex gap-4">
-                            ${isAdmin && !isOwner ? `<button onclick="banAction('${post.user_id}')" class="text-[8px] border border-red-500 text-red-500 px-2 rounded-full font-black">BAN</button>` : ''}
-                            ${isAdmin || isOwner ? `<button onclick="deleteAction('${post.id}')"><i data-lucide="trash-2" class="text-zinc-600" size="16"></i></button>` : ''}
-                        </div>
-                    </div>
+                            
+                            <p class="text-[14px] text-zinc-200 leading-relaxed font-medium mb-3">
+                                ${post.content}
+                            </p>
 
-                    ${post.media_url ? `
-                        <div class="w-full bg-zinc-900/50 min-h-[300px] flex items-center justify-center relative">
-                            <img src="${post.media_url}" class="w-full h-auto max-h-[550px] object-cover" loading="lazy">
-                        </div>
-                    ` : ''}
-
-                    <div class="p-5 space-y-3">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-6">
-                                <button class="flex items-center space-x-2 font-black text-zinc-400 active:scale-125 transition">
-                                    <i data-lucide="heart" size="24"></i>
-                                    <span class="text-[10px]">${post.likes_count || 0}</span>
+                            <div class="flex items-center space-x-6 text-zinc-500">
+                                <button class="flex items-center space-x-1.5 active:scale-125 transition">
+                                    <i data-lucide="heart" size="18"></i>
+                                    <span class="text-[10px] font-bold">${post.likes_count || 0}</span>
                                 </button>
-                                <button class="flex items-center space-x-2 font-black text-zinc-400">
-                                    <i data-lucide="message-circle" size="24"></i>
-                                    <span class="text-[10px]">${post.comments_count || 0}</span>
+                                <button class="flex items-center space-x-1.5">
+                                    <i data-lucide="message-circle" size="18"></i>
+                                    <span class="text-[10px] font-bold">${post.comments_count || 0}</span>
                                 </button>
-                                <button class="text-zinc-400"><i data-lucide="send" size="22"></i></button>
+                                <button class="flex items-center space-x-1.5">
+                                    <i data-lucide="repeat" size="18"></i>
+                                </button>
+                                <button><i data-lucide="send" size="17"></i></button>
                             </div>
-                            <span class="text-[10px] font-black text-zinc-700 italic uppercase">${post.view_count || 0} views</span>
-                        </div>
-                        <div class="text-sm leading-relaxed">
-                            <span class="font-black italic uppercase text-sdel mr-2 text-[12px]">${post.profile?.username}</span>
-                            <span class="text-zinc-300 font-medium">${post.content || ''}</span>
-                        </div>
-                        <div class="flex justify-between items-center pt-2">
-                             <p class="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Expires in ${getRemainingTime(post.expires_at)}</p>
-                             ${post.is_edited ? '<span class="text-[8px] text-zinc-700 italic uppercase font-black">Edited</span>' : ''}
                         </div>
                     </div>
                 </div>
-            `}).join('');
+            `;}).join('');
             
             lucide.createIcons();
         }
 
-        window.deleteAction = async (id) => {
+        window.deletePost = async (id) => {
             if(!confirm("Erase this gist?")) return;
             await supabase.from('posts').delete().eq('id', id);
             loadFeed();
-        };
+        }
 
-        window.banAction = async (uid) => {
-            if(!confirm("Ban this user from the feed?")) return;
-            await supabase.rpc('ban_user', { target_uid: uid, reason_text: 'Community Violation' });
+        window.banUser = async (uid) => {
+            if(!confirm("Ban this user from Sdel?")) return;
+            await supabase.rpc('ban_user', { target_uid: uid, reason_text: 'Moderator removal' });
             loadFeed();
-        };
+        }
 
-        function getRemainingTime(expiry) {
-            const diff = new Date(expiry) - new Date();
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            return hours > 0 ? `${hours}h` : 'Expired';
+        function timeAgo(date) {
+            const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+            if (seconds < 60) return 'now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return minutes + 'm';
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return hours + 'h';
+            return Math.floor(hours / 24) + 'd';
         }
 
         window.switchTab = (mode) => {
             currentMode = mode;
             document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
             document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
+            document.getElementById('feed-container').innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 space-y-4">
+                    <i data-lucide="loader-2" class="spinner text-sdel" size="32"></i>
+                </div>
+            `;
             loadFeed();
         };
 
+        window.publishPost = publishPost;
         init();
-        lucide.createIcons();
     </script>
 </body>
 </html>
