@@ -23,6 +23,10 @@
 
         #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; min-height: 24px; }
         .thread-line { position: absolute; left: 19px; top: 50px; bottom: 10px; width: 2px; background: #1a1a1a; border-radius: 1px; }
+        
+        /* Search Bar Style */
+        #search-container { display: none; padding: 10px 15px; background: #0a0a0a; border-bottom: 1px solid #1a1a1a; }
+        #search-input { background: #151515; border: 1px solid #333; border-radius: 8px; padding: 8px 12px; width: 100%; color: white; font-size: 13px; outline: none; }
     </style>
 </head>
 <body class="pb-32">
@@ -31,10 +35,14 @@
         <div class="p-6 pb-2 flex items-center justify-between">
             <h1 class="text-2xl font-black italic tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
             <div class="flex items-center space-x-5">
-                <button onclick="location.href='search-users.html'"><i data-lucide="search" size="22"></i></button>
-                <button onclick="location.href='notifications.html'"><i data-lucide="bell" size="22"></i></button>
-                <button onclick="location.href='chats.html'"><i data-lucide="message-square" size="22"></i></button>
+                <button onclick="toggleSearch()"><i data-lucide="search" size="22"></i></button>
+                <button onclick="location.href='message.html'"><i data-lucide="bell" size="22"></i></button>
+                <button onclick="location.href='homies.html'"><i data-lucide="message-square" size="22"></i></button>
             </div>
+        </div>
+
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="Search usernames or #hashtags..." oninput="handleSearch(this.value)">
         </div>
         
         <div class="flex justify-around">
@@ -74,6 +82,7 @@
 
         let userProfile = null;
         let currentMode = 'campus';
+        let searchQuery = '';
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -85,6 +94,17 @@
             
             loadFeed();
         }
+
+        window.toggleSearch = () => {
+            const container = document.getElementById('search-container');
+            container.style.display = container.style.display === 'block' ? 'none' : 'block';
+            if (container.style.display === 'block') document.getElementById('search-input').focus();
+        };
+
+        window.handleSearch = (val) => {
+            searchQuery = val.trim();
+            loadFeed();
+        };
 
         window.toggleActions = (el) => {
             el.style.height = ''; el.style.height = el.scrollHeight + 'px';
@@ -101,7 +121,7 @@
                 user_id: userProfile.id,
                 content: content,
                 school_name: userProfile.school_name || 'Global',
-                expires_at: new Date(Date.now() + 86400000).toISOString() // Expiry 24h
+                expires_at: new Date(Date.now() + 86400000).toISOString()
             });
 
             if (error) {
@@ -119,17 +139,20 @@
             container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
             lucide.createIcons();
 
+            // Correction: Fetch with Search and Profile logic
             let query = supabase.from('posts').select('*, profile:user_id(username, is_official)');
 
-            // Logic: Filter by school in Campus, show all in Universe
-            if (currentMode === 'campus' && userProfile.school_name) {
+            if (searchQuery) {
+                // Search across content or school name (hashtags included in content)
+                query = query.or(`content.ilike.%${searchQuery}%,school_name.ilike.%${searchQuery}%`);
+            } else if (currentMode === 'campus' && userProfile.school_name) {
                 query = query.eq('school_name', userProfile.school_name);
             }
 
             const { data: posts, error } = await query.order('created_at', { ascending: false });
 
             if (error || !posts || posts.length === 0) {
-                container.innerHTML = `<div class="py-20 text-center text-zinc-700 text-[10px] font-black uppercase italic tracking-widest">Quiet in the ${currentMode}...</div>`;
+                container.innerHTML = `<div class="py-20 text-center text-zinc-700 text-[10px] font-black uppercase italic tracking-widest">${searchQuery ? 'No results for "' + searchQuery + '"' : 'Quiet in the ' + currentMode + '...'}</div>`;
                 return;
             }
 
@@ -150,9 +173,9 @@
                             </div>
                             <p class="text-[14px] text-zinc-200 leading-relaxed font-medium mb-3">${post.content}</p>
                             <div class="flex items-center space-x-6 text-zinc-500">
-                                <div class="flex items-center space-x-1"><i data-lucide="heart" size="18"></i><span class="text-[10px] font-bold">${post.likes_count || 0}</span></div>
-                                <div class="flex items-center space-x-1"><i data-lucide="message-circle" size="18"></i><span class="text-[10px] font-bold">${post.comments_count || 0}</span></div>
-                                <i data-lucide="send" size="17"></i>
+                                <div class="flex items-center space-x-1 cursor-pointer active:scale-125 transition"><i data-lucide="heart" size="18"></i><span class="text-[10px] font-bold">${post.likes_count || 0}</span></div>
+                                <div class="flex items-center space-x-1 cursor-pointer"><i data-lucide="message-circle" size="18"></i><span class="text-[10px] font-bold">${post.comments_count || 0}</span></div>
+                                <i data-lucide="send" size="17" class="cursor-pointer"></i>
                             </div>
                         </div>
                     </div>
@@ -166,6 +189,9 @@
 
         window.switchTab = (mode) => {
             currentMode = mode;
+            // Clear search when switching tabs to avoid confusion
+            searchQuery = '';
+            document.getElementById('search-input').value = '';
             document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
             document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
             loadFeed();
