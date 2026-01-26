@@ -27,10 +27,10 @@
         .highlight-msg { animation: pulse-orange 1.5s ease-out; }
         @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.4); } 100% { background: transparent; } }
 
-        /* Reaction Badges - Fixed select/click */
+        /* Reaction Badges - Fixed to prevent selection */
         .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; pointer-events: none; user-select: none !important; -webkit-user-select: none !important; }
         .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .react-badge span { user-select: none !important; pointer-events: none; }
+        .react-badge span { user-select: none !important; -webkit-user-select: none !important; pointer-events: none; }
 
         #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; pointer-events: auto; flex-shrink: 0; }
         #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; }
@@ -40,7 +40,12 @@
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
         .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
         .sheet-content.show { transform: translateY(0); }
-        .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 24px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
+        
+        /* Emoji Button Fixes */
+        .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
+        .react-btn { font-size: 24px; border: none; background: transparent; cursor: pointer; user-select: none !important; -webkit-user-select: none !important; -webkit-touch-callout: none !important; padding: 5px; outline: none; }
+        .react-btn:active { transform: scale(1.3); transition: transform 0.1s; }
+
         .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
         
         #whatsapp-reply-ui { display: none; background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.1); padding: 12px 16px; border-radius: 20px 20px 0 0; border-left: 4px solid #FF6600; margin-bottom: -10px; }
@@ -98,7 +103,11 @@
     <div id="action-sheet" onclick="closeMenu()">
         <div class="sheet-content" onclick="event.stopPropagation()">
             <div class="reaction-row">
-                <span onclick="react('❤️')">❤️</span><span onclick="react('😂')">😂</span><span onclick="react('🔥')">🔥</span><span onclick="react('👍')">👍</span><span onclick="react('‼️')">‼️</span>
+                <button class="react-btn" onclick="react('❤️')">❤️</button>
+                <button class="react-btn" onclick="react('😂')">😂</button>
+                <button class="react-btn" onclick="react('🔥')">🔥</button>
+                <button class="react-btn" onclick="react('👍')">👍</button>
+                <button class="react-btn" onclick="react('‼️')">‼️</button>
             </div>
             <button class="menu-opt" onclick="copyToClipboard()"><i data-lucide="copy" size="18"></i> Copy Text</button>
             <button id="edit-btn-opt" class="menu-opt" onclick="startEdit()"><i data-lucide="edit-2" size="18"></i> Edit</button>
@@ -169,7 +178,6 @@
                 
                 const bubble = document.createElement('div');
                 bubble.id = `msg-${msg.id}`;
-                // Bubble Alignment Fix: Always right for Sent, always left for Received
                 bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] transition-transform active:scale-[0.98]`;
 
                 if (msg.content.includes('|RID:')) {
@@ -177,14 +185,12 @@
                     const refId = meta[1].replace('RID:', '');
                     const refUser = meta[0].replace('Replying to ', '');
                     
-                    // CARD B: The original message reference inside the reply bubble
                     const cardB = document.createElement('div');
                     cardB.className = "reply-inner-card opacity-80 cursor-pointer";
                     cardB.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] truncate italic">${meta[2].replace(/"/g, '')}</p>`;
                     cardB.onclick = (e) => { e.stopPropagation(); scrollToMessage(refId); };
                     bubble.appendChild(cardB);
 
-                    // CARD C: The actual reply text (triggers the menu/tab)
                     const cardC = document.createElement('div');
                     cardC.className = "cursor-pointer";
                     cardC.innerHTML = `<p class="text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words">${getCleanText(msg.content)}</p>`;
@@ -197,7 +203,6 @@
                     };
                     bubble.appendChild(cardC);
                 } else {
-                    // Regular Message click
                     bubble.onclick = () => {
                         const now = Date.now();
                         if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
@@ -210,14 +215,12 @@
                     bubble.appendChild(textP);
                 }
 
-                // Metadata Footer
                 const footer = document.createElement('div');
                 footer.className = "mt-2 flex items-center justify-between gap-4 pointer-events-none select-none";
                 footer.innerHTML = `<span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>
                                     ${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}`;
                 bubble.appendChild(footer);
 
-                // Reactions (Fixed no-select)
                 if (msg.reaction_me || msg.reaction_them) {
                     const wrap = document.createElement('div');
                     wrap.className = `react-wrap select-none pointer-events-none ${isMe ? 'right-0' : 'left-0'}`;
@@ -225,7 +228,6 @@
                     if (msg.reaction_them) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span></div>`;
                     bubble.appendChild(wrap);
                 }
-
                 container.appendChild(bubble);
             });
             setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
