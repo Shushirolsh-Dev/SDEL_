@@ -40,6 +40,7 @@
                     <i data-lucide="bell" size="22"></i>
                     <div class="notification-badge"></div>
                 </button>
+                <button onclick="location.href='chats.html'"><i data-lucide="message-square" size="22"></i></button>
             </div>
         </div>
         
@@ -54,7 +55,7 @@
         <div class="flex-1 pt-1">
             <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"></textarea>
             <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
-                <span id="ban-status-text" class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Text Only Mode</span>
+                <span id="ban-status-text" class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest italic">Text Only Mode</span>
                 <button id="post-btn" onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-tighter active:scale-95 transition">Post</button>
             </div>
         </div>
@@ -67,13 +68,15 @@
     </main>
 
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20px+env(safe-area-inset-bottom))]">
-        <i data-lucide="home" class="text-white/60" size="26" onclick="location.href='dashboard.html'"></i>
-        <i data-lucide="compass" class="text-sdel" size="26"></i>
-        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center -mt-8 shadow-2xl active:scale-90 transition-all" onclick="document.getElementById('post-input').focus()">
-            <i data-lucide="plus" class="text-black" stroke-width="3" size="24"></i>
+        <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
+        <i data-lucide="compass" class="text-sdel" size="28" onclick="location.href='explore.html'"></i>
+        
+        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition-all duration-300" onclick="document.getElementById('post-input').focus()">
+            <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
         </div>
-        <i data-lucide="shopping-cart" class="text-white/60" size="26" onclick="location.href='market.html'"></i>
-        <i data-lucide="user" class="text-white/60" size="26" onclick="location.href='profile.html'"></i>
+        
+        <i data-lucide="shopping-cart" class="text-white/60" size="28" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
     </nav>
 
     <script type="module">
@@ -90,19 +93,17 @@
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             userProfile = profile;
 
-            // Set Avatar
             document.getElementById('my-avatar').innerText = userProfile.username?.charAt(0) || 'H';
 
-            // Check Ban Status
             if(userProfile.is_banned) {
                 document.getElementById('post-input').disabled = true;
-                document.getElementById('post-input').placeholder = "Posting privileges revoked.";
-                document.getElementById('ban-status-text').innerText = "Account Restricted";
-                document.getElementById('ban-status-text').classList.add('text-red-600');
+                document.getElementById('post-input').placeholder = "Account Restricted.";
+                document.getElementById('ban-status-text').innerText = "RESTRICTED";
+                document.getElementById('ban-status-text').style.color = "red";
             }
 
             document.getElementById('post-input').addEventListener('focus', () => {
-                document.getElementById('composer-actions').classList.remove('hidden');
+                if(!userProfile.is_banned) document.getElementById('composer-actions').classList.remove('hidden');
             });
 
             loadFeed();
@@ -110,42 +111,37 @@
 
         async function publishPost() {
             const content = document.getElementById('post-input').value.trim();
-            if (!content || userProfile.is_banned) return;
-
-            const btn = document.getElementById('post-btn');
-            btn.disabled = true;
-            btn.innerText = "...";
+            if (!content) return;
 
             const { error } = await supabase.from('posts').insert({
                 user_id: userProfile.id,
                 content: content,
-                school_name: userProfile.school_name
+                school_name: userProfile.school_name || 'Global'
             });
 
             if (!error) {
                 document.getElementById('post-input').value = '';
                 document.getElementById('composer-actions').classList.add('hidden');
                 loadFeed();
+            } else {
+                alert("Post failed: " + error.message);
             }
-            btn.disabled = false;
-            btn.innerText = "Post";
         }
 
         async function loadFeed() {
             const container = document.getElementById('feed-container');
             let query = supabase.from('posts').select('*, profile:user_id(username, is_official, school_name)');
 
-            // 72hr expiry filter
             query = query.gt('expires_at', new Date().toISOString());
 
-            if (currentMode === 'campus') {
+            if (currentMode === 'campus' && userProfile.school_name) {
                 query = query.eq('school_name', userProfile.school_name);
             }
 
             const { data: posts, error } = await query.order('created_at', { ascending: false });
 
             if (error || !posts || posts.length === 0) {
-                container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-zinc-700 text-[10px] font-black uppercase tracking-widest italic">No gists found in the ${currentMode}</div>`;
+                container.innerHTML = `<div class="py-20 text-center text-zinc-800 text-[10px] font-black uppercase italic tracking-widest">Quiet in the ${currentMode}...</div>`;
                 return;
             }
 
@@ -160,7 +156,6 @@
                         <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex-shrink-0 flex items-center justify-center font-black text-sdel text-xs uppercase">
                             ${post.profile?.username?.charAt(0) || 'S'}
                         </div>
-                        
                         <div class="flex-1 pb-2">
                             <div class="flex items-center justify-between mb-0.5">
                                 <div class="flex items-center gap-1">
@@ -169,48 +164,31 @@
                                     <span class="text-[10px] text-zinc-600 font-bold ml-2">• ${timeAgo(post.created_at)}</span>
                                 </div>
                                 <div class="flex items-center gap-3">
-                                    ${isAdmin && !isOwner ? `<button onclick="window.banUser('${post.user_id}')" class="text-[8px] font-black text-red-600 border border-red-900 px-1 rounded">BAN</button>` : ''}
+                                    ${isAdmin && !isOwner ? `<button onclick="window.banUser('${post.user_id}')" class="text-[8px] font-black text-red-600">BAN</button>` : ''}
                                     ${isAdmin || isOwner ? `<button onclick="window.deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-700"></i></button>` : ''}
                                     <i data-lucide="more-horizontal" class="text-zinc-700" size="16"></i>
                                 </div>
                             </div>
-                            
-                            <p class="text-[14px] text-zinc-200 leading-relaxed font-medium mb-3">
-                                ${post.content}
-                            </p>
-
+                            <p class="text-[14px] text-zinc-200 leading-relaxed font-medium mb-3">${post.content}</p>
                             <div class="flex items-center space-x-6 text-zinc-500">
-                                <button class="flex items-center space-x-1.5 active:scale-125 transition">
-                                    <i data-lucide="heart" size="18"></i>
-                                    <span class="text-[10px] font-bold">${post.likes_count || 0}</span>
-                                </button>
-                                <button class="flex items-center space-x-1.5">
-                                    <i data-lucide="message-circle" size="18"></i>
-                                    <span class="text-[10px] font-bold">${post.comments_count || 0}</span>
-                                </button>
-                                <button class="flex items-center space-x-1.5">
-                                    <i data-lucide="repeat" size="18"></i>
-                                </button>
+                                <button class="flex items-center space-x-1.5 active:scale-125 transition"><i data-lucide="heart" size="18"></i><span class="text-[10px] font-bold">${post.likes_count || 0}</span></button>
+                                <button class="flex items-center space-x-1.5"><i data-lucide="message-circle" size="18"></i><span class="text-[10px] font-bold">${post.comments_count || 0}</span></button>
+                                <button class="flex items-center space-x-1.5"><i data-lucide="repeat" size="18"></i></button>
                                 <button><i data-lucide="send" size="17"></i></button>
                             </div>
                         </div>
                     </div>
-                </div>
-            `;}).join('');
-            
+                </div>`;
+            }).join('');
             lucide.createIcons();
         }
 
         window.deletePost = async (id) => {
-            if(!confirm("Erase this gist?")) return;
-            await supabase.from('posts').delete().eq('id', id);
-            loadFeed();
+            if(confirm("Delete gist?")) { await supabase.from('posts').delete().eq('id', id); loadFeed(); }
         }
 
         window.banUser = async (uid) => {
-            if(!confirm("Ban this user from Sdel?")) return;
-            await supabase.rpc('ban_user', { target_uid: uid, reason_text: 'Moderator removal' });
-            loadFeed();
+            if(confirm("Ban user?")) { await supabase.rpc('ban_user', { target_uid: uid, reason_text: 'Admin Action' }); loadFeed(); }
         }
 
         function timeAgo(date) {
@@ -227,11 +205,6 @@
             currentMode = mode;
             document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
             document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
-            document.getElementById('feed-container').innerHTML = `
-                <div class="flex flex-col items-center justify-center py-20 space-y-4">
-                    <i data-lucide="loader-2" class="spinner text-sdel" size="32"></i>
-                </div>
-            `;
             loadFeed();
         };
 
