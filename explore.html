@@ -22,12 +22,10 @@
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
         #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; min-height: 24px; }
-        .thread-line { position: absolute; left: 19px; top: 50px; bottom: 10px; width: 2px; background: #1a1a1a; border-radius: 1px; }
         
         #search-container { display: none; padding: 10px 15px; background: #0a0a0a; border-bottom: 1px solid #1a1a1a; }
         #search-input { background: #151515; border: 1px solid #333; border-radius: 8px; padding: 8px 12px; width: 100%; color: white; font-size: 13px; outline: none; }
 
-        /* Success Toast Notification */
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; box-shadow: 0 10px 30px rgba(255, 102, 0, 0.3); }
         #toast.show { transform: translateX(-50%) translateY(0); }
     </style>
@@ -57,7 +55,7 @@
     </nav>
 
     <div class="p-4 border-b border-white/5 flex space-x-3">
-        <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase">H</div>
+        <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase text-sdel">H</div>
         <div class="flex-1 pt-1">
             <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
             <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
@@ -72,11 +70,9 @@
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20px+env(safe-area-inset-bottom))]">
         <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
         <i data-lucide="compass" class="text-sdel" size="28" onclick="location.href='explore.html'"></i>
-        
         <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition-all duration-300" onclick="document.getElementById('post-input').focus()">
             <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
         </div>
-        
         <i data-lucide="shopping-cart" class="text-white/60" size="28" onclick="location.href='market.html'"></i>
         <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
     </nav>
@@ -105,6 +101,14 @@
             document.getElementById('my-avatar').innerText = userProfile.username?.charAt(0) || 'H';
             
             loadFeed();
+            setupRealtime();
+        }
+
+        function setupRealtime() {
+            supabase.channel('custom-all-channel')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
+                loadFeed();
+            }).subscribe();
         }
 
         function toggleSearch() {
@@ -129,7 +133,6 @@
             if (!content) return;
             const btn = document.getElementById('post-btn');
             btn.disabled = true;
-            btn.innerText = "...";
 
             const { error } = await supabase.from('posts').insert({
                 user_id: userProfile.id,
@@ -141,7 +144,6 @@
             if (error) {
                 alert("Post failed: " + error.message);
             } else {
-                // UI Success feedback
                 const toast = document.getElementById('toast');
                 toast.classList.add('show');
                 setTimeout(() => toast.classList.remove('show'), 3000);
@@ -150,19 +152,15 @@
                 document.getElementById('post-input').style.height = '24px';
                 document.getElementById('composer-actions').classList.add('hidden');
                 
-                // Instantly refresh and scroll to top
                 await loadFeed();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
             btn.disabled = false;
-            btn.innerText = "Post";
         }
 
         async function loadFeed() {
             const container = document.getElementById('feed-container');
-            container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
-            lucide.createIcons();
-
+            
             let query = supabase.from('posts').select('*, profile:user_id(username, is_official)');
 
             if (searchQuery) {
@@ -173,15 +171,19 @@
 
             const { data: posts, error } = await query.order('created_at', { ascending: false });
 
-            if (error || !posts || posts.length === 0) {
-                container.innerHTML = `<div class="py-20 text-center text-zinc-700 text-[10px] font-black uppercase italic tracking-widest">${searchQuery ? 'No results for "' + searchQuery + '"' : 'Quiet in the ' + currentMode + '...'}</div>`;
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            if (!posts || posts.length === 0) {
+                container.innerHTML = `<div class="py-20 text-center text-zinc-700 text-[10px] font-black uppercase italic tracking-widest">Quiet in the ${currentMode}...</div>`;
                 return;
             }
 
             container.innerHTML = posts.map(post => `
-                <div class="post-card p-4 relative">
-                    <div class="thread-line"></div>
-                    <div class="flex space-x-3 relative z-10">
+                <div class="post-card p-4">
+                    <div class="flex space-x-3">
                         <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex-shrink-0 flex items-center justify-center font-black text-sdel text-xs uppercase">
                             ${post.profile?.username?.charAt(0) || 'S'}
                         </div>
@@ -191,13 +193,13 @@
                                     <span class="text-[13px] font-black uppercase italic tracking-tighter">@${post.profile?.username || 'anon'}</span>
                                     ${post.profile?.is_official ? '<i data-lucide="badge-check" class="text-sdel fill-sdel/20" size="12"></i>' : ''}
                                 </div>
-                                ${ (userProfile?.is_official || post.user_id === userProfile?.id) ? `<button onclick="deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-800"></i></button>` : '<i data-lucide="more-horizontal" class="text-zinc-700" size="16"></i>'}
+                                ${ (userProfile?.is_official || post.user_id === userProfile?.id) ? `<button onclick="deletePost('${post.id}')"><i data-lucide="trash-2" size="14" class="text-zinc-800"></i></button>` : ''}
                             </div>
                             <p class="text-[14px] text-zinc-200 leading-relaxed font-medium mb-3">${post.content}</p>
                             <div class="flex items-center space-x-6 text-zinc-500">
-                                <div class="flex items-center space-x-1 cursor-pointer active:scale-125 transition"><i data-lucide="heart" size="18"></i><span class="text-[10px] font-bold">${post.likes_count || 0}</span></div>
-                                <div class="flex items-center space-x-1 cursor-pointer"><i data-lucide="message-circle" size="18"></i><span class="text-[10px] font-bold">${post.comments_count || 0}</span></div>
-                                <i data-lucide="send" size="17" class="cursor-pointer"></i>
+                                <div class="flex items-center space-x-1"><i data-lucide="heart" size="18"></i><span class="text-[10px] font-bold">${post.likes_count || 0}</span></div>
+                                <div class="flex items-center space-x-1"><i data-lucide="message-circle" size="18"></i><span class="text-[10px] font-bold">${post.comments_count || 0}</span></div>
+                                <i data-lucide="send" size="17"></i>
                             </div>
                         </div>
                     </div>
@@ -212,7 +214,6 @@
         function switchTab(mode) {
             currentMode = mode;
             searchQuery = '';
-            document.getElementById('search-input').value = '';
             document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
             document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
             loadFeed();
@@ -221,4 +222,5 @@
         init();
     </script>
 </body>
-</html>
+    </html>
+    
