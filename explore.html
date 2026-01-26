@@ -14,14 +14,14 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.3s; }
+        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); }
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
         
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-        #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; }
+        #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; min-height: 24px; }
         .thread-line { position: absolute; left: 19px; top: 50px; bottom: 10px; width: 2px; background: #1a1a1a; border-radius: 1px; }
     </style>
 </head>
@@ -32,7 +32,7 @@
             <h1 class="text-2xl font-black italic tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
             <div class="flex items-center space-x-5">
                 <button onclick="location.href='search-users.html'"><i data-lucide="search" size="22"></i></button>
-                <button onclick="location.href='notifications.html'" class="relative"><i data-lucide="bell" size="22"></i></button>
+                <button onclick="location.href='notifications.html'"><i data-lucide="bell" size="22"></i></button>
                 <button onclick="location.href='chats.html'"><i data-lucide="message-square" size="22"></i></button>
             </div>
         </div>
@@ -48,14 +48,13 @@
         <div class="flex-1 pt-1">
             <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
             <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
-                <span class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest italic">Text Mode</span>
-                <button id="post-btn" onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-tighter">Post</button>
+                <span class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest italic">Public Gist</span>
+                <button id="post-btn" onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-tighter active:scale-95 transition">Post</button>
             </div>
         </div>
     </div>
 
-    <main id="feed-container" class="flex flex-col">
-        </main>
+    <main id="feed-container" class="flex flex-col"></main>
 
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20px+env(safe-area-inset-bottom))]">
         <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
@@ -101,10 +100,13 @@
             const { error } = await supabase.from('posts').insert({
                 user_id: userProfile.id,
                 content: content,
-                school_name: userProfile.school_name || 'Global'
+                school_name: userProfile.school_name || 'Global',
+                expires_at: new Date(Date.now() + 86400000).toISOString() // Expiry 24h
             });
 
-            if (!error) {
+            if (error) {
+                alert("Post failed: " + error.message);
+            } else {
                 document.getElementById('post-input').value = '';
                 document.getElementById('composer-actions').classList.add('hidden');
                 loadFeed();
@@ -119,7 +121,7 @@
 
             let query = supabase.from('posts').select('*, profile:user_id(username, is_official)');
 
-            // Tab logic: Universe shows all, Campus filters by your school
+            // Logic: Filter by school in Campus, show all in Universe
             if (currentMode === 'campus' && userProfile.school_name) {
                 query = query.eq('school_name', userProfile.school_name);
             }
@@ -148,8 +150,8 @@
                             </div>
                             <p class="text-[14px] text-zinc-200 leading-relaxed font-medium mb-3">${post.content}</p>
                             <div class="flex items-center space-x-6 text-zinc-500">
-                                <i data-lucide="heart" size="18"></i>
-                                <i data-lucide="message-circle" size="18"></i>
+                                <div class="flex items-center space-x-1"><i data-lucide="heart" size="18"></i><span class="text-[10px] font-bold">${post.likes_count || 0}</span></div>
+                                <div class="flex items-center space-x-1"><i data-lucide="message-circle" size="18"></i><span class="text-[10px] font-bold">${post.comments_count || 0}</span></div>
                                 <i data-lucide="send" size="17"></i>
                             </div>
                         </div>
@@ -159,7 +161,7 @@
         }
 
         window.deletePost = async (id) => {
-            if(confirm("Delete?")) { await supabase.from('posts').delete().eq('id', id); loadFeed(); }
+            if(confirm("Delete gist?")) { await supabase.from('posts').delete().eq('id', id); loadFeed(); }
         };
 
         window.switchTab = (mode) => {
