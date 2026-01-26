@@ -10,36 +10,24 @@
     
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        
-        /* Disable text selection across the whole page */
         body { 
             background-color: #000; 
             color: #fff; 
             overflow-x: hidden; 
             width: 100vw; 
             height: 100%;
-            -webkit-user-select: none; /* Safari */
-            -ms-user-select: none; /* IE 10 and 11 */
-            user-select: none; /* Standard syntax */
+            -webkit-user-select: none;
+            user-select: none;
         }
-
-        /* Re-enable selection for inputs so searching still works */
-        input, textarea {
-            -webkit-user-select: text;
-            -ms-user-select: text;
-            user-select: text;
-        }
-
+        input, textarea { user-select: text; -webkit-user-select: text; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .header-text { font-weight: 800; letter-spacing: -0.01em; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
         #main-content { height: calc(100vh - 310px); overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 80px; }
-
+        .tab-badge { background: #FF6600; color: black; font-size: 8px; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; display: none; }
         @keyframes full-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .rotate-icon { animation: full-rotate 4s linear infinite; }
-        .refresh-active { transform: scale(0.7) rotate(180deg); transition: all 0.3s ease; }
     </style>
 
     <script type="module">
@@ -58,13 +46,15 @@
             if (!session) return window.location.href = 'login.html';
             currentUserId = session.user.id;
             
-            supabase.channel('homies-live-updates')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => {
-                    loadContent();
-                })
+            // Listen for connection changes AND message changes
+            supabase.channel('homies-global-updates')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => updateBadges().then(loadContent))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => updateBadges().then(loadContent))
                 .subscribe();
 
+            updateBadges();
             switchTab('general');
+            
             document.addEventListener('touchstart', e => touchstartX = e.changedTouches[0].screenX);
             document.addEventListener('touchend', e => {
                 touchendX = e.changedTouches[0].screenX;
@@ -73,28 +63,32 @@
             lucide.createIcons();
         }
 
-        window.openChat = async (partnerId, element) => {
-            if (element) {
-                const badge = element.querySelector('.unread-badge');
-                if (badge) badge.style.display = 'none';
-            }
-            location.href = `dm.html?id=${partnerId}`;
-        };
+        // NEW: Live count for the tabs
+        async function updateBadges() {
+            // Unread messages count
+            const { count: unreadCount } = await supabase.from('dm_table')
+                .select('*', { count: 'exact', head: true })
+                .eq('receiver_id', currentUserId)
+                .eq('is_read', false);
+            
+            const unreadBadge = document.getElementById('unread-count-badge');
+            if (unreadCount > 0) {
+                unreadBadge.innerText = unreadCount > 9 ? '9+' : unreadCount;
+                unreadBadge.style.display = 'inline-block';
+            } else { unreadBadge.style.display = 'none'; }
 
-        function handleSwipe() {
-            const threshold = 100;
-            let currentIndex = tabs.indexOf(activeTab);
-            if (touchendX < touchstartX - threshold && currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
-            if (touchendX > touchstartX + threshold && currentIndex > 0) switchTab(tabs[currentIndex - 1]);
+            // Pending requests count
+            const { count: reqCount } = await supabase.from('connections')
+                .select('*', { count: 'exact', head: true })
+                .eq('receiver_id', currentUserId)
+                .eq('status', 'pending');
+
+            const reqBadge = document.getElementById('req-count-badge');
+            if (reqCount > 0) {
+                reqBadge.innerText = reqCount;
+                reqBadge.style.display = 'inline-block';
+            } else { reqBadge.style.display = 'none'; }
         }
-
-        window.switchTab = (tab) => {
-            activeTab = tab;
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
-            const activeBtn = document.getElementById(`tab-${tab}`);
-            if (activeBtn) activeBtn.classList.add('tab-active');
-            loadContent();
-        };
 
         async function loadContent() {
             if (activeTab === 'general' || activeTab === 'unread') {
@@ -128,34 +122,84 @@
             }
         }
 
+        // Exposed globally for your buttons
+        window.switchTab = (tab) => {
+            activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            loadContent();
+        };
+
+        window.sendHomieReq = async (id) => { 
+            const { error } = await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' }); 
+            if (error) { console.error(error); }
+            else { 
+                await updateBadges(); 
+                searchPublic(); // Refresh the search result immediately
+            }
+        };
+
+        window.respond = async (id, status) => { 
+            await supabase.from('connections').update({ status }).eq('id', id); 
+            await updateBadges();
+            loadContent(); 
+        };
+
+        window.searchPublic = async () => {
+            const val = document.getElementById('search-input').value;
+            const container = document.getElementById('main-content');
+            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-sm font-black uppercase">Searching Global Sdel...</p>`;
+            
+            const { data: users } = await supabase.from('profile').select('*').neq('id', currentUserId).or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`).limit(15);
+            
+            if (!users || users.length === 0) { 
+                container.innerHTML = `<div class="p-10 text-center text-zinc-500 uppercase font-black text-sm">No Global Results</div>`; 
+                return; 
+            }
+
+            const { data: conn } = await supabase.from('connections').select('*').or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+            container.innerHTML = users.map(u => {
+                const relationship = conn ? conn.find(c => c.sender_id === u.id || c.receiver_id === u.id) : null;
+                let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[11px] font-black px-5 py-2 rounded-full active:scale-90 transition uppercase">Add</button>`;
+                
+                if (relationship) {
+                    if (relationship.status === 'pending') btnHtml = `<span class="text-[10px] font-black text-zinc-500 uppercase">Sent</span>`;
+                    if (relationship.status === 'accepted') btnHtml = `<span class="text-[10px] font-black text-sdel uppercase">Homie</span>`;
+                }
+                
+                return `<div class="flex justify-between items-center p-5 border-b border-white/5">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel font-black text-lg">${u.first_name[0]}</div>
+                        <div>
+                            <p class="text-sm font-bold text-white">${u.first_name} ${u.last_name}</p>
+                            <p class="text-xs text-zinc-500 mt-0.5">@${u.username}</p>
+                        </div>
+                    </div>
+                    ${btnHtml}
+                </div>`;
+            }).join('');
+        };
+
+        // ... Keeping all your other helper functions (handleSwipe, renderChats, searchMaster, etc.)
+        function handleSwipe() {
+            const threshold = 100;
+            let currentIndex = tabs.indexOf(activeTab);
+            if (touchendX < touchstartX - threshold && currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
+            if (touchendX > touchstartX + threshold && currentIndex > 0) switchTab(tabs[currentIndex - 1]);
+        }
+        window.openChat = async (partnerId, element) => { location.href = `dm.html?id=${partnerId}`; };
         window.searchMaster = (val) => {
             const trigger = document.getElementById('public-search-trigger');
-            if (val.length < 1) {
-                trigger.classList.add('hidden');
-                renderChats(allConnections);
-                return;
-            }
+            if (val.length < 1) { trigger.classList.add('hidden'); renderChats(allConnections); return; }
             const filtered = allConnections.filter(c => `${c.partner.first_name} ${c.partner.last_name} ${c.partner.username}`.toLowerCase().includes(val.toLowerCase()));
             if (filtered.length > 0) { renderChats(filtered); trigger.classList.add('hidden'); }
             else { document.getElementById('main-content').innerHTML = `<div class="p-10 text-center"><p class="text-zinc-500 text-sm uppercase font-black">Homie not found</p></div>`; trigger.classList.remove('hidden'); }
         };
-
         function renderChats(connections, isUnreadTab = false) {
             const container = document.getElementById('main-content');
-            if (!connections || connections.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase font-black tracking-widest">${isUnreadTab ? 'No unread messages' : 'No homies yet.'}</p>`;
-                return;
-            }
-
-            const getCleanPreview = (str) => {
-                if (!str) return "";
-                if (str.includes('»')) {
-                    const parts = str.split('»');
-                    return parts[parts.length - 1].trim();
-                }
-                return str.replace(/Replying to .*?\|RID:.*?\|".*?"/g, '').trim();
-            };
-
+            if (!connections || connections.length === 0) { container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase font-black tracking-widest">${isUnreadTab ? 'No unread messages' : 'No homies yet.'}</p>`; return; }
+            const getCleanPreview = (str) => { if (!str) return ""; if (str.includes('»')) { const parts = str.split('»'); return parts[parts.length - 1].trim(); } return str.replace(/Replying to .*?\|RID:.*?\|".*?"/g, '').trim(); };
             container.innerHTML = connections.map(c => {
                 const avatar = c.partner.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.partner.first_name}`;
                 let preview = c.lastMsg ? getCleanPreview(c.lastMsg.content) : `@${c.partner.username}`;
@@ -163,7 +207,6 @@
                 const statusHtml = c.unreadCount > 0 
                     ? `<span class="unread-badge bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>`
                     : `<span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>`;
-
                 return `<div onclick="openChat('${c.partner.id}', this)" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition cursor-pointer">
                     <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 object-cover bg-zinc-800">
                     <div class="flex-1 min-w-0">
@@ -173,13 +216,9 @@
                 </div>`;
             }).join('');
         }
-
         function renderRequests(reqs) {
             const container = document.getElementById('main-content');
-            if (!reqs || reqs.length === 0) {
-                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm font-black uppercase tracking-widest">No pending requests</p>`;
-                return;
-            }
+            if (!reqs || reqs.length === 0) { container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm font-black uppercase tracking-widest">No pending requests</p>`; return; }
             container.innerHTML = reqs.map(r => `
                 <div class="flex items-center p-5 space-x-5 border-b border-white/5">
                     <div class="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-black border border-white/10 text-sdel">${r.sender.first_name[0]}</div>
@@ -191,35 +230,7 @@
                     </div>
                 </div>`).join('');
         }
-
-        window.respond = async (id, status) => { await supabase.from('connections').update({ status }).eq('id', id); loadContent(); };
-
-        window.searchPublic = async () => {
-            const val = document.getElementById('search-input').value;
-            const container = document.getElementById('main-content');
-            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-sm font-black uppercase">Searching Global Sdel...</p>`;
-            const { data: users } = await supabase.from('profile').select('*').neq('id', currentUserId).or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`).limit(15);
-            if (!users || users.length === 0) { container.innerHTML = `<div class="p-10 text-center text-zinc-500 uppercase font-black text-sm">No Global Results</div>`; return; }
-            const { data: conn } = await supabase.from('connections').select('*').or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
-            container.innerHTML = users.map(u => {
-                const relationship = conn ? conn.find(c => c.sender_id === u.id || c.receiver_id === u.id) : null;
-                let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[11px] font-black px-5 py-2 rounded-full active:scale-90 transition uppercase">Add</button>`;
-                if (relationship) {
-                    if (relationship.status === 'pending') btnHtml = `<span class="text-[10px] font-black text-zinc-500 uppercase">Sent</span>`;
-                    if (relationship.status === 'accepted') btnHtml = `<span class="text-[10px] font-black text-sdel uppercase">Homie</span>`;
-                }
-                return `<div class="flex justify-between items-center p-5 border-b border-white/5">
-                    <div class="flex items-center space-x-4"><div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel font-black text-lg">${u.first_name[0]}</div>
-                    <div><p class="text-sm font-bold text-white">${u.first_name} ${u.last_name}</p><p class="text-xs text-zinc-500 mt-0.5">@${u.username}</p></div></div>${btnHtml}</div>`;
-            }).join('');
-        };
-
-        window.sendHomieReq = async (id) => { await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' }); loadContent(); };
-
-        window.goToDashboard = (el) => {
-            el.classList.add('refresh-active');
-            setTimeout(() => location.href = 'dashboard.html', 300);
-        };
+        window.goToDashboard = (el) => { location.href = 'dashboard.html'; };
 
         init();
     </script>
@@ -234,8 +245,8 @@
 
     <div class="flex px-6 border-b border-white/5 bg-black sticky top-[80px] z-40">
         <button id="tab-general" onclick="switchTab('general')" class="tab-btn flex-1 py-4 text-xs font-black uppercase tab-active">General</button>
-        <button id="tab-requests" onclick="switchTab('requests')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Requests</button>
-        <button id="tab-unread" onclick="switchTab('unread')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Unread</button>
+        <button id="tab-requests" onclick="switchTab('requests')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Requests <span id="req-count-badge" class="tab-badge"></span></button>
+        <button id="tab-unread" onclick="switchTab('unread')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Unread <span id="unread-count-badge" class="tab-badge"></span></button>
     </div>
 
     <div class="p-5 bg-black sticky top-[138px] z-40">
