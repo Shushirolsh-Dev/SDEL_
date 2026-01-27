@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sdel | Gist</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #000; color: white; overscroll-behavior-y: contain; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .comment-card { border-left: 2px solid rgba(255, 102, 0, 0.2); margin-left: 12px; padding-left: 16px; transition: all 0.2s; }
+        #comment-input { resize: none; background: #111; border: 1px solid #222; outline: none; width: 100%; color: white; font-size: 14px; border-radius: 20px; padding: 12px 18px; transition: border 0.3s; }
+        #comment-input:focus { border-color: #FF6600; }
+        .spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body class="pb-24">
+
+    <div id="toast">Sent!</div>
+
+    <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/5 pt-env(safe-area-inset-top)">
+        <div class="px-4 py-4 flex items-center gap-4">
+            <button onclick="history.back()" class="p-2 -ml-2"><i data-lucide="arrow-left"></i></button>
+            <h1 class="text-lg font-black italic tracking-tighter uppercase">The <span class="text-sdel">Gist</span></h1>
+        </div>
+    </nav>
+
+    <main id="gist-thread" class="p-4 flex flex-col gap-6">
+        <div id="main-post-loader" class="py-20 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>
+    </main>
+
+    <div class="fixed bottom-0 inset-x-0 bg-black/95 border-t border-white/10 p-4 pb-env(safe-area-inset-bottom) z-50">
+        <div class="flex items-center gap-3">
+            <textarea id="comment-input" placeholder="Drop a reply..." rows="1" oninput="autoResize(this)"></textarea>
+            <button onclick="postComment()" class="bg-sdel text-black w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition">
+                <i data-lucide="send" size="18"></i>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = urlParams.get('id');
+        let userProfile = null;
+
+        async function init() {
+            if (!postId) return window.location.replace('explore.html');
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.replace('login.html');
+            
+            const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
+            userProfile = profile;
+
+            loadGist();
+        }
+
+        async function loadGist() {
+            const container = document.getElementById('gist-thread');
+            
+            // Fetch main post with profile join
+            const { data: post, error } = await supabase
+                .from('posts')
+                .select('*, profile:user_id(username, is_official, is_verified)')
+                .eq('id', postId)
+                .single();
+
+            if (error || !post) {
+                container.innerHTML = `<div class="text-center py-20 opacity-50 font-bold uppercase italic">Gist not found, homie.</div>`;
+                return;
+            }
+
+            // Fetch comments (which are just posts where parent_id = current post id)
+            const { data: comments } = await supabase
+                .from('posts')
+                .select('*, profile:user_id(username, is_official, is_verified)')
+                .eq('parent_id', postId)
+                .order('created_at', { ascending: true });
+
+            const profile = post.profile || {};
+            const badge = getBadgeHTML(profile.is_official, profile.is_verified);
+
+            // Render Main Post
+            let html = `
+                <div class="mb-4">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center font-black text-sdel border border-white/10 uppercase">${profile.username?.[0] || 'H'}</div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-black italic uppercase tracking-tighter">@${profile.username || 'homie'}</span>
+                                ${badge}
+                            </div>
+                            <span class="text-[10px] text-zinc-500 uppercase font-bold">${new Date(post.created_at).toLocaleString()}</span>
+                        </div>
+                    </div>
+                    <p class="text-lg text-zinc-100 font-medium leading-relaxed mb-6">${post.content}</p>
+                    <div class="flex items-center gap-6 text-zinc-500 border-y border-white/5 py-4">
+                        <div class="flex items-center gap-1.5"><span class="font-black text-white">${post.likes_count || 0}</span> <span class="text-[10px] uppercase font-bold">Likes</span></div>
+                        <div class="flex items-center gap-1.5"><span class="font-black text-white">${post.reposts_count || 0}</span> <span class="text-[10px] uppercase font-bold">Reposts</span></div>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <h2 class="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-6">Replies</h2>
+                    <div id="comments-list" class="flex flex-col gap-6">
+                        ${comments?.length ? comments.map(c => renderComment(c)).join('') : '<p class="text-center py-10 text-zinc-700 font-bold italic uppercase text-xs">No replies yet...</p>'}
+                    </div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        function renderComment(comment) {
+            const profile = comment.profile || {};
+            const badge = getBadgeHTML(profile.is_official, profile.is_verified);
+            return `
+                <div class="comment-card">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-xs font-black italic uppercase tracking-tighter">@${profile.username || 'homie'}</span>
+                        ${badge}
+                    </div>
+                    <p class="text-sm text-zinc-300">${comment.content}</p>
+                </div>
+            `;
+        }
+
+        function getBadgeHTML(official, verified) {
+            if (official) return `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+            if (verified) return `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+            return '';
+        }
+
+        window.postComment = async () => {
+            const input = document.getElementById('comment-input');
+            const content = input.value.trim();
+            if (!content) return;
+
+            const { error } = await supabase.from('posts').insert({
+                user_id: userProfile.id,
+                content: content,
+                parent_id: postId,
+                post_type: 'comment',
+                school_name: userProfile.school_name
+            });
+
+            if (!error) {
+                // Increment comment count on the original post
+                await supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' });
+                input.value = '';
+                showToast("Reply Sent!");
+                loadGist();
+            }
+        };
+
+        window.autoResize = (el) => {
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+        };
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
