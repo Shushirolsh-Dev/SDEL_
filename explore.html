@@ -15,6 +15,7 @@
         .bg-sdel { background-color: #FF6600; }
         .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; }
         .post-card:active { background: rgba(255, 102, 0, 0.05); }
+        /* Stop text selection on gists */
         .gist-content { user-select: none; -webkit-user-select: none; }
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
@@ -24,45 +25,14 @@
         #pull-indicator { height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; transition: height 0.2s ease; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #FF6600; letter-spacing: 2px; }
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; box-shadow: 0 10px 30px rgba(255, 102, 0, 0.3); }
         #toast.show { transform: translateX(-50%) translateY(0); }
-        
-        #action-sheet, #custom-modal, #comment-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: flex-end; backdrop-blur: 5px; }
-        .sheet-content { background: #111; width: 100%; border-radius: 24px 24px 0 0; padding: 20px; border-top: 1px solid #222; max-height: 85vh; display: flex; flex-direction: column; }
-        .modal-box { background: #111; width: 85%; margin: auto; border-radius: 24px; padding: 24px; border: 1px solid #222; text-align: center; }
-        .liked-orange { color: #FF6600 !important; fill: #FF6600; }
-        #comment-list { overflow-y: auto; flex: 1; }
-
-        /* Bottom Nav Fix */
-        .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.95); border-top: 1px solid rgba(255,255,255,0.05); padding-bottom: env(safe-area-inset-bottom); z-index: 100; backdrop-blur: 10px; }
+        #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: flex-end; }
+        .sheet-content { background: #111; width: 100%; border-radius: 24px 24px 0 0; padding: 20px; border-top: 1px solid #222; }
     </style>
 </head>
 <body class="pb-32">
 
     <div id="toast">Gist Published!</div>
     <div id="pull-indicator"><i data-lucide="refresh-cw" class="spinner mr-2" size="14"></i> Updating Feed...</div>
-
-    <div id="custom-modal" class="flex items-center justify-center">
-        <div class="modal-box">
-            <i data-lucide="flame" class="text-red-500 mx-auto mb-4" size="40"></i>
-            <h3 class="text-lg font-black uppercase italic mb-2">Burn Gist?</h3>
-            <p class="text-zinc-500 text-xs mb-6 font-bold uppercase">This action cannot be undone.</p>
-            <div class="flex gap-4">
-                <button onclick="document.getElementById('custom-modal').style.display='none'" class="flex-1 py-3 text-zinc-500 font-bold uppercase text-[10px]">Cancel</button>
-                <button id="confirm-burn" class="flex-1 py-3 bg-red-600 rounded-xl font-black uppercase text-[10px]">Burn</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="comment-sheet">
-        <div class="sheet-content">
-            <div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6"></div>
-            <div id="comment-list" class="space-y-4 pr-2 mb-4"></div>
-            <div class="flex items-center gap-3 bg-zinc-900 rounded-2xl p-3">
-                <textarea id="comment-input" placeholder="Type a comment..." class="flex-1 bg-transparent text-sm outline-none resize-none" rows="1"></textarea>
-                <button id="send-comment" class="text-sdel font-black uppercase text-[10px]">Post</button>
-            </div>
-            <button onclick="document.getElementById('comment-sheet').style.display='none'" class="mt-4 text-center text-zinc-600 font-bold uppercase text-[10px]">Close</button>
-        </div>
-    </div>
 
     <div id="action-sheet" onclick="closeSheet()">
         <div class="sheet-content" onclick="event.stopPropagation()">
@@ -105,17 +75,15 @@
 
     <main id="feed-container" class="flex flex-col"></main>
 
-    <div class="nav-bar">
-        <div class="flex justify-around items-center p-4">
-            <button onclick="location.href='dashboard.html'"><i data-lucide="home" class="text-zinc-500" size="24"></i></button>
-            <button onclick="location.href='explore.html'"><i data-lucide="compass" class="text-sdel" size="24"></i></button>
-            <button onclick="document.getElementById('post-input').focus()" class="bg-sdel w-14 h-14 rounded-2xl -mt-10 border-4 border-black flex items-center justify-center shadow-lg active:scale-90 transition">
-                <i data-lucide="plus" class="text-black" size="28" stroke-width="3"></i>
-            </button>
-            <button onclick="location.href='market.html'"><i data-lucide="shopping-bag" class="text-zinc-500" size="24"></i></button>
-            <button onclick="location.href='profile.html'"><i data-lucide="user" class="text-zinc-500" size="24"></i></button>
+    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20px+env(safe-area-inset-bottom))]">
+        <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
+        <i data-lucide="compass" class="text-sdel" size="28"></i>
+        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition-all duration-300" onclick="document.getElementById('post-input').focus()">
+            <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
         </div>
-    </div>
+        <i data-lucide="shopping-cart" class="text-white/60" size="28" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
+    </nav>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -127,7 +95,7 @@
         let startY = 0;
         let pressTimer;
 
-        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, closeSheet, startPress, endPress, toggleLike, openDiscussion, toggleCommentLike, handleRepost, handleShare, toggleBan });
+        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, closeSheet, startPress, endPress, updateStat, toggleBan });
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -138,7 +106,6 @@
             loadFeed();
             setupPullToRefresh();
             subscribeToPosts();
-            lucide.createIcons();
         }
 
         function subscribeToPosts() {
@@ -161,23 +128,65 @@
             });
         }
 
+        function startPress(postId, userId, createdAt, isBanned) {
+            const isOwner = userProfile?.id === userId;
+            const isCEO = userProfile?.is_official === true;
+            if (!isOwner && !isCEO) return;
+
+            pressTimer = setTimeout(() => {
+                const createdDate = new Date(createdAt);
+                const diffMinutes = (new Date() - createdDate) / 1000 / 60;
+                document.getElementById('action-sheet').style.display = 'flex';
+                document.getElementById('edit-btn').style.display = (isOwner && diffMinutes < 20) ? 'flex' : 'none';
+                document.getElementById('ban-btn').style.display = isCEO ? 'flex' : 'none';
+                document.getElementById('ban-btn').innerHTML = isBanned ? '<i data-lucide="user-check" size="18"></i> Unban User' : '<i data-lucide="shield-off" size="18"></i> Ban User';
+                document.getElementById('burn-btn').onclick = () => deletePost(postId);
+                document.getElementById('edit-btn').onclick = () => editPost(postId);
+                document.getElementById('ban-btn').onclick = () => toggleBan(userId, isBanned);
+                lucide.createIcons();
+            }, 800);
+        }
+
+        function endPress() { clearTimeout(pressTimer); }
+        function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
+
+        async function toggleBan(uid, currentStatus) {
+            closeSheet();
+            const { error } = await supabase.from('profile').update({ is_banned: !currentStatus }).eq('id', uid);
+            if (!error) showToast(currentStatus ? "User Unbanned" : "User Banned");
+        }
+
+        async function updateStat(postId, field) {
+            await supabase.rpc('increment_stat', { post_id: postId, column_name: field });
+            loadFeed(true);
+        }
+
         async function loadFeed(silent = false) {
             const container = document.getElementById('feed-container');
-            // Simplified query to ensure rendering works first
-            let query = supabase.from('posts').select('*, profile:user_id(*)');
-            
-            if (searchQuery) query = query.or(`content.ilike.%${searchQuery}%`);
-            else if (currentMode === 'campus') query = query.eq('school_name', userProfile?.school_name);
-            
-            const { data: posts, error } = await query.order('created_at', { ascending: false });
-            
-            if (error) {
-                console.error(error);
-                return;
+            if (!silent && container.innerHTML === "") {
+                container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
+                lucide.createIcons();
             }
 
-            container.innerHTML = posts.map(post => {
-                const username = post.profile?.username || 'homie';
+            let query = supabase.from('posts').select('*, profile:user_id(*)');
+            if (searchQuery) query = query.or(`content.ilike.%${searchQuery}%`);
+            else if (currentMode === 'campus') query = query.eq('school_name', userProfile?.school_name);
+
+            const { data: posts, error } = await query.order('created_at', { ascending: false });
+            if (error) return;
+
+            let displayPosts = posts;
+            if (currentMode === 'universe') {
+                displayPosts = posts.sort((a, b) => {
+                    const scoreA = (a.likes_count || 0) + (a.comments_count * 2) + (a.reposts_count * 3);
+                    const scoreB = (b.likes_count || 0) + (b.comments_count * 2) + (b.reposts_count * 3);
+                    return scoreB - scoreA;
+                });
+            }
+
+            container.innerHTML = displayPosts.map(post => {
+                const isOfficial = post.profile?.is_official;
+                const username = post.profile?.username || 'user';
                 return `
                 <div class="post-card p-4" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', ${post.profile?.is_banned})" ontouchend="endPress()">
                     <div class="flex space-x-3">
@@ -185,14 +194,14 @@
                         <div class="flex-1">
                             <div class="flex items-center gap-1.5 mb-0.5">
                                 <span class="text-[13px] font-black uppercase italic tracking-tighter">@${username}</span>
-                                ${post.profile?.is_official ? '<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' : ''}
+                                ${isOfficial ? '<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' : ''}
                             </div>
                             <p class="gist-content text-[14px] text-zinc-200 font-medium mb-3">${formatContent(post.content)}</p>
                             <div class="flex items-center justify-between text-zinc-500 max-w-[220px]">
-                                <button onclick="toggleLike('${post.id}', ${post.likes_count || 0})" class="flex items-center gap-1"><i data-lucide="heart" size="16"></i> <span class="text-[10px]">${post.likes_count || 0}</span></button>
-                                <button onclick="openDiscussion('${post.id}')" class="flex items-center gap-1"><i data-lucide="message-circle" size="16"></i> <span class="text-[10px]">${post.comments_count || 0}</span></button>
-                                <button onclick="handleRepost('${post.id}', '${username}', '${post.content.replace(/'/g, "\\'")}')" class="flex items-center gap-1"><i data-lucide="repeat" size="16"></i> <span class="text-[10px]">${post.reposts_count || 0}</span></button>
-                                <button onclick="handleShare('${post.id}')"><i data-lucide="share" size="16"></i></button>
+                                <button onclick="updateStat('${post.id}', 'likes_count')" class="flex items-center gap-1 active:text-sdel"><i data-lucide="heart" size="16"></i> <span class="text-[10px]">${post.likes_count || 0}</span></button>
+                                <button onclick="updateStat('${post.id}', 'comments_count')" class="flex items-center gap-1"><i data-lucide="message-circle" size="16"></i> <span class="text-[10px]">${post.comments_count || 0}</span></button>
+                                <button onclick="updateStat('${post.id}', 'reposts_count')" class="flex items-center gap-1"><i data-lucide="repeat" size="16"></i> <span class="text-[10px]">${post.reposts_count || 0}</span></button>
+                                <button onclick="updateStat('${post.id}', 'shares_count')"><i data-lucide="share" size="16"></i></button>
                             </div>
                         </div>
                     </div>
@@ -201,69 +210,42 @@
             lucide.createIcons();
         }
 
-        /* Essential Functions - Keeping logic strictly to your request */
-        async function publishPost() {
-            const content = document.getElementById('post-input').value.trim();
-            if (!content) return;
-            const { error } = await supabase.from('posts').insert({ 
-                user_id: userProfile.id, 
-                content, 
-                school_name: userProfile.school_name || 'Global' 
-            });
-            if(!error) {
-                document.getElementById('post-input').value = '';
-                document.getElementById('composer-actions').classList.add('hidden');
-                showToast("Gist Published!");
-                loadFeed();
+        function formatContent(text) { return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>'); }
+
+        async function deletePost(id) {
+            closeSheet();
+            if(confirm("Burn this gist?")) {
+                await supabase.from('posts').delete().eq('id', id);
+                loadFeed(true);
             }
         }
 
-        async function toggleLike(postId, count) {
-            await supabase.from('posts').update({ likes_count: count + 1 }).eq('id', postId);
-            loadFeed(true);
-        }
-
-        async function openDiscussion(postId) {
-            document.getElementById('comment-sheet').style.display = 'flex';
-            const { data: comments } = await supabase.from('comments').select('*, profile:user_id(*)').eq('post_id', postId);
-            document.getElementById('comment-list').innerHTML = comments.map(c => `
-                <div class="flex gap-2">
-                    <span class="text-[10px] font-black text-sdel">@${c.profile.username}</span>
-                    <p class="text-xs text-zinc-300">${c.content}</p>
-                </div>
-            `).join('');
-            lucide.createIcons();
-        }
-
-        function startPress(postId, userId, createdAt, isBanned) {
-            pressTimer = setTimeout(() => {
-                document.getElementById('action-sheet').style.display = 'flex';
-                document.getElementById('burn-btn').onclick = () => deletePost(postId);
-            }, 800);
-        }
-
-        async function deletePost(id) {
-            document.getElementById('action-sheet').style.display = 'none';
-            document.getElementById('custom-modal').style.display = 'flex';
-            document.getElementById('confirm-burn').onclick = async () => {
-                await supabase.from('posts').delete().eq('id', id);
-                document.getElementById('custom-modal').style.display = 'none';
+        async function editPost(id) {
+            closeSheet();
+            const newText = prompt("Edit your gist:");
+            if (newText) {
+                await supabase.from('posts').update({ content: newText, updated_at: new Date() }).eq('id', id);
                 loadFeed(true);
-            };
+            }
         }
 
-        function formatContent(text) { return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>'); }
-        function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
-        function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
-        function toggleActions(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
-        function toggleSearch() { document.getElementById('search-container').classList.toggle('hidden'); }
-        function handleSearch(val) { searchQuery = val.trim(); loadFeed(); }
-        function endPress() { clearTimeout(pressTimer); }
-        function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
-        function handleRepost() { showToast("Boosted!"); }
-        function handleShare() { showToast("Link Copied!"); }
-        function toggleBan() { showToast("CEO Action Recorded"); }
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg; t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
 
+        function switchTab(mode) {
+            currentMode = mode;
+            document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
+            document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
+            loadFeed();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggleActions(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
+        function toggleSearch() { const s = document.getElementById('search-container'); s.classList.toggle('hidden'); if(!s.classList.contains('hidden')) document.getElementById('search-input').focus(); }
+        function handleSearch(val) { searchQuery = val.trim(); loadFeed(); }
         init();
     </script>
 </body>
