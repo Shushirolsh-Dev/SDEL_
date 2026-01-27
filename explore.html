@@ -15,7 +15,6 @@
         .bg-sdel { background-color: #FF6600; }
         .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; }
         .post-card:active { background: rgba(255, 102, 0, 0.05); }
-        /* No text selection rule */
         .gist-content { user-select: none; -webkit-user-select: none; }
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
@@ -29,6 +28,10 @@
         /* Action Sheet */
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: flex-end; }
         .sheet-content { background: #111; width: 100%; border-radius: 24px 24px 0 0; padding: 20px; border-top: 1px solid #222; }
+
+        /* Bottom Nav Styling from Global */
+        .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.95); border-top: 1px solid rgba(255,255,255,0.1); padding-bottom: env(safe-area-inset-bottom); z-index: 100; backdrop-blur: 20px; }
+        .liked-glow { color: #FF6600 !important; fill: #FF6600; filter: drop-shadow(0 0 5px rgba(255, 102, 0, 0.5)); }
     </style>
 </head>
 <body class="pb-32">
@@ -77,14 +80,16 @@
 
     <main id="feed-container" class="flex flex-col"></main>
 
-    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20+env(safe-area-inset-bottom))]">
-        <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
-        <i data-lucide="compass" class="text-sdel" size="28"></i>
-        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition-all duration-300" onclick="document.getElementById('post-input').focus()">
-            <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
+    <nav class="nav-bar">
+        <div class="flex justify-around items-center p-5">
+            <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
+            <i data-lucide="compass" class="text-sdel" size="28"></i>
+            <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition-all duration-300" onclick="document.getElementById('post-input').focus()">
+                <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
+            </div>
+            <i data-lucide="shopping-cart" class="text-white/60" size="28" onclick="location.href='market.html'"></i>
+            <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
         </div>
-        <i data-lucide="shopping-cart" class="text-white/60" size="28" onclick="location.href='market.html'"></i>
-        <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
     </nav>
 
     <script type="module">
@@ -97,7 +102,7 @@
         let startY = 0;
         let pressTimer;
 
-        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, closeSheet, startPress, endPress, updateStat, toggleBan });
+        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, closeSheet, startPress, endPress, updateStat, toggleBan, handleLike });
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -132,61 +137,16 @@
             });
         }
 
-        function startPress(postId, userId, createdAt, isBanned) {
-            const isOwner = userProfile?.id === userId;
-            const isCEO = userProfile?.is_official === true;
-            if (!isOwner && !isCEO) return;
-
-            pressTimer = setTimeout(() => {
-                const createdDate = new Date(createdAt);
-                const diffMinutes = (new Date() - createdDate) / 1000 / 60;
-                
-                document.getElementById('action-sheet').style.display = 'flex';
-                document.getElementById('edit-btn').style.display = (isOwner && diffMinutes < 20) ? 'flex' : 'none';
-                document.getElementById('ban-btn').style.display = isCEO ? 'flex' : 'none';
-                document.getElementById('ban-btn').innerHTML = isBanned ? '<i data-lucide="user-check" size="18"></i> Unban User' : '<i data-lucide="shield-off" size="18"></i> Ban User';
-                
-                document.getElementById('burn-btn').onclick = () => deletePost(postId);
-                document.getElementById('edit-btn').onclick = () => editPost(postId);
-                document.getElementById('ban-btn').onclick = () => toggleBan(userId, isBanned);
-                lucide.createIcons();
-            }, 800);
-        }
-
-        function endPress() { clearTimeout(pressTimer); }
-        function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
-
-        async function toggleBan(uid, currentStatus) {
-            closeSheet();
-            const { error } = await supabase.from('profile').update({ is_banned: !currentStatus }).eq('id', uid);
-            if (!error) showToast(currentStatus ? "User Unbanned" : "User Banned");
-        }
-
-        async function updateStat(postId, field) {
-            // Using direct update for simplicity, RPC is better for production
-            const { data } = await supabase.from('posts').select(field).eq('id', postId).single();
-            await supabase.from('posts').update({ [field]: (data[field] || 0) + 1 }).eq('id', postId);
-            loadFeed(true);
-        }
-
-        async function publishPost() {
-            if (userProfile?.is_banned) return alert("You are banned from posting, homie.");
-            const content = document.getElementById('post-input').value.trim();
-            if (!content) return;
-            
-            const { error } = await supabase.from('posts').insert({
-                user_id: userProfile.id,
-                content: content,
-                school_name: userProfile.school_name || 'Global'
-            });
-
-            if (!error) {
-                showToast("Gist Published!");
-                document.getElementById('post-input').value = '';
-                document.getElementById('composer-actions').classList.add('hidden');
-                loadFeed();
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+        async function handleLike(postId, currentLikes) {
+            const { data: existingLike } = await supabase.from('post_likes').select('*').eq('post_id', postId).eq('user_id', userProfile.id).single();
+            if (existingLike) {
+                await supabase.from('post_likes').delete().eq('id', existingLike.id);
+                await supabase.from('posts').update({ likes_count: Math.max(0, currentLikes - 1) }).eq('id', postId);
+            } else {
+                await supabase.from('post_likes').insert({ post_id: postId, user_id: userProfile.id });
+                await supabase.from('posts').update({ likes_count: currentLikes + 1 }).eq('id', postId);
             }
+            loadFeed(true);
         }
 
         async function loadFeed(silent = false) {
@@ -196,29 +156,18 @@
                 lucide.createIcons();
             }
 
-            let query = supabase.from('posts').select('*, profile:user_id(*)');
-
-            if (searchQuery) {
-                query = query.or(`content.ilike.%${searchQuery}%`);
-            } else if (currentMode === 'campus') {
-                query = query.eq('school_name', userProfile?.school_name);
-            }
+            let query = supabase.from('posts').select('*, profile:user_id(*), post_likes(user_id)');
+            if (searchQuery) query = query.or(`content.ilike.%${searchQuery}%`);
+            else if (currentMode === 'campus') query = query.eq('school_name', userProfile?.school_name);
 
             const { data: posts, error } = await query.order('created_at', { ascending: false });
             if (error) return;
 
-            let displayPosts = posts;
-            if (currentMode === 'universe') {
-                displayPosts = posts.sort((a, b) => {
-                    const scoreA = (a.likes_count || 0) + (a.comments_count * 2) + (a.reposts_count * 3);
-                    const scoreB = (b.likes_count || 0) + (b.comments_count * 2) + (b.reposts_count * 3);
-                    return scoreB - scoreA;
-                });
-            }
-
-            container.innerHTML = displayPosts.map(post => {
+            container.innerHTML = posts.map(post => {
                 const isOfficial = post.profile?.is_official;
                 const username = post.profile?.username || 'user';
+                const hasLiked = post.post_likes?.some(like => like.user_id === userProfile.id);
+                
                 return `
                 <div class="post-card p-4" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', ${post.profile?.is_banned})" ontouchend="endPress()">
                     <div class="flex space-x-3">
@@ -230,7 +179,10 @@
                             </div>
                             <p class="gist-content text-[14px] text-zinc-200 font-medium mb-3">${formatContent(post.content)}</p>
                             <div class="flex items-center justify-between text-zinc-500 max-w-[220px]">
-                                <button onclick="updateStat('${post.id}', 'likes_count')" class="flex items-center gap-1 active:text-sdel"><i data-lucide="heart" size="16"></i> <span class="text-[10px]">${post.likes_count || 0}</span></button>
+                                <button onclick="handleLike('${post.id}', ${post.likes_count || 0})" class="flex items-center gap-1">
+                                    <i data-lucide="heart" size="16" class="${hasLiked ? 'liked-glow' : ''}"></i> 
+                                    <span class="text-[10px] ${hasLiked ? 'text-sdel font-bold' : ''}">${post.likes_count || 0}</span>
+                                </button>
                                 <button onclick="updateStat('${post.id}', 'comments_count')" class="flex items-center gap-1"><i data-lucide="message-circle" size="16"></i> <span class="text-[10px]">${post.comments_count || 0}</span></button>
                                 <button onclick="updateStat('${post.id}', 'reposts_count')" class="flex items-center gap-1"><i data-lucide="repeat" size="16"></i> <span class="text-[10px]">${post.reposts_count || 0}</span></button>
                                 <button onclick="updateStat('${post.id}', 'shares_count')"><i data-lucide="share" size="16"></i></button>
@@ -242,55 +194,45 @@
             lucide.createIcons();
         }
 
-        function formatContent(text) {
-            return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>');
+        // Logic functions...
+        function startPress(postId, userId, createdAt, isBanned) {
+            const isOwner = userProfile?.id === userId;
+            const isCEO = userProfile?.is_official === true;
+            if (!isOwner && !isCEO) return;
+            pressTimer = setTimeout(() => {
+                document.getElementById('action-sheet').style.display = 'flex';
+                document.getElementById('edit-btn').style.display = (isOwner) ? 'flex' : 'none';
+                document.getElementById('ban-btn').style.display = isCEO ? 'flex' : 'none';
+                document.getElementById('burn-btn').onclick = () => deletePost(postId);
+                document.getElementById('edit-btn').onclick = () => editPost(postId);
+                document.getElementById('ban-btn').onclick = () => toggleBan(userId, isBanned);
+                lucide.createIcons();
+            }, 800);
         }
-
-        async function deletePost(id) {
-            closeSheet();
-            if(confirm("Burn this gist?")) {
-                await supabase.from('posts').delete().eq('id', id);
-                loadFeed(true);
-            }
+        function endPress() { clearTimeout(pressTimer); }
+        function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
+        async function updateStat(postId, field) {
+            const { data } = await supabase.from('posts').select(field).eq('id', postId).single();
+            await supabase.from('posts').update({ [field]: (data[field] || 0) + 1 }).eq('id', postId);
+            loadFeed(true);
         }
-
-        async function editPost(id) {
-            closeSheet();
-            const newText = prompt("Edit your gist:");
-            if (newText) {
-                await supabase.from('posts').update({ content: newText, updated_at: new Date() }).eq('id', id);
-                loadFeed(true);
-            }
-        }
-
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3000);
-        }
-
-        function switchTab(mode) {
-            currentMode = mode;
-            document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
-            document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
+        async function publishPost() {
+            if (userProfile?.is_banned) return alert("Banned, homie.");
+            const content = document.getElementById('post-input').value.trim();
+            if (!content) return;
+            await supabase.from('posts').insert({ user_id: userProfile.id, content, school_name: userProfile.school_name || 'Global' });
+            document.getElementById('post-input').value = '';
+            document.getElementById('composer-actions').classList.add('hidden');
             loadFeed();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-
-        function toggleActions(el) {
-            el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
-            document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
-        }
-
-        function toggleSearch() {
-            const s = document.getElementById('search-container');
-            s.classList.toggle('hidden');
-            if(!s.classList.contains('hidden')) document.getElementById('search-input').focus();
-        }
-
+        function formatContent(text) { return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>'); }
+        async function deletePost(id) { closeSheet(); if(confirm("Burn this?")) { await supabase.from('posts').delete().eq('id', id); loadFeed(true); } }
+        async function editPost(id) { closeSheet(); const nt = prompt("Edit:"); if (nt) { await supabase.from('posts').update({ content: nt, updated_at: new Date() }).eq('id', id); loadFeed(true); } }
+        function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+        function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
+        function toggleActions(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
+        function toggleSearch() { document.getElementById('search-container').classList.toggle('hidden'); if(!document.getElementById('search-container').classList.contains('hidden')) document.getElementById('search-input').focus(); }
         function handleSearch(val) { searchQuery = val.trim(); loadFeed(); }
-
         init();
     </script>
 </body>
