@@ -5,15 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sdel | Exploring Planet</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Poppins', sans-serif; background: #000; color: #fff; }
+        body { font-family: 'Poppins', sans-serif; background: #000; color: #fff; overflow: hidden; }
         .glass-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); }
         .quiz-timer { height: 4px; background: #FF6600; width: 100%; transition: width 1s linear; }
         .planet-glow { position: fixed; top: -100px; right: -100px; width: 300px; height: 300px; border-radius: 50%; filter: blur(80px); z-index: -1; opacity: 0.4; }
-        .chat-msg { animation: slideIn 0.3s ease-out; }
+        .chat-msg { animation: slideIn 0.2s ease-out; border-left: 2px solid #FF6600; padding-left: 12px; margin-bottom: 12px; }
         @keyframes slideIn { from { transform: translateX(-10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        #chatBox::-webkit-scrollbar { width: 0px; }
     </style>
 </head>
 <body class="p-6">
@@ -21,97 +23,138 @@
     <div id="dynamicGlow" class="planet-glow"></div>
 
     <div class="flex justify-between items-center mb-8">
-        <button onclick="window.history.back()" class="p-3 glass-card rounded-2xl"><i data-lucide="arrow-left"></i></button>
+        <button onclick="window.history.back()" class="p-3 glass-card rounded-2xl active:scale-90 transition"><i data-lucide="arrow-left"></i></button>
         <div class="text-center">
             <h1 id="planetName" class="text-2xl font-black italic uppercase tracking-tighter">PLANET</h1>
-            <p id="planetStat" class="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Atmosphere: Stable</p>
+            <p id="planetStat" class="text-[8px] font-black text-[#FF6600] uppercase tracking-widest">Scanning Atmosphere...</p>
         </div>
         <button class="p-3 glass-card rounded-2xl text-[#FF6600]"><i data-lucide="zap"></i></button>
     </div>
 
     <div class="grid grid-cols-2 gap-2 mb-6">
-        <button onclick="showSection('discuss')" id="tab-discuss" class="py-3 rounded-2xl bg-white text-black font-black text-[10px] uppercase">Discussion</button>
-        <button onclick="showSection('quiz')" id="tab-quiz" class="py-3 rounded-2xl glass-card text-zinc-500 font-black text-[10px] uppercase">Planet Quiz</button>
+        <button onclick="showSection('discuss')" id="tab-discuss" class="py-3 rounded-2xl bg-white text-black font-black text-[10px] uppercase transition">Discussion</button>
+        <button onclick="showSection('quiz')" id="tab-quiz" class="py-3 rounded-2xl glass-card text-zinc-500 font-black text-[10px] uppercase transition">Planet Quiz</button>
     </div>
 
-    <div id="section-discuss" class="space-y-4">
-        <div class="glass-card p-4 rounded-3xl h-[50vh] overflow-y-auto space-y-4" id="chatBox">
-            <div class="chat-msg">
-                <span class="text-[#FF6600] font-black text-[10px] uppercase">@Admin:</span>
-                <p class="text-sm">Welcome to the core. Post your questions here.</p>
+    <div id="section-discuss" class="flex flex-col h-[70vh]">
+        <div class="glass-card p-4 rounded-3xl flex-grow overflow-y-auto mb-4" id="chatBox">
+            <div class="chat-msg border-zinc-700">
+                <span class="text-zinc-500 font-black text-[10px] uppercase italic">System Broadcast</span>
+                <p class="text-sm">You have landed on the sector. Communications established.</p>
             </div>
         </div>
         
         <div class="flex gap-2">
-            <input type="text" id="msgInput" placeholder="TRANSMIT MESSAGE..." class="flex-grow bg-zinc-900 border border-white/5 rounded-2xl p-4 text-xs font-bold outline-none focus:border-[#FF6600]">
-            <button onclick="sendMsg()" class="bg-[#FF6600] text-black p-4 rounded-2xl"><i data-lucide="send"></i></button>
+            <input type="text" id="msgInput" placeholder="TRANSMIT MESSAGE..." 
+                   class="flex-grow bg-zinc-900 border border-white/5 rounded-2xl p-4 text-xs font-bold outline-none focus:border-[#FF6600]">
+            <button onclick="sendMsg()" class="bg-[#FF6600] text-black p-4 rounded-2xl active:scale-90 transition"><i data-lucide="send"></i></button>
         </div>
     </div>
 
     <div id="section-quiz" class="hidden space-y-4">
-        <div class="glass-card p-8 rounded-[3rem] text-center">
+        <div class="glass-card p-8 rounded-[3rem] text-center border-orange-500/20">
             <div class="quiz-timer mb-6" id="timer"></div>
-            <h2 class="text-xl font-black mb-6 italic" id="question">Loading transmission...</h2>
-            <div class="space-y-3" id="options">
-                </div>
+            <h2 class="text-xl font-black mb-6 italic" id="question">Awaiting Quiz Sync...</h2>
+            <div class="space-y-3" id="options"></div>
         </div>
     </div>
 
     <script>
+        const CLIENT = supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
         const params = new URLSearchParams(window.location.search);
         const TOPIC = params.get('topic') || 'Core';
+        let myUsername = "Anonymous";
 
-        // Setup Page Theme
-        function setup() {
+        async function init() {
+            // 1. Get User Info
+            const { data: { user } } = await CLIENT.auth.getUser();
+            if (user) {
+                const { data: profile } = await CLIENT.from('profile').select('username').eq('id', user.id).single();
+                if (profile) myUsername = profile.username;
+            }
+
+            // 2. Set Theme
             document.getElementById('planetName').innerText = TOPIC;
             const glow = document.getElementById('dynamicGlow');
-            if(TOPIC === 'Math') glow.style.background = '#2563eb';
-            if(TOPIC === 'Tech') glow.style.background = '#FF6600';
-            if(TOPIC === 'Lit') glow.style.background = '#9333ea';
+            const colors = { 'Math': '#2563eb', 'Tech': '#FF6600', 'Lit': '#9333ea', 'Law': '#b91c1c' };
+            glow.style.background = colors[TOPIC] || '#FF6600';
+
+            // 3. Presence & Realtime
+            const channel = CLIENT.channel(`room:${TOPIC}`, {
+                config: { presence: { key: myUsername } }
+            });
+
+            channel
+                .on('presence', { event: 'sync' }, () => {
+                    const state = channel.presenceState();
+                    const count = Object.keys(state).length;
+                    document.getElementById('planetStat').innerText = `${count} EXPLORERS LIVE`;
+                })
+                .on('broadcast', { event: 'shout' }, payload => {
+                    addMessageToUI(payload.payload.user, payload.payload.text);
+                })
+                .subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await channel.track({ online_at: new Date().toISOString() });
+                    }
+                });
+
+            window.planetChannel = channel;
             lucide.createIcons();
+        }
+
+        function addMessageToUI(user, text) {
+            const box = document.getElementById('chatBox');
+            const isMe = user === myUsername;
+            box.innerHTML += `
+                <div class="chat-msg ${isMe ? 'border-[#FF6600]' : 'border-zinc-700'}">
+                    <span class="${isMe ? 'text-[#FF6600]' : 'text-zinc-500'} font-black text-[10px] uppercase">@${user}:</span>
+                    <p class="text-sm">${text}</p>
+                </div>
+            `;
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function sendMsg() {
+            const input = document.getElementById('msgInput');
+            if(!input.value) return;
+
+            // Broadcast to others
+            await planetChannel.send({
+                type: 'broadcast',
+                event: 'shout',
+                payload: { user: myUsername, text: input.value }
+            });
+
+            // Add to my own UI
+            addMessageToUI(myUsername, input.value);
+            input.value = "";
         }
 
         function showSection(sect) {
             document.getElementById('section-discuss').classList.toggle('hidden', sect !== 'discuss');
             document.getElementById('section-quiz').classList.toggle('hidden', sect !== 'quiz');
             
-            // Toggle Tab Styles
             const dTab = document.getElementById('tab-discuss'), qTab = document.getElementById('tab-quiz');
             if(sect === 'discuss') {
                 dTab.className = "py-3 rounded-2xl bg-white text-black font-black text-[10px] uppercase";
                 qTab.className = "py-3 rounded-2xl glass-card text-zinc-500 font-black text-[10px] uppercase";
             } else {
-                qTab.className = "py-3 rounded-2xl bg-orange-500 text-white font-black text-[10px] uppercase";
+                qTab.className = "py-3 rounded-2xl bg-[#FF6600] text-black font-black text-[10px] uppercase";
                 dTab.className = "py-3 rounded-2xl glass-card text-zinc-500 font-black text-[10px] uppercase";
                 startQuiz();
             }
         }
 
         function startQuiz() {
-            const q = document.getElementById('question');
-            const opt = document.getElementById('options');
-            q.innerText = "What is the square root of the universe?";
-            opt.innerHTML = `
-                <button onclick="answer(true)" class="w-full p-4 glass-card rounded-2xl font-bold hover:bg-white hover:text-black transition">42</button>
-                <button onclick="answer(false)" class="w-full p-4 glass-card rounded-2xl font-bold hover:bg-white hover:text-black transition">Infinite</button>
+            document.getElementById('question').innerText = "Which of these is the foundation of " + TOPIC + "?";
+            document.getElementById('options').innerHTML = `
+                <button class="w-full p-4 glass-card rounded-2xl font-bold hover:bg-white hover:text-black transition">Constant Research</button>
+                <button class="w-full p-4 glass-card rounded-2xl font-bold hover:bg-white hover:text-black transition">Pure Logic</button>
             `;
         }
 
-        function sendMsg() {
-            const input = document.getElementById('msgInput');
-            if(!input.value) return;
-            const box = document.getElementById('chatBox');
-            box.innerHTML += `
-                <div class="chat-msg">
-                    <span class="text-zinc-500 font-black text-[10px] uppercase">@You:</span>
-                    <p class="text-sm">${input.value}</p>
-                </div>
-            `;
-            input.value = "";
-            box.scrollTop = box.scrollHeight;
-        }
-
-        setup();
+        init();
     </script>
 </body>
 </html>
