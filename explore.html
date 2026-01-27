@@ -110,6 +110,7 @@
 
         async function handleLike(postId) {
             const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', postId).eq('interaction_type', 'like').single();
+            
             if (existing) {
                 await supabase.from('interactions').delete().eq('id', existing.id);
                 await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
@@ -122,7 +123,10 @@
 
         async function handleRepost(postId, content) {
             const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', postId).eq('interaction_type', 'repost').single();
-            if (existing) return showToast("Already reposted!");
+            if (existing) {
+                showToast("Already reposted!");
+                return;
+            }
 
             const { error } = await supabase.from('posts').insert({
                 user_id: userProfile.id,
@@ -162,28 +166,36 @@
                 lucide.createIcons();
             }
 
-            // Using the custom feed RPC for priority sorting
-            const { data: posts, error } = await supabase.rpc('get_explore_feed', { current_user_id: userProfile.id });
+            // FIXED: Using a proper Supabase Join instead of the RPC that was losing profile data
+            let query = supabase
+                .from('posts')
+                .select('*, profile:user_id(username, is_official, is_verified, is_banned)')
+                .order('created_at', { ascending: false });
+
+            if (currentMode === 'campus') {
+                query = query.eq('school_name', userProfile.school_name);
+            }
+
+            const { data: posts, error } = await query;
             if (error) return;
 
-            // Fetch current user likes/reposts to highlight icons
             const { data: myInteractions } = await supabase.from('interactions').select('post_id, interaction_type').eq('user_id', userProfile.id);
 
             container.innerHTML = posts.map(post => {
-                // Mapping joined profile fields from RPC results
-                const username = post.username || 'homie';
+                const profile = post.profile || {};
+                const username = profile.username || 'homie';
                 const isLiked = myInteractions?.some(i => i.post_id === post.id && i.interaction_type === 'like');
                 const isReposted = myInteractions?.some(i => i.post_id === post.id && i.interaction_type === 'repost');
                 
                 let badge = '';
-                if (post.is_official) {
+                if (profile.is_official) {
                     badge = `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
-                } else if (post.is_verified) {
+                } else if (profile.is_verified) {
                     badge = `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
                 }
 
                 return `
-                <div class="post-card p-4" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', ${post.is_banned})" ontouchend="endPress()">
+                <div class="post-card p-4" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', ${profile.is_banned})" ontouchend="endPress()">
                     ${post.post_type === 'repost' ? `<div class="flex items-center gap-2 mb-2 ml-10 text-[10px] text-zinc-500 font-bold uppercase italic"><i data-lucide="repeat" size="12"></i> Reposted</div>` : ''}
                     <div class="flex space-x-3">
                         <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center font-black text-sdel text-xs uppercase">${username[0]}</div>
@@ -204,9 +216,6 @@
                 </div>`;
             }).join('');
             lucide.createIcons();
-
-            // Background task: mark these posts as "Seen" for the algorithm
-            posts.forEach(p => supabase.from('post_views').upsert({ user_id: userProfile.id, post_id: p.id }));
         }
 
         function formatContent(text) { return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>'); }
@@ -247,7 +256,20 @@
         function toggleActions(el) { document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
         function toggleSearch() { document.getElementById('search-container').classList.toggle('hidden'); }
         function handleSearch(val) { searchQuery = val; loadFeed(); }
-        function switchTab(mode) { currentMode = mode; loadFeed(); }
+        function switchTab(mode) { 
+            const tabs = ['campus', 'universe'];
+            tabs.forEach(t => document.getElementById(`tab-${t}`).classList.remove('tab-active'));
+            document.getElementById(`tab-${mode}`).classList.add('tab-active');
+            currentMode = mode; 
+            loadFeed(); 
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
 
         init();
     </script>
