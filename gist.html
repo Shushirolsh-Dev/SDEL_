@@ -68,7 +68,6 @@
         async function loadGist() {
             const container = document.getElementById('gist-thread');
             
-            // Fetch main post with profile join
             const { data: post, error } = await supabase
                 .from('posts')
                 .select('*, profile:user_id(username, is_official, is_verified)')
@@ -80,7 +79,6 @@
                 return;
             }
 
-            // Fetch comments (which are just posts where parent_id = current post id)
             const { data: comments } = await supabase
                 .from('posts')
                 .select('*, profile:user_id(username, is_official, is_verified)')
@@ -90,7 +88,6 @@
             const profile = post.profile || {};
             const badge = getBadgeHTML(profile.is_official, profile.is_verified);
 
-            // Render Main Post
             let html = `
                 <div class="mb-4">
                     <div class="flex items-center gap-3 mb-4">
@@ -106,7 +103,7 @@
                     <p class="text-lg text-zinc-100 font-medium leading-relaxed mb-6">${post.content}</p>
                     <div class="flex items-center gap-6 text-zinc-500 border-y border-white/5 py-4">
                         <div class="flex items-center gap-1.5"><span class="font-black text-white">${post.likes_count || 0}</span> <span class="text-[10px] uppercase font-bold">Likes</span></div>
-                        <div class="flex items-center gap-1.5"><span class="font-black text-white">${post.reposts_count || 0}</span> <span class="text-[10px] uppercase font-bold">Reposts</span></div>
+                        <div class="flex items-center gap-1.5"><span class="font-black text-white">${post.comments_count || 0}</span> <span class="text-[10px] uppercase font-bold">Replies</span></div>
                     </div>
                 </div>
                 <div class="mt-4">
@@ -146,18 +143,19 @@
             const content = input.value.trim();
             if (!content) return;
 
+            // FIXED: Set school_name to 'Gist' so it doesn't appear in Campus/Universe feeds
             const { error } = await supabase.from('posts').insert({
                 user_id: userProfile.id,
                 content: content,
                 parent_id: postId,
                 post_type: 'comment',
-                school_name: userProfile.school_name
+                school_name: 'Gist' 
             });
 
             if (!error) {
-                // Increment comment count on the original post
                 await supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' });
                 input.value = '';
+                input.style.height = 'auto'; // Reset textarea height
                 showToast("Reply Sent!");
                 loadGist();
             }
