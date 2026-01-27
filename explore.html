@@ -15,7 +15,7 @@
         .bg-sdel { background-color: #FF6600; }
         .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; }
         .post-card:active { background: rgba(255, 102, 0, 0.05); }
-        /* Stop text selection on gists */
+        /* No text selection rule */
         .gist-content { user-select: none; -webkit-user-select: none; }
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
@@ -25,6 +25,8 @@
         #pull-indicator { height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; transition: height 0.2s ease; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #FF6600; letter-spacing: 2px; }
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; box-shadow: 0 10px 30px rgba(255, 102, 0, 0.3); }
         #toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* Action Sheet */
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: flex-end; }
         .sheet-content { background: #111; width: 100%; border-radius: 24px 24px 0 0; padding: 20px; border-top: 1px solid #222; }
     </style>
@@ -37,7 +39,7 @@
     <div id="action-sheet" onclick="closeSheet()">
         <div class="sheet-content" onclick="event.stopPropagation()">
             <div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6"></div>
-            <button id="edit-btn" class="w-full py-4 text-left font-bold border-b border-white/5 flex items-center gap-3"><i data-lucide="edit-3" size="18"></i> Edit Gist</button>
+            <button id="edit-btn" class="w-full py-4 text-left font-bold border-b border-white/5 flex items-center gap-3"><i data-lucide="edit-3" size="18"></i> Edit Gist <span class="text-[10px] text-zinc-500 font-normal">(20m limit)</span></button>
             <button id="burn-btn" class="w-full py-4 text-left font-bold text-red-500 border-b border-white/5 flex items-center gap-3"><i data-lucide="flame" size="18"></i> Burn Gist</button>
             <button id="ban-btn" class="w-full py-4 text-left font-bold text-orange-500 flex items-center gap-3"><i data-lucide="shield-off" size="18"></i> Ban User (CEO)</button>
             <button onclick="closeSheet()" class="w-full py-4 mt-2 text-center text-zinc-500 font-bold uppercase text-xs">Cancel</button>
@@ -75,7 +77,7 @@
 
     <main id="feed-container" class="flex flex-col"></main>
 
-    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20px+env(safe-area-inset-bottom))]">
+    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100] backdrop-blur-2xl pb-[calc(20+env(safe-area-inset-bottom))]">
         <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
         <i data-lucide="compass" class="text-sdel" size="28"></i>
         <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition-all duration-300" onclick="document.getElementById('post-input').focus()">
@@ -100,9 +102,11 @@
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.replace('login.html');
+
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             userProfile = profile;
             document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
+            
             loadFeed();
             setupPullToRefresh();
             subscribeToPosts();
@@ -136,10 +140,12 @@
             pressTimer = setTimeout(() => {
                 const createdDate = new Date(createdAt);
                 const diffMinutes = (new Date() - createdDate) / 1000 / 60;
+                
                 document.getElementById('action-sheet').style.display = 'flex';
                 document.getElementById('edit-btn').style.display = (isOwner && diffMinutes < 20) ? 'flex' : 'none';
                 document.getElementById('ban-btn').style.display = isCEO ? 'flex' : 'none';
                 document.getElementById('ban-btn').innerHTML = isBanned ? '<i data-lucide="user-check" size="18"></i> Unban User' : '<i data-lucide="shield-off" size="18"></i> Ban User';
+                
                 document.getElementById('burn-btn').onclick = () => deletePost(postId);
                 document.getElementById('edit-btn').onclick = () => editPost(postId);
                 document.getElementById('ban-btn').onclick = () => toggleBan(userId, isBanned);
@@ -157,8 +163,30 @@
         }
 
         async function updateStat(postId, field) {
-            await supabase.rpc('increment_stat', { post_id: postId, column_name: field });
+            // Using direct update for simplicity, RPC is better for production
+            const { data } = await supabase.from('posts').select(field).eq('id', postId).single();
+            await supabase.from('posts').update({ [field]: (data[field] || 0) + 1 }).eq('id', postId);
             loadFeed(true);
+        }
+
+        async function publishPost() {
+            if (userProfile?.is_banned) return alert("You are banned from posting, homie.");
+            const content = document.getElementById('post-input').value.trim();
+            if (!content) return;
+            
+            const { error } = await supabase.from('posts').insert({
+                user_id: userProfile.id,
+                content: content,
+                school_name: userProfile.school_name || 'Global'
+            });
+
+            if (!error) {
+                showToast("Gist Published!");
+                document.getElementById('post-input').value = '';
+                document.getElementById('composer-actions').classList.add('hidden');
+                loadFeed();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         }
 
         async function loadFeed(silent = false) {
@@ -169,8 +197,12 @@
             }
 
             let query = supabase.from('posts').select('*, profile:user_id(*)');
-            if (searchQuery) query = query.or(`content.ilike.%${searchQuery}%`);
-            else if (currentMode === 'campus') query = query.eq('school_name', userProfile?.school_name);
+
+            if (searchQuery) {
+                query = query.or(`content.ilike.%${searchQuery}%`);
+            } else if (currentMode === 'campus') {
+                query = query.eq('school_name', userProfile?.school_name);
+            }
 
             const { data: posts, error } = await query.order('created_at', { ascending: false });
             if (error) return;
@@ -210,7 +242,9 @@
             lucide.createIcons();
         }
 
-        function formatContent(text) { return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>'); }
+        function formatContent(text) {
+            return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>');
+        }
 
         async function deletePost(id) {
             closeSheet();
@@ -231,7 +265,8 @@
 
         function showToast(msg) {
             const t = document.getElementById('toast');
-            t.innerText = msg; t.classList.add('show');
+            t.innerText = msg;
+            t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 3000);
         }
 
@@ -243,9 +278,19 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function toggleActions(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
-        function toggleSearch() { const s = document.getElementById('search-container'); s.classList.toggle('hidden'); if(!s.classList.contains('hidden')) document.getElementById('search-input').focus(); }
+        function toggleActions(el) {
+            el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+            document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
+        }
+
+        function toggleSearch() {
+            const s = document.getElementById('search-container');
+            s.classList.toggle('hidden');
+            if(!s.classList.contains('hidden')) document.getElementById('search-input').focus();
+        }
+
         function handleSearch(val) { searchQuery = val.trim(); loadFeed(); }
+
         init();
     </script>
 </body>
