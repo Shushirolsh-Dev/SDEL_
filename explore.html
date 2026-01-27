@@ -44,7 +44,7 @@
             <div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6"></div>
             <button id="edit-btn" class="w-full py-4 text-left font-bold border-b border-white/5 flex items-center gap-3"><i data-lucide="edit-3" size="18"></i> Edit Gist <span class="text-[10px] text-zinc-500 font-normal">(20m limit)</span></button>
             <button id="burn-btn" class="w-full py-4 text-left font-bold text-red-500 border-b border-white/5 flex items-center gap-3"><i data-lucide="flame" size="18"></i> Burn Gist</button>
-            <button id="ban-btn" class="w-full py-4 text-left font-bold text-orange-500 flex items-center gap-3"><i data-lucide="shield-off" size="18"></i> Ban User (CEO)</button>
+            <button id="ban-btn" class="w-full py-4 text-left font-bold text-orange-500 flex items-center gap-3"><i data-lucide="shield-off" size="18"></i> <span>Ban User (CEO)</span></button>
             <button onclick="closeSheet()" class="w-full py-4 mt-2 text-center text-zinc-500 font-bold uppercase text-xs">Cancel</button>
         </div>
     </div>
@@ -111,7 +111,7 @@
         let startY = 0;
         let pressTimer;
 
-        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, banUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare });
+        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, toggleBanUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare });
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -173,7 +173,6 @@
                 const isReposted = myInteractions?.some(i => i.post_id === post.id && i.interaction_type === 'repost');
                 const badge = getBadgeHTML(profile.is_official, profile.is_verified);
 
-                // Show School Name if in Universe Mode
                 const schoolTag = currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-600 font-bold uppercase tracking-widest">${post.school_name}</span>` : '';
 
                 let repostContext = '';
@@ -186,7 +185,7 @@
                 return `
                 <div class="post-card p-4">
                     ${repostContext}
-                    <div class="flex space-x-3" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', \`${post.content}\`)" ontouchend="endPress()">
+                    <div class="flex space-x-3" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', \`${post.content}\`, ${profile.is_banned})" ontouchend="endPress()">
                         <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center font-black text-sdel text-xs uppercase">${username[0]}</div>
                         <div class="flex-1">
                             <div class="flex items-center gap-1.5 mb-0.5">
@@ -224,30 +223,38 @@
             if (!error) { showToast("Gist Published!"); document.getElementById('post-input').value = ''; loadFeed(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
         }
 
-        function startPress(postId, userId, createdAt, content) {
+        function startPress(postId, userId, createdAt, content, targetIsBanned) {
             const isOwner = userProfile?.id === userId;
             const isCEO = userProfile?.is_official === true;
             if (!isOwner && !isCEO) return;
             pressTimer = setTimeout(() => {
                 const diff = (new Date() - new Date(createdAt)) / (1000 * 60);
+                const banBtn = document.getElementById('ban-btn');
                 document.getElementById('action-sheet').style.display = 'flex';
-                // Edit only if Owner AND within 20 mins
                 document.getElementById('edit-btn').style.display = (isOwner && diff < 20) ? 'flex' : 'none';
-                // Burn only if Owner or CEO
                 document.getElementById('burn-btn').style.display = (isOwner || isCEO) ? 'flex' : 'none';
-                // Ban only if CEO
-                document.getElementById('ban-btn').style.display = isCEO ? 'flex' : 'none';
+                
+                // Show Ban button only for CEO and ONLY if target is NOT the CEO themselves
+                if (isCEO && !isOwner) {
+                    banBtn.style.display = 'flex';
+                    banBtn.querySelector('span').innerText = targetIsBanned ? "Unban User (CEO)" : "Ban User (CEO)";
+                    banBtn.onclick = () => toggleBanUser(userId, targetIsBanned);
+                } else {
+                    banBtn.style.display = 'none';
+                }
                 
                 document.getElementById('edit-btn').onclick = () => openEditModal(postId, content);
                 document.getElementById('burn-btn').onclick = () => deletePost(postId);
-                document.getElementById('ban-btn').onclick = () => banUser(userId);
             }, 800);
         }
 
-        async function banUser(userId) {
+        async function toggleBanUser(userId, currentStatus) {
             closeSheet();
-            const { error } = await supabase.from('profile').update({ is_banned: true }).eq('id', userId);
-            if(!error) showToast("User Banned!");
+            const { error } = await supabase.from('profile').update({ is_banned: !currentStatus }).eq('id', userId);
+            if(!error) {
+                showToast(currentStatus ? "User Liberated!" : "User Banned!");
+                loadFeed(true);
+            }
         }
 
         function openEditModal(id, oldContent) {
