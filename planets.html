@@ -5,101 +5,127 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sdel | Galaxy</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Poppins', sans-serif; background: #000; color: #fff; overflow-x: hidden; }
+        .glass { background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
         .planet-card { 
             background: linear-gradient(145deg, #111, #000); 
             border: 1px solid #222; 
-            border-radius: 3rem; 
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: 2.5rem; 
+            transition: all 0.3s ease;
         }
-        .planet-card:hover { scale: 1.02; border-color: #FF6600; box-shadow: 0 0 30px rgba(255,102,0,0.1); }
-        .orbit-icon { animation: orbit 10s linear infinite; }
-        @keyframes orbit { from { transform: rotate(0deg) translateX(10px) rotate(0deg); } to { transform: rotate(360deg) translateX(10px) rotate(-360deg); } }
-        .glow-text { text-shadow: 0 0 10px rgba(255,102,0,0.5); }
+        .planet-card:active { scale: 0.95; border-color: #FF6600; }
+        .search-bar { background: #0a0a0a; border: 1px solid #222; border-radius: 1.5rem; transition: all 0.3s; }
+        .search-bar:focus-within { border-color: #FF6600; box-shadow: 0 0 20px rgba(255,102,0,0.1); }
     </style>
 </head>
-<body class="p-6">
+<body class="p-6 pb-32">
 
-    <div class="flex justify-between items-center mb-10">
-        <div>
-            <h1 class="text-3xl font-black italic tracking-tighter uppercase">THE <span class="text-[#FF6600]">GALAXY</span></h1>
-            <p class="text-[9px] font-black text-zinc-500 uppercase tracking-[0.3em]">Explore Core Subjects</p>
+    <div class="flex justify-between items-start mb-8">
+        <div class="flex flex-col gap-4">
+            <button onclick="window.history.back()" class="w-10 h-10 glass rounded-xl flex items-center justify-center active:scale-90 transition">
+                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <div>
+                <h1 class="text-3xl font-black italic tracking-tighter uppercase leading-none">THE <span class="text-[#FF6600]">GALAXY</span></h1>
+                <p class="text-[9px] font-black text-zinc-600 uppercase tracking-[0.3em] mt-1">Select your Sector</p>
+            </div>
         </div>
-        <div class="w-12 h-12 bg-zinc-900 rounded-2xl flex items-center justify-center border border-white/5">
-            <i data-lucide="layout-grid" class="text-zinc-400"></i>
-        </div>
-    </div>
-
-    <div id="planetGrid" class="space-y-6 pb-20">
-        <div onclick="enterPlanet('Math')" class="planet-card p-6 flex items-center gap-6 cursor-pointer">
-            <div class="w-20 h-20 bg-blue-600 rounded-full flex-shrink-0 relative overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
-                <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
-                <div class="flex items-center justify-center h-full text-3xl">🧮</div>
-            </div>
-            <div class="flex-grow">
-                <h3 class="text-xl font-black uppercase italic tracking-tighter">Calculus Prime</h3>
-                <div class="flex gap-4 mt-1">
-                    <span class="text-[9px] font-black text-blue-500 uppercase"><i data-lucide="users" class="inline w-3 h-3"></i> 24 Online</span>
-                    <span class="text-[9px] font-black text-zinc-500 uppercase"><i data-lucide="trophy" class="inline w-3 h-3"></i> Quiz Live</span>
-                </div>
-            </div>
-            <i data-lucide="chevron-right" class="text-zinc-800"></i>
-        </div>
-
-        <div onclick="enterPlanet('Tech')" class="planet-card p-6 flex items-center gap-6 cursor-pointer">
-            <div class="w-20 h-20 bg-[#FF6600] rounded-full flex-shrink-0 relative overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
-                <div class="flex items-center justify-center h-full text-3xl">💻</div>
-            </div>
-            <div class="flex-grow">
-                <h3 class="text-xl font-black uppercase italic tracking-tighter">Cyber Sector</h3>
-                <div class="flex gap-4 mt-1">
-                    <span class="text-[9px] font-black text-[#FF6600] uppercase"><i data-lucide="users" class="inline w-3 h-3"></i> 56 Online</span>
-                    <span class="text-[9px] font-black text-zinc-500 uppercase"><i data-lucide="flame" class="inline w-3 h-3"></i> 12 Topics</span>
-                </div>
-            </div>
-            <i data-lucide="chevron-right" class="text-zinc-800"></i>
-        </div>
-
-        <div onclick="enterPlanet('Lit')" class="planet-card p-6 flex items-center gap-6 cursor-pointer">
-            <div class="w-20 h-20 bg-purple-600 rounded-full flex-shrink-0 relative overflow-hidden shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]">
-                <div class="flex items-center justify-center h-full text-3xl">📚</div>
-            </div>
-            <div class="flex-grow">
-                <h3 class="text-xl font-black uppercase italic tracking-tighter">The Ink Well</h3>
-                <div class="flex gap-4 mt-1">
-                    <span class="text-[9px] font-black text-purple-400 uppercase"><i data-lucide="users" class="inline w-3 h-3"></i> 15 Online</span>
-                    <span class="text-[9px] font-black text-zinc-500 uppercase"><i data-lucide="book-open" class="inline w-3 h-3"></i> Analysis</span>
-                </div>
-            </div>
-            <i data-lucide="chevron-right" class="text-zinc-800"></i>
+        <div class="w-12 h-12 bg-[#FF6600] text-black rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,102,0,0.3)]">
+            <i data-lucide="orbit" class="w-6 h-6"></i>
         </div>
     </div>
 
-    <div class="fixed bottom-0 left-0 w-full p-6 glass bg-black/80 backdrop-blur-xl border-t border-white/5">
-        <div class="flex justify-around items-center">
+    <div class="search-bar p-4 mb-10 flex items-center gap-4">
+        <i data-lucide="search" class="text-zinc-600 w-5 h-5"></i>
+        <input type="text" id="planetSearch" placeholder="SEARCH UNIVERSITY SUBJECTS..." 
+               class="bg-transparent border-none outline-none w-full text-xs font-black uppercase tracking-widest placeholder:text-zinc-800"
+               onkeyup="filterPlanets()">
+    </div>
+
+    <div id="planetGrid" class="space-y-4">
+        </div>
+
+    <div class="fixed bottom-0 left-0 w-full p-6 glass border-t border-white/5 z-50">
+        <div class="flex justify-around items-center max-w-md mx-auto">
             <div class="text-center">
-                <p class="text-[8px] font-black text-zinc-600 uppercase">Star Power</p>
-                <p class="text-lg font-black text-[#FF6600]">1.2k</p>
+                <p class="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Total Population</p>
+                <p id="totalPop" class="text-lg font-black text-[#FF6600]">---</p>
             </div>
-            <div class="h-8 w-[1px] bg-zinc-800"></div>
+            <div class="h-8 w-[1px] bg-zinc-900"></div>
             <div class="text-center">
-                <p class="text-[8px] font-black text-zinc-600 uppercase">Rank</p>
-                <p class="text-lg font-black italic">#04</p>
+                <p class="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Global Rank</p>
+                <p class="text-lg font-black italic">#01</p>
             </div>
         </div>
     </div>
 
     <script>
-        lucide.createIcons();
+        const CLIENT = supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        function enterPlanet(topic) {
-            // This will take them to a dynamic planet page
-            window.location.href = `planet_view.html?topic=${topic}`;
+        // Aggressive list of university subjects
+        const SUBJECTS = [
+            { id: 'math', name: 'Calculus & Algebra', icon: '🧮', color: 'bg-blue-600' },
+            { id: 'cs', name: 'Computer Science', icon: '💻', color: 'bg-[#FF6600]' },
+            { id: 'law', name: 'Law & Jurisprudence', icon: '⚖️', color: 'bg-red-700' },
+            { id: 'med', name: 'Medicine & Surgery', icon: '🩺', color: 'bg-emerald-500' },
+            { id: 'eng', name: 'Engineering Corps', icon: '⚙️', color: 'bg-zinc-600' },
+            { id: 'art', name: 'Fine Arts & Design', icon: '🎨', color: 'bg-pink-600' },
+            { id: 'econ', name: 'Economics & Finance', icon: '📈', color: 'bg-amber-500' },
+            { id: 'psych', name: 'Psychology', icon: '🧠', color: 'bg-indigo-600' }
+        ];
+
+        function renderPlanets(list) {
+            const grid = document.getElementById('planetGrid');
+            grid.innerHTML = list.map(s => `
+                <div onclick="enterPlanet('${s.id}')" class="planet-card p-5 flex items-center gap-6 cursor-pointer">
+                    <div class="w-16 h-16 ${s.color} rounded-full flex-shrink-0 flex items-center justify-center text-2xl shadow-lg shadow-black/50">
+                        ${s.icon}
+                    </div>
+                    <div class="flex-grow">
+                        <h3 class="text-md font-black uppercase italic tracking-tighter">${s.name}</h3>
+                        <div class="flex gap-4 mt-1">
+                            <span class="text-[9px] font-black text-[#FF6600] uppercase flex items-center gap-1">
+                                <i data-lucide="users" class="w-3 h-3"></i> <span id="count-${s.id}">0</span> ONLINE
+                            </span>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="text-zinc-800"></i>
+                </div>
+            `).join('');
+            lucide.createIcons();
+            updateLiveCounts(); // Trigger presence check
         }
+
+        function filterPlanets() {
+            const query = document.getElementById('planetSearch').value.toLowerCase();
+            const filtered = SUBJECTS.filter(s => s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query));
+            renderPlanets(filtered);
+        }
+
+        async function updateLiveCounts() {
+            // Logic to fetch counts from Supabase Presence
+            // For now, we simulate the live feel with randomized active users 
+            // until the Realtime logic is connected in planet_view.html
+            let total = 0;
+            SUBJECTS.forEach(s => {
+                const fakeCount = Math.floor(Math.random() * 40) + 1;
+                const el = document.getElementById(`count-${s.id}`);
+                if(el) el.innerText = fakeCount;
+                total += fakeCount;
+            });
+            document.getElementById('totalPop').innerText = total;
+        }
+
+        function enterPlanet(id) {
+            window.location.href = `planet_view.html?topic=${id}`;
+        }
+
+        // Initial Load
+        renderPlanets(SUBJECTS);
     </script>
 </body>
-                                                                                 </html>
-                                                                                 
+</html>
