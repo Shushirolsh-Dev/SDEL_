@@ -3,129 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel | Galaxy</title>
+    <title>Sdel | Local Services</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Poppins', sans-serif; background: #000; color: #fff; overflow-x: hidden; }
-        .glass { background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.05); }
-        .planet-card { 
-            background: linear-gradient(145deg, #111, #000); 
-            border: 1px solid #222; 
-            border-radius: 2.5rem; 
-            transition: all 0.3s ease;
+        body { font-family: 'Poppins', sans-serif; background: #000; color: #fff; overflow: hidden; }
+        .glass { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.05); }
+        
+        /* The Overlay */
+        #comingSoonOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 100;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(20px);
         }
-        .planet-card:active { scale: 0.95; border-color: #FF6600; }
-        .search-bar { background: #0a0a0a; border: 1px solid #222; border-radius: 1.5rem; transition: all 0.3s; }
-        .search-bar:focus-within { border-color: #FF6600; box-shadow: 0 0 20px rgba(255,102,0,0.1); }
+
+        /* Glitch Text Effect */
+        .glitch {
+            font-size: 3rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            position: relative;
+            text-shadow: 0.05em 0 0 #00fffc, -0.03em -0.04em 0 #fc00ff, 0.025em 0.04em 0 #fffc00;
+            animation: glitch 725ms infinite;
+        }
+
+        @keyframes glitch {
+            0% { text-shadow: 0.05em 0 0 #00fffc, -0.03em -0.04em 0 #fc00ff, 0.025em 0.04em 0 #fffc00; }
+            15% { text-shadow: 0.05em 0 0 #00fffc, -0.03em -0.04em 0 #fc00ff, 0.025em 0.04em 0 #fffc00; }
+            16% { text-shadow: -0.05em -0.025em 0 #00fffc, 0.025em 0.035em 0 #fc00ff, -0.05em -0.05em 0 #fffc00; }
+            49% { text-shadow: -0.05em -0.025em 0 #00fffc, 0.025em 0.035em 0 #fc00ff, -0.05em -0.05em 0 #fffc00; }
+            50% { text-shadow: 0.025em 0.035em 0 #00fffc, 0.05em 0 0 #fc00ff, 0 -0.05em 0 #fffc00; }
+            99% { text-shadow: 0.025em 0.035em 0 #00fffc, 0.05em 0 0 #fc00ff, 0 -0.05em 0 #fffc00; }
+            100% { text-shadow: -0.025em 0 0 #00fffc, -0.025em -0.025em 0 #fc00ff, -0.025em -0.05em 0 #fffc00; }
+        }
+
+        /* Scanning Bar */
+        .scan-line {
+            width: 200px;
+            height: 2px;
+            background: #FF6600;
+            box-shadow: 0 0 20px #FF6600;
+            position: relative;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        .scan-progress {
+            position: absolute;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            animation: scan 2s infinite linear;
+        }
+        @keyframes scan { to { left: 100%; } }
+
+        .sector-card { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 2rem; transition: 0.3s; }
+        .sector-card:active { scale: 0.95; border-color: #FF6600; }
     </style>
 </head>
-<body class="p-6 pb-32">
+<body class="p-6">
 
-    <div class="flex justify-between items-start mb-8">
-        <div class="flex flex-col gap-4">
-            <button onclick="window.history.back()" class="w-10 h-10 glass rounded-xl flex items-center justify-center active:scale-90 transition">
-                <i data-lucide="chevron-left" class="w-5 h-5"></i>
-            </button>
-            <div>
-                <h1 class="text-3xl font-black italic tracking-tighter uppercase leading-none">THE <span class="text-[#FF6600]">GALAXY</span></h1>
-                <p class="text-[9px] font-black text-zinc-600 uppercase tracking-[0.3em] mt-1">Select your Sector</p>
-            </div>
+    <div id="comingSoonOverlay" onclick="hideOverlay()">
+        <p class="text-[#FF6600] text-[10px] font-black tracking-[0.5em] mb-2 uppercase">Protocol: Alpha</p>
+        <h1 class="glitch italic">COMING SOON</h1>
+        <div class="scan-line">
+            <div class="scan-progress"></div>
         </div>
-        <div class="w-12 h-12 bg-[#FF6600] text-black rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,102,0,0.3)]">
-            <i data-lucide="orbit" class="w-6 h-6"></i>
-        </div>
+        <p class="text-zinc-600 text-[8px] font-black tracking-[0.3em] mt-8 uppercase">Decrypting Service Modules...</p>
+        <button class="mt-12 text-white/20 text-[10px] font-black uppercase">Tap to Dismiss</button>
     </div>
 
-    <div class="search-bar p-4 mb-10 flex items-center gap-4">
-        <i data-lucide="search" class="text-zinc-600 w-5 h-5"></i>
-        <input type="text" id="planetSearch" placeholder="SEARCH UNIVERSITY SUBJECTS..." 
-               class="bg-transparent border-none outline-none w-full text-xs font-black uppercase tracking-widest placeholder:text-zinc-800"
-               onkeyup="filterPlanets()">
-    </div>
-
-    <div id="planetGrid" class="space-y-4">
+    <div class="flex flex-col gap-6">
+        <h1 class="text-3xl font-black italic uppercase tracking-tighter">SELECT <span class="text-[#FF6600]">SECTOR</span></h1>
+        
+        <div onclick="showOverlay()" class="sector-card p-6 flex items-center gap-6 cursor-pointer">
+            <div class="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(37,99,235,0.2)]">
+                💈
+            </div>
+            <div class="flex-grow">
+                <h3 class="text-xl font-black uppercase italic tracking-tighter">Fade Sector</h3>
+                <p class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Status: Initializing...</p>
+            </div>
+            <i data-lucide="lock" class="text-zinc-800"></i>
         </div>
 
-    <div class="fixed bottom-0 left-0 w-full p-6 glass border-t border-white/5 z-50">
-        <div class="flex justify-around items-center max-w-md mx-auto">
-            <div class="text-center">
-                <p class="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Total Population</p>
-                <p id="totalPop" class="text-lg font-black text-[#FF6600]">---</p>
-            </div>
-            <div class="h-8 w-[1px] bg-zinc-900"></div>
-            <div class="text-center">
-                <p class="text-[8px] font-black text-zinc-600 uppercase tracking-widest">Global Rank</p>
-                <p class="text-lg font-black italic">#01</p>
-            </div>
+        <div class="text-center mt-20 opacity-20">
+            <p class="text-[10px] font-black uppercase tracking-[1em]">Sdel v2.0</p>
         </div>
     </div>
 
     <script>
-        const CLIENT = supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+        lucide.createIcons();
 
-        // Aggressive list of university subjects
-        const SUBJECTS = [
-            { id: 'math', name: 'Calculus & Algebra', icon: '🧮', color: 'bg-blue-600' },
-            { id: 'cs', name: 'Computer Science', icon: '💻', color: 'bg-[#FF6600]' },
-            { id: 'law', name: 'Law & Jurisprudence', icon: '⚖️', color: 'bg-red-700' },
-            { id: 'med', name: 'Medicine & Surgery', icon: '🩺', color: 'bg-emerald-500' },
-            { id: 'eng', name: 'Engineering Corps', icon: '⚙️', color: 'bg-zinc-600' },
-            { id: 'art', name: 'Fine Arts & Design', icon: '🎨', color: 'bg-pink-600' },
-            { id: 'econ', name: 'Economics & Finance', icon: '📈', color: 'bg-amber-500' },
-            { id: 'psych', name: 'Psychology', icon: '🧠', color: 'bg-indigo-600' }
-        ];
-
-        function renderPlanets(list) {
-            const grid = document.getElementById('planetGrid');
-            grid.innerHTML = list.map(s => `
-                <div onclick="enterPlanet('${s.id}')" class="planet-card p-5 flex items-center gap-6 cursor-pointer">
-                    <div class="w-16 h-16 ${s.color} rounded-full flex-shrink-0 flex items-center justify-center text-2xl shadow-lg shadow-black/50">
-                        ${s.icon}
-                    </div>
-                    <div class="flex-grow">
-                        <h3 class="text-md font-black uppercase italic tracking-tighter">${s.name}</h3>
-                        <div class="flex gap-4 mt-1">
-                            <span class="text-[9px] font-black text-[#FF6600] uppercase flex items-center gap-1">
-                                <i data-lucide="users" class="w-3 h-3"></i> <span id="count-${s.id}">0</span> ONLINE
-                            </span>
-                        </div>
-                    </div>
-                    <i data-lucide="chevron-right" class="text-zinc-800"></i>
-                </div>
-            `).join('');
-            lucide.createIcons();
-            updateLiveCounts(); // Trigger presence check
+        function showOverlay() {
+            const overlay = document.getElementById('comingSoonOverlay');
+            overlay.style.display = 'flex';
         }
 
-        function filterPlanets() {
-            const query = document.getElementById('planetSearch').value.toLowerCase();
-            const filtered = SUBJECTS.filter(s => s.name.toLowerCase().includes(query) || s.id.toLowerCase().includes(query));
-            renderPlanets(filtered);
+        function hideOverlay() {
+            document.getElementById('comingSoonOverlay').style.display = 'none';
         }
-
-        async function updateLiveCounts() {
-            // Logic to fetch counts from Supabase Presence
-            // For now, we simulate the live feel with randomized active users 
-            // until the Realtime logic is connected in planet_view.html
-            let total = 0;
-            SUBJECTS.forEach(s => {
-                const fakeCount = Math.floor(Math.random() * 40) + 1;
-                const el = document.getElementById(`count-${s.id}`);
-                if(el) el.innerText = fakeCount;
-                total += fakeCount;
-            });
-            document.getElementById('totalPop').innerText = total;
-        }
-
-        function enterPlanet(id) {
-            window.location.href = `planet_view.html?topic=${id}`;
-        }
-
-        // Initial Load
-        renderPlanets(SUBJECTS);
     </script>
 </body>
 </html>
