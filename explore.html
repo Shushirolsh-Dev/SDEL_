@@ -111,7 +111,7 @@
         let startY = 0;
         let pressTimer;
 
-        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare });
+        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, banUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare });
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -173,7 +173,9 @@
                 const isReposted = myInteractions?.some(i => i.post_id === post.id && i.interaction_type === 'repost');
                 const badge = getBadgeHTML(profile.is_official, profile.is_verified);
 
-                // Original Author Details for Reposts
+                // Show School Name if in Universe Mode
+                const schoolTag = currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-600 font-bold uppercase tracking-widest">${post.school_name}</span>` : '';
+
                 let repostContext = '';
                 if(post.post_type === 'repost' && post.parent) {
                     const origProfile = post.parent.profile || {};
@@ -190,6 +192,7 @@
                             <div class="flex items-center gap-1.5 mb-0.5">
                                 <span class="text-[13px] font-black uppercase italic tracking-tighter">@${username}</span>
                                 ${badge}
+                                ${schoolTag}
                             </div>
                             <p class="gist-content text-[14px] text-zinc-200 font-medium mb-3">${formatContent(post.content)}</p>
                             <div class="flex items-center justify-between text-zinc-500 max-w-[220px]">
@@ -228,10 +231,23 @@
             pressTimer = setTimeout(() => {
                 const diff = (new Date() - new Date(createdAt)) / (1000 * 60);
                 document.getElementById('action-sheet').style.display = 'flex';
+                // Edit only if Owner AND within 20 mins
                 document.getElementById('edit-btn').style.display = (isOwner && diff < 20) ? 'flex' : 'none';
+                // Burn only if Owner or CEO
+                document.getElementById('burn-btn').style.display = (isOwner || isCEO) ? 'flex' : 'none';
+                // Ban only if CEO
+                document.getElementById('ban-btn').style.display = isCEO ? 'flex' : 'none';
+                
                 document.getElementById('edit-btn').onclick = () => openEditModal(postId, content);
                 document.getElementById('burn-btn').onclick = () => deletePost(postId);
+                document.getElementById('ban-btn').onclick = () => banUser(userId);
             }, 800);
+        }
+
+        async function banUser(userId) {
+            closeSheet();
+            const { error } = await supabase.from('profile').update({ is_banned: true }).eq('id', userId);
+            if(!error) showToast("User Banned!");
         }
 
         function openEditModal(id, oldContent) {
@@ -251,7 +267,6 @@
 
         async function deletePost(id) { 
             closeSheet(); 
-            // Deleted instantly - no alert
             const { error } = await supabase.from('posts').delete().eq('id', id);
             if(!error) { showToast("Burned!"); loadFeed(true); }
         }
@@ -278,5 +293,4 @@
         init();
     </script>
 </body>
-                                                                                                         </html>
-                                                                                                         
+</html>
