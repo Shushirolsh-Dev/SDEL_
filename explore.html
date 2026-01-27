@@ -15,6 +15,7 @@
         .bg-sdel { background-color: #FF6600; }
         .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; }
         .post-card:active { background: rgba(255, 102, 0, 0.05); }
+        /* No text selection rule */
         .gist-content { user-select: none; -webkit-user-select: none; }
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
@@ -24,10 +25,8 @@
         #pull-indicator { height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; transition: height 0.2s ease; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #FF6600; letter-spacing: 2px; }
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; box-shadow: 0 10px 30px rgba(255, 102, 0, 0.3); }
         #toast.show { transform: translateX(-50%) translateY(0); }
-        
-        /* Orange Glow & Fill for Likes */
-        .liked-glow { color: #FF6600 !important; fill: #FF6600; filter: drop-shadow(0 0 5px rgba(255, 102, 0, 0.5)); transition: all 0.2s ease; }
 
+        /* Action Sheet */
         #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: flex-end; }
         .sheet-content { background: #111; width: 100%; border-radius: 24px 24px 0 0; padding: 20px; border-top: 1px solid #222; }
     </style>
@@ -98,7 +97,7 @@
         let startY = 0;
         let pressTimer;
 
-        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, closeSheet, startPress, endPress, handleLike, updateStat, toggleBan });
+        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, closeSheet, startPress, endPress, updateStat, toggleBan });
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -133,20 +132,61 @@
             });
         }
 
-        async function handleLike(postId, currentLikes) {
-            // Check if user already liked
-            const { data: existingLike } = await supabase.from('post_likes').select('*').eq('post_id', postId).eq('user_id', userProfile.id).single();
+        function startPress(postId, userId, createdAt, isBanned) {
+            const isOwner = userProfile?.id === userId;
+            const isCEO = userProfile?.is_official === true;
+            if (!isOwner && !isCEO) return;
 
-            if (existingLike) {
-                // Unlike: Remove entry and decrement count
-                await supabase.from('post_likes').delete().eq('id', existingLike.id);
-                await supabase.from('posts').update({ likes_count: Math.max(0, currentLikes - 1) }).eq('id', postId);
-            } else {
-                // Like: Add entry and increment count
-                await supabase.from('post_likes').insert({ post_id: postId, user_id: userProfile.id });
-                await supabase.from('posts').update({ likes_count: currentLikes + 1 }).eq('id', postId);
-            }
+            pressTimer = setTimeout(() => {
+                const createdDate = new Date(createdAt);
+                const diffMinutes = (new Date() - createdDate) / 1000 / 60;
+                
+                document.getElementById('action-sheet').style.display = 'flex';
+                document.getElementById('edit-btn').style.display = (isOwner && diffMinutes < 20) ? 'flex' : 'none';
+                document.getElementById('ban-btn').style.display = isCEO ? 'flex' : 'none';
+                document.getElementById('ban-btn').innerHTML = isBanned ? '<i data-lucide="user-check" size="18"></i> Unban User' : '<i data-lucide="shield-off" size="18"></i> Ban User';
+                
+                document.getElementById('burn-btn').onclick = () => deletePost(postId);
+                document.getElementById('edit-btn').onclick = () => editPost(postId);
+                document.getElementById('ban-btn').onclick = () => toggleBan(userId, isBanned);
+                lucide.createIcons();
+            }, 800);
+        }
+
+        function endPress() { clearTimeout(pressTimer); }
+        function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
+
+        async function toggleBan(uid, currentStatus) {
+            closeSheet();
+            const { error } = await supabase.from('profile').update({ is_banned: !currentStatus }).eq('id', uid);
+            if (!error) showToast(currentStatus ? "User Unbanned" : "User Banned");
+        }
+
+        async function updateStat(postId, field) {
+            // Using direct update for simplicity, RPC is better for production
+            const { data } = await supabase.from('posts').select(field).eq('id', postId).single();
+            await supabase.from('posts').update({ [field]: (data[field] || 0) + 1 }).eq('id', postId);
             loadFeed(true);
+        }
+
+        async function publishPost() {
+            if (userProfile?.is_banned) return alert("You are banned from posting, homie.");
+            const content = document.getElementById('post-input').value.trim();
+            if (!content) return;
+            
+            const { error } = await supabase.from('posts').insert({
+                user_id: userProfile.id,
+                content: content,
+                school_name: userProfile.school_name || 'Global'
+            });
+
+            if (!error) {
+                showToast("Gist Published!");
+                document.getElementById('post-input').value = '';
+                document.getElementById('composer-actions').classList.add('hidden');
+                loadFeed();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
         }
 
         async function loadFeed(silent = false) {
@@ -156,8 +196,7 @@
                 lucide.createIcons();
             }
 
-            // Fetch posts AND user's likes for those posts
-            let query = supabase.from('posts').select('*, profile:user_id(*), post_likes(user_id)');
+            let query = supabase.from('posts').select('*, profile:user_id(*)');
 
             if (searchQuery) {
                 query = query.or(`content.ilike.%${searchQuery}%`);
@@ -168,12 +207,18 @@
             const { data: posts, error } = await query.order('created_at', { ascending: false });
             if (error) return;
 
-            container.innerHTML = posts.map(post => {
+            let displayPosts = posts;
+            if (currentMode === 'universe') {
+                displayPosts = posts.sort((a, b) => {
+                    const scoreA = (a.likes_count || 0) + (a.comments_count * 2) + (a.reposts_count * 3);
+                    const scoreB = (b.likes_count || 0) + (b.comments_count * 2) + (b.reposts_count * 3);
+                    return scoreB - scoreA;
+                });
+            }
+
+            container.innerHTML = displayPosts.map(post => {
                 const isOfficial = post.profile?.is_official;
                 const username = post.profile?.username || 'user';
-                // Check if current user is in the post_likes array
-                const hasLiked = post.post_likes?.some(like => like.user_id === userProfile.id);
-                
                 return `
                 <div class="post-card p-4" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', ${post.profile?.is_banned})" ontouchend="endPress()">
                     <div class="flex space-x-3">
@@ -185,10 +230,7 @@
                             </div>
                             <p class="gist-content text-[14px] text-zinc-200 font-medium mb-3">${formatContent(post.content)}</p>
                             <div class="flex items-center justify-between text-zinc-500 max-w-[220px]">
-                                <button onclick="handleLike('${post.id}', ${post.likes_count || 0})" class="flex items-center gap-1">
-                                    <i data-lucide="heart" size="16" class="${hasLiked ? 'liked-glow' : ''}"></i> 
-                                    <span class="text-[10px] ${hasLiked ? 'text-sdel font-bold' : ''}">${post.likes_count || 0}</span>
-                                </button>
+                                <button onclick="updateStat('${post.id}', 'likes_count')" class="flex items-center gap-1 active:text-sdel"><i data-lucide="heart" size="16"></i> <span class="text-[10px]">${post.likes_count || 0}</span></button>
                                 <button onclick="updateStat('${post.id}', 'comments_count')" class="flex items-center gap-1"><i data-lucide="message-circle" size="16"></i> <span class="text-[10px]">${post.comments_count || 0}</span></button>
                                 <button onclick="updateStat('${post.id}', 'reposts_count')" class="flex items-center gap-1"><i data-lucide="repeat" size="16"></i> <span class="text-[10px]">${post.reposts_count || 0}</span></button>
                                 <button onclick="updateStat('${post.id}', 'shares_count')"><i data-lucide="share" size="16"></i></button>
@@ -200,49 +242,55 @@
             lucide.createIcons();
         }
 
-        // Remaining logic kept exactly as provided...
-        function startPress(postId, userId, createdAt, isBanned) {
-            const isOwner = userProfile?.id === userId;
-            const isCEO = userProfile?.is_official === true;
-            if (!isOwner && !isCEO) return;
-            pressTimer = setTimeout(() => {
-                const createdDate = new Date(createdAt);
-                const diffMinutes = (new Date() - createdDate) / 1000 / 60;
-                document.getElementById('action-sheet').style.display = 'flex';
-                document.getElementById('edit-btn').style.display = (isOwner && diffMinutes < 20) ? 'flex' : 'none';
-                document.getElementById('ban-btn').style.display = isCEO ? 'flex' : 'none';
-                document.getElementById('burn-btn').onclick = () => deletePost(postId);
-                document.getElementById('edit-btn').onclick = () => editPost(postId);
-                document.getElementById('ban-btn').onclick = () => toggleBan(userId, isBanned);
-                lucide.createIcons();
-            }, 800);
+        function formatContent(text) {
+            return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>');
         }
 
-        function endPress() { clearTimeout(pressTimer); }
-        function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
-        async function updateStat(postId, field) {
-            const { data } = await supabase.from('posts').select(field).eq('id', postId).single();
-            await supabase.from('posts').update({ [field]: (data[field] || 0) + 1 }).eq('id', postId);
-            loadFeed(true);
+        async function deletePost(id) {
+            closeSheet();
+            if(confirm("Burn this gist?")) {
+                await supabase.from('posts').delete().eq('id', id);
+                loadFeed(true);
+            }
         }
-        async function publishPost() {
-            if (userProfile?.is_banned) return alert("Banned, homie.");
-            const content = document.getElementById('post-input').value.trim();
-            if (!content) return;
-            await supabase.from('posts').insert({ user_id: userProfile.id, content, school_name: userProfile.school_name || 'Global' });
-            document.getElementById('post-input').value = '';
-            document.getElementById('composer-actions').classList.add('hidden');
+
+        async function editPost(id) {
+            closeSheet();
+            const newText = prompt("Edit your gist:");
+            if (newText) {
+                await supabase.from('posts').update({ content: newText, updated_at: new Date() }).eq('id', id);
+                loadFeed(true);
+            }
+        }
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        function switchTab(mode) {
+            currentMode = mode;
+            document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
+            document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
             loadFeed();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-        async function toggleBan(uid, currentStatus) { closeSheet(); await supabase.from('profile').update({ is_banned: !currentStatus }).eq('id', uid); if (!error) showToast("Status Updated"); }
-        function formatContent(text) { return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>'); }
-        async function deletePost(id) { closeSheet(); if(confirm("Burn this?")) { await supabase.from('posts').delete().eq('id', id); loadFeed(true); } }
-        async function editPost(id) { closeSheet(); const nt = prompt("Edit:"); if (nt) { await supabase.from('posts').update({ content: nt, updated_at: new Date() }).eq('id', id); loadFeed(true); } }
-        function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
-        function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
-        function toggleActions(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
-        function toggleSearch() { document.getElementById('search-container').classList.toggle('hidden'); if(!document.getElementById('search-container').classList.contains('hidden')) document.getElementById('search-input').focus(); }
+
+        function toggleActions(el) {
+            el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+            document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
+        }
+
+        function toggleSearch() {
+            const s = document.getElementById('search-container');
+            s.classList.toggle('hidden');
+            if(!s.classList.contains('hidden')) document.getElementById('search-input').focus();
+        }
+
         function handleSearch(val) { searchQuery = val.trim(); loadFeed(); }
+
         init();
     </script>
 </body>
