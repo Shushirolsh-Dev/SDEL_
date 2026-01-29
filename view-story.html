@@ -17,15 +17,18 @@
         let progress = 0;
         let isPaused = false;
         let timer;
+        let currentUser = null;
 
-        // AGGRESSIVE EXIT: Try history first, then direct link
         window.exitViewer = () => {
-            if (window.history.length > 1) {
-                window.history.back();
-            } else {
-                window.location.replace('dashboard.html');
-            }
+            if (window.history.length > 1) window.history.back();
+            else window.location.replace('dashboard.html');
         };
+
+        async function init() {
+            const { data: { user } } = await supabase.auth.getUser();
+            currentUser = user;
+            loadStorySequence();
+        }
 
         async function loadStorySequence() {
             const params = new URLSearchParams(window.location.search);
@@ -46,6 +49,13 @@
             currentIndex = stories.findIndex(s => s.id === initialId);
             if (currentIndex === -1) currentIndex = 0;
             
+            // Logic to hide reply section if official
+            if (profile?.is_official || stories[currentIndex].is_official_post) {
+                document.getElementById('reply-section-container').classList.add('hidden');
+            } else {
+                document.getElementById('reply-section-container').classList.remove('hidden');
+            }
+
             renderStory();
         }
 
@@ -61,10 +71,9 @@
             document.getElementById('loading-spinner').classList.remove('hidden');
             img.src = story.media_url;
 
-            // Display Name
-            const profileName = story.is_official_post ? "SDEL OFFICIAL" : "MEMBER";
-            document.getElementById('author-name').innerText = profileName;
+            document.getElementById('author-name').innerText = story.is_official_post ? "SDEL OFFICIAL" : "MEMBER";
 
+            // Strict height control for long text
             if (story.caption && story.caption.trim() !== "") {
                 captionBox.innerText = story.caption;
                 captionContainer.classList.remove('hidden');
@@ -72,9 +81,7 @@
                 captionContainer.classList.add('hidden');
             }
             
-            // AGGRESSIVE TIMER: Don't wait for image load to start the 8s countdown
             startTimer();
-
             img.onload = () => document.getElementById('loading-spinner').classList.add('hidden');
             lucide.createIcons();
         }
@@ -83,7 +90,7 @@
             clearInterval(timer);
             timer = setInterval(() => {
                 if (!isPaused) {
-                    progress += 1.25; // Optimized for 8 seconds at 100ms intervals
+                    progress += 1.25; 
                     document.getElementById('progress-fill').style.width = Math.min(progress, 100) + '%';
                     if (progress >= 100) {
                         clearInterval(timer);
@@ -92,6 +99,34 @@
                 }
             }, 100); 
         }
+
+        window.sendReply = async () => {
+            const input = document.getElementById('reply-input');
+            const text = input.value.trim();
+            if (!text || !currentUser) return;
+
+            const story = allUserStories[currentIndex];
+            const storyLink = window.location.href;
+            const fullMessage = `${text}\n\n[Replied to story: ${storyLink}]`;
+
+            // Pausing for the send process
+            isPaused = true;
+
+            const { error } = await supabase.from('messages').insert([
+                { 
+                    sender_id: currentUser.id, 
+                    receiver_id: story.author_id, 
+                    content: fullMessage 
+                }
+            ]);
+
+            if (!error) {
+                window.location.href = `dm.html?id=${story.author_id}`;
+            } else {
+                isPaused = false;
+                alert("Failed to send. Try again.");
+            }
+        };
 
         window.togglePause = (e, manualState) => {
             if(e) e.stopPropagation();
@@ -121,7 +156,7 @@
             }
         };
 
-        loadStorySequence();
+        init();
     </script>
 
     <style>
@@ -129,6 +164,8 @@
         .glass-nav { background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%); }
         .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.9); }
         .custom-scrollbar::-webkit-scrollbar { width: 0px; }
+        /* Prevent long captions from covering screen */
+        #caption-container { max-height: 15vh; overflow-y: auto; }
     </style>
 </head>
 <body class="h-screen w-full flex flex-col bg-black text-white overflow-hidden select-none">
@@ -155,13 +192,17 @@
     </div>
 
     <div class="fixed bottom-0 inset-x-0 z-50 bg-gradient-to-t from-black via-black/80 to-transparent pb-10 pt-24 px-6">
-        <div id="caption-container" class="mb-6 hidden max-h-[100px] overflow-y-auto custom-scrollbar px-2">
+        <div id="caption-container" class="mb-6 hidden px-2 custom-scrollbar">
             <p id="story-caption" class="text-[14px] font-semibold text-white text-center text-shadow leading-relaxed"></p>
         </div>
 
-        <div id="reply-section" class="flex items-center space-x-3">
-            <input type="text" placeholder="Reply to gist..." class="flex-1 bg-white/10 backdrop-blur-md rounded-full px-5 py-3 border border-white/10 text-[13px] outline-none">
-            <button class="w-12 h-12 flex items-center justify-center bg-white rounded-full"><i data-lucide="heart" class="text-black fill-black" size="20"></i></button>
+        <div id="reply-section-container" class="flex items-center space-x-3">
+            <input id="reply-input" type="text" placeholder="Reply to gist..." 
+                   class="flex-1 bg-white/10 backdrop-blur-md rounded-full px-5 py-3 border border-white/10 text-[13px] outline-none"
+                   onfocus="togglePause(null, true)" onblur="togglePause(null, false)">
+            <button onclick="window.sendReply()" class="w-12 h-12 flex items-center justify-center bg-white rounded-full active:scale-90 transition">
+                <i data-lucide="send" class="text-black ml-1" size="20"></i>
+            </button>
         </div>
     </div>
 
