@@ -53,16 +53,17 @@
             const story = allUserStories[currentIndex];
             const img = document.getElementById('story-img');
             const captionBox = document.getElementById('story-caption');
+            const captionContainer = document.getElementById('caption-container');
             
             document.getElementById('loading-spinner').classList.remove('hidden');
             img.src = story.media_url;
 
-            // Updated to use the 'caption' column from your upload file
             if (story.caption && story.caption.trim() !== "") {
                 captionBox.innerText = story.caption;
-                captionBox.parentElement.classList.remove('hidden');
+                captionContainer.classList.remove('hidden');
+                captionContainer.scrollTop = 0; // Reset scroll for new story
             } else {
-                captionBox.parentElement.classList.add('hidden');
+                captionContainer.classList.add('hidden');
             }
             
             const icon = document.getElementById('pause-icon');
@@ -77,18 +78,19 @@
 
         function startTimer() {
             clearInterval(timer);
+            // 8 seconds total = 80ms per 1% step
             timer = setInterval(() => {
                 if (!isPaused) {
                     progress += 1;
                     document.getElementById('progress-fill').style.width = progress + '%';
                     if (progress >= 100) nextStory();
                 }
-            }, 50); 
+            }, 80); 
         }
 
-        window.togglePause = (e) => {
+        window.togglePause = (e, manualState) => {
             if(e) e.stopPropagation();
-            isPaused = !isPaused;
+            isPaused = manualState !== undefined ? manualState : !isPaused;
             const icon = document.getElementById('pause-icon');
             icon.setAttribute('data-lucide', isPaused ? 'play' : 'pause');
             lucide.createIcons();
@@ -117,24 +119,28 @@
 
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .glass-input { background: rgba(255,255,255,0.1); backdrop-blur: 15px; border: 1px solid rgba(255,255,255,0.2); }
-        .text-shadow { text-shadow: 0 2px 8px rgba(0,0,0,0.9); }
+        .glass-nav { background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%); }
+        .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.9); }
+        
+        /* Custom scrollbar for long captions */
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
     </style>
 </head>
 <body class="h-screen w-full flex flex-col bg-black text-white overflow-hidden select-none">
 
-    <div class="fixed top-0 inset-x-0 p-4 z-50 bg-gradient-to-b from-black/80 to-transparent">
-        <div class="h-1 w-full bg-white/20 rounded-full overflow-hidden">
+    <div class="fixed top-0 inset-x-0 z-50 glass-nav pt-4 pb-12 px-4 pointer-events-none">
+        <div class="h-1 w-full bg-white/20 rounded-full overflow-hidden mb-3 pointer-events-auto">
             <div id="progress-fill" class="h-full bg-white w-0 transition-all duration-75 linear"></div>
         </div>
         
-        <div class="flex justify-between items-center mt-4 px-2">
+        <div class="flex justify-between items-center pointer-events-auto">
             <div class="flex items-center space-x-3">
-                <p id="author-name" class="font-black text-[10px] uppercase tracking-[0.2em]">Loading...</p>
+                <p id="author-name" class="font-black text-[11px] uppercase tracking-[0.2em] text-shadow">Loading...</p>
             </div>
-            <div class="flex items-center space-x-6">
+            <div class="flex items-center space-x-5">
                 <button onclick="togglePause(event)"><i id="pause-icon" data-lucide="pause" size="18"></i></button>
-                <i data-lucide="x" size="22" onclick="window.location.href='dashboard.html'" class="cursor-pointer"></i>
+                <i data-lucide="x" size="24" onclick="window.location.href='dashboard.html'" class="cursor-pointer active:scale-75 transition"></i>
             </div>
         </div>
     </div>
@@ -144,15 +150,21 @@
             <div class="w-10 h-10 border-[3px] border-white/10 border-t-white rounded-full animate-spin"></div>
         </div>
         <img id="story-img" class="max-h-screen w-full object-contain pointer-events-none">
-
-        <div class="absolute bottom-32 inset-x-0 px-8 py-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent text-center">
-            <p id="story-caption" class="text-[15px] font-bold text-white text-shadow leading-relaxed"></p>
-        </div>
     </div>
 
-    <div id="reply-section" class="fixed bottom-0 inset-x-0 p-6 pb-10 bg-black/60 backdrop-blur-md">
-        <div class="flex items-center space-x-3">
-            <div class="flex-1 glass-input rounded-full px-5 py-3 flex items-center">
+    <div class="fixed bottom-0 inset-x-0 z-50 bg-gradient-to-t from-black/95 via-black/70 to-transparent pb-10 pt-24 px-6">
+        
+        <div id="caption-container" 
+             class="mb-6 hidden max-h-[120px] overflow-y-auto custom-scrollbar px-2"
+             onmouseenter="togglePause(null, true)" 
+             onmouseleave="togglePause(null, false)"
+             ontouchstart="togglePause(null, true)"
+             ontouchend="togglePause(null, false)">
+            <p id="story-caption" class="text-[14px] font-semibold text-white text-center text-shadow leading-relaxed"></p>
+        </div>
+
+        <div id="reply-section" class="flex items-center space-x-3">
+            <div class="flex-1 bg-white/10 backdrop-blur-md rounded-full px-5 py-3 flex items-center border border-white/10">
                 <input type="text" placeholder="Reply to gist..." class="bg-transparent border-none outline-none text-[13px] w-full placeholder:text-white/40 font-medium">
             </div>
             <button class="w-11 h-11 flex items-center justify-center bg-white rounded-full active:scale-90 transition">
