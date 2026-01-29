@@ -99,9 +99,9 @@
         </div>
         <i data-lucide="shopping-cart" class="text-white/60" size="28" onclick="location.href='market.html'"></i>
         <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
-    </nav>
-
-    <script type="module">
+    </nav> 
+        
+            <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
@@ -159,7 +159,15 @@
             const container = document.getElementById('feed-container');
             if (!silent && container.innerHTML === "") container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
 
-            let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified, is_banned), parent:parent_id(user_id, profile:user_id(username, is_official, is_verified))').order('created_at', { ascending: false });
+            // --- SURGICAL EDIT: 24-HOUR FILTER ---
+            const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            
+            let query = supabase.from('posts')
+                .select('*, profile:user_id(username, is_official, is_verified, is_banned), parent:parent_id(user_id, profile:user_id(username, is_official, is_verified))')
+                .gte('created_at', cutoff) // Only show posts created in the last 24 hours
+                .order('created_at', { ascending: false });
+            // --- END OF EDIT ---
+
             if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
             const { data: posts, error } = await query;
             if (error) return;
@@ -234,7 +242,6 @@
                 document.getElementById('edit-btn').style.display = (isOwner && diff < 20) ? 'flex' : 'none';
                 document.getElementById('burn-btn').style.display = (isOwner || isCEO) ? 'flex' : 'none';
                 
-                // Show Ban button only for CEO and ONLY if target is NOT the CEO themselves
                 if (isCEO && !isOwner) {
                     banBtn.style.display = 'flex';
                     banBtn.querySelector('span').innerText = targetIsBanned ? "Unban User (CEO)" : "Ban User (CEO)";
@@ -298,6 +305,7 @@
         }
 
         init();
-    </script>
+                                                                  </script>
+    
 </body>
 </html>
