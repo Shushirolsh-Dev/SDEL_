@@ -18,12 +18,21 @@
         let isPaused = false;
         let timer;
 
+        // AGGRESSIVE EXIT: Try history first, then direct link
+        window.exitViewer = () => {
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.replace('dashboard.html');
+            }
+        };
+
         async function loadStorySequence() {
             const params = new URLSearchParams(window.location.search);
             const initialId = params.get('id');
             
             const { data: first } = await supabase.from('stories').select('author_id').eq('id', initialId).single();
-            if (!first) return window.location.href = 'dashboard.html';
+            if (!first) return window.exitViewer();
 
             const { data: stories } = await supabase.from('stories')
                 .select('*')
@@ -37,17 +46,11 @@
             currentIndex = stories.findIndex(s => s.id === initialId);
             if (currentIndex === -1) currentIndex = 0;
             
-            const isSdel = stories[currentIndex].is_official_post || profile?.is_official;
-            document.getElementById('author-name').innerText = isSdel ? "SDEL OFFICIAL" : (profile?.first_name || "MEMBER");
-            
-            if (isSdel) {
-                document.getElementById('author-name').classList.add('text-yellow-400');
-                document.getElementById('reply-section').style.display = 'none';
-            }
             renderStory();
         }
 
         function renderStory() {
+            clearInterval(timer); 
             isPaused = false;
             progress = 0;
             const story = allUserStories[currentIndex];
@@ -58,34 +61,36 @@
             document.getElementById('loading-spinner').classList.remove('hidden');
             img.src = story.media_url;
 
+            // Display Name
+            const profileName = story.is_official_post ? "SDEL OFFICIAL" : "MEMBER";
+            document.getElementById('author-name').innerText = profileName;
+
             if (story.caption && story.caption.trim() !== "") {
                 captionBox.innerText = story.caption;
                 captionContainer.classList.remove('hidden');
-                captionContainer.scrollTop = 0; // Reset scroll for new story
             } else {
                 captionContainer.classList.add('hidden');
             }
             
-            const icon = document.getElementById('pause-icon');
-            icon.setAttribute('data-lucide', 'pause');
+            // AGGRESSIVE TIMER: Don't wait for image load to start the 8s countdown
+            startTimer();
+
+            img.onload = () => document.getElementById('loading-spinner').classList.add('hidden');
             lucide.createIcons();
-            
-            img.onload = () => {
-                document.getElementById('loading-spinner').classList.add('hidden');
-                startTimer();
-            };
         }
 
         function startTimer() {
             clearInterval(timer);
-            // 8 seconds total = 80ms per 1% step
             timer = setInterval(() => {
                 if (!isPaused) {
-                    progress += 1;
-                    document.getElementById('progress-fill').style.width = progress + '%';
-                    if (progress >= 100) nextStory();
+                    progress += 1.25; // Optimized for 8 seconds at 100ms intervals
+                    document.getElementById('progress-fill').style.width = Math.min(progress, 100) + '%';
+                    if (progress >= 100) {
+                        clearInterval(timer);
+                        nextStory();
+                    }
                 }
-            }, 80); 
+            }, 100); 
         }
 
         window.togglePause = (e, manualState) => {
@@ -101,7 +106,7 @@
                 currentIndex++;
                 renderStory();
             } else { 
-                window.location.href = 'dashboard.html'; 
+                window.exitViewer(); 
             }
         };
 
@@ -110,8 +115,10 @@
             const width = window.innerWidth;
             if (x < width / 3) {
                 if (currentIndex > 0) { currentIndex--; renderStory(); }
-                else { window.location.href = 'dashboard.html'; }
-            } else { nextStory(); }
+                else { window.exitViewer(); }
+            } else { 
+                nextStory(); 
+            }
         };
 
         loadStorySequence();
@@ -121,26 +128,21 @@
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
         .glass-nav { background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, transparent 100%); }
         .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.9); }
-        
-        /* Custom scrollbar for long captions */
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 0px; }
     </style>
 </head>
 <body class="h-screen w-full flex flex-col bg-black text-white overflow-hidden select-none">
 
     <div class="fixed top-0 inset-x-0 z-50 glass-nav pt-4 pb-12 px-4 pointer-events-none">
-        <div class="h-1 w-full bg-white/20 rounded-full overflow-hidden mb-3 pointer-events-auto">
-            <div id="progress-fill" class="h-full bg-white w-0 transition-all duration-75 linear"></div>
+        <div class="h-1.5 w-full bg-white/20 rounded-full overflow-hidden mb-4 pointer-events-auto">
+            <div id="progress-fill" class="h-full bg-white w-0 transition-all duration-100 linear"></div>
         </div>
         
         <div class="flex justify-between items-center pointer-events-auto">
-            <div class="flex items-center space-x-3">
-                <p id="author-name" class="font-black text-[11px] uppercase tracking-[0.2em] text-shadow">Loading...</p>
-            </div>
-            <div class="flex items-center space-x-5">
-                <button onclick="togglePause(event)"><i id="pause-icon" data-lucide="pause" size="18"></i></button>
-                <i data-lucide="x" size="24" onclick="window.location.href='dashboard.html'" class="cursor-pointer active:scale-75 transition"></i>
+            <p id="author-name" class="font-black text-[12px] uppercase tracking-[0.2em] text-shadow">Loading...</p>
+            <div class="flex items-center space-x-6">
+                <button onclick="togglePause(event)"><i id="pause-icon" data-lucide="pause" size="20"></i></button>
+                <button onclick="window.exitViewer()"><i data-lucide="x" size="28"></i></button>
             </div>
         </div>
     </div>
@@ -152,24 +154,14 @@
         <img id="story-img" class="max-h-screen w-full object-contain pointer-events-none">
     </div>
 
-    <div class="fixed bottom-0 inset-x-0 z-50 bg-gradient-to-t from-black/95 via-black/70 to-transparent pb-10 pt-24 px-6">
-        
-        <div id="caption-container" 
-             class="mb-6 hidden max-h-[120px] overflow-y-auto custom-scrollbar px-2"
-             onmouseenter="togglePause(null, true)" 
-             onmouseleave="togglePause(null, false)"
-             ontouchstart="togglePause(null, true)"
-             ontouchend="togglePause(null, false)">
+    <div class="fixed bottom-0 inset-x-0 z-50 bg-gradient-to-t from-black via-black/80 to-transparent pb-10 pt-24 px-6">
+        <div id="caption-container" class="mb-6 hidden max-h-[100px] overflow-y-auto custom-scrollbar px-2">
             <p id="story-caption" class="text-[14px] font-semibold text-white text-center text-shadow leading-relaxed"></p>
         </div>
 
         <div id="reply-section" class="flex items-center space-x-3">
-            <div class="flex-1 bg-white/10 backdrop-blur-md rounded-full px-5 py-3 flex items-center border border-white/10">
-                <input type="text" placeholder="Reply to gist..." class="bg-transparent border-none outline-none text-[13px] w-full placeholder:text-white/40 font-medium">
-            </div>
-            <button class="w-11 h-11 flex items-center justify-center bg-white rounded-full active:scale-90 transition">
-                <i data-lucide="heart" class="text-black fill-black" size="18"></i>
-            </button>
+            <input type="text" placeholder="Reply to gist..." class="flex-1 bg-white/10 backdrop-blur-md rounded-full px-5 py-3 border border-white/10 text-[13px] outline-none">
+            <button class="w-12 h-12 flex items-center justify-center bg-white rounded-full"><i data-lucide="heart" class="text-black fill-black" size="20"></i></button>
         </div>
     </div>
 
