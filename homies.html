@@ -25,6 +25,10 @@
         .dropdown-menu.active { display: block; }
         .menu-item { padding: 12px 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.05); }
         .menu-item:last-child { border-bottom: none; }
+
+        /* Sdel Custom Alert Styles */
+        #sdel-alert { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
+        .alert-box { background: #111; border: 1px solid rgba(255,102,0,0.3); border-radius: 24px; width: 100%; max-width: 320px; padding: 30px; text-align: center; }
     </style>
 
     <script type="module">
@@ -35,6 +39,30 @@
         let activeTab = 'general';
         let allConnections = [];
         let restrictions = [];
+
+        // Custom Alert Engine
+        window.showAlert = (msg, type = 'alert', onConfirm = null) => {
+            const container = document.getElementById('sdel-alert');
+            const messageEl = document.getElementById('alert-message');
+            const actionsEl = document.getElementById('alert-actions');
+            
+            messageEl.innerText = msg;
+            actionsEl.innerHTML = '';
+
+            if (type === 'confirm') {
+                actionsEl.innerHTML = `
+                    <button onclick="document.getElementById('sdel-alert').style.display='none'" class="flex-1 py-3 text-[10px] font-black uppercase text-zinc-500">Cancel</button>
+                    <button id="alert-confirm-btn" class="flex-1 py-3 bg-sdel text-black rounded-xl text-[10px] font-black uppercase">Confirm</button>
+                `;
+                document.getElementById('alert-confirm-btn').onclick = () => {
+                    container.style.display = 'none';
+                    if (onConfirm) onConfirm();
+                };
+            } else {
+                actionsEl.innerHTML = `<button onclick="document.getElementById('sdel-alert').style.display='none'" class="w-full py-3 bg-sdel text-black rounded-xl text-[10px] font-black uppercase">Understood</button>`;
+            }
+            container.style.display = 'flex';
+        };
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -92,7 +120,6 @@
 
                 const activeChats = chatData.filter(c => {
                     if (activeTab === 'unread') return c.unreadCount > 0;
-                    // Modified logic: Show if there's a message OR if they are newly accepted friends
                     return c.lastMsg !== null || activeTab === 'general';
                 });
 
@@ -132,7 +159,6 @@
                     btn = `<span class="text-[9px] font-black text-zinc-500 uppercase">Sent</span>`;
                 } else if (rel?.status === 'accepted') {
                     btn = `<span class="text-[9px] font-black text-sdel uppercase">Homie</span>`;
-                    // If they are a homie, clicking the row opens the chat
                     action = `onclick="openChat('${u.id}', false)"`;
                 }
                 
@@ -154,7 +180,6 @@
         window.handleRequest = async (connectionId, status) => {
             if (status === 'accepted') {
                 await supabase.from('connections').update({ status: 'accepted' }).eq('id', connectionId);
-                // Automatically open chat list in general tab
                 switchTab('general');
             } else {
                 await supabase.from('connections').delete().eq('id', connectionId);
@@ -163,20 +188,21 @@
         };
 
         window.clearChatLocal = async (partnerId) => {
-            if(!confirm("Clear this conversation?")) return;
-            await supabase.from('dm_table').delete().or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${currentUserId})`);
-            loadContent();
+            window.showAlert("Clear this entire conversation?", 'confirm', async () => {
+                await supabase.from('dm_table').delete().or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${currentUserId})`);
+                loadContent();
+            });
         };
 
         window.handleRestriction = async (partnerId, isRestricted, isOfficial) => {
-            if (isOfficial) { alert("OFFICIAL ACCOUNT: Protected."); return; }
+            if (isOfficial) { window.showAlert("OFFICIAL ACCOUNT: Protected access."); return; }
             if (isRestricted) await supabase.from('user_limits').delete().eq('actor_id', currentUserId).eq('target_id', partnerId);
             else await supabase.from('user_limits').insert({ actor_id: currentUserId, target_id: partnerId });
             loadContent();
         };
 
         window.openChat = (partnerId, isRestricted) => {
-            if (isRestricted) { alert("CHAT LOCKED: Restricted access."); return; }
+            if (isRestricted) { window.showAlert("CHAT LOCKED: Restricted access."); return; }
             location.href = `dm.html?id=${partnerId}`;
         };
 
@@ -259,6 +285,16 @@
     </script>
 </head>
 <body class="pb-24">
+    <div id="sdel-alert">
+        <div class="alert-box">
+            <div class="w-12 h-12 bg-sdel/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="bell" class="text-sdel"></i>
+            </div>
+            <p id="alert-message" class="text-xs font-bold uppercase leading-relaxed text-zinc-400 mb-8"></p>
+            <div id="alert-actions" class="flex space-x-4"></div>
+        </div>
+    </div>
+
     <nav class="p-6 flex justify-between items-center sticky top-0 bg-black/95 z-50">
         <h1 class="header-text text-2xl italic uppercase">Homies</h1>
         <i data-lucide="refresh-cw" class="text-zinc-500 rotate-icon" size="24" onclick="location.reload()"></i>
