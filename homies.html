@@ -10,16 +10,8 @@
     
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        body { 
-            background-color: #000; 
-            color: #fff; 
-            overflow-x: hidden; 
-            width: 100vw; 
-            height: 100%;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-        input, textarea { user-select: text; -webkit-user-select: text; }
+        body { background-color: #000; color: #fff; overflow-x: hidden; width: 100vw; height: 100%; -webkit-user-select: none; user-select: none; }
+        input { user-select: text; -webkit-user-select: text; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .header-text { font-weight: 800; letter-spacing: -0.01em; }
@@ -28,6 +20,11 @@
         .tab-badge { background: #FF6600; color: black; font-size: 8px; padding: 1px 5px; border-radius: 4px; margin-left: 4px; vertical-align: middle; display: none; }
         @keyframes full-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .rotate-icon { animation: full-rotate 4s linear infinite; }
+        
+        .dropdown-menu { display: none; position: absolute; right: 20px; background: #111; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .dropdown-menu.active { display: block; }
+        .menu-item { padding: 12px 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .menu-item:last-child { border-bottom: none; }
     </style>
 
     <script type="module">
@@ -36,57 +33,41 @@
 
         let currentUserId = null;
         let activeTab = 'general';
-        const tabs = ['general', 'requests', 'unread'];
         let allConnections = [];
-        let touchstartX = 0;
-        let touchendX = 0;
+        let blockedUsers = [];
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.href = 'login.html';
             currentUserId = session.user.id;
             
-            supabase.channel('homies-global-updates')
+            supabase.channel('homies-sync')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => updateBadges().then(loadContent))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => updateBadges().then(loadContent))
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'blocks' }, () => loadContent())
                 .subscribe();
 
             updateBadges();
             switchTab('general');
-            
-            document.addEventListener('touchstart', e => touchstartX = e.changedTouches[0].screenX);
-            document.addEventListener('touchend', e => {
-                touchendX = e.changedTouches[0].screenX;
-                handleSwipe();
-            });
-            lucide.createIcons();
         }
 
         async function updateBadges() {
-            const { count: unreadCount } = await supabase.from('dm_table')
-                .select('*', { count: 'exact', head: true })
-                .eq('receiver_id', currentUserId)
-                .eq('is_read', false);
+            const { count: unreadCount } = await supabase.from('dm_table').select('*', { count: 'exact', head: true }).eq('receiver_id', currentUserId).eq('is_read', false);
+            const { count: reqCount } = await supabase.from('connections').select('*', { count: 'exact', head: true }).eq('receiver_id', currentUserId).eq('status', 'pending');
             
-            const unreadBadge = document.getElementById('unread-count-badge');
-            if (unreadCount > 0) {
-                unreadBadge.innerText = unreadCount > 9 ? '9+' : unreadCount;
-                unreadBadge.style.display = 'inline-block';
-            } else { unreadBadge.style.display = 'none'; }
+            const ub = document.getElementById('unread-count-badge');
+            ub.innerText = unreadCount > 9 ? '9+' : unreadCount;
+            ub.style.display = unreadCount > 0 ? 'inline-block' : 'none';
 
-            const { count: reqCount } = await supabase.from('connections')
-                .select('*', { count: 'exact', head: true })
-                .eq('receiver_id', currentUserId)
-                .eq('status', 'pending');
-
-            const reqBadge = document.getElementById('req-count-badge');
-            if (reqCount > 0) {
-                reqBadge.innerText = reqCount;
-                reqBadge.style.display = 'inline-block';
-            } else { reqBadge.style.display = 'none'; }
+            const rb = document.getElementById('req-count-badge');
+            rb.innerText = reqCount;
+            rb.style.display = reqCount > 0 ? 'inline-block' : 'none';
         }
 
         async function loadContent() {
+            const { data: blocks } = await supabase.from('blocks').select('*').or(`blocker_id.eq.${currentUserId},blocked_id.eq.${currentUserId}`);
+            blockedUsers = blocks || [];
+
             if (activeTab === 'general' || activeTab === 'unread') {
                 const { data: connections } = await supabase.from('connections')
                     .select('*, sender:profile!sender_id(*), receiver:profile!receiver_id(*)')
@@ -98,194 +79,181 @@
                 const chatData = await Promise.all(connections.map(async (c) => {
                     const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
                     const { data: lastMsg } = await supabase.from('dm_table')
-                        .select('*')
-                        .or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partner.id}),and(sender_id.eq.${partner.id},receiver_id.eq.${currentUserId})`)
+                        .select('*').or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partner.id}),and(sender_id.eq.${partner.id},receiver_id.eq.${currentUserId})`)
                         .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
-                    const { count: unreadCount } = await supabase.from('dm_table')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('sender_id', partner.id).eq('receiver_id', currentUserId).eq('is_read', false);
+                    const { count: unread } = await supabase.from('dm_table').select('*', { count: 'exact', head: true }).eq('sender_id', partner.id).eq('receiver_id', currentUserId).eq('is_read', false);
 
-                    return { ...c, partner, lastMsg, unreadCount: unreadCount || 0 };
+                    const isBlocked = blockedUsers.some(b => (b.blocker_id === currentUserId && b.blocked_id === partner.id) || (b.blocker_id === partner.id && b.blocked_id === currentUserId));
+                    const amIBlocker = blockedUsers.some(b => b.blocker_id === currentUserId && b.blocked_id === partner.id);
+
+                    return { ...c, partner, lastMsg, unreadCount: unread || 0, isBlocked, amIBlocker };
                 }));
 
                 chatData.sort((a, b) => (new Date(b.lastMsg?.created_at || 0)) - (new Date(a.lastMsg?.created_at || 0)));
                 allConnections = chatData;
-                renderChats(activeTab === 'unread' ? allConnections.filter(c => c.unreadCount > 0) : allConnections, activeTab === 'unread');
+                renderChats(activeTab === 'unread' ? allConnections.filter(c => c.unreadCount > 0) : allConnections);
             } else if (activeTab === 'requests') {
                 const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
                 renderRequests(data);
             }
         }
 
-        window.switchTab = (tab) => {
-            activeTab = tab;
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
-            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+        window.searchMaster = (val) => {
+            if (activeTab !== 'general') return;
+            const trigger = document.getElementById('public-search-trigger');
             
-            // Strictly clear search when switching tabs
-            document.getElementById('search-input').value = '';
-            document.getElementById('public-search-trigger').classList.add('hidden');
+            if (val.length < 1) { 
+                trigger.classList.add('hidden'); 
+                renderChats(allConnections); 
+                return; 
+            }
             
-            loadContent();
-        };
+            trigger.classList.remove('hidden');
 
-        window.sendHomieReq = async (id) => { 
-            const { error } = await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' }); 
-            if (!error) { 
-                await updateBadges(); 
-                searchPublic(); 
+            const filtered = allConnections.filter(c => 
+                `${c.partner.first_name} ${c.partner.last_name} ${c.partner.username}`.toLowerCase().includes(val.toLowerCase())
+            );
+
+            if (filtered.length > 0) { renderChats(filtered); } 
+            else { 
+                document.getElementById('main-content').innerHTML = `<div class="p-10 text-center text-zinc-600 text-[10px] font-black uppercase">No Homies match. Try Global Search.</div>`; 
             }
         };
 
-        window.respond = async (id, status) => { 
-            await supabase.from('connections').update({ status }).eq('id', id); 
-            await updateBadges();
-            loadContent(); 
-        };
-
         window.searchPublic = async () => {
-            if (activeTab !== 'general') return; // Strictly General Tab only
-            
             const val = document.getElementById('search-input').value;
             const container = document.getElementById('main-content');
-            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-sm font-black uppercase">Searching Global Sdel...</p>`;
+            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-[10px] font-black uppercase">Scanning Sdel Grid...</p>`;
             
-            const { data: users } = await supabase.from('profile').select('*').neq('id', currentUserId).or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`).limit(15);
+            const { data: users } = await supabase.from('profile').select('*').neq('id', currentUserId)
+                .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`).limit(15);
             
-            if (!users || users.length === 0) { 
-                container.innerHTML = `<div class="p-10 text-center text-zinc-500 uppercase font-black text-sm">No Global Results</div>`; 
+            if (!users?.length) { 
+                container.innerHTML = `<div class="p-10 text-center text-zinc-500 font-black text-[10px] uppercase">No Grid Results</div>`; 
                 return; 
             }
 
             const { data: conn } = await supabase.from('connections').select('*').or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
 
             container.innerHTML = users.map(u => {
-                const relationship = conn ? conn.find(c => c.sender_id === u.id || c.receiver_id === u.id) : null;
-                let btnHtml = `<button onclick="sendHomieReq('${u.id}')" class="bg-white text-black text-[11px] font-black px-5 py-2 rounded-full active:scale-90 transition uppercase">Add</button>`;
-                
-                if (relationship) {
-                    if (relationship.status === 'pending') btnHtml = `<span class="text-[10px] font-black text-zinc-500 uppercase tracking-tighter">Sent</span>`;
-                    if (relationship.status === 'accepted') btnHtml = `<span class="text-[10px] font-black text-sdel uppercase tracking-tighter">Homie</span>`;
-                    // If rejected, your SQL trigger deletes the row, so relationship becomes null and 'Add' returns automatically on next search.
-                }
+                const rel = conn?.find(c => c.sender_id === u.id || c.receiver_id === u.id);
+                let btn = `<button onclick="sendRequest('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full uppercase">Add</button>`;
+                if (rel?.status === 'pending') btn = `<span class="text-[9px] font-black text-zinc-500 uppercase">Sent</span>`;
+                if (rel?.status === 'accepted') btn = `<span class="text-[9px] font-black text-sdel uppercase">Homie</span>`;
                 
                 return `<div class="flex justify-between items-center p-5 border-b border-white/5">
                     <div class="flex items-center space-x-4">
-                        <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel font-black text-lg">${u.first_name[0]}</div>
-                        <div>
-                            <p class="text-sm font-bold text-white">${u.first_name} ${u.last_name}</p>
-                            <p class="text-xs text-zinc-500 mt-0.5">@${u.username}</p>
-                        </div>
+                        <div class="w-11 h-11 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel font-black">${u.first_name[0]}</div>
+                        <div><p class="text-sm font-bold text-white uppercase">${u.first_name} ${u.last_name}</p><p class="text-[10px] text-zinc-500 font-medium">@${u.username}</p></div>
                     </div>
-                    ${btnHtml}
+                    ${btn}
                 </div>`;
             }).join('');
         };
 
-        window.searchMaster = (val) => {
-            if (activeTab !== 'general') return; // Strictly General Tab only
-            
-            const trigger = document.getElementById('public-search-trigger');
-            if (val.length < 1) { trigger.classList.add('hidden'); renderChats(allConnections); return; }
-            
-            const filtered = allConnections.filter(c => `${c.partner.first_name} ${c.partner.last_name} ${c.partner.username}`.toLowerCase().includes(val.toLowerCase()));
-            if (filtered.length > 0) { renderChats(filtered); trigger.classList.add('hidden'); }
-            else { 
-                document.getElementById('main-content').innerHTML = `<div class="p-10 text-center"><p class="text-zinc-500 text-sm uppercase font-black">Homie not found</p></div>`; 
-                trigger.classList.remove('hidden'); 
-            }
+        window.sendRequest = async (id) => {
+            await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' });
+            loadContent();
         };
 
-        function handleSwipe() {
-            const threshold = 100;
-            let currentIndex = tabs.indexOf(activeTab);
-            if (touchendX < touchstartX - threshold && currentIndex < tabs.length - 1) switchTab(tabs[currentIndex + 1]);
-            if (touchendX > touchstartX + threshold && currentIndex > 0) switchTab(tabs[currentIndex - 1]);
-        }
-        window.openChat = async (partnerId, element) => { location.href = `dm.html?id=${partnerId}`; };
-        
-        function renderChats(connections, isUnreadTab = false) {
+        window.clearChatLocal = async (partnerId) => {
+            if(!confirm("Clear this conversation?")) return;
+            await supabase.from('connections').delete().or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${currentUserId})`);
+            loadContent();
+        };
+
+        window.handleBlock = async (partnerId, isBlocked, isOfficial) => {
+            if (isOfficial) { alert("OFFICIAL ACCOUNT: Cannot be blocked."); return; }
+            if (isBlocked) await supabase.from('blocks').delete().eq('blocker_id', currentUserId).eq('blocked_id', partnerId);
+            else await supabase.from('blocks').insert({ blocker_id: currentUserId, blocked_id: partnerId });
+            loadContent();
+        };
+
+        window.openChat = (partnerId, isBlocked) => {
+            if (isBlocked) { alert("CHAT LOCKED: Restricted access."); return; }
+            location.href = `dm.html?id=${partnerId}`;
+        };
+
+        window.toggleMenu = (e, id) => {
+            e.stopPropagation();
+            document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active'));
+            document.getElementById(`menu-${id}`).classList.toggle('active');
+        };
+
+        function renderChats(connections) {
             const container = document.getElementById('main-content');
-            if (!connections || connections.length === 0) { container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm uppercase font-black tracking-widest">${isUnreadTab ? 'No unread messages' : 'No homies yet.'}</p>`; return; }
-            const getCleanPreview = (str) => { if (!str) return ""; if (str.includes('»')) { const parts = str.split('»'); return parts[parts.length - 1].trim(); } return str.replace(/Replying to .*?\|RID:.*?\|".*?"/g, '').trim(); };
+            if (!connections.length) { container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-[10px] font-black uppercase">No chats yet</p>`; return; }
+            
             container.innerHTML = connections.map(c => {
                 const avatar = c.partner.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.partner.first_name}`;
-                let preview = c.lastMsg ? getCleanPreview(c.lastMsg.content) : `@${c.partner.username}`;
-                if (preview.length > 35) preview = preview.substring(0, 35) + '...';
-                const statusHtml = c.unreadCount > 0 
-                    ? `<span class="unread-badge bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>`
-                    : `<span class="text-[10px] text-zinc-600 font-black tracking-widest">ACTIVE</span>`;
-                return `<div onclick="openChat('${c.partner.id}', this)" class="flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900 transition cursor-pointer">
-                    <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 object-cover bg-zinc-800">
+                return `
+                <div class="relative flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900/50 transition cursor-pointer" onclick="openChat('${c.partner.id}', ${c.isBlocked})">
+                    <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 ${c.isBlocked ? 'grayscale opacity-40' : ''}">
                     <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-center"><h3 class="text-base font-bold text-white uppercase truncate mr-2">${c.partner.first_name} ${c.partner.last_name}</h3>${statusHtml}</div>
-                        <p class="text-xs text-zinc-500 truncate mt-0.5 font-medium">${preview}</p>
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-base font-bold text-white uppercase truncate">${c.partner.first_name} ${c.partner.last_name}</h3>
+                            <div class="flex items-center space-x-3">
+                                ${c.isBlocked ? '<i data-lucide="lock" class="text-zinc-600 w-4 h-4"></i>' : (c.unreadCount > 0 ? `<span class="bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>` : '')}
+                                <i data-lucide="more-vertical" class="text-zinc-600 w-5 h-5" onclick="toggleMenu(event, '${c.partner.id}')"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs ${c.isBlocked ? 'text-zinc-700' : 'text-zinc-500'} truncate mt-0.5 font-medium tracking-tighter">
+                            ${c.isBlocked ? 'Conversation Locked' : (c.lastMsg ? c.lastMsg.content : 'Homie Profile')}
+                        </p>
+                    </div>
+                    <div id="menu-${c.partner.id}" class="dropdown-menu">
+                        <div class="menu-item text-white" onclick="clearChatLocal('${c.partner.id}')">Clear Conversation</div>
+                        ${!c.partner.is_official ? `
+                        <div class="menu-item ${c.amIBlocker ? 'text-sdel' : 'text-red-600'}" onclick="handleBlock('${c.partner.id}', ${c.amIBlocker}, false)">
+                            ${c.amIBlocker ? 'Unblock Homie' : 'Block Homie'}
+                        </div>` : ''}
                     </div>
                 </div>`;
             }).join('');
+            lucide.createIcons();
         }
 
-        function renderRequests(reqs) {
-            const container = document.getElementById('main-content');
-            if (!reqs || reqs.length === 0) { container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-sm font-black uppercase tracking-widest">No pending requests</p>`; return; }
-            container.innerHTML = reqs.map(r => `
-                <div class="flex items-center p-5 space-x-5 border-b border-white/5">
-                    <div class="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-black border border-white/10 text-sdel">${r.sender.first_name[0]}</div>
-                    <div class="flex-1"><h3 class="text-sm font-bold text-white">${r.sender.first_name} @${r.sender.username}</h3>
-                        <div class="flex space-x-3 mt-3">
-                            <button onclick="respond('${r.id}', 'accepted')" class="bg-sdel text-black text-[11px] font-black px-6 py-2 rounded-xl active:scale-95 transition">Accept</button>
-                            <button onclick="respond('${r.id}', 'rejected')" class="bg-zinc-800 text-white text-[11px] font-black px-6 py-2 rounded-xl active:scale-95 transition">Reject</button>
-                        </div>
-                    </div>
-                </div>`).join('');
-        }
+        window.switchTab = (tab) => {
+            activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active'));
+            document.getElementById(`tab-${tab}`).classList.add('tab-active');
+            loadContent();
+        };
 
-        window.goToDashboard = (el) => { location.href = 'dashboard.html'; };
-
+        document.addEventListener('click', () => document.querySelectorAll('.dropdown-menu').forEach(m => m.classList.remove('active')));
         init();
     </script>
 </head>
 <body class="pb-24">
     <nav class="p-6 flex justify-between items-center sticky top-0 bg-black/95 z-50">
         <h1 class="header-text text-2xl italic uppercase">Homies</h1>
-        <div class="flex items-center pr-2">
-            <i data-lucide="refresh-cw" class="text-zinc-400 rotate-icon cursor-pointer active:scale-75 transition-transform" size="26" onclick="goToDashboard(this)"></i>
-        </div>
+        <i data-lucide="refresh-cw" class="text-zinc-500 rotate-icon" size="24" onclick="location.reload()"></i>
     </nav>
 
     <div class="flex px-6 border-b border-white/5 bg-black sticky top-[80px] z-40">
-        <button id="tab-general" onclick="switchTab('general')" class="tab-btn flex-1 py-4 text-xs font-black uppercase tab-active">General</button>
-        <button id="tab-requests" onclick="switchTab('requests')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Requests <span id="req-count-badge" class="tab-badge"></span></button>
-        <button id="tab-unread" onclick="switchTab('unread')" class="tab-btn flex-1 py-4 text-xs font-black uppercase">Unread <span id="unread-count-badge" class="tab-badge"></span></button>
+        <button id="tab-general" onclick="switchTab('general')" class="tab-btn flex-1 py-4 text-[10px] font-black uppercase tab-active">General</button>
+        <button id="tab-requests" onclick="switchTab('requests')" class="tab-btn flex-1 py-4 text-[10px] font-black uppercase">Requests <span id="req-count-badge" class="tab-badge"></span></button>
+        <button id="tab-unread" onclick="switchTab('unread')" class="tab-btn flex-1 py-4 text-[10px] font-black uppercase">Unread <span id="unread-count-badge" class="tab-badge"></span></button>
     </div>
 
     <div class="p-5 bg-black sticky top-[138px] z-40">
-        <div class="relative bg-zinc-900 rounded-2xl px-6 py-4 flex items-center border border-white/5">
-            <input type="text" id="search-input" oninput="searchMaster(this.value)" placeholder="Find homies..." class="bg-transparent w-full text-base focus:outline-none text-white font-bold">
-            <i data-lucide="search" class="text-zinc-600" size="22"></i>
+        <div class="bg-zinc-900 rounded-2xl px-6 py-4 flex items-center border border-white/5">
+            <input type="text" id="search-input" oninput="searchMaster(this.value)" placeholder="Search Homies..." class="bg-transparent w-full text-sm focus:outline-none text-white font-bold capitalize">
+            <i data-lucide="search" class="text-zinc-700" size="20"></i>
         </div>
-        <div id="public-search-trigger" onclick="searchPublic()" class="hidden mt-4 p-4 bg-sdel/10 rounded-xl border border-sdel/30 flex justify-between items-center cursor-pointer">
-            <span class="text-xs font-black italic text-sdel uppercase tracking-tight">Global Search: Browse Sdel Network</span>
-            <i data-lucide="globe" class="text-sdel" size="18"></i>
+        <div id="public-search-trigger" onclick="searchPublic()" class="hidden mt-4 p-4 bg-zinc-900/50 rounded-xl border border-white/5 flex justify-between items-center cursor-pointer active:scale-95 transition">
+            <span class="text-[10px] font-black text-zinc-400 uppercase tracking-tight">Expand Search: Find on Sdel Grid</span>
+            <i data-lucide="arrow-right" class="text-sdel" size="16"></i>
         </div>
     </div>
 
     <main id="main-content" class="flex flex-col"></main>
 
-    <nav class="fixed bottom-0 inset-x-0 bg-black border-t border-white/10 p-5 flex justify-around items-center backdrop-blur-lg z-50">
-        <div class="flex flex-col items-center text-sdel" onclick="location.href='homies.html'">
-            <i data-lucide="message-square" size="28"></i>
-            <span class="text-[10px] font-black uppercase mt-1">Chats</span>
-        </div>
-        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='explore.html'">
-            <i data-lucide="compass" size="28"></i>
-            <span class="text-[10px] font-black uppercase mt-1">Explore</span>
-        </div>
-        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='planets.html'">
-            <i data-lucide="orbit" size="28"></i>
-            <span class="text-[10px] font-black uppercase mt-1">Planets</span>
-        </div>
+    <nav class="fixed bottom-0 inset-x-0 bg-black border-t border-white/10 p-5 flex justify-around items-center z-50">
+        <div class="flex flex-col items-center text-sdel" onclick="location.href='homies.html'"><i data-lucide="message-square"></i><span class="text-[8px] font-black uppercase mt-1">Chats</span></div>
+        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='explore.html'"><i data-lucide="compass"></i><span class="text-[8px] font-black uppercase mt-1">Explore</span></div>
+        <div class="flex flex-col items-center text-zinc-500" onclick="location.href='planets.html'"><i data-lucide="orbit"></i><span class="text-[8px] font-black uppercase mt-1">Planets</span></div>
     </nav>
     <script>lucide.createIcons();</script>
 </body>
