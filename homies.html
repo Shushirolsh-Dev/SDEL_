@@ -92,7 +92,8 @@
 
                 const activeChats = chatData.filter(c => {
                     if (activeTab === 'unread') return c.unreadCount > 0;
-                    return c.lastMsg !== null;
+                    // Modified logic: Show if there's a message OR if they are newly accepted friends
+                    return c.lastMsg !== null || activeTab === 'general';
                 });
 
                 activeChats.sort((a, b) => (new Date(b.lastMsg?.created_at || 0)) - (new Date(a.lastMsg?.created_at || 0)));
@@ -121,12 +122,21 @@
             const { data: users } = await supabase.from('profile').select('*').neq('id', currentUserId).or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`).limit(15);
             if (!users?.length) { container.innerHTML = `<div class="p-10 text-center text-zinc-500 font-black text-[10px] uppercase">No Grid Results</div>`; return; }
             const { data: conn } = await supabase.from('connections').select('*').or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+            
             container.innerHTML = users.map(u => {
                 const rel = conn?.find(c => c.sender_id === u.id || c.receiver_id === u.id);
                 let btn = `<button onclick="sendRequest('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full uppercase">Add</button>`;
-                if (rel?.status === 'pending') btn = `<span class="text-[9px] font-black text-zinc-500 uppercase">Sent</span>`;
-                if (rel?.status === 'accepted') btn = `<span class="text-[9px] font-black text-sdel uppercase">Homie</span>`;
-                return `<div class="flex justify-between items-center p-5 border-b border-white/5">
+                let action = ''; 
+                
+                if (rel?.status === 'pending') {
+                    btn = `<span class="text-[9px] font-black text-zinc-500 uppercase">Sent</span>`;
+                } else if (rel?.status === 'accepted') {
+                    btn = `<span class="text-[9px] font-black text-sdel uppercase">Homie</span>`;
+                    // If they are a homie, clicking the row opens the chat
+                    action = `onclick="openChat('${u.id}', false)"`;
+                }
+                
+                return `<div class="flex justify-between items-center p-5 border-b border-white/5 active:bg-zinc-900/50 cursor-pointer" ${action}>
                     <div class="flex items-center space-x-4">
                         <div class="w-11 h-11 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel font-black">${u.first_name[0]}</div>
                         <div><p class="text-sm font-bold text-white uppercase">${u.first_name} ${u.last_name}</p><p class="text-[10px] text-zinc-500 font-medium">@${u.username}</p></div>
@@ -144,10 +154,12 @@
         window.handleRequest = async (connectionId, status) => {
             if (status === 'accepted') {
                 await supabase.from('connections').update({ status: 'accepted' }).eq('id', connectionId);
+                // Automatically open chat list in general tab
+                switchTab('general');
             } else {
                 await supabase.from('connections').delete().eq('id', connectionId);
+                loadContent();
             }
-            loadContent();
         };
 
         window.clearChatLocal = async (partnerId) => {
