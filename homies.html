@@ -34,7 +34,7 @@
         let currentUserId = null;
         let activeTab = 'general';
         let allConnections = [];
-        let blockedUsers = [];
+        let restrictions = [];
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -44,7 +44,7 @@
             supabase.channel('homies-sync')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => updateBadges().then(loadContent))
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => updateBadges().then(loadContent))
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'blocks' }, () => loadContent())
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'user_limits' }, () => loadContent())
                 .subscribe();
 
             updateBadges();
@@ -65,8 +65,8 @@
         }
 
         async function loadContent() {
-            const { data: blocks } = await supabase.from('blocks').select('*').or(`blocker_id.eq.${currentUserId},blocked_id.eq.${currentUserId}`);
-            blockedUsers = blocks || [];
+            const { data: restData } = await supabase.from('user_limits').select('*').or(`actor_id.eq.${currentUserId},target_id.eq.${currentUserId}`);
+            restrictions = restData || [];
 
             if (activeTab === 'general' || activeTab === 'unread') {
                 const { data: connections } = await supabase.from('connections')
@@ -84,15 +84,22 @@
 
                     const { count: unread } = await supabase.from('dm_table').select('*', { count: 'exact', head: true }).eq('sender_id', partner.id).eq('receiver_id', currentUserId).eq('is_read', false);
 
-                    const isBlocked = blockedUsers.some(b => (b.blocker_id === currentUserId && b.blocked_id === partner.id) || (b.blocker_id === partner.id && b.blocked_id === currentUserId));
-                    const amIBlocker = blockedUsers.some(b => b.blocker_id === currentUserId && b.blocked_id === partner.id);
+                    const isRestricted = restrictions.some(r => (r.actor_id === currentUserId && r.target_id === partner.id) || (r.actor_id === partner.id && r.target_id === currentUserId));
+                    const amIActor = restrictions.some(r => r.actor_id === currentUserId && r.target_id === partner.id);
 
-                    return { ...c, partner, lastMsg, unreadCount: unread || 0, isBlocked, amIBlocker };
+                    return { ...c, partner, lastMsg, unreadCount: unread || 0, isRestricted, amIActor };
                 }));
 
-                chatData.sort((a, b) => (new Date(b.lastMsg?.created_at || 0)) - (new Date(a.lastMsg?.created_at || 0)));
-                allConnections = chatData;
-                renderChats(activeTab === 'unread' ? allConnections.filter(c => c.unreadCount > 0) : allConnections);
+                // Logic: Show chat if there's a last message OR if it's not hidden. 
+                // We don't delete connections anymore, we just filter the UI.
+                const activeChats = chatData.filter(c => {
+                    if (activeTab === 'unread') return c.unreadCount > 0;
+                    return c.lastMsg !== null; // Only show users you actually have a history with
+                });
+
+                activeChats.sort((a, b) => (new Date(b.lastMsg?.created_at || 0)) - (new Date(a.lastMsg?.created_at || 0)));
+                allConnections = activeChats;
+                renderChats(allConnections);
             } else if (activeTab === 'requests') {
                 const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
                 renderRequests(data);
@@ -102,46 +109,25 @@
         window.searchMaster = (val) => {
             if (activeTab !== 'general') return;
             const trigger = document.getElementById('public-search-trigger');
-            
-            if (val.length < 1) { 
-                trigger.classList.add('hidden'); 
-                renderChats(allConnections); 
-                return; 
-            }
-            
+            if (val.length < 1) { trigger.classList.add('hidden'); renderChats(allConnections); return; }
             trigger.classList.remove('hidden');
-
-            const filtered = allConnections.filter(c => 
-                `${c.partner.first_name} ${c.partner.last_name} ${c.partner.username}`.toLowerCase().includes(val.toLowerCase())
-            );
-
+            const filtered = allConnections.filter(c => `${c.partner.first_name} ${c.partner.last_name} ${c.partner.username}`.toLowerCase().includes(val.toLowerCase()));
             if (filtered.length > 0) { renderChats(filtered); } 
-            else { 
-                document.getElementById('main-content').innerHTML = `<div class="p-10 text-center text-zinc-600 text-[10px] font-black uppercase">No Homies match. Try Global Search.</div>`; 
-            }
+            else { document.getElementById('main-content').innerHTML = `<div class="p-10 text-center text-zinc-600 text-[10px] font-black uppercase">No Homies match. Try Global Search.</div>`; }
         };
 
         window.searchPublic = async () => {
             const val = document.getElementById('search-input').value;
             const container = document.getElementById('main-content');
             container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-[10px] font-black uppercase">Scanning Sdel Grid...</p>`;
-            
-            const { data: users } = await supabase.from('profile').select('*').neq('id', currentUserId)
-                .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`).limit(15);
-            
-            if (!users?.length) { 
-                container.innerHTML = `<div class="p-10 text-center text-zinc-500 font-black text-[10px] uppercase">No Grid Results</div>`; 
-                return; 
-            }
-
+            const { data: users } = await supabase.from('profile').select('*').neq('id', currentUserId).or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`).limit(15);
+            if (!users?.length) { container.innerHTML = `<div class="p-10 text-center text-zinc-500 font-black text-[10px] uppercase">No Grid Results</div>`; return; }
             const { data: conn } = await supabase.from('connections').select('*').or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
-
             container.innerHTML = users.map(u => {
                 const rel = conn?.find(c => c.sender_id === u.id || c.receiver_id === u.id);
                 let btn = `<button onclick="sendRequest('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full uppercase">Add</button>`;
                 if (rel?.status === 'pending') btn = `<span class="text-[9px] font-black text-zinc-500 uppercase">Sent</span>`;
                 if (rel?.status === 'accepted') btn = `<span class="text-[9px] font-black text-sdel uppercase">Homie</span>`;
-                
                 return `<div class="flex justify-between items-center p-5 border-b border-white/5">
                     <div class="flex items-center space-x-4">
                         <div class="w-11 h-11 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel font-black">${u.first_name[0]}</div>
@@ -159,19 +145,20 @@
 
         window.clearChatLocal = async (partnerId) => {
             if(!confirm("Clear this conversation?")) return;
-            await supabase.from('connections').delete().or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${currentUserId})`);
+            // Delete messages instead of unfriend connection
+            await supabase.from('dm_table').delete().or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${currentUserId})`);
             loadContent();
         };
 
-        window.handleBlock = async (partnerId, isBlocked, isOfficial) => {
-            if (isOfficial) { alert("OFFICIAL ACCOUNT: Cannot be blocked."); return; }
-            if (isBlocked) await supabase.from('blocks').delete().eq('blocker_id', currentUserId).eq('blocked_id', partnerId);
-            else await supabase.from('blocks').insert({ blocker_id: currentUserId, blocked_id: partnerId });
+        window.handleRestriction = async (partnerId, isRestricted, isOfficial) => {
+            if (isOfficial) { alert("OFFICIAL ACCOUNT: Protected."); return; }
+            if (isRestricted) await supabase.from('user_limits').delete().eq('actor_id', currentUserId).eq('target_id', partnerId);
+            else await supabase.from('user_limits').insert({ actor_id: currentUserId, target_id: partnerId });
             loadContent();
         };
 
-        window.openChat = (partnerId, isBlocked) => {
-            if (isBlocked) { alert("CHAT LOCKED: Restricted access."); return; }
+        window.openChat = (partnerId, isRestricted) => {
+            if (isRestricted) { alert("CHAT LOCKED: Restricted access."); return; }
             location.href = `dm.html?id=${partnerId}`;
         };
 
@@ -187,26 +174,29 @@
             
             container.innerHTML = connections.map(c => {
                 const avatar = c.partner.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.partner.first_name}`;
+                // Clean the last message: Remove "Replying to..." aggressively
+                let cleanMsg = c.lastMsg ? c.lastMsg.content.replace(/Replying to.*?\n/gs, '').trim() : 'Homie Profile';
+                
                 return `
-                <div class="relative flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900/50 transition cursor-pointer" onclick="openChat('${c.partner.id}', ${c.isBlocked})">
-                    <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 ${c.isBlocked ? 'grayscale opacity-40' : ''}">
+                <div class="relative flex items-center p-5 space-x-5 border-b border-white/5 active:bg-zinc-900/50 transition cursor-pointer" onclick="openChat('${c.partner.id}', ${c.isRestricted})">
+                    <img src="${avatar}" class="w-14 h-14 rounded-full border-2 border-sdel/20 ${c.isRestricted ? 'grayscale opacity-40' : ''}">
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-center">
                             <h3 class="text-base font-bold text-white uppercase truncate">${c.partner.first_name} ${c.partner.last_name}</h3>
                             <div class="flex items-center space-x-3">
-                                ${c.isBlocked ? '<i data-lucide="lock" class="text-zinc-600 w-4 h-4"></i>' : (c.unreadCount > 0 ? `<span class="bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>` : '')}
+                                ${c.isRestricted ? '<i data-lucide="lock" class="text-zinc-600 w-4 h-4"></i>' : (c.unreadCount > 0 ? `<span class="bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>` : '')}
                                 <i data-lucide="more-vertical" class="text-zinc-600 w-5 h-5" onclick="toggleMenu(event, '${c.partner.id}')"></i>
                             </div>
                         </div>
-                        <p class="text-xs ${c.isBlocked ? 'text-zinc-700' : 'text-zinc-500'} truncate mt-0.5 font-medium tracking-tighter">
-                            ${c.isBlocked ? 'Conversation Locked' : (c.lastMsg ? c.lastMsg.content : 'Homie Profile')}
+                        <p class="text-xs ${c.isRestricted ? 'text-zinc-700' : 'text-zinc-500'} truncate mt-0.5 font-medium tracking-tighter">
+                            ${c.isRestricted ? 'Conversation Locked' : cleanMsg}
                         </p>
                     </div>
                     <div id="menu-${c.partner.id}" class="dropdown-menu">
                         <div class="menu-item text-white" onclick="clearChatLocal('${c.partner.id}')">Clear Conversation</div>
                         ${!c.partner.is_official ? `
-                        <div class="menu-item ${c.amIBlocker ? 'text-sdel' : 'text-red-600'}" onclick="handleBlock('${c.partner.id}', ${c.amIBlocker}, false)">
-                            ${c.amIBlocker ? 'Unblock Homie' : 'Block Homie'}
+                        <div class="menu-item ${c.amIActor ? 'text-sdel' : 'text-red-600'}" onclick="handleRestriction('${c.partner.id}', ${c.amIActor}, false)">
+                            ${c.amIActor ? 'Unlimit Homie' : 'Limit Homie'}
                         </div>` : ''}
                     </div>
                 </div>`;
