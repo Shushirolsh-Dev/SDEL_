@@ -74,7 +74,7 @@
                     .eq('status', 'accepted')
                     .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
                 
-                if (!connections) return renderChats([]);
+                if (!connections || connections.length === 0) return renderChats([]);
 
                 const chatData = await Promise.all(connections.map(async (c) => {
                     const partner = c.sender_id === currentUserId ? c.receiver : c.sender;
@@ -90,11 +90,9 @@
                     return { ...c, partner, lastMsg, unreadCount: unread || 0, isRestricted, amIActor };
                 }));
 
-                // Logic: Show chat if there's a last message OR if it's not hidden. 
-                // We don't delete connections anymore, we just filter the UI.
                 const activeChats = chatData.filter(c => {
                     if (activeTab === 'unread') return c.unreadCount > 0;
-                    return c.lastMsg !== null; // Only show users you actually have a history with
+                    return c.lastMsg !== null;
                 });
 
                 activeChats.sort((a, b) => (new Date(b.lastMsg?.created_at || 0)) - (new Date(a.lastMsg?.created_at || 0)));
@@ -102,7 +100,7 @@
                 renderChats(allConnections);
             } else if (activeTab === 'requests') {
                 const { data } = await supabase.from('connections').select('*, sender:profile!sender_id(*)').eq('receiver_id', currentUserId).eq('status', 'pending');
-                renderRequests(data);
+                renderRequests(data || []);
             }
         }
 
@@ -143,9 +141,17 @@
             loadContent();
         };
 
+        window.handleRequest = async (connectionId, status) => {
+            if (status === 'accepted') {
+                await supabase.from('connections').update({ status: 'accepted' }).eq('id', connectionId);
+            } else {
+                await supabase.from('connections').delete().eq('id', connectionId);
+            }
+            loadContent();
+        };
+
         window.clearChatLocal = async (partnerId) => {
             if(!confirm("Clear this conversation?")) return;
-            // Delete messages instead of unfriend connection
             await supabase.from('dm_table').delete().or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${currentUserId})`);
             loadContent();
         };
@@ -170,11 +176,10 @@
 
         function renderChats(connections) {
             const container = document.getElementById('main-content');
-            if (!connections.length) { container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-[10px] font-black uppercase">No chats yet</p>`; return; }
+            if (!connections || connections.length === 0) { container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-[10px] font-black uppercase">No chats yet</p>`; return; }
             
             container.innerHTML = connections.map(c => {
                 const avatar = c.partner.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${c.partner.first_name}`;
-                // Clean the last message: Remove "Replying to..." aggressively
                 let cleanMsg = c.lastMsg ? c.lastMsg.content.replace(/Replying to.*?\n/gs, '').trim() : 'Homie Profile';
                 
                 return `
@@ -202,6 +207,32 @@
                 </div>`;
             }).join('');
             lucide.createIcons();
+        }
+
+        function renderRequests(requests) {
+            const container = document.getElementById('main-content');
+            if (requests.length === 0) {
+                container.innerHTML = `<p class="p-10 text-center text-zinc-500 text-[10px] font-black uppercase">No pending requests</p>`;
+                return;
+            }
+
+            container.innerHTML = requests.map(r => `
+                <div class="flex justify-between items-center p-5 border-b border-white/5">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel font-black text-lg">
+                            ${r.sender.first_name[0]}
+                        </div>
+                        <div>
+                            <p class="text-sm font-bold text-white uppercase">${r.sender.first_name} ${r.sender.last_name}</p>
+                            <p class="text-[10px] text-zinc-500 font-medium">@${r.sender.username}</p>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="handleRequest('${r.id}', 'accepted')" class="bg-sdel text-black text-[9px] font-black px-3 py-2 rounded-lg uppercase">Accept</button>
+                        <button onclick="handleRequest('${r.id}', 'declined')" class="bg-zinc-800 text-white text-[9px] font-black px-3 py-2 rounded-lg uppercase">Ignore</button>
+                    </div>
+                </div>
+            `).join('');
         }
 
         window.switchTab = (tab) => {
