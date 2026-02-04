@@ -56,111 +56,119 @@
         </div>
     </div>
 
-    <script>
-        const f = document.getElementById('star-field');
-        for(let i=0; i<80; i++) {
-            const s = document.createElement('div');
-            s.className = 'star';
-            s.style.width = s.style.height = (Math.random() * 2 + 1) + 'px';
-            s.style.left = Math.random()*100+'vw';
-            s.style.top = Math.random()*100+'vh';
-            s.style.animationDuration = (Math.random()*20 + 25)+'s'; 
-            s.style.animationDelay = (Math.random()*10)+'s';
-            f.appendChild(s);
+            <script>
+    // Star field animation
+    const f = document.getElementById('star-field');
+    for(let i=0; i<80; i++) {
+        const s = document.createElement('div');
+        s.className = 'star';
+        s.style.width = s.style.height = (Math.random() * 2 + 1) + 'px';
+        s.style.left = Math.random()*100+'vw';
+        s.style.top = Math.random()*100+'vh';
+        s.style.animationDuration = (Math.random()*20 + 25)+'s'; 
+        s.style.animationDelay = (Math.random()*10)+'s';
+        f.appendChild(s);
+    }
+
+    const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+    function toggleView() {
+        const p = document.getElementById('pass');
+        const on = document.getElementById('on');
+        const off = document.getElementById('off');
+        if (p.type === 'password') {
+            p.type = 'text';
+            on.classList.add('hidden');
+            off.classList.remove('hidden');
+        } else {
+            p.type = 'password';
+            on.classList.remove('hidden');
+            off.classList.add('hidden');
         }
+    }
 
-        const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+    function showErr(t) {
+        const e = document.getElementById('err');
+        e.innerText = t.toUpperCase();
+        e.classList.remove('hidden');
+        setTimeout(() => e.classList.add('hidden'), 4000);
+    }
 
-        function toggleView() {
-            const p = document.getElementById('pass');
-            const on = document.getElementById('on');
-            const off = document.getElementById('off');
-            if (p.type === 'password') {
-                p.type = 'text';
-                on.classList.add('hidden');
-                off.classList.remove('hidden');
-            } else {
-                p.type = 'password';
-                on.classList.remove('hidden');
-                off.classList.add('hidden');
-            }
-        }
+    async function startLogin() {
+        const inputVal = document.getElementById('identifier').value;
+        const pw = document.getElementById('pass').value;
+        const btn = document.getElementById('l-btn');
 
-        function showErr(t) {
-            const e = document.getElementById('err');
-            e.innerText = t.toUpperCase();
-            e.classList.remove('hidden');
-            setTimeout(() => e.classList.add('hidden'), 4000);
-        }
+        if(!inputVal || !pw) return showErr("ENTER ALL DETAILS");
 
-        async function startLogin() {
-            const inputVal = document.getElementById('identifier').value;
-            const pw = document.getElementById('pass').value;
-            const btn = document.getElementById('l-btn');
+        btn.innerText = "VERIFYING...";
+        btn.disabled = true;
 
-            if(!inputVal || !pw) return showErr("ENTER ALL DETAILS");
+        let finalEmail = inputVal;
 
-            btn.innerText = "VERIFYING...";
-            btn.disabled = true;
-
-            let finalEmail = inputVal;
-
-            if (!inputVal.includes('@')) {
-                const { data: profileData, error: findError } = await sb
-                    .from('profile')
-                    .select('email')
-                    .eq('username', inputVal)
-                    .single();
-                
-                if (findError || !profileData) {
-                    btn.innerText = "LOG IN";
-                    btn.disabled = false;
-                    return showErr("USERNAME NOT FOUND");
-                }
-                finalEmail = profileData.email;
-            }
-
-            const { data: { user }, error: authError } = await sb.auth.signInWithPassword({
-                email: finalEmail,
-                password: pw
-            });
-
-            if (authError) {
-                showErr(authError.message);
-                btn.innerText = "LOG IN";
-                btn.disabled = false;
-                return;
-            }
-
-            // --- SECURITY CHECK START ---
-            const { data: profile, error: profError } = await sb
+        // 1. Resolve Username to Email
+        if (!inputVal.includes('@')) {
+            const { data: profileData, error: findError } = await sb
                 .from('profile')
-                .select('account_status, banned')
-                .eq('id', user.id)
+                .select('email')
+                .eq('username', inputVal)
                 .single();
-
-            if (profError || !profile) {
-                showErr("PROFILE ERROR - CONTACT SUPPORT");
+            
+            if (findError || !profileData) {
                 btn.innerText = "LOG IN";
                 btn.disabled = false;
-                return;
+                return showErr("USERNAME NOT FOUND");
             }
-
-            // Check Banned first (Priority)
-            if (profile.banned === true) {
-                window.location.href = 'banned.html';
-                return;
-            }
-
-            // Check Suspended
-            if (profile.account_status === 'suspended') {
-                window.location.href = 'suspended.html';
-                return;
-            }
-            // --- SECURITY CHECK END ---
-
-            window.location.href = 'dashboard.html';
+            finalEmail = profileData.email;
         }
-    </script>
+
+        // 2. Sign In
+        const { data: { user }, error: authError } = await sb.auth.signInWithPassword({
+            email: finalEmail,
+            password: pw
+        });
+
+        if (authError) {
+            showErr(authError.message);
+            btn.innerText = "LOG IN";
+            btn.disabled = false;
+            return;
+        }
+
+        // 3. AGGRESSIVE SECURITY CHECK
+        // Checking 'is_banned' to stay consistent with your feed file
+        const { data: profile, error: profError } = await sb
+            .from('profile')
+            .select('account_status, is_banned')
+            .eq('id', user.id)
+            .single();
+
+        if (profError || !profile) {
+            await sb.auth.signOut();
+            showErr("PROFILE ERROR - CONTACT SUPPORT");
+            btn.innerText = "LOG IN";
+            btn.disabled = false;
+            return;
+        }
+
+        // Check Banned Status
+        if (profile.is_banned === true) {
+            await sb.auth.signOut(); // Kills session server-side
+            window.location.replace('banned.html'); // Kills history trace
+            return;
+        }
+
+        // Check Suspension
+        if (profile.account_status === 'suspended') {
+            await sb.auth.signOut();
+            window.location.replace('suspended.html');
+            return;
+        }
+
+        // 4. Success
+        window.location.replace('dashboard.html');
+    }
+        </script>
+    
 </body>
 </html>
