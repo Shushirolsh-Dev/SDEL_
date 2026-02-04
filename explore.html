@@ -100,212 +100,243 @@
         <i data-lucide="shopping-cart" class="text-white/60" size="28" onclick="location.href='market.html'"></i>
         <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
     </nav> 
-        
-            <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+    <script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        let userProfile = null;
-        let currentMode = 'campus';
-        let searchQuery = '';
-        let startY = 0;
-        let pressTimer;
+let userProfile = null;
+let currentMode = 'campus';
+let searchQuery = '';
+let pressTimer;
 
-        Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, toggleBanUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare });
+Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, toggleBanUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare });
 
-        async function init() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.replace('login.html');
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
-            userProfile = profile;
-            document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
-            loadFeed();
-            setupPullToRefresh();
-        }
+async function init() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return window.location.replace('login.html');
+    
+    const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
+    userProfile = profile;
 
-        async function handleLike(postId) {
-            const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', postId).eq('interaction_type', 'like').single();
-            if (existing) {
-                await supabase.from('interactions').delete().eq('id', existing.id);
-                await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
-            } else {
-                await supabase.from('interactions').insert({ user_id: userProfile.id, post_id: postId, interaction_type: 'like' });
-                await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
+    if (userProfile?.is_banned) {
+        return window.location.replace('banned.html'); // Optional: redirect if already banned
+    }
+
+    // --- REALTIME BAN WATCHER ---
+    // This kicks the user out instantly if they are banned from another device
+    supabase.channel('profile_status')
+        .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'profile', 
+            filter: `id=eq.${userProfile.id}` 
+        }, (payload) => {
+            if (payload.new.is_banned) {
+                showToast("SESSION TERMINATED: BANNED");
+                setTimeout(() => supabase.auth.signOut().then(() => location.replace('login.html')), 2000);
             }
-            loadFeed(true);
+        })
+        .subscribe();
+
+    document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
+    loadFeed();
+    setupPullToRefresh();
+}
+
+async function publishPost() {
+    // Fresh check to prevent multi-device bypass
+    const { data: status } = await supabase.from('profile').select('is_banned').eq('id', userProfile.id).single();
+    if (status?.is_banned) return showToast("Banned!");
+
+    const content = document.getElementById('post-input').value.trim();
+    if (!content) return;
+
+    const { error } = await supabase.from('posts').insert({ 
+        user_id: userProfile.id, 
+        content, 
+        school_name: userProfile.school_name || 'Global' 
+    });
+
+    if (!error) { 
+        showToast("Gist Published!"); 
+        document.getElementById('post-input').value = ''; 
+        loadFeed(); 
+        window.scrollTo({ top: 0, behavior: 'smooth' }); 
+    }
+}
+
+async function handleLike(postId) {
+    const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', postId).eq('interaction_type', 'like').single();
+    if (existing) {
+        await supabase.from('interactions').delete().eq('id', existing.id);
+        await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
+    } else {
+        await supabase.from('interactions').insert({ user_id: userProfile.id, post_id: postId, interaction_type: 'like' });
+        await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
+    }
+    loadFeed(true);
+}
+
+async function handleRepost(postId, content) {
+    const { error } = await supabase.from('posts').insert({
+        user_id: userProfile.id,
+        content: content,
+        parent_id: postId,
+        post_type: 'repost',
+        school_name: userProfile.school_name
+    });
+    if (!error) {
+        await supabase.rpc('increment_stat', { post_id: postId, field: 'reposts_count' });
+        showToast("Reposted!");
+        loadFeed(true);
+    }
+}
+
+async function handleShare(postId, content, username) {
+    const shareData = { title: `Gist from @${username}`, text: `${content}\n\nVia Sdel`, url: `${window.location.origin}/gist.html?id=${postId}` };
+    try { if (navigator.share) await navigator.share(shareData); else { navigator.clipboard.writeText(shareData.url); showToast("Link Copied!"); } } catch (err) {}
+}
+
+async function loadFeed(silent = false) {
+    const container = document.getElementById('feed-container');
+    if (!silent && container.innerHTML === "") container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
+
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    
+    let query = supabase.from('posts')
+        .select('*, profile:user_id(username, is_official, is_verified, is_banned), parent:parent_id(user_id, profile:user_id(username, is_official, is_verified))')
+        .gte('created_at', cutoff)
+        .order('created_at', { ascending: false });
+
+    if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
+    const { data: posts, error } = await query;
+    if (error) return;
+
+    const { data: myInteractions } = await supabase.from('interactions').select('post_id, interaction_type').eq('user_id', userProfile.id);
+
+    container.innerHTML = posts.map(post => {
+        const profile = post.profile || {};
+        const username = profile.username || 'homie';
+        const isLiked = myInteractions?.some(i => i.post_id === post.id && i.interaction_type === 'like');
+        const isReposted = myInteractions?.some(i => i.post_id === post.id && i.interaction_type === 'repost');
+        const badge = getBadgeHTML(profile.is_official, profile.is_verified);
+        const schoolTag = currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-600 font-bold uppercase tracking-widest">${post.school_name}</span>` : '';
+
+        let repostContext = '';
+        if(post.post_type === 'repost' && post.parent) {
+            const origProfile = post.parent.profile || {};
+            const origBadge = getBadgeHTML(origProfile.is_official, origProfile.is_verified);
+            repostContext = `<div onclick="location.href='gist.html?id=${post.parent_id}'" class="flex items-center gap-1.5 mb-2 ml-10 text-[10px] text-zinc-500 font-bold uppercase italic cursor-pointer"><i data-lucide="repeat" size="12"></i> Reposted from @${origProfile.username || 'homie'} ${origBadge}</div>`;
         }
 
-        async function handleRepost(postId, content) {
-            const { error } = await supabase.from('posts').insert({
-                user_id: userProfile.id,
-                content: content,
-                parent_id: postId,
-                post_type: 'repost',
-                school_name: userProfile.school_name
-            });
-            if (!error) {
-                await supabase.rpc('increment_stat', { post_id: postId, field: 'reposts_count' });
-                showToast("Reposted!");
-                loadFeed(true);
-            }
-        }
-
-        async function handleShare(postId, content, username) {
-            const shareData = { title: `Gist from @${username}`, text: `${content}\n\nVia Sdel`, url: `${window.location.origin}/gist.html?id=${postId}` };
-            try { if (navigator.share) await navigator.share(shareData); else { navigator.clipboard.writeText(shareData.url); showToast("Link Copied!"); } } catch (err) {}
-        }
-
-        async function loadFeed(silent = false) {
-            const container = document.getElementById('feed-container');
-            if (!silent && container.innerHTML === "") container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
-
-            // --- SURGICAL EDIT: 24-HOUR FILTER ---
-            const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-            
-            let query = supabase.from('posts')
-                .select('*, profile:user_id(username, is_official, is_verified, is_banned), parent:parent_id(user_id, profile:user_id(username, is_official, is_verified))')
-                .gte('created_at', cutoff) // Only show posts created in the last 24 hours
-                .order('created_at', { ascending: false });
-            // --- END OF EDIT ---
-
-            if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
-            const { data: posts, error } = await query;
-            if (error) return;
-
-            const { data: myInteractions } = await supabase.from('interactions').select('post_id, interaction_type').eq('user_id', userProfile.id);
-
-            container.innerHTML = posts.map(post => {
-                const profile = post.profile || {};
-                const username = profile.username || 'homie';
-                const isLiked = myInteractions?.some(i => i.post_id === post.id && i.interaction_type === 'like');
-                const isReposted = myInteractions?.some(i => i.post_id === post.id && i.interaction_type === 'repost');
-                const badge = getBadgeHTML(profile.is_official, profile.is_verified);
-
-                const schoolTag = currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-600 font-bold uppercase tracking-widest">${post.school_name}</span>` : '';
-
-                let repostContext = '';
-                if(post.post_type === 'repost' && post.parent) {
-                    const origProfile = post.parent.profile || {};
-                    const origBadge = getBadgeHTML(origProfile.is_official, origProfile.is_verified);
-                    repostContext = `<div onclick="location.href='gist.html?id=${post.parent_id}'" class="flex items-center gap-1.5 mb-2 ml-10 text-[10px] text-zinc-500 font-bold uppercase italic cursor-pointer"><i data-lucide="repeat" size="12"></i> Reposted from @${origProfile.username || 'homie'} ${origBadge}</div>`;
-                }
-
-                return `
-                <div class="post-card p-4">
-                    ${repostContext}
-                    <div class="flex space-x-3" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', \`${post.content}\`, ${profile.is_banned})" ontouchend="endPress()">
-                        <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center font-black text-sdel text-xs uppercase">${username[0]}</div>
-                        <div class="flex-1">
-                            <div class="flex items-center gap-1.5 mb-0.5">
-                                <span class="text-[13px] font-black uppercase italic tracking-tighter">@${username}</span>
-                                ${badge}
-                                ${schoolTag}
-                            </div>
-                            <p class="gist-content text-[14px] text-zinc-200 font-medium mb-3">${formatContent(post.content)}</p>
-                            <div class="flex items-center justify-between text-zinc-500 max-w-[220px]">
-                                <button onclick="handleLike('${post.id}')" class="flex items-center gap-1 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="16" fill="${isLiked ? 'currentColor' : 'none'}"></i> <span class="text-[10px]">${post.likes_count || 0}</span></button>
-                                <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-1"><i data-lucide="message-circle" size="16"></i> <span class="text-[10px]">${post.comments_count || 0}</span></button>
-                                <button onclick="handleRepost('${post.id}', \`${post.content}\`)" class="flex items-center gap-1 ${isReposted ? 'text-green-500' : ''}"><i data-lucide="repeat" size="16"></i> <span class="text-[10px]">${post.reposts_count || 0}</span></button>
-                                <button onclick="handleShare('${post.id}', \`${post.content}\`, '${username}')"><i data-lucide="share" size="16"></i></button>
-                            </div>
-                        </div>
+        return `
+        <div class="post-card p-4">
+            ${repostContext}
+            <div class="flex space-x-3" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', \`${post.content}\`, ${profile.is_banned})" ontouchend="endPress()">
+                <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center font-black text-sdel text-xs uppercase">${username[0]}</div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="text-[13px] font-black uppercase italic tracking-tighter">@${username}</span>
+                        ${badge}
+                        ${schoolTag}
                     </div>
-                </div>`;
-            }).join('');
-            lucide.createIcons();
+                    <p class="gist-content text-[14px] text-zinc-200 font-medium mb-3">${formatContent(post.content)}</p>
+                    <div class="flex items-center justify-between text-zinc-500 max-w-[220px]">
+                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-1 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="16" fill="${isLiked ? 'currentColor' : 'none'}"></i> <span class="text-[10px]">${post.likes_count || 0}</span></button>
+                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-1"><i data-lucide="message-circle" size="16"></i> <span class="text-[10px]">${post.comments_count || 0}</span></button>
+                        <button onclick="handleRepost('${post.id}', \`${post.content}\`)" class="flex items-center gap-1 ${isReposted ? 'text-green-500' : ''}"><i data-lucide="repeat" size="16"></i> <span class="text-[10px]">${post.reposts_count || 0}</span></button>
+                        <button onclick="handleShare('${post.id}', \`${post.content}\`, '${username}')"><i data-lucide="share" size="16"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+    lucide.createIcons();
+}
+
+function getBadgeHTML(official, verified) {
+    if (official) return `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+    if (verified) return `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+    return '';
+}
+
+function formatContent(text) { return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>'); }
+
+function startPress(postId, userId, createdAt, content, targetIsBanned) {
+    const isOwner = userProfile?.id === userId;
+    const isCEO = userProfile?.is_official === true;
+    if (!isOwner && !isCEO) return;
+    pressTimer = setTimeout(() => {
+        const diff = (new Date() - new Date(createdAt)) / (1000 * 60);
+        const banBtn = document.getElementById('ban-btn');
+        document.getElementById('action-sheet').style.display = 'flex';
+        document.getElementById('edit-btn').style.display = (isOwner && diff < 20) ? 'flex' : 'none';
+        document.getElementById('burn-btn').style.display = (isOwner || isCEO) ? 'flex' : 'none';
+        
+        if (isCEO && !isOwner) {
+            banBtn.style.display = 'flex';
+            banBtn.querySelector('span').innerText = targetIsBanned ? "Unban User (CEO)" : "Ban User (CEO)";
+            banBtn.onclick = () => toggleBanUser(userId, targetIsBanned);
+        } else {
+            banBtn.style.display = 'none';
         }
+        
+        document.getElementById('edit-btn').onclick = () => openEditModal(postId, content);
+        document.getElementById('burn-btn').onclick = () => deletePost(postId);
+    }, 800);
+}
 
-        function getBadgeHTML(official, verified) {
-            if (official) return `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
-            if (verified) return `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
-            return '';
+async function toggleBanUser(userId, currentStatus) {
+    closeSheet();
+    const { error } = await supabase.from('profile').update({ is_banned: !currentStatus }).eq('id', userId);
+    if(!error) {
+        showToast(currentStatus ? "User Liberated!" : "User Banned!");
+        loadFeed(true);
+    }
+}
+
+function openEditModal(id, oldContent) {
+    closeSheet();
+    document.getElementById('edit-textarea').value = oldContent;
+    document.getElementById('edit-modal').style.display = 'flex';
+    document.getElementById('save-edit-btn').onclick = async () => {
+        const newContent = document.getElementById('edit-textarea').value.trim();
+        if(newContent) {
+            await supabase.from('posts').update({ content: newContent }).eq('id', id);
+            closeEditModal();
+            loadFeed(true);
+            showToast("Updated!");
         }
+    };
+}
 
-        function formatContent(text) { return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>'); }
+async function deletePost(id) { 
+    closeSheet(); 
+    const { error } = await supabase.from('posts').delete().eq('id', id);
+    if(!error) { showToast("Burned!"); loadFeed(true); }
+}
 
-        async function publishPost() {
-            if (userProfile?.is_banned) return showToast("Banned!");
-            const content = document.getElementById('post-input').value.trim();
-            if (!content) return;
-            const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content, school_name: userProfile.school_name || 'Global' });
-            if (!error) { showToast("Gist Published!"); document.getElementById('post-input').value = ''; loadFeed(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-        }
+function endPress() { clearTimeout(pressTimer); }
+function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
+function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+function setupPullToRefresh() { window.addEventListener('touchend', async () => { if (window.scrollY === 0) await loadFeed(); }); }
+function toggleActions(el) { document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
+function toggleSearch() { document.getElementById('search-container').classList.toggle('hidden'); }
+function handleSearch(val) { searchQuery = val; loadFeed(); }
+function switchTab(mode) { 
+    document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
+    document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
+    currentMode = mode; loadFeed(); 
+}
 
-        function startPress(postId, userId, createdAt, content, targetIsBanned) {
-            const isOwner = userProfile?.id === userId;
-            const isCEO = userProfile?.is_official === true;
-            if (!isOwner && !isCEO) return;
-            pressTimer = setTimeout(() => {
-                const diff = (new Date() - new Date(createdAt)) / (1000 * 60);
-                const banBtn = document.getElementById('ban-btn');
-                document.getElementById('action-sheet').style.display = 'flex';
-                document.getElementById('edit-btn').style.display = (isOwner && diff < 20) ? 'flex' : 'none';
-                document.getElementById('burn-btn').style.display = (isOwner || isCEO) ? 'flex' : 'none';
-                
-                if (isCEO && !isOwner) {
-                    banBtn.style.display = 'flex';
-                    banBtn.querySelector('span').innerText = targetIsBanned ? "Unban User (CEO)" : "Ban User (CEO)";
-                    banBtn.onclick = () => toggleBanUser(userId, targetIsBanned);
-                } else {
-                    banBtn.style.display = 'none';
-                }
-                
-                document.getElementById('edit-btn').onclick = () => openEditModal(postId, content);
-                document.getElementById('burn-btn').onclick = () => deletePost(postId);
-            }, 800);
-        }
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
 
-        async function toggleBanUser(userId, currentStatus) {
-            closeSheet();
-            const { error } = await supabase.from('profile').update({ is_banned: !currentStatus }).eq('id', userId);
-            if(!error) {
-                showToast(currentStatus ? "User Liberated!" : "User Banned!");
-                loadFeed(true);
-            }
-        }
-
-        function openEditModal(id, oldContent) {
-            closeSheet();
-            document.getElementById('edit-textarea').value = oldContent;
-            document.getElementById('edit-modal').style.display = 'flex';
-            document.getElementById('save-edit-btn').onclick = async () => {
-                const newContent = document.getElementById('edit-textarea').value.trim();
-                if(newContent) {
-                    await supabase.from('posts').update({ content: newContent }).eq('id', id);
-                    closeEditModal();
-                    loadFeed(true);
-                    showToast("Updated!");
-                }
-            };
-        }
-
-        async function deletePost(id) { 
-            closeSheet(); 
-            const { error } = await supabase.from('posts').delete().eq('id', id);
-            if(!error) { showToast("Burned!"); loadFeed(true); }
-        }
-
-        function endPress() { clearTimeout(pressTimer); }
-        function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
-        function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
-        function setupPullToRefresh() { window.addEventListener('touchend', async () => { if (window.scrollY === 0) await loadFeed(); }); }
-        function toggleActions(el) { document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
-        function toggleSearch() { document.getElementById('search-container').classList.toggle('hidden'); }
-        function handleSearch(val) { searchQuery = val; loadFeed(); }
-        function switchTab(mode) { 
-            document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
-            document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
-            currentMode = mode; loadFeed(); 
-        }
-
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg; t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3000);
-        }
-
-        init();
-                                                                  </script>
+init();
+    </script>
     
 </body>
 </html>
