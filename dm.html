@@ -296,4 +296,19 @@
             if (!rawVal) return;
             let finalContent = rawVal;
             if (replyTargetId) { finalContent = `Replying to ${replyTargetSender}|RID:${replyTargetId}|"${replyTargetText.substring(0, 20)}..." \n» ${rawVal}`; }
-         
+            else if (editingId) {
+                const { data: original } = await supabaseClient.from('dm_table').select('content').eq('id', editingId).single();
+                if (original.content.includes('|RID:')) { finalContent = `${original.content.split('»')[0]}» ${rawVal}`; }
+            }
+            if (editingId) { await supabaseClient.from('dm_table').update({ content: finalContent, is_edited: true }).eq('id', editingId); }
+            else { await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: finalContent, is_read: false }); }
+            cancelReply();
+        }
+
+        function handleInput(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); }
+        function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; container.appendChild(star); } }
+        function toggleSoon() { document.getElementById('soon-modal').classList.toggle('hidden'); lucide.createIcons(); }
+        init();
+    </script>
+</body>
+</html>
