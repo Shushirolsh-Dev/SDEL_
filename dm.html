@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Sdel | Secure DM</title>
+    <title>Sdel | Ghost DM</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -15,105 +15,97 @@
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
         @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 20% { opacity: 0.6; } 80% { opacity: 0.6; } 100% { transform: translateY(110vh); opacity: 0; } }
+        
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        /* Message Alignment & Styling */
-        .msg-received { background: rgba(24, 24, 27, 0.7); backdrop-filter: blur(12px); border-radius: 20px 20px 20px 4px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); position: relative; }
-        .msg-sent { background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(12px); border-radius: 20px 20px 4px 20px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.2); position: relative; }
+        /* Bubble Refinement */
+        .msg-received { background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(15px); border-radius: 24px 24px 24px 6px; align-self: flex-start; border: 1px solid rgba(255,255,255,0.05); }
+        .msg-sent { background: rgba(10, 10, 10, 0.9); backdrop-filter: blur(15px); border-radius: 24px 24px 6px 24px; align-self: flex-end; border: 1px solid rgba(255,102,0,0.15); }
         
-        /* Inner Reply Card (Card B) */
-        .reply-inner-card { background: rgba(255,255,255,0.05); border-left: 3px solid #FF6600; padding: 8px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; }
-        .highlight-msg { animation: pulse-orange 1.5s ease-out; }
-        @keyframes pulse-orange { 0% { background: rgba(255,102,0,0.4); } 100% { background: transparent; } }
+        /* Reaction Badges */
+        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; }
+        .react-badge { background: #000; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 8px; font-size: 11px; box-shadow: 0 4px 15px rgba(0,0,0,0.8); }
 
-        /* Reaction Badges - Fixed to prevent selection */
-        .react-wrap { display: flex; gap: 4px; position: absolute; bottom: -12px; z-index: 20; width: max-content; pointer-events: none; user-select: none !important; -webkit-user-select: none !important; }
-        .react-badge { background: #18181b; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .react-badge span { user-select: none !important; -webkit-user-select: none !important; pointer-events: none; }
+        /* Animation for 24hr Timer */
+        .rotate-slow { animation: spin 8s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-        #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; width: 0; display: flex; align-items: center; justify-content: center; pointer-events: auto; flex-shrink: 0; }
-        #send-btn.active { transform: scale(1); opacity: 1; width: 44px; margin-left: 8px; }
-        #msg-input { resize: none; max-height: 150px; overflow-y: auto; line-height: 1.5; }
+        #send-btn { transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: scale(0); opacity: 0; }
+        #send-btn.active { transform: scale(1); opacity: 1; }
         
-        /* Action Sheet */
-        #action-sheet { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; flex-direction: column; justify-content: flex-end; }
-        .sheet-content { background: #0a0a0a; border-top: 1px solid #333; border-radius: 24px 24px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
-        .sheet-content.show { transform: translateY(0); }
-        
-        /* Emoji Button Fixes */
-        .reaction-row { display: flex; justify-content: space-around; margin-bottom: 20px; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 15px; }
-        .react-btn { font-size: 24px; border: none; background: transparent; cursor: pointer; user-select: none !important; -webkit-user-select: none !important; -webkit-touch-callout: none !important; padding: 5px; outline: none; }
-        .react-btn:active { transform: scale(1.3); transition: transform 0.1s; }
-
-        .menu-opt { width: 100%; padding: 16px; border-radius: 16px; background: #111; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 14px; border:none; color:white; text-align: left; }
-        
-        #whatsapp-reply-ui { display: none; background: #0a0a0a; border-top: 1px solid rgba(255,255,255,0.1); padding: 12px 16px; border-radius: 20px 20px 0 0; border-left: 4px solid #FF6600; margin-bottom: -10px; }
-        #whatsapp-reply-ui.active { display: block; }
-
-        .avatar-box { transition: all 0.4s ease; border: 1px solid rgba(255,255,255,0.1); }
-        .avatar-online { border-color: #22c55e !important; box-shadow: 0 0 15px rgba(34, 197, 94, 0.3); color: #22c55e !important; }
+        /* Glass Pill */
+        .glass-pill { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
     </style>
 </head>
 <body>
     <div class="stars" id="stars"></div>
-    <nav class="flex-none flex justify-between items-center p-5 bg-black/80 backdrop-blur-xl border-b border-white/10 z-50">
+    
+    <nav class="flex-none flex justify-between items-center p-5 bg-black/80 backdrop-blur-xl border-b border-white/5 z-50">
         <div class="flex items-center space-x-4">
-            <button onclick="location.href='homies.html'" class="text-zinc-400 active:scale-75 transition"><i data-lucide="chevron-left" size="28"></i></button>
+            <button onclick="location.href='homies.html'" class="text-zinc-500 active:scale-75 transition"><i data-lucide="chevron-left" size="24"></i></button>
             <div class="relative">
-                <div id="user-avatar" class="avatar-box w-11 h-11 rounded-2xl bg-zinc-900 flex items-center justify-center font-black text-lg">?</div>
-                <div id="online-indicator" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-zinc-700 rounded-full border-2 border-black"></div>
+                <div id="user-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center font-black text-xs border border-white/10">?</div>
+                <div id="online-indicator" class="absolute bottom-0 right-0 w-2.5 h-2.5 bg-zinc-700 rounded-full border-2 border-black"></div>
             </div>
             <div>
-                <h2 id="chat-name" class="text-sm font-black uppercase tracking-tight">Syncing...</h2>
-                <p id="chat-status" class="text-[8px] text-zinc-500 font-black uppercase tracking-[0.2em]">Encrypted</p>
+                <h2 id="chat-name" class="text-xs font-black uppercase tracking-widest">Secure Line</h2>
+                <p id="chat-status" class="text-[7px] text-zinc-600 font-bold uppercase tracking-[0.3em]">Encrypted Node</p>
             </div>
         </div>
-        <div class="flex items-center space-x-5 text-zinc-400">
-            <button onclick="toggleSoon()"><i data-lucide="phone" size="20"></i></button>
-            <button onclick="toggleSoon()"><i data-lucide="video" size="20"></i></button>
+        <div class="flex items-center space-x-4">
+            <button onclick="toggleSoon()" class="w-10 h-10 flex items-center justify-center rounded-xl bg-sdel/5 text-sdel border border-sdel/10 active:scale-90 transition">
+                <i data-lucide="bot" size="18"></i>
+            </button>
+            <button onclick="toggleSoon()" class="text-zinc-500"><i data-lucide="layout-grid" size="18"></i></button>
         </div>
     </nav>
 
-    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-9 scrollbar-hide"></main>
+    <div class="flex justify-center -mt-4 mb-2 z-10">
+        <div class="glass-pill px-4 py-1.5 rounded-full flex items-center space-x-2 animate-pulse">
+            <i data-lucide="clock" size="10" class="text-sdel rotate-slow"></i>
+            <span class="text-[8px] font-black uppercase tracking-widest text-zinc-400">Messages auto-purge after 24hrs</span>
+        </div>
+    </div>
 
-    <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(24px+env(safe-area-inset-bottom))]">
-        <div id="whatsapp-reply-ui" class="mx-2">
-            <div class="flex justify-between items-start">
-                <div class="min-w-0">
-                    <p id="reply-ui-name" class="text-[10px] font-black text-sdel uppercase"></p>
-                    <p id="reply-ui-text" class="text-xs text-zinc-500 truncate"></p>
+    <main id="chat-content" class="flex-1 overflow-y-auto p-5 flex flex-col space-y-10 scrollbar-hide"></main>
+
+    <div class="flex-none px-4 bg-black/95 backdrop-blur-md border-t border-white/5 pb-[calc(20px+env(safe-area-inset-bottom))]">
+        <div id="whatsapp-reply-ui" class="mx-2 hidden bg-zinc-900/50 rounded-t-2xl border-l-2 border-sdel p-3 mb-[-10px]">
+            <div class="flex justify-between">
+                <div>
+                    <p id="reply-ui-name" class="text-[9px] font-black text-sdel uppercase"></p>
+                    <p id="reply-ui-text" class="text-[11px] text-zinc-400 truncate"></p>
                 </div>
-                <button onclick="cancelReply()" class="text-zinc-600 ml-4"><i data-lucide="x" size="16"></i></button>
+                <button onclick="cancelReply()" class="text-zinc-600"><i data-lucide="x" size="14"></i></button>
             </div>
         </div>
 
-        <div class="mt-4 flex items-end bg-zinc-900/80 rounded-[1.8rem] border border-white/10 px-3 focus-within:border-sdel transition-all">
-            <button class="p-3.5 text-zinc-600 hover:text-sdel transition-colors flex-shrink-0"><i data-lucide="sparkles" size="20"></i></button>
-            <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Secure message..." class="bg-transparent flex-1 text-[15px] py-4 px-1 focus:outline-none placeholder:text-zinc-700 font-medium text-white min-w-0"></textarea>
-            <div class="pb-2.5 flex items-center">
-                <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-10 w-10 rounded-full shadow-xl shadow-sdel/20">
-                    <i id="send-icon" data-lucide="arrow-up" size="18" style="stroke-width: 4px;"></i>
+        <div class="mt-4 flex items-end bg-zinc-900/40 rounded-[2rem] border border-white/5 px-2 focus-within:border-sdel/50 transition-all">
+            <button onclick="toggleStealth()" id="stealth-btn" class="p-4 text-zinc-700 hover:text-sdel transition-colors"><i data-lucide="eye-off" size="18"></i></button>
+            <textarea id="msg-input" oninput="handleInput(this)" rows="1" placeholder="Type encrypted message..." class="bg-transparent flex-1 text-[14px] py-4 px-2 focus:outline-none placeholder:text-zinc-800 font-bold text-white"></textarea>
+            <div class="pb-2">
+                <button id="send-btn" onclick="sendMsg()" class="bg-sdel text-black h-11 w-11 rounded-full flex items-center justify-center shadow-lg shadow-sdel/20">
+                    <i id="send-icon" data-lucide="arrow-up" size="20" style="stroke-width: 3px;"></i>
                 </button>
             </div>
         </div>
-        <div class="flex justify-center items-center space-x-2 mt-4 opacity-20"><i data-lucide="shield-check" size="8"></i><p class="text-[7px] font-black tracking-[0.4em] uppercase">Sdel Protocol: Secure End-to-End</p></div>
     </div>
 
-    <div id="action-sheet" onclick="closeMenu()">
-        <div class="sheet-content" onclick="event.stopPropagation()">
-            <div class="reaction-row">
-                <button class="react-btn" onclick="react('❤️')">❤️</button>
-                <button class="react-btn" onclick="react('😂')">😂</button>
-                <button class="react-btn" onclick="react('🔥')">🔥</button>
-                <button class="react-btn" onclick="react('👍')">👍</button>
-                <button class="react-btn" onclick="react('‼️')">‼️</button>
+    <div id="action-sheet" class="fixed inset-0 bg-black/80 z-[200] hidden items-end" onclick="closeMenu()">
+        <div class="sheet-content w-full bg-[#0a0a0a] rounded-t-[2.5rem] p-6 border-t border-white/10" onclick="event.stopPropagation()">
+            <div class="flex justify-around mb-8 p-4 bg-zinc-900/50 rounded-3xl">
+                <button class="text-2xl active:scale-150 transition" onclick="react('❤️')">❤️</button>
+                <button class="text-2xl active:scale-150 transition" onclick="react('😂')">😂</button>
+                <button class="text-2xl active:scale-150 transition" onclick="react('🔥')">🔥</button>
+                <button class="text-2xl active:scale-150 transition" onclick="react('👍')">👍</button>
+                <button class="text-2xl active:scale-150 transition" onclick="react('‼️')">‼️</button>
             </div>
-            <button class="menu-opt" onclick="copyToClipboard()"><i data-lucide="copy" size="18"></i> Copy Text</button>
-            <button id="edit-btn-opt" class="menu-opt" onclick="startEdit()"><i data-lucide="edit-2" size="18"></i> Edit</button>
-            <button class="menu-opt" onclick="handleReplyAction()"><i data-lucide="reply" size="18"></i> Reply</button>
-            <button id="delete-btn-opt" class="menu-opt text-red-500" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> Delete</button>
-            <button class="menu-opt text-zinc-500" onclick="closeMenu()">Cancel</button>
+            <div class="space-y-3">
+                <button class="w-full p-5 bg-zinc-900 rounded-2xl flex items-center space-x-4 font-black text-xs uppercase" onclick="handleReplyAction()"><i data-lucide="reply" size="18"></i> <span>Reply</span></button>
+                <button class="w-full p-5 bg-zinc-900 rounded-2xl flex items-center space-x-4 font-black text-xs uppercase" onclick="copyToClipboard()"><i data-lucide="copy" size="18"></i> <span>Copy</span></button>
+                <button id="delete-btn-opt" class="w-full p-5 bg-red-500/10 text-red-500 rounded-2xl flex items-center space-x-4 font-black text-xs uppercase" onclick="deleteMsg()"><i data-lucide="trash-2" size="18"></i> <span>Purge Message</span></button>
+            </div>
         </div>
     </div>
 
@@ -123,191 +115,138 @@
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY);
         const urlParams = new URLSearchParams(window.location.search);
         const homieId = urlParams.get('id'); 
-        let myId = null, myName = "Me", theirName = "Them", lastTap = 0, selectedId, selectedText, editingId = null, selectedIsMe = false;
-        
-        let replyTargetId = null, replyTargetText = "", replyTargetSender = "";
+        let myId, myName, theirName, selectedId, selectedText, selectedIsMe;
 
         async function init() {
             const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) { window.location.href = 'login.html'; return; }
-            myId = session.user.id;
-            const { data: me } = await supabaseClient.from('profile').select('first_name, username').eq('id', myId).single();
-            myName = me?.first_name || me?.username || "Me";
-            createStars(); loadHomieProfile(); await fetchMessages(); await markAsRead(); 
-            supabaseClient.channel('public:dm_table').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages()).subscribe();
-            lucide.createIcons();
+            if (!session) return; myId = session.user.id;
+            loadHomieProfile(); 
+            fetchMessages();
+            supabaseClient.channel('dm_sync').on('postgres_changes', { event: '*', schema: 'public', table: 'dm_table' }, () => fetchMessages()).subscribe();
+            createStars(); lucide.createIcons();
         }
 
         async function loadHomieProfile() {
-            const { data: profile } = await supabaseClient.from('profile').select('*').eq('id', homieId).single();
-            if (profile) {
-                theirName = profile.first_name || profile.username || "Them";
+            const { data: p } = await supabaseClient.from('profile').select('*').eq('id', homieId).single();
+            if (p) {
+                theirName = p.first_name || p.username;
                 document.getElementById('chat-name').innerText = theirName;
-                const av = document.getElementById('user-avatar');
-                av.innerText = theirName[0].toUpperCase();
-                if (profile.is_online) {
-                    av.classList.add('avatar-online');
+                document.getElementById('user-avatar').innerText = theirName[0].toUpperCase();
+                if (p.is_online) {
                     document.getElementById('online-indicator').classList.replace('bg-zinc-700', 'bg-green-500');
-                    document.getElementById('chat-status').innerText = "Live on Grid";
-                    document.getElementById('chat-status').classList.add('text-green-500');
+                    document.getElementById('chat-status').innerText = "Active Now";
                 }
             }
-        }
-
-        async function fetchMessages() {
-            const { data: messages } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
-            if (messages) renderChat(messages);
-        }
-
-        async function markAsRead() {
-            await supabaseClient.from('dm_table').update({ is_read: true }).eq('receiver_id', myId).eq('sender_id', homieId).eq('is_read', false);
-        }
-
-        function getCleanText(str) {
-            if (!str) return "";
-            if (str.includes('»')) return str.split('»').pop().trim();
-            return str.replace(/Replying to .*?\|RID:.*?\|".*?"/g, '').trim();
         }
 
         function renderChat(messages) {
             const container = document.getElementById('chat-content');
             container.innerHTML = '';
+            const now = new Date();
+
             messages.forEach(msg => {
                 const isMe = msg.sender_id === myId;
-                const timeStr = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const msgTime = new Date(msg.created_at);
+                const diffMins = Math.floor((now - msgTime) / 60000);
                 
-                const bubble = document.createElement('div');
-                bubble.id = `msg-${msg.id}`;
-                bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 max-w-[85%] transition-transform active:scale-[0.98]`;
-
-                if (msg.content.includes('|RID:')) {
-                    const meta = msg.content.split('»')[0].split('|');
-                    const refId = meta[1].replace('RID:', '');
-                    const refUser = meta[0].replace('Replying to ', '');
-                    
-                    const cardB = document.createElement('div');
-                    cardB.className = "reply-inner-card opacity-80 cursor-pointer";
-                    cardB.innerHTML = `<p class="text-[9px] font-black text-sdel uppercase mb-0.5">${refUser}</p><p class="text-[11px] truncate italic">${meta[2].replace(/"/g, '')}</p>`;
-                    cardB.onclick = (e) => { e.stopPropagation(); scrollToMessage(refId); };
-                    bubble.appendChild(cardB);
-
-                    const cardC = document.createElement('div');
-                    cardC.className = "cursor-pointer";
-                    cardC.innerHTML = `<p class="text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words">${getCleanText(msg.content)}</p>`;
-                    cardC.onclick = (e) => {
-                        e.stopPropagation();
-                        const now = Date.now();
-                        if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
-                        else { openMenu(msg.id, msg.content, isMe); }
-                        lastTap = now;
-                    };
-                    bubble.appendChild(cardC);
-                } else {
-                    bubble.onclick = () => {
-                        const now = Date.now();
-                        if (now - lastTap < 300) { handleReply(msg.id, msg.content, isMe ? myName : theirName); } 
-                        else { openMenu(msg.id, msg.content, isMe); }
-                        lastTap = now;
-                    };
-                    const textP = document.createElement('p');
-                    textP.className = "text-[14px] font-semibold leading-relaxed whitespace-pre-wrap break-words";
-                    textP.textContent = getCleanText(msg.content);
-                    bubble.appendChild(textP);
+                // IGNORED LOGIC: Seen but > 30 mins old without a reply/reaction
+                let statusText = msg.is_read ? 'Seen' : 'Sent';
+                let statusClass = msg.is_read ? 'text-green-500' : 'text-zinc-600';
+                
+                if (isMe && msg.is_read && diffMins > 30) {
+                    statusText = 'Ignored';
+                    statusClass = 'text-zinc-500';
                 }
 
-                const footer = document.createElement('div');
-                footer.className = "mt-2 flex items-center justify-between gap-4 pointer-events-none select-none";
-                footer.innerHTML = `<span class="text-[7px] text-zinc-600 font-black uppercase">${timeStr}${msg.is_edited ? ' (Edited)' : ''}</span>
-                                    ${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${msg.is_read ? 'text-green-500' : 'text-sdel'}">${msg.is_read ? 'Seen' : 'Sent'}</span>` : ''}`;
-                bubble.appendChild(footer);
+                const bubble = document.createElement('div');
+                bubble.className = `${isMe ? 'msg-sent' : 'msg-received'} p-4 relative min-w-[80px] max-w-[85%]`;
+                bubble.onclick = () => openMenu(msg.id, msg.content, isMe);
+
+                bubble.innerHTML = `
+                    <p class="text-[13px] font-bold leading-relaxed">${msg.content.includes('»') ? msg.content.split('»')[1] : msg.content}</p>
+                    <div class="mt-2 flex items-center justify-between space-x-4">
+                        <span class="text-[7px] text-zinc-700 font-black uppercase">${msgTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                        ${isMe ? `<span class="text-[7px] font-black uppercase tracking-widest ${statusClass}">${statusText}</span>` : ''}
+                    </div>
+                `;
 
                 if (msg.reaction_me || msg.reaction_them) {
-                    const wrap = document.createElement('div');
-                    wrap.className = `react-wrap select-none pointer-events-none ${isMe ? 'right-0' : 'left-0'}`;
-                    if (msg.reaction_me) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_me}</span></div>`;
-                    if (msg.reaction_them) wrap.innerHTML += `<div class="react-badge"><span>${msg.reaction_them}</span></div>`;
-                    bubble.appendChild(wrap);
+                    const reactHtml = `
+                        <div class="react-wrap ${isMe ? 'right-2' : 'left-2'}">
+                            ${msg.reaction_me ? `<div class="react-badge">${msg.reaction_me}</div>` : ''}
+                            ${msg.reaction_them ? `<div class="react-badge">${msg.reaction_them}</div>` : ''}
+                        </div>`;
+                    bubble.innerHTML += reactHtml;
                 }
+
                 container.appendChild(bubble);
             });
-            setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+            container.scrollTop = container.scrollHeight;
         }
-
-        function handleReply(msgId, content, sender) {
-            replyTargetId = msgId; replyTargetSender = sender;
-            replyTargetText = getCleanText(content);
-            document.getElementById('reply-ui-name').innerText = sender;
-            document.getElementById('reply-ui-text').innerText = replyTargetText;
-            document.getElementById('whatsapp-reply-ui').classList.add('active');
-            const input = document.getElementById('msg-input');
-            input.focus(); handleInput(input); lucide.createIcons();
-        }
-
-        function cancelReply() {
-            replyTargetId = null; editingId = null;
-            document.getElementById('whatsapp-reply-ui').classList.remove('active');
-            const input = document.getElementById('msg-input');
-            input.value = ""; document.getElementById('send-icon').setAttribute('data-lucide', 'arrow-up');
-            handleInput(input); lucide.createIcons();
-        }
-
-        function scrollToMessage(id) {
-            const el = document.getElementById(`msg-${id}`);
-            if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('highlight-msg'); setTimeout(() => el.classList.remove('highlight-msg'), 1500); }
-        }
-
-        function handleReplyAction() { handleReply(selectedId, selectedText, (selectedIsMe ? myName : theirName)); closeMenu(); }
-
-        function openMenu(id, text, isMe) {
-            selectedId = id; selectedText = text; selectedIsMe = isMe;
-            document.getElementById('edit-btn-opt').style.display = isMe ? 'flex' : 'none';
-            document.getElementById('delete-btn-opt').style.display = isMe ? 'flex' : 'none';
-            const sheet = document.getElementById('action-sheet');
-            sheet.style.display = 'flex';
-            setTimeout(() => sheet.querySelector('.sheet-content').classList.add('show'), 10);
-            lucide.createIcons();
-        }
-
-        function closeMenu() { const content = document.querySelector('.sheet-content'); if(content) content.classList.remove('show'); setTimeout(() => document.getElementById('action-sheet').style.display = 'none', 300); }
 
         async function react(emoji) {
             const { data: msg } = await supabaseClient.from('dm_table').select('*').eq('id', selectedId).single();
-            const updates = msg.sender_id === myId ? { reaction_me: emoji } : { reaction_them: emoji };
-            await supabaseClient.from('dm_table').update(updates).eq('id', selectedId);
+            const isMe = msg.sender_id === myId;
+            
+            // UNDO LOGIC: If the reaction is the same, set to null
+            let update = {};
+            if (isMe) {
+                update.reaction_me = (msg.reaction_me === emoji) ? null : emoji;
+            } else {
+                update.reaction_them = (msg.reaction_them === emoji) ? null : emoji;
+            }
+
+            await supabaseClient.from('dm_table').update(update).eq('id', selectedId);
             closeMenu();
         }
 
-        async function copyToClipboard() { await navigator.clipboard.writeText(getCleanText(selectedText)); closeMenu(); }
-
-        function startEdit() {
-            editingId = selectedId;
-            const input = document.getElementById('msg-input');
-            input.value = getCleanText(selectedText);
-            input.focus(); handleInput(input);
-            document.getElementById('send-icon').setAttribute('data-lucide', 'check');
-            lucide.createIcons(); closeMenu();
+        async function fetchMessages() {
+            const { data } = await supabaseClient.from('dm_table').select('*').or(`and(sender_id.eq.${myId},receiver_id.eq.${homieId}),and(sender_id.eq.${homieId},receiver_id.eq.${myId})`).order('created_at', { ascending: true });
+            if (data) renderChat(data);
         }
 
-        async function deleteMsg() { await supabaseClient.from('dm_table').delete().eq('id', selectedId); closeMenu(); }
+        function handleInput(el) {
+            el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px';
+            const btn = document.getElementById('send-btn');
+            el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active');
+        }
+
+        function openMenu(id, text, isMe) {
+            selectedId = id; selectedText = text; selectedIsMe = isMe;
+            const sheet = document.getElementById('action-sheet');
+            sheet.classList.replace('hidden', 'flex');
+            lucide.createIcons();
+        }
+
+        function closeMenu() { document.getElementById('action-sheet').classList.replace('flex', 'hidden'); }
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.style.width = star.style.height = `${Math.random() * 2}px`;
+                star.style.left = `${Math.random() * 100}vw`;
+                star.style.animationDuration = `${Math.random() * 5 + 5}s`;
+                container.appendChild(star);
+            }
+        }
+
+        function toggleStealth() {
+            const btn = document.getElementById('stealth-btn');
+            btn.classList.toggle('text-sdel');
+            // Logic for stealth: hide chat content or blur
+            document.getElementById('chat-content').classList.toggle('blur-xl');
+        }
 
         async function sendMsg() {
             const input = document.getElementById('msg-input');
-            const rawVal = input.value.trim();
-            if (!rawVal) return;
-            let finalContent = rawVal;
-            if (replyTargetId) { finalContent = `Replying to ${replyTargetSender}|RID:${replyTargetId}|"${replyTargetText.substring(0, 20)}..." \n» ${rawVal}`; }
-            else if (editingId) {
-                const { data: original } = await supabaseClient.from('dm_table').select('content').eq('id', editingId).single();
-                if (original.content.includes('|RID:')) { finalContent = `${original.content.split('»')[0]}» ${rawVal}`; }
-            }
-            if (editingId) { await supabaseClient.from('dm_table').update({ content: finalContent, is_edited: true }).eq('id', editingId); }
-            else { await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: finalContent, is_read: false }); }
-            cancelReply();
+            const val = input.value.trim();
+            if (!val) return;
+            await supabaseClient.from('dm_table').insert({ sender_id: myId, receiver_id: homieId, content: val });
+            input.value = ''; handleInput(input);
         }
 
-        function handleInput(el) { el.style.height = 'auto'; el.style.height = (el.scrollHeight) + 'px'; const btn = document.getElementById('send-btn'); el.value.length > 0 ? btn.classList.add('active') : btn.classList.remove('active'); }
-        function createStars() { const container = document.getElementById('stars'); for (let i = 0; i < 80; i++) { const star = document.createElement('div'); star.classList.add('star'); star.style.width = star.style.height = `${Math.random() * 2 + 1}px`; star.style.left = `${Math.random() * 100}vw`; star.style.top = `-${Math.random() * 100}vh`; star.style.animationDuration = `${Math.random() * 10 + 10}s`; container.appendChild(star); } }
-        function toggleSoon() { document.getElementById('soon-modal').classList.toggle('hidden'); lucide.createIcons(); }
         init();
     </script>
 </body>
