@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        // ANTI-FLICKER: Apply theme immediately before page renders
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') {
+                document.documentElement.classList.add('sunlight-mode');
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sdel | Profile</title>
@@ -21,18 +30,18 @@
         .bottom-nav { background: rgba(0,0,0,0.95); border-top: 1px solid rgba(255,255,255,0.1); }
 
         /* Sunlight Mode (High Contrast) */
-        body.sunlight-mode { background-color: #ffffff; color: #121212; }
-        body.sunlight-mode nav { background: rgba(255,255,255,0.95); }
-        body.sunlight-mode .card-zinc { background: #f4f4f5; border: 2px solid #e4e4e7; color: #121212; }
-        body.sunlight-mode .text-gray-500, body.sunlight-mode .text-gray-600 { color: #52525b; }
-        body.sunlight-mode .bottom-nav { background: #ffffff; border-top: 2px solid #e4e4e7; }
-        body.sunlight-mode .bottom-nav i { color: #121212; }
-        body.sunlight-mode .bottom-nav i.text-sdel { color: #FF6600; }
-        body.sunlight-mode .stars { display: none; }
-        body.sunlight-mode .bg-zinc-900 { background-color: #e4e4e7; }
-        body.sunlight-mode .input-zinc { background: #ffffff; border: 2px solid #d4d4d8; color: #121212; }
-        body.sunlight-mode .modal-overlay { background: rgba(255,255,255,0.98); }
-        body.sunlight-mode .text-white { color: #121212; }
+        .sunlight-mode body { background-color: #ffffff; color: #121212; }
+        .sunlight-mode nav { background: rgba(255,255,255,0.95); }
+        .sunlight-mode .card-zinc { background: #f4f4f5; border: 2px solid #e4e4e7; color: #121212; }
+        .sunlight-mode .text-gray-500, .sunlight-mode .text-gray-600 { color: #52525b; }
+        .sunlight-mode .bottom-nav { background: #ffffff; border-top: 2px solid #e4e4e7; }
+        .sunlight-mode .bottom-nav i { color: #121212; }
+        .sunlight-mode .bottom-nav i.text-sdel { color: #FF6600; }
+        .sunlight-mode .stars { display: none; }
+        .sunlight-mode .bg-zinc-900 { background-color: #e4e4e7; }
+        .sunlight-mode .input-zinc { background: #ffffff; border: 2px solid #d4d4d8; color: #121212; }
+        .sunlight-mode .modal-overlay { background: rgba(255,255,255,0.98); }
+        .sunlight-mode .text-white { color: #121212; }
         
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 250; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
@@ -53,12 +62,9 @@
     <nav class="p-6 flex items-center justify-between sticky top-0 backdrop-blur-md z-50">
         <a href="dashboard.html" class="text-white"><i data-lucide="chevron-left"></i></a>
         <h1 class="text-lg font-black uppercase tracking-tighter">My <span class="text-sdel">Account</span></h1>
-        <div class="flex items-center space-x-4">
-            <button id="theme-toggle" class="text-gray-500 hover:text-sdel transition">
-                <i data-lucide="sun" id="theme-icon" size="20"></i>
-            </button>
-            <button id="logout-btn-top" class="text-gray-500"><i data-lucide="log-out" size="20"></i></button>
-        </div>
+        <button id="theme-toggle" class="text-gray-500 hover:text-sdel transition">
+            <i data-lucide="sun" id="theme-icon" size="24"></i>
+        </button>
     </nav>
 
     <main class="p-6 space-y-8">
@@ -115,17 +121,15 @@
             </div>
             <h2 class="text-2xl font-black uppercase italic">Danger <span class="text-red-500">Zone</span></h2>
             <p class="text-gray-400 text-xs leading-relaxed uppercase font-bold tracking-wider">
-                This action is irreversible. You will lose your account, post history, and your current balance:
+                This action is irreversible. You will lose your account and balance:
             </p>
             <div class="bg-red-500/20 py-3 rounded-2xl">
                 <p id="delete-balance-warning" class="text-xl font-black text-red-500">₦0</p>
             </div>
-            
             <div class="space-y-4 text-left">
                 <p class="text-[9px] font-black uppercase text-gray-500 ml-2">Confirm with Password</p>
                 <input id="delete-pass-confirm" type="password" class="input-zinc border-red-500/20" placeholder="Your Password">
             </div>
-
             <div class="grid grid-cols-2 gap-4">
                 <button onclick="closeModal('delete-modal')" class="bg-zinc-900 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Cancel</button>
                 <button onclick="handleAccountDeletion()" id="final-delete-btn" class="bg-red-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Delete Me</button>
@@ -185,23 +189,30 @@
 
         let currentUser = null;
 
-        // Theme Toggle Logic
+        // --- THEME MEMORY LOGIC ---
         const themeBtn = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
         
-        themeBtn.addEventListener('click', () => {
-            document.body.classList.toggle('sunlight-mode');
-            const isSunlight = document.body.classList.contains('sunlight-mode');
-            themeIcon.setAttribute('data-lucide', isSunlight ? 'moon' : 'sun');
-            localStorage.setItem('theme', isSunlight ? 'sunlight' : 'dark');
+        function updateThemeUI() {
+            const isSunlight = localStorage.getItem('theme') === 'sunlight';
+            if (isSunlight) {
+                document.documentElement.classList.add('sunlight-mode');
+                themeIcon.setAttribute('data-lucide', 'moon');
+            } else {
+                document.documentElement.classList.remove('sunlight-mode');
+                themeIcon.setAttribute('data-lucide', 'sun');
+            }
             lucide.createIcons();
+        }
+
+        themeBtn.addEventListener('click', () => {
+            const currentlySunlight = localStorage.getItem('theme') === 'sunlight';
+            localStorage.setItem('theme', currentlySunlight ? 'dark' : 'sunlight');
+            updateThemeUI();
         });
 
-        // Load saved theme
-        if(localStorage.getItem('theme') === 'sunlight') {
-            document.body.classList.add('sunlight-mode');
-            themeIcon.setAttribute('data-lucide', 'moon');
-        }
+        // Initialize theme UI
+        updateThemeUI();
 
         async function checkSession() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -235,104 +246,43 @@
             document.getElementById('edit-phone').value = profile?.phone || currentUser.user_metadata?.phone || "";
         }
 
-        window.openDeleteModal = () => {
-            document.getElementById('delete-modal').style.display = 'block';
-        };
-
+        window.openDeleteModal = () => document.getElementById('delete-modal').style.display = 'block';
+        window.closeModal = (id) => document.getElementById(id).style.display = 'none';
+        
         window.handleAccountDeletion = async () => {
             const pass = document.getElementById('delete-pass-confirm').value;
             const btn = document.getElementById('final-delete-btn');
-            
-            if (!pass) {
-                alert("Please enter your password to confirm.");
-                return;
-            }
+            if (!pass) return alert("Password required.");
 
-            btn.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> TERMINATING...';
-            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="spinner"></i>';
             lucide.createIcons();
 
-            try {
-                const { error: signInErr } = await supabase.auth.signInWithPassword({
-                    email: currentUser.email,
-                    password: pass
-                });
+            const { error: signInErr } = await supabase.auth.signInWithPassword({ email: currentUser.email, password: pass });
+            if (signInErr) { alert("Wrong password."); btn.innerText = "Delete Me"; return; }
 
-                if (signInErr) {
-                    alert("Incorrect password. Deletion aborted.");
-                    btn.innerText = "Delete Me";
-                    btn.disabled = false;
-                    return;
-                }
-
-                const { error: deleteErr } = await supabase.rpc('delete_user_completely');
-                
-                if (deleteErr) {
-                    alert("System Error: " + deleteErr.message);
-                    btn.innerText = "Delete Me";
-                    btn.disabled = false;
-                } else {
-                    await supabase.auth.signOut();
-                    localStorage.clear();
-                    sessionStorage.clear();
-                    window.location.replace('join.html');
-                }
-            } catch (err) {
-                alert("Connection error. Try again.");
-                btn.innerText = "Delete Me";
-                btn.disabled = false;
-            }
-        };
-
-        window.openModal = (id) => document.getElementById(id).style.display = 'block';
-        window.closeModal = (id) => document.getElementById(id).style.display = 'none';
-        
-        window.togglePass = (id) => {
-            const el = document.getElementById(id);
-            el.type = el.type === 'password' ? 'text' : 'password';
-            lucide.createIcons();
+            const { error: deleteErr } = await supabase.rpc('delete_user_completely');
+            if (!deleteErr) { await supabase.auth.signOut(); window.location.replace('join.html'); }
         };
 
         window.saveProfileUpdates = async () => {
             const text = document.getElementById('save-text');
-            const newFname = document.getElementById('edit-fname').value;
-            const newLname = document.getElementById('edit-lname').value;
-            const newPhone = document.getElementById('edit-phone').value;
-
-            text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> UPDATING...';
+            const data = { 
+                first_name: document.getElementById('edit-fname').value,
+                last_name: document.getElementById('edit-lname').value,
+                phone: document.getElementById('edit-phone').value
+            };
+            text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i>';
             lucide.createIcons();
-
-            const { error: profileError } = await supabase.from('profile').update({
-                first_name: newFname,
-                last_name: newLname,
-                phone: newPhone
-            }).eq('id', currentUser.id);
-
-            const { error: authError } = await supabase.auth.updateUser({
-                data: { first_name: newFname, last_name: newLname, phone: newPhone }
-            });
-
-            if (profileError || authError) { 
-                alert("Update failed. Try again."); 
-                text.innerText = "Save Changes"; 
-            } 
-            else { 
-                location.reload(); 
-            }
+            await supabase.from('profile').update(data).eq('id', currentUser.id);
+            await supabase.auth.updateUser({ data });
+            location.reload();
         };
 
         window.updatePassword = async () => {
             const pass = document.getElementById('new-pass').value;
-            const confirm = document.getElementById('confirm-pass').value;
-            const msg = document.getElementById('pass-msg');
-            const btnText = document.getElementById('pass-text');
-            if (pass !== confirm) { msg.innerText = "Passwords do not match!"; msg.className = "text-red-500"; return; }
-            btnText.innerHTML = '<i data-lucide="loader-2" class="spinner"></i> PROCESSING...';
-            lucide.createIcons();
+            if (pass !== document.getElementById('confirm-pass').value) return alert("Mismatch");
             const { error } = await supabase.auth.updateUser({ password: pass });
-            if (error) { msg.innerText = error.message; msg.className = "text-red-500"; btnText.innerText = "Update Password"; } 
-            else { msg.innerText = "Success!"; msg.className = "text-green-500"; setTimeout(() => closeModal('security-modal'), 2000); }
-            lucide.createIcons();
+            if (!error) closeModal('security-modal');
         };
 
         function createStars() {
@@ -342,14 +292,12 @@
                 star.classList.add('star');
                 star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
                 star.style.left = Math.random() * 100 + 'vw';
-                star.style.top = i < 50 ? Math.random() * 100 + 'vh' : '-' + (Math.random() * 100) + 'vh';
                 star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
                 container.appendChild(star);
             }
         }
 
         document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
-        document.getElementById('logout-btn-top').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
         createStars();
         checkSession();
         lucide.createIcons();
