@@ -26,7 +26,6 @@
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; }
         #main-content { height: calc(100vh - 310px); overflow-y: auto; padding-bottom: 80px; }
         
-        /* Sunlight Mode */
         .sunlight-mode body { background-color: #ffffff; color: #121212; }
         .sunlight-mode nav, .sunlight-mode .tab-bar { background-color: #ffffff; border-color: #e4e4e7; }
         .sunlight-mode .bg-zinc-900 { background-color: #f4f4f5; border: 1px solid #d4d4d8; }
@@ -36,7 +35,6 @@
         @keyframes full-rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .rotate-icon { animation: full-rotate 4s linear infinite; }
         
-        /* Action Overlay Logic */
         #action-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
         .action-card { background: #0a0a0a; border: 1px solid rgba(255,255,255,0.1); border-radius: 32px; width: 100%; max-width: 300px; overflow: hidden; transform: scale(0.9); transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         #action-overlay.active { display: flex; }
@@ -124,7 +122,6 @@
             e.stopPropagation();
             const overlay = document.getElementById('action-overlay');
             const container = document.getElementById('action-card-content');
-            
             container.innerHTML = `
                 <div class="action-btn text-white" onclick="clearChatLocal('${partnerId}')">Clear Conversation</div>
                 ${!isOfficial ? `<div class="action-btn ${amIActor ? 'text-sdel' : 'text-red-600'}" onclick="handleRestriction('${partnerId}', ${amIActor}, false)">${amIActor ? 'Unlimit Homie' : 'Limit Homie'}</div>` : ''}
@@ -134,10 +131,33 @@
         };
 
         window.closeActionCard = () => document.getElementById('action-overlay').classList.remove('active');
-
         window.clearChatLocal = async (partnerId) => { closeActionCard(); window.showAlert("Clear this entire conversation?", 'confirm', async () => { await supabase.from('dm_table').delete().or(`and(sender_id.eq.${currentUserId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${currentUserId})`); loadContent(); }); };
         window.handleRestriction = async (partnerId, isRestricted, isOfficial) => { closeActionCard(); if (isOfficial) return window.showAlert("OFFICIAL ACCOUNT: Protected."); if (isRestricted) await supabase.from('user_limits').delete().eq('actor_id', currentUserId).eq('target_id', partnerId); else await supabase.from('user_limits').insert({ actor_id: currentUserId, target_id: partnerId }); loadContent(); };
         window.openChat = (partnerId, isRestricted) => { if (isRestricted) return window.showAlert("CHAT LOCKED: Restricted access."); location.href = `dm.html?id=${partnerId}`; };
+
+        window.searchPublic = async () => {
+            const val = document.getElementById('search-input').value;
+            const container = document.getElementById('main-content');
+            container.innerHTML = `<p class="p-10 text-center text-sdel animate-pulse text-[10px] font-black uppercase">Scanning Sdel Grid...</p>`;
+            const { data: users } = await supabase.from('profile').select('*').neq('id', currentUserId).or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,username.ilike.%${val}%`).limit(15);
+            if (!users?.length) { container.innerHTML = `<div class="p-10 text-center text-zinc-500 font-black text-[10px] uppercase">No Grid Results</div>`; return; }
+            const { data: conn } = await supabase.from('connections').select('*').or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+            container.innerHTML = users.map(u => {
+                const rel = conn?.find(c => c.sender_id === u.id || c.receiver_id === u.id);
+                let btn = `<button onclick="sendRequest('${u.id}')" class="bg-white text-black text-[10px] font-black px-4 py-1.5 rounded-full uppercase">Add</button>`;
+                let action = rel?.status === 'accepted' ? `onclick="openChat('${u.id}', false)"` : '';
+                if (rel?.status === 'pending') btn = `<span class="text-[9px] font-black text-zinc-500 uppercase">Sent</span>`;
+                else if (rel?.status === 'accepted') btn = `<span class="text-[9px] font-black text-sdel uppercase">Homie</span>`;
+                return `<div class="flex justify-between items-center p-5 border-b border-white/5 active:bg-zinc-900/50 cursor-pointer" ${action}>
+                    <div class="flex items-center space-x-4">
+                        <div class="w-11 h-11 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel font-black">${u.first_name[0]}</div>
+                        <div><p class="text-sm font-bold text-white uppercase">${u.first_name} ${u.last_name}</p><p class="text-[10px] text-zinc-500 font-medium">@${u.username}</p></div>
+                    </div>${btn}</div>`;
+            }).join('');
+        };
+
+        window.sendRequest = async (id) => { await supabase.from('connections').insert({ sender_id: currentUserId, receiver_id: id, status: 'pending' }); loadContent(); };
+        window.handleRequest = async (connectionId, status) => { if (status === 'accepted') { await supabase.from('connections').update({ status: 'accepted' }).eq('id', connectionId); switchTab('general'); } else { await supabase.from('connections').delete().eq('id', connectionId); loadContent(); } };
 
         function renderChats(connections) {
             const container = document.getElementById('main-content');
@@ -150,8 +170,12 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-center">
                             <h3 class="text-base font-bold text-white uppercase truncate">${c.partner.first_name} ${c.partner.last_name}</h3>
-                            <div class="p-2 -mr-2 active:scale-90" onclick="openActionCard(event, '${c.partner.id}', ${c.amIActor}, ${c.partner.is_official})">
-                                <i data-lucide="more-vertical" class="text-zinc-600 w-6 h-6"></i>
+                            <div class="flex items-center space-x-3">
+                                ${c.isRestricted ? '<i data-lucide="lock" class="text-zinc-600 w-4 h-4"></i>' : ''}
+                                ${c.unreadCount > 0 ? `<span class="bg-sdel text-black text-[9px] px-2 py-0.5 rounded-full font-black animate-pulse">${c.unreadCount} NEW</span>` : ''}
+                                <div class="p-2 -mr-2 active:scale-90" onclick="openActionCard(event, '${c.partner.id}', ${c.amIActor}, ${c.partner.is_official})">
+                                    <i data-lucide="more-vertical" class="text-zinc-600 w-6 h-6"></i>
+                                </div>
                             </div>
                         </div>
                         <p class="text-xs ${c.isRestricted ? 'text-zinc-700' : 'text-zinc-500'} truncate mt-0.5 font-medium tracking-tighter">${c.isRestricted ? 'Conversation Locked' : (c.lastMsg ? c.lastMsg.content.replace(/Replying to.*?\n/gs, '').trim() : 'Homie Profile')}</p>
@@ -161,16 +185,30 @@
             lucide.createIcons();
         }
 
+        function renderRequests(requests) {
+            const container = document.getElementById('main-content');
+            container.innerHTML = requests.length ? requests.map(r => `
+                <div class="flex justify-between items-center p-5 border-b border-white/5">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-sdel font-black text-lg">${r.sender.first_name[0]}</div>
+                        <div><p class="text-sm font-bold text-white uppercase">${r.sender.first_name} ${r.sender.last_name}</p><p class="text-[10px] text-zinc-500 font-medium">@${r.sender.username}</p></div>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="handleRequest('${r.id}', 'accepted')" class="bg-sdel text-black text-[9px] font-black px-3 py-2 rounded-lg uppercase">Accept</button>
+                        <button onclick="handleRequest('${r.id}', 'declined')" class="bg-zinc-800 text-white text-[9px] font-black px-3 py-2 rounded-lg uppercase">Ignore</button>
+                    </div>
+                </div>`).join('') : `<p class="p-10 text-center text-zinc-500 text-[10px] font-black uppercase">No pending requests</p>`;
+        }
+
+        window.searchMaster = (val) => { if (activeTab !== 'general') return; const trigger = document.getElementById('public-search-trigger'); if (val.length < 1) { trigger.classList.add('hidden'); renderChats(allConnections); return; } trigger.classList.remove('hidden'); const filtered = allConnections.filter(c => `${c.partner.first_name} ${c.partner.last_name} ${c.partner.username}`.toLowerCase().includes(val.toLowerCase())); if (filtered.length > 0) renderChats(filtered); else document.getElementById('main-content').innerHTML = `<div class="p-10 text-center text-zinc-600 text-[10px] font-black uppercase">No Homies match. Try Global Search.</div>`; };
         window.switchTab = (tab) => { activeTab = tab; document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('tab-active')); document.getElementById(`tab-${tab}`).classList.add('tab-active'); loadContent(); };
         init();
-        window.searchMaster = (val) => { if (activeTab !== 'general') return; const trigger = document.getElementById('public-search-trigger'); if (val.length < 1) { trigger.classList.add('hidden'); renderChats(allConnections); return; } trigger.classList.remove('hidden'); const filtered = allConnections.filter(c => `${c.partner.first_name} ${c.partner.last_name} ${c.partner.username}`.toLowerCase().includes(val.toLowerCase())); if (filtered.length > 0) renderChats(filtered); else document.getElementById('main-content').innerHTML = `<div class="p-10 text-center text-zinc-600 text-[10px] font-black uppercase">No Homies match.</div>`; };
     </script>
 </head>
 <body class="pb-24">
     <div id="action-overlay" onclick="closeActionCard()">
         <div class="action-card" id="action-card-content" onclick="event.stopPropagation()"></div>
     </div>
-
     <div id="sdel-alert">
         <div class="alert-box">
             <div class="w-12 h-12 bg-sdel/10 rounded-2xl flex items-center justify-center mx-auto mb-6"><i data-lucide="bell" class="text-sdel"></i></div>
@@ -194,6 +232,10 @@
         <div class="bg-zinc-900 rounded-2xl px-6 py-4 flex items-center border border-white/5">
             <input type="text" id="search-input" oninput="searchMaster(this.value)" placeholder="Search Homies..." class="bg-transparent w-full text-sm focus:outline-none text-white font-bold capitalize">
             <i data-lucide="search" class="text-zinc-700" size="20"></i>
+        </div>
+        <div id="public-search-trigger" onclick="searchPublic()" class="hidden mt-4 p-4 bg-zinc-900/50 rounded-xl border border-white/5 flex justify-between items-center cursor-pointer active:scale-95 transition">
+            <span class="text-[10px] font-black text-zinc-400 uppercase tracking-tight">Expand Search: Find on Sdel Grid</span>
+            <i data-lucide="arrow-right" class="text-sdel" size="16"></i>
         </div>
     </div>
 
