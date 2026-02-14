@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        // ANTI-FLICKER: Apply theme immediately from global setting
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') {
+                document.documentElement.classList.add('sunlight-mode');
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sdel | Your Cart</title>
@@ -9,7 +18,7 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #000; color: white; overflow-x: hidden; }
+        body { background-color: #000; color: white; overflow-x: hidden; transition: background-color 0.3s; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
@@ -23,6 +32,15 @@
         .custom-checkbox:checked::after { content: '✓'; position: absolute; color: black; font-size: 12px; font-weight: 900; left: 3px; top: -1px; }
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* Sunlight Mode Overrides */
+        .sunlight-mode body { background-color: #ffffff; color: #121212; }
+        .sunlight-mode nav, .sunlight-mode .fixed.bottom-0 { background-color: rgba(255, 255, 255, 0.9); border-color: #e4e4e7; }
+        .sunlight-mode .text-white { color: #121212; }
+        .sunlight-mode .card-zinc { background: #f4f4f5; border-color: #e4e4e7; }
+        .sunlight-mode .star { background-color: rgba(0,0,0,0.1); }
+        .sunlight-mode .custom-checkbox { border-color: #d4d4d8; }
+        .sunlight-mode #checkout-btn { background-color: #121212; color: #ffffff; }
     </style>
 </head>
 <body class="pb-40">
@@ -82,7 +100,6 @@
             }
 
             cartItems = data;
-            // Default: select all items
             cartItems.forEach(item => selectedItems.add(item.id));
             renderCart();
             updateTotal();
@@ -173,7 +190,6 @@
         };
 
         window.proceedToCheckout = () => {
-            // Filter to get only products selected for purchase
             const toBuy = cartItems.filter(item => selectedItems.has(item.id));
             localStorage.setItem('checkout_items', JSON.stringify(toBuy));
             window.location.href = 'checkout.html';
