@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        // ANTI-FLICKER: Apply theme immediately from global setting
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') {
+                document.documentElement.classList.add('sunlight-mode');
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sdel | Secure Checkout</title>
@@ -9,7 +18,7 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #000; color: white; overflow-x: hidden; }
+        body { background-color: #000; color: white; overflow-x: hidden; transition: background-color 0.3s; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
@@ -30,8 +39,18 @@
         #custom-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; padding: 20px; }
         .modal-card { background: #0a0a0a; border: 1px solid #222; border-radius: 30px; padding: 40px 20px; width: 100%; max-width: 350px; text-align: center; }
         
-        /* New style for the Order ID display */
         .order-id-badge { background: rgba(255, 102, 0, 0.1); border: 1px dashed #FF6600; color: #FF6600; font-family: monospace; }
+
+        /* Sunlight Mode Overrides */
+        .sunlight-mode body { background-color: #ffffff; color: #121212; }
+        .sunlight-mode nav { background-color: rgba(255, 255, 255, 0.9); border-color: #e4e4e7; }
+        .sunlight-mode .text-white { color: #121212; }
+        .sunlight-mode .card-zinc { background: #f4f4f5; border-color: #e4e4e7; }
+        .sunlight-mode input, .sunlight-mode .phone-box { background: #f4f4f5 !important; border-color: #d4d4d8 !important; color: #121212 !important; }
+        .sunlight-mode .phone-prefix { border-color: #d4d4d8; }
+        .sunlight-mode #pay-btn { background-color: #121212; color: #ffffff; }
+        .sunlight-mode .star { background-color: rgba(0,0,0,0.1); }
+        .sunlight-mode .modal-card { background: #ffffff; border-color: #e4e4e7; color: #121212; }
     </style>
 </head>
 <body class="pb-10">
@@ -205,7 +224,6 @@
             }));
 
             try {
-                // Added order_code to .select() so we can retrieve what the trigger generated
                 const { data, error } = await supabase.from('orders').insert([{
                     user_id: checkoutItems[0].user_id,
                     total_amount: checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0),
@@ -228,7 +246,6 @@
                 
                 localStorage.removeItem('checkout_items');
                 
-                // Show success with the generated code
                 const generatedCode = data[0].order_code;
                 showAlert("Order Placed", "Your order is being processed!", "success", generatedCode);
                 
