@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        // ANTI-FLICKER: Apply theme immediately
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') {
+                document.documentElement.classList.add('sunlight-mode');
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Sdel | Explore</title>
@@ -10,7 +19,7 @@
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; overflow-x: hidden; overscroll-behavior-y: contain; }
+        body { background-color: #000; color: white; overflow-x: hidden; overscroll-behavior-y: contain; transition: background-color 0.3s; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; }
@@ -27,6 +36,17 @@
         
         #action-sheet, #edit-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: flex-end; }
         .sheet-content { background: #111; width: 100%; border-radius: 24px 24px 0 0; padding: 20px; border-top: 1px solid #222; }
+
+        /* Sunlight Mode Overrides */
+        .sunlight-mode body { background-color: #ffffff; color: #121212; }
+        .sunlight-mode nav, .sunlight-mode .fixed.bottom-0 { background-color: rgba(255, 255, 255, 0.95); border-color: #e4e4e7; }
+        .sunlight-mode .post-card { background: transparent; border-color: #f4f4f5; }
+        .sunlight-mode .text-zinc-200 { color: #27272a; }
+        .sunlight-mode .text-zinc-500, .sunlight-mode .text-white\/60 { color: #71717a; }
+        .sunlight-mode #post-input { color: #121212; }
+        .sunlight-mode .bg-zinc-900 { background-color: #f4f4f5; color: #121212; border-color: #e4e4e7; }
+        .sunlight-mode .sheet-content, .sunlight-mode .modal-content { background: #ffffff; border-color: #e4e4e7; color: #121212; }
+        .sunlight-mode #edit-textarea { background: #f4f4f5; color: #121212; border-color: #e4e4e7; }
 
         /* EDIT MODAL */
         #edit-modal { align-items: center; justify-content: center; padding: 20px; }
@@ -64,6 +84,7 @@
         <div class="p-6 pb-2 flex items-center justify-between">
             <h1 class="text-2xl font-black italic tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
             <div class="flex items-center space-x-5">
+                <button onclick="toggleTheme()"><i id="theme-icon" data-lucide="sun" size="22"></i></button>
                 <button onclick="toggleSearch()"><i data-lucide="search" size="22"></i></button>
                 <button onclick="location.href='message.html'"><i data-lucide="bell" size="22"></i></button>
                 <button onclick="location.href='homies.html'"><i data-lucide="message-square" size="22"></i></button>
@@ -109,7 +130,7 @@ let currentMode = 'campus';
 let searchQuery = '';
 let pressTimer;
 
-Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, toggleBanUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare });
+Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, toggleBanUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare, toggleTheme });
 
 async function init() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -119,11 +140,9 @@ async function init() {
     userProfile = profile;
 
     if (userProfile?.is_banned) {
-        return window.location.replace('banned.html'); // Optional: redirect if already banned
+        return window.location.replace('banned.html'); 
     }
 
-    // --- REALTIME BAN WATCHER ---
-    // This kicks the user out instantly if they are banned from another device
     supabase.channel('profile_status')
         .on('postgres_changes', { 
             event: 'UPDATE', 
@@ -139,12 +158,25 @@ async function init() {
         .subscribe();
 
     document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
+    updateThemeIcon();
     loadFeed();
     setupPullToRefresh();
 }
 
+function toggleTheme() {
+    const isSunlight = document.documentElement.classList.toggle('sunlight-mode');
+    localStorage.setItem('theme', isSunlight ? 'sunlight' : 'dark');
+    updateThemeIcon();
+}
+
+function updateThemeIcon() {
+    const icon = document.getElementById('theme-icon');
+    const isSunlight = document.documentElement.classList.contains('sunlight-mode');
+    icon.setAttribute('data-lucide', isSunlight ? 'moon' : 'sun');
+    lucide.createIcons();
+}
+
 async function publishPost() {
-    // Fresh check to prevent multi-device bypass
     const { data: status } = await supabase.from('profile').select('is_banned').eq('id', userProfile.id).single();
     if (status?.is_banned) return showToast("Banned!");
 
