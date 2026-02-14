@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <script>
-        // ANTI-FLICKER: Apply theme immediately before page renders
+        // ANTI-FLICKER: Apply theme immediately before page renders (Critical for PWA)
         (function() {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'sunlight') {
@@ -43,9 +43,13 @@
         .sunlight-mode .modal-overlay { background: rgba(255,255,255,0.98); }
         .sunlight-mode .text-white { color: #121212; }
         
-        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 250; pointer-events: none; }
+        /* Star Animation */
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
         .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
-        @keyframes fall { to { transform: translateY(110vh); } }
+        @keyframes fall { 
+            from { transform: translateY(-10vh); }
+            to { transform: translateY(110vh); } 
+        }
 
         .modal-overlay { backdrop-filter: blur(25px); z-index: 200; position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; padding: 24px; overflow-y: auto; }
         .input-zinc { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; width: 100%; padding: 16px; border-radius: 16px; font-size: 14px; outline: none; }
@@ -120,19 +124,14 @@
                 <i data-lucide="alert-triangle" size="40"></i>
             </div>
             <h2 class="text-2xl font-black uppercase italic">Danger <span class="text-red-500">Zone</span></h2>
-            <p class="text-gray-400 text-xs leading-relaxed uppercase font-bold tracking-wider">
-                This action is irreversible. You will lose your account and balance:
-            </p>
+            <p class="text-gray-400 text-xs leading-relaxed uppercase font-bold tracking-wider"> Irreversible action. </p>
             <div class="bg-red-500/20 py-3 rounded-2xl">
                 <p id="delete-balance-warning" class="text-xl font-black text-red-500">₦0</p>
             </div>
-            <div class="space-y-4 text-left">
-                <p class="text-[9px] font-black uppercase text-gray-500 ml-2">Confirm with Password</p>
-                <input id="delete-pass-confirm" type="password" class="input-zinc border-red-500/20" placeholder="Your Password">
-            </div>
+            <input id="delete-pass-confirm" type="password" class="input-zinc" placeholder="Password">
             <div class="grid grid-cols-2 gap-4">
-                <button onclick="closeModal('delete-modal')" class="bg-zinc-900 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Cancel</button>
-                <button onclick="handleAccountDeletion()" id="final-delete-btn" class="bg-red-600 text-white py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">Delete Me</button>
+                <button onclick="closeModal('delete-modal')" class="bg-zinc-900 text-white py-4 rounded-2xl font-black text-[10px]">Cancel</button>
+                <button onclick="handleAccountDeletion()" id="final-delete-btn" class="bg-red-600 text-white py-4 rounded-2xl font-black text-[10px]">Delete</button>
             </div>
         </div>
     </div>
@@ -146,9 +145,7 @@
             <input id="edit-fname" type="text" class="input-zinc" placeholder="First Name">
             <input id="edit-lname" type="text" class="input-zinc" placeholder="Last Name">
             <input id="edit-phone" type="text" class="input-zinc" placeholder="Phone Number">
-            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
-                <span id="save-text">Save Changes</span>
-            </button>
+            <button onclick="saveProfileUpdates()" id="save-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black text-xs">Save</button>
         </div>
     </div>
 
@@ -158,18 +155,9 @@
             <button onclick="closeModal('security-modal')" class="text-white"><i data-lucide="x"></i></button>
         </div>
         <div class="space-y-4 relative z-10">
-            <div class="relative">
-                <input id="new-pass" type="password" class="input-zinc" placeholder="New Password">
-                <button onclick="togglePass('new-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
-            </div>
-            <div class="relative">
-                <input id="confirm-pass" type="password" class="input-zinc" placeholder="Confirm New Password">
-                <button onclick="togglePass('confirm-pass')" class="absolute right-4 top-4 text-gray-500"><i data-lucide="eye" size="18"></i></button>
-            </div>
-            <p id="pass-msg" class="text-[10px] font-bold uppercase text-center"></p>
-            <button onclick="updatePassword()" id="pass-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center space-x-2">
-                <span id="pass-text">Update Password</span>
-            </button>
+            <input id="new-pass" type="password" class="input-zinc" placeholder="New Password">
+            <input id="confirm-pass" type="password" class="input-zinc" placeholder="Confirm">
+            <button onclick="updatePassword()" id="pass-btn" class="w-full bg-sdel text-black py-4 rounded-2xl font-black text-xs">Update</button>
         </div>
     </div>
 
@@ -189,7 +177,7 @@
 
         let currentUser = null;
 
-        // --- THEME MEMORY LOGIC ---
+        // --- THEME & STAR LOGIC ---
         const themeBtn = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
         
@@ -211,8 +199,28 @@
             updateThemeUI();
         });
 
-        // Initialize theme UI
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 50; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const size = Math.random() * 2 + 1;
+                star.style.width = size + 'px';
+                star.style.height = size + 'px';
+                star.style.left = Math.random() * 100 + 'vw';
+                
+                // Randomize initial position so they aren't all at the top
+                star.style.top = Math.random() * 100 + 'vh'; 
+                
+                // Slower infinite fall
+                star.style.animationDuration = (Math.random() * 30 + 40) + 's';
+                star.style.animationDelay = '-' + (Math.random() * 50) + 's'; 
+                container.appendChild(star);
+            }
+        }
+
         updateThemeUI();
+        createStars();
 
         async function checkSession() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -225,80 +233,23 @@
         }
 
         async function loadProfile() {
-            const { data: profile, error } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
-            if (error) return;
-
-            const fName = profile?.first_name || currentUser.user_metadata?.first_name || "User";
-            const lName = profile?.last_name || currentUser.user_metadata?.last_name || "";
-            const balance = `₦${(profile?.wallet_balance || 0).toLocaleString()}`;
-            
-            document.getElementById('p-full-name').innerText = (fName + " " + lName).trim();
+            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
+            if (!profile) return;
+            const fName = profile.first_name || "User";
+            const lName = profile.last_name || "";
+            document.getElementById('p-full-name').innerText = fName + " " + lName;
             document.getElementById('p-email').innerText = currentUser.email;
-            document.getElementById('p-balance').innerText = balance;
-            document.getElementById('delete-balance-warning').innerText = balance;
-            
-            const initial1 = fName.charAt(0);
-            const initial2 = lName.charAt(0) || "";
-            document.getElementById('p-initials').innerText = (initial1 + initial2).toUpperCase();
-            
+            document.getElementById('p-balance').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
+            document.getElementById('p-initials').innerText = (fName[0] + (lName[0] || "")).toUpperCase();
             document.getElementById('edit-fname').value = fName;
             document.getElementById('edit-lname').value = lName;
-            document.getElementById('edit-phone').value = profile?.phone || currentUser.user_metadata?.phone || "";
         }
 
-        window.openDeleteModal = () => document.getElementById('delete-modal').style.display = 'block';
+        window.openModal = (id) => document.getElementById(id).style.display = 'block';
         window.closeModal = (id) => document.getElementById(id).style.display = 'none';
-        
-        window.handleAccountDeletion = async () => {
-            const pass = document.getElementById('delete-pass-confirm').value;
-            const btn = document.getElementById('final-delete-btn');
-            if (!pass) return alert("Password required.");
-
-            btn.innerHTML = '<i data-lucide="loader-2" class="spinner"></i>';
-            lucide.createIcons();
-
-            const { error: signInErr } = await supabase.auth.signInWithPassword({ email: currentUser.email, password: pass });
-            if (signInErr) { alert("Wrong password."); btn.innerText = "Delete Me"; return; }
-
-            const { error: deleteErr } = await supabase.rpc('delete_user_completely');
-            if (!deleteErr) { await supabase.auth.signOut(); window.location.replace('join.html'); }
-        };
-
-        window.saveProfileUpdates = async () => {
-            const text = document.getElementById('save-text');
-            const data = { 
-                first_name: document.getElementById('edit-fname').value,
-                last_name: document.getElementById('edit-lname').value,
-                phone: document.getElementById('edit-phone').value
-            };
-            text.innerHTML = '<i data-lucide="loader-2" class="spinner"></i>';
-            lucide.createIcons();
-            await supabase.from('profile').update(data).eq('id', currentUser.id);
-            await supabase.auth.updateUser({ data });
-            location.reload();
-        };
-
-        window.updatePassword = async () => {
-            const pass = document.getElementById('new-pass').value;
-            if (pass !== document.getElementById('confirm-pass').value) return alert("Mismatch");
-            const { error } = await supabase.auth.updateUser({ password: pass });
-            if (!error) closeModal('security-modal');
-        };
-
-        function createStars() {
-            const container = document.getElementById('stars');
-            for (let i = 0; i < 150; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
-                star.style.left = Math.random() * 100 + 'vw';
-                star.style.animationDuration = (Math.random() * 20 + 30) + 's'; 
-                container.appendChild(star);
-            }
-        }
 
         document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
-        createStars();
+        
         checkSession();
         lucide.createIcons();
     </script>
