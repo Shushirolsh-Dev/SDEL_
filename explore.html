@@ -311,3 +311,48 @@ async function toggleBanUser(userId, currentStatus) {
         loadFeed(true);
     }
 }
+function openEditModal(id, oldContent) {
+    closeSheet();
+    document.getElementById('edit-textarea').value = oldContent;
+    document.getElementById('edit-modal').style.display = 'flex';
+    document.getElementById('save-edit-btn').onclick = async () => {
+        const newContent = document.getElementById('edit-textarea').value.trim();
+        if(newContent) {
+            await supabase.from('posts').update({ content: newContent }).eq('id', id);
+            closeEditModal();
+            loadFeed(true);
+            showToast("Updated!");
+        }
+    };
+}
+
+async function deletePost(id) { 
+    closeSheet(); 
+    const { error } = await supabase.from('posts').delete().eq('id', id);
+    if(!error) { showToast("Burned!"); loadFeed(true); }
+}
+
+function endPress() { clearTimeout(pressTimer); }
+function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
+function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+function setupPullToRefresh() { window.addEventListener('touchend', async () => { if (window.scrollY === 0) await loadFeed(); }); }
+function toggleActions(el) { document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
+function toggleSearch() { document.getElementById('search-container').classList.toggle('hidden'); }
+function handleSearch(val) { searchQuery = val; loadFeed(); }
+function switchTab(mode) { 
+    document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
+    document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
+    currentMode = mode; loadFeed(); 
+}
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+init();
+    </script>
+    
+</body>
+</html>
