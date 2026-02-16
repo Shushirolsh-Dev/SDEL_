@@ -343,6 +343,39 @@ function startPress(postId, userId, createdAt, content, targetIsBanned) {
     }, 800);
 }
 
+// Aether Security Layer: Custom Themed Redirect
+function safeRedirect(url) {
+    const verifiedDomains = ['wa.me', 'whatsapp.com', 'instagram.com', 'tiktok.com', 'jw.org'];
+    const isVerified = verifiedDomains.some(domain => url.toLowerCase().includes(domain));
+    
+    // Create Modal Element on the fly to match theme
+    const modalHtml = `
+        <div id="aether-modal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;">
+            <div class="modal-content text-center" style="max-width:400px; width:100%;">
+                <h3 class="font-black italic uppercase text-sdel tracking-tighter text-lg">${isVerified ? 'Verified Social' : 'Security Alert'}</h3>
+                <p class="text-[11px] mt-2 font-medium opacity-70">
+                    ${isVerified ? 'Aether has verified this link. Proceed to platform?' : 'External link detected. Proceed with caution?'}
+                </p>
+                <div style="margin:15px 0; padding:12px; background:rgba(255,102,0,0.05); border:1px dashed rgba(255,102,0,0.3); border-radius:12px;">
+                    <p style="font-size:10px; font-weight:700; word-break:break-all; color:#FF6600;">${url}</p>
+                </div>
+                <div class="flex gap-3">
+                    <button id="aether-abort" class="flex-1 py-3 bg-zinc-900 rounded-xl font-bold uppercase text-xs">Abort</button>
+                    <button id="aether-proceed" class="flex-1 py-3 bg-sdel text-black rounded-xl font-black uppercase text-xs">Proceed</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    document.getElementById('aether-abort').onclick = () => document.getElementById('aether-modal').remove();
+    document.getElementById('aether-proceed').onclick = () => {
+        window.open(url.startsWith('http') ? url : `https://${url}`, '_blank');
+        document.getElementById('aether-modal').remove();
+    };
+}
+
 async function toggleBanUser(userId, currentStatus) {
     closeSheet();
     const { error } = await supabase.from('profile').update({ is_banned: !currentStatus }).eq('id', userId);
