@@ -60,6 +60,11 @@
         #edit-modal { align-items: center; justify-content: center; padding: 20px; }
         .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; border: 1px solid #222; }
         #edit-textarea { background: #000; border: 1px solid #222; border-radius: 16px; width: 100%; color: white; padding: 15px; font-size: 14px; outline: none; margin: 15px 0; resize: none; }
+
+        /* Aether Link Styling */
+        .aether-link { display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 102, 0, 0.1); border: 1px solid rgba(255, 102, 0, 0.3); color: #FF6600; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; margin: 4px 0; transition: all 0.2s; }
+        .aether-link:active { background: #FF6600; color: black; }
+        .sunlight-mode .aether-link { background: rgba(255, 102, 0, 0.05); }
     </style>
 </head>
 <body class="pb-32">
@@ -136,7 +141,7 @@ let currentMode = 'campus';
 let searchQuery = '';
 let pressTimer;
 
-Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, toggleBanUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare });
+Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, toggleBanUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare, safeRedirect });
 
 async function init() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -166,6 +171,20 @@ async function init() {
     document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
     loadFeed();
     setupPullToRefresh();
+}
+
+// Aether Security Layer: Redirect Logic
+function safeRedirect(url) {
+    const verifiedDomains = ['wa.me', 'whatsapp.com', 'instagram.com', 'tiktok.com', 'jw.org'];
+    const isVerified = verifiedDomains.some(domain => url.toLowerCase().includes(domain));
+    
+    const message = isVerified 
+        ? "Redirect to Verified Social?" 
+        : "SECURITY ALERT: External link detected. Proceed with caution?";
+        
+    if (confirm(message)) {
+        window.open(url.startsWith('http') ? url : `https://${url}`, '_blank');
+    }
 }
 
 async function publishPost() {
@@ -284,7 +303,21 @@ function getBadgeHTML(official, verified) {
     return '';
 }
 
-function formatContent(text) { return text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>'); }
+// Updated formatContent for Aether Security Layer
+function formatContent(text) { 
+    // Handle @mentions
+    let formatted = text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>');
+    
+    // Handle URLs via Aether.renderLinks style
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-z0-9.-]+\.(com|org|net|me|io|me|gov|edu)[^\s]*)/gi;
+    formatted = formatted.replace(urlRegex, (url) => {
+        return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${url}')">
+                    <i data-lucide="external-link" size="12"></i> Open Link
+                </span>`;
+    });
+    
+    return formatted;
+}
 
 function startPress(postId, userId, createdAt, content, targetIsBanned) {
     const isOwner = userProfile?.id === userId;
@@ -318,6 +351,7 @@ async function toggleBanUser(userId, currentStatus) {
         loadFeed(true);
     }
 }
+
 function openEditModal(id, oldContent) {
     closeSheet();
     document.getElementById('edit-textarea').value = oldContent;
@@ -360,6 +394,5 @@ function showToast(msg) {
 
 init();
     </script>
-    
 </body>
 </html>
