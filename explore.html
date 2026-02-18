@@ -109,18 +109,15 @@
         <i data-lucide="shopping-cart" class="text-white/60" size="28"></i>
         <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
     </nav>
-
-<script type="module">
+    <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
 let userProfile = null;
 let currentMode = 'campus';
 
-Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions });
+Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore });
 
-// --- SECURITY: THE AETHER SHIELD ---
-// This function neutralizes all HTML tags to prevent hijacking/crashing
 function sanitize(str) {
     const div = document.createElement('div');
     div.textContent = str;
@@ -130,33 +127,24 @@ function sanitize(str) {
 async function init() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return window.location.replace('login.html');
-    
     const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
     userProfile = profile;
-
     if (userProfile?.is_banned) location.replace('banned.html');
-    
     document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
     loadFeed();
 }
 
 async function publishPost() {
     const rawContent = document.getElementById('post-input').value.trim();
-    if (!rawContent) return;
-
-    // Detect and block script injection immediately
-    if (/<script|javascript:|onerror|eval/gi.test(rawContent)) {
-        showToast("Security: Blocked");
-        document.getElementById('post-input').value = '';
+    if (!rawContent || /<script|javascript:|onerror|eval/gi.test(rawContent)) {
+        if (rawContent) showToast("Security: Blocked");
         return;
     }
-
     const { error } = await supabase.from('posts').insert({ 
         user_id: userProfile.id, 
         content: rawContent, 
         school_name: userProfile.school_name || 'Global' 
     });
-
     if (!error) { 
         showToast("Gist Published!"); 
         document.getElementById('post-input').value = ''; 
@@ -164,20 +152,27 @@ async function publishPost() {
     }
 }
 
-function formatContent(text) { 
-    // 1. Sanitize first to kill any executable scripts
+function formatContent(text, postId) { 
     let safe = sanitize(text);
+    const lineCount = (safe.match(/\n/g) || []).length + 1;
     
-    // 2. Format mentions
+    // Read More Logic
+    if (lineCount > 5 || safe.length > 280) {
+        const truncated = safe.substring(0, 250) + "...";
+        safe = `<span id="short-${postId}">${truncated} <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span>
+                <span id="full-${postId}" class="hidden">${safe}</span>`;
+    }
+
     safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>');
-    
-    // 3. Format links with the Aether styling (same line as text)
     const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-z0-9.-]+\.(com|org|net|me|io|gov)[^\s]*)/gi;
     return safe.replace(urlRegex, (url) => {
-        return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${url}')">
-                    <i data-lucide="external-link" size="10"></i> Link
-                </span>`;
+        return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${url}')"><i data-lucide="external-link" size="10"></i> Link</span>`;
     });
+}
+
+function toggleReadMore(id) {
+    document.getElementById(`short-${id}`).classList.add('hidden');
+    document.getElementById(`full-${id}`).classList.remove('hidden');
 }
 
 async function loadFeed() {
@@ -189,29 +184,43 @@ async function loadFeed() {
     if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
     
     const { data: posts } = await query;
-    if (!posts) return;
+    const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
 
     container.innerHTML = posts.map(post => {
         const username = post.profile?.username || 'homie';
-        const badge = post.profile?.is_official ? `<i data-lucide="check-circle" class="text-sdel" size="12"></i>` : '';
+        const isLiked = myLikes?.some(l => l.post_id === post.id);
+        
+        // Badges from old code logic
+        let badge = '';
+        if (post.profile?.is_official) badge = `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+        else if (post.profile?.is_verified) badge = `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+
+        const schoolTag = currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase tracking-widest">${post.school_name}</span>` : '';
 
         return `
         <div class="post-card p-4">
             <div class="flex space-x-3">
-                <div class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-xs border border-white/5 uppercase">${username[0]}</div>
+                <div class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/5 uppercase">${username[0]}</div>
                 <div class="flex-1">
                     <div class="flex items-center gap-1.5 mb-1">
-                        <span class="text-[13px] font-black uppercase tracking-tighter">@${username}</span>
+                        <span class="text-[14px] font-black uppercase tracking-tighter">@${username}</span>
                         ${badge}
-                        <span class="ml-auto text-[9px] text-zinc-600 font-bold uppercase">${post.school_name}</span>
+                        ${schoolTag}
                     </div>
-                    <p class="text-[14px] text-zinc-200 leading-snug break-words">
-                        ${formatContent(post.content)}
-                    </p>
-                    <div class="flex items-center gap-6 mt-4 text-zinc-500">
-                        <button onclick="handleLike('${post.id}')"><i data-lucide="heart" size="16"></i></button>
-                        <i data-lucide="message-circle" size="16" onclick="location.href='gist.html?id=${post.id}'"></i>
-                        <i data-lucide="share-2" size="16"></i>
+                    <div class="text-[14px] text-zinc-200 leading-snug break-words mb-3">
+                        ${formatContent(post.content, post.id)}
+                    </div>
+                    <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
+                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}">
+                            <i data-lucide="heart" size="20" fill="${isLiked ? '#FF6600' : 'none'}"></i>
+                            <span class="text-xs font-bold">${post.likes_count || 0}</span>
+                        </button>
+                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2">
+                            <i data-lucide="message-circle" size="20"></i>
+                            <span class="text-xs font-bold">${post.comments_count || 0}</span>
+                        </button>
+                        <button><i data-lucide="repeat" size="20"></i> <span class="text-xs font-bold">0</span></button>
+                        <button><i data-lucide="upload" size="20"></i></button>
                     </div>
                 </div>
             </div>
@@ -222,30 +231,42 @@ async function loadFeed() {
 
 function safeRedirect(url) {
     const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+    const modal = document.getElementById('redirect-modal');
     document.getElementById('raw-link-display').innerText = fullUrl;
-    document.getElementById('redirect-modal').style.display = 'flex';
-    document.getElementById('confirm-redirect-btn').onclick = () => {
-        window.open(fullUrl, '_blank');
-        closeRedirect();
-    };
+    
+    // Security Warning for Brand Protection
+    const note = document.createElement('p');
+    note.className = "text-[9px] text-red-500 font-bold uppercase mt-4";
+    note.innerText = "Sdel is not responsible for external content. Proceed only if you trust the source.";
+    
+    const display = document.getElementById('raw-link-display');
+    if(display.nextSibling) display.parentNode.removeChild(display.nextSibling);
+    display.parentNode.insertBefore(note, display.nextSibling);
+
+    modal.style.display = 'flex';
+    document.getElementById('confirm-redirect-btn').onclick = () => { window.open(fullUrl, '_blank'); closeRedirect(); };
+}
+
+async function handleLike(postId) {
+    const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', postId).eq('interaction_type', 'like').single();
+    if (existing) {
+        await supabase.from('interactions').delete().eq('id', existing.id);
+        await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
+    } else {
+        await supabase.from('interactions').insert({ user_id: userProfile.id, post_id: postId, interaction_type: 'like' });
+        await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
+    }
+    loadFeed();
 }
 
 function closeRedirect() { document.getElementById('redirect-modal').style.display = 'none'; }
-
 function switchTab(mode) { 
     currentMode = mode;
     document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
     document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
     loadFeed(); 
 }
-
 function toggleActions(el) { document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
-
-async function handleLike(postId) {
-    showToast("Liked!");
-    // (Existing Supabase RPC logic for likes remains here)
-}
-
 function showToast(msg) {
     const t = document.getElementById('toast');
     t.innerText = msg; t.classList.add('show');
@@ -253,6 +274,7 @@ function showToast(msg) {
 }
 
 init();
-</script>
+    </script>
+    
 </body>
 </html>
