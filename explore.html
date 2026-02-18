@@ -43,13 +43,11 @@
         .sunlight-mode #post-input { color: #121212; }
         .sunlight-mode .text-zinc-200 { color: #27272a !important; }
         .sunlight-mode .text-zinc-500 { color: #71717a !important; }
-        
-        /* Orange Nav Icons in Light Mode */
-        .sunlight-mode .fixed.bottom-0 i { color: #FF6600 !important; opacity: 0.8; }
-        .sunlight-mode .fixed.bottom-0 i.text-sdel { opacity: 1; }
-
         .sunlight-mode #mention-list { background: #ffffff; border-color: #eee; }
         .sunlight-mode .mention-item { color: #121212; border-color: #f5f5f5; }
+        
+        /* Orange Nav Icons in Light Mode */
+        .sunlight-mode .fixed.bottom-0 i { color: #FF6600 !important; opacity: 1 !important; }
 
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
         #toast.show { transform: translateX(-50%) translateY(0); }
@@ -57,8 +55,6 @@
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px); padding: 20px; }
         .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
 
-        .aether-link { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 102, 0, 0.15); border: 1px solid rgba(255, 102, 0, 0.3); color: #FF6600; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-left: 4px; vertical-align: middle; }
-        
         .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #222; border-radius: 24px 24px 0 0; padding: 20px; z-index: 3000; transform: translateY(100%); transition: transform 0.3s ease; }
         .sunlight-mode .action-sheet { background: white; border-color: #eee; }
         .action-sheet.open { transform: translateY(0); }
@@ -119,7 +115,7 @@
             <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
         </div>
         <i data-lucide="shopping-cart" class="text-white/60" size="28"></i>
-        <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
+        <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='userprofile.html'"></i>
     </nav>
 
 <script type="module">
@@ -128,16 +124,9 @@ const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhb
 
 let userProfile = null;
 let currentMode = 'campus';
-let securityViolationCount = 0;
 let pressTimer = null;
 
-Object.assign(window, { publishPost, switchTab, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention });
-
-function formatNum(num) {
-    if (!num) return 0;
-    if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-    return num;
-}
+Object.assign(window, { publishPost, switchTab, handleLike, toggleActions, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention });
 
 async function init() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -184,8 +173,7 @@ function showActionSheet(post) {
     const sheet = document.getElementById('action-sheet');
     const options = document.getElementById('action-options');
     const isOwner = post.user_id === userProfile.id;
-    let html = '';
-    if (isOwner) html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs">Burn Gist</button>`;
+    let html = isOwner ? `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs">Burn Gist</button>` : '';
     if (userProfile.is_official && !isOwner) html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
     options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions</p>';
     sheet.classList.add('open');
@@ -194,26 +182,18 @@ function showActionSheet(post) {
 
 function closeActions() { document.getElementById('action-sheet').classList.remove('open'); }
 
-async function burnGist(id) {
-    await supabase.from('posts').delete().eq('id', id);
-    loadFeed(); closeActions();
-}
-
-async function banUser(userId) {
-    await supabase.from('profile').update({ is_banned: true }).eq('id', userId);
-    closeActions();
-}
+async function burnGist(id) { await supabase.from('posts').delete().eq('id', id); loadFeed(); closeActions(); }
+async function banUser(userId) { await supabase.from('profile').update({ is_banned: true }).eq('id', userId); closeActions(); }
 
 async function publishPost() {
     const content = document.getElementById('post-input').value.trim();
     if (!content) return;
-    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: content, school_name: userProfile.school_name || 'Global' });
+    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content, school_name: userProfile.school_name || 'Global' });
     if (!error) { document.getElementById('post-input').value = ''; toggleActions(document.getElementById('post-input')); loadFeed(); }
 }
 
-function formatContent(text, postId) { 
+function formatContent(text) { 
     let safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    // Format Repost Headers to new line
     if (safe.startsWith("Reposted from @")) {
         const parts = safe.split(': ');
         if (parts.length > 1) {
@@ -221,9 +201,7 @@ function formatContent(text, postId) {
             safe = `<span class="text-zinc-500 font-bold block mb-1 text-[11px]">${header}:</span>${parts.join(': ')}`;
         }
     }
-    // Mention Linking to userprofile.html
-    safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'userprofile.html?u=$1\'">@$1</span>');
-    return safe;
+    return safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'userprofile.html?u=$1\'">@$1</span>');
 }
 
 async function loadFeed() {
@@ -241,15 +219,13 @@ async function loadFeed() {
             <div class="flex space-x-3">
                 <div class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase" onclick="location.href='userprofile.html?u=${username}'">${username[0]}</div>
                 <div class="flex-1">
-                    <div class="flex items-center gap-1.5 mb-1">
-                        <span class="text-[14px] font-black uppercase" onclick="location.href='userprofile.html?u=${username}'">@${username}</span>
-                    </div>
-                    <div class="text-[14px] text-zinc-200 leading-snug break-words mb-3">${formatContent(post.content, post.id)}</div>
+                    <span class="text-[14px] font-black uppercase" onclick="location.href='userprofile.html?u=${username}'">@${username}</span>
+                    <div class="text-[14px] text-zinc-200 leading-snug break-words mt-1 mb-3">${formatContent(post.content)}</div>
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
-                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
-                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
-                        <button onclick="handleRepost('${post.id}', \`${post.content}\`, '${username}')" class="flex items-center gap-2"><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
-                        <button onclick="handleShare('${post.id}', \`${post.content}\`)"><i data-lucide="upload" size="18"></i></button>
+                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${post.likes_count || 0}</span></button>
+                        <button onclick="location.href='gist.html?id=${post.id}'"><i data-lucide="message-circle" size="18"></i></button>
+                        <button onclick="handleRepost('${post.id}', \`${post.content}\`, '${username}')"><i data-lucide="repeat" size="18"></i></button>
+                        <button onclick="handleShare('${post.id}')"><i data-lucide="upload" size="18"></i></button>
                     </div>
                 </div>
             </div>
@@ -270,24 +246,18 @@ async function handleLike(postId) {
     loadFeed();
 }
 
-async function handleRepost(originalPostId, originalContent, originalAuthor) {
-    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: `Reposted from @${originalAuthor}: ${originalContent}`, school_name: userProfile.school_name || 'Global' });
-    if (!error) { await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); loadFeed(); }
+async function handleRepost(id, content, author) {
+    await supabase.from('posts').insert({ user_id: userProfile.id, content: `Reposted from @${author}: ${content}`, school_name: userProfile.school_name || 'Global' });
+    await supabase.rpc('increment_stat', { post_id: id, field: 'reposts_count' });
+    loadFeed();
 }
 
-async function handleShare(postId, content) {
-    const url = `${window.location.origin}/gist.html?id=${postId}`;
-    navigator.clipboard.writeText(url);
-}
+async function handleShare(postId) { navigator.clipboard.writeText(`${window.location.origin}/gist.html?id=${postId}`); showToast("Link Copied!"); }
+function switchTab(mode) { currentMode = mode; loadFeed(); }
+function toggleActions(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); handleMentions(el); }
+function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
 
-function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
-function toggleActions(el) { 
-    el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
-    document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
-    handleMentions(el);
-}
 init();
 </script>
 </body>
-                </html>
-                
+</html>
