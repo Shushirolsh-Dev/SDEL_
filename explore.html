@@ -30,67 +30,57 @@
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
         
         #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; transition: min-height 0.2s; }
-        .composer-expanded { background: rgba(255,102,0,0.05) !important; border: 1px solid rgba(255,102,0,0.2) !important; border-radius: 16px; padding: 16px !important; }
 
-        /* MENTION LIST POSITIONING (BELOW SEARCHED) */
+        /* MENTION LIST */
         #mention-list { position: absolute; background: #0a0a0a; border: 1px solid #222; border-radius: 16px; width: 220px; z-index: 5000; display: none; box-shadow: 0 15px 40px rgba(0,0,0,0.6); overflow: hidden; }
         .mention-item { padding: 14px 18px; border-bottom: 1px solid #1a1a1a; font-size: 12px; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.2s; color: white; }
         .mention-item:hover { background: #FF6600; color: black; }
 
-        /* LIGHT THEME VISIBILITY FIXES */
+        /* SUNLIGHT MODE - ORANGE ICONS FIX */
         .sunlight-mode body { background-color: #ffffff; color: #121212; }
         .sunlight-mode nav, .sunlight-mode .sticky { background-color: rgba(255,255,255,0.95) !important; border-color: #f0f0f0 !important; }
         .sunlight-mode .post-card { background: #ffffff; border-color: #f0f0f0; }
-        .sunlight-mode .post-card:active { background: #f9f9f9; }
         .sunlight-mode #post-input { color: #121212; }
         .sunlight-mode .text-zinc-200 { color: #27272a !important; }
         .sunlight-mode .text-zinc-500 { color: #71717a !important; }
-        .sunlight-mode #mention-list { background: #ffffff; border-color: #eee; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .sunlight-mode .mention-item { color: #121212; border-color: #f5f5f5; }
-        .sunlight-mode .composer-expanded { background: #fff7f2 !important; border-color: #ffd6ba !important; }
-        .sunlight-mode .modal-content { background: #ffffff; border-color: #eee; color: #121212; }
-        .sunlight-mode .bg-zinc-900 { background-color: #f4f4f5; }
+        .sunlight-mode .fixed.bottom-0 { background-color: #ffffff !important; border-top-color: #f0f0f0 !important; }
+        .sunlight-mode .fixed.bottom-0 i:not(.text-black) { color: #FF6600 !important; opacity: 1 !important; }
 
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
         #toast.show { transform: translateX(-50%) translateY(0); }
         
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px); padding: 20px; }
-        .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
+        #action-sheet, #edit-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; display: none; align-items: flex-end; }
+        .sheet-content { background: #111; width: 100%; border-radius: 24px 24px 0 0; padding: 20px; border-top: 1px solid #222; }
+        .sunlight-mode .sheet-content { background: #fff; border-color: #eee; color: #121212; }
 
-        .aether-link { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 102, 0, 0.15); border: 1px solid rgba(255, 102, 0, 0.3); color: #FF6600; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-left: 4px; vertical-align: middle; }
-        
-        .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #222; border-radius: 24px 24px 0 0; padding: 20px; z-index: 3000; transform: translateY(100%); transition: transform 0.3s ease; }
-        .sunlight-mode .action-sheet { background: white; border-color: #eee; }
-        .action-sheet.open { transform: translateY(0); }
+        #edit-modal { align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; border: 1px solid #222; }
+        .sunlight-mode .modal-content { background: #fff; border-color: #eee; }
+        #edit-textarea { background: #000; border: 1px solid #222; border-radius: 16px; width: 100%; color: white; padding: 15px; font-size: 14px; outline: none; margin: 15px 0; resize: none; }
+        .sunlight-mode #edit-textarea { background: #f4f4f5; color: #121212; border-color: #e4e4e7; }
     </style>
 </head>
 <body class="pb-32">
     <div id="toast">Gist Published!</div>
     <div id="mention-list"></div>
 
-    <div id="security-modal" class="modal-overlay">
-        <div class="modal-content border-red-900/50">
-            <i data-lucide="shield-alert" class="text-red-600 mx-auto mb-4" size="48"></i>
-            <h3 class="text-red-500 font-black uppercase mb-2">Security Warning</h3>
-            <p id="security-msg" class="text-xs text-zinc-400 font-bold leading-relaxed mb-6 uppercase">Unauthorized script detected. Your account status has been updated.</p>
-            <button onclick="document.getElementById('security-modal').style.display='none'" class="w-full py-4 bg-zinc-900 rounded-2xl font-black text-xs uppercase">I Understand</button>
+    <div id="action-sheet" onclick="closeSheet()">
+        <div class="sheet-content" onclick="event.stopPropagation()">
+            <div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6"></div>
+            <button id="edit-btn" class="w-full py-4 text-left font-bold border-b border-white/5 flex items-center gap-3"><i data-lucide="edit-3" size="18"></i> Edit Gist <span class="text-[10px] text-zinc-500 font-normal">(20m limit)</span></button>
+            <button id="burn-btn" class="w-full py-4 text-left font-bold text-red-500 border-b border-white/5 flex items-center gap-3"><i data-lucide="flame" size="18"></i> Burn Gist</button>
+            <button id="ban-btn" class="w-full py-4 text-left font-bold text-orange-500 flex items-center gap-3"><i data-lucide="shield-off" size="18"></i> <span>Ban User (CEO)</span></button>
+            <button onclick="closeSheet()" class="w-full py-4 mt-2 text-center text-zinc-500 font-bold uppercase text-xs">Cancel</button>
         </div>
     </div>
 
-    <div id="action-sheet" class="action-sheet">
-        <div class="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-6"></div>
-        <div id="action-options" class="space-y-3"></div>
-        <button onclick="closeActions()" class="w-full mt-4 py-4 text-zinc-500 font-black uppercase text-xs">Cancel</button>
-    </div>
-
-    <div id="redirect-modal" class="modal-overlay">
+    <div id="edit-modal">
         <div class="modal-content">
-            <h3 class="text-lg font-black uppercase mb-2">Leaving Sdel</h3>
-            <div id="raw-link-display" class="bg-black p-4 rounded-xl border border-zinc-800 text-sdel text-[10px] break-all mb-4 font-bold"></div>
-            <p class="text-[9px] text-red-500 font-black uppercase mb-6">Verify link before proceeding. Sdel does not verify external content.</p>
+            <h3 class="font-black italic uppercase text-sdel tracking-tighter">Edit your gist</h3>
+            <textarea id="edit-textarea" rows="4"></textarea>
             <div class="flex gap-3">
-                <button onclick="closeRedirect()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-xs">Abort</button>
-                <button id="confirm-redirect-btn" class="flex-1 py-4 bg-sdel text-black rounded-2xl font-black uppercase text-xs">Proceed</button>
+                <button onclick="closeEditModal()" class="flex-1 py-3 bg-zinc-900 rounded-xl font-bold uppercase text-xs">Abort</button>
+                <button id="save-edit-btn" class="flex-1 py-3 bg-sdel text-black rounded-xl font-black uppercase text-xs">Update</button>
             </div>
         </div>
     </div>
@@ -110,14 +100,13 @@
         </div>
     </nav>
 
-    <div id="composer-card" class="m-4 p-4 border border-white/5 flex flex-col relative transition-all">
+    <div class="m-4 p-4 border border-white/5 flex flex-col relative">
         <div class="flex space-x-3">
             <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase text-sdel">H</div>
             <div class="flex-1">
-                <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
+                <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="handleInput(this)"></textarea>
                 <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
-                    <span class="text-[10px] text-zinc-600 font-bold uppercase">Public Gist</span>
-                    <button onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase">Post</button>
+                    <button onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase ml-auto">Post</button>
                 </div>
             </div>
         </div>
@@ -132,7 +121,7 @@
             <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
         </div>
         <i data-lucide="shopping-cart" class="text-white/60" size="28"></i>
-        <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
+        <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='userprofile.html'"></i>
     </nav>
 
 <script type="module">
@@ -141,27 +130,23 @@ const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhb
 
 let userProfile = null;
 let currentMode = 'campus';
-let securityViolationCount = 0;
 let pressTimer = null;
 
-Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention });
-
-function formatNum(num) {
-    if (!num) return 0;
-    if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
-    if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
-    if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-    return num;
-}
+Object.assign(window, { publishPost, switchTab, handleLike, handleInput, handleRepost, startPress, endPress, closeSheet, closeEditModal, deletePost, toggleBanUser, selectMention });
 
 async function init() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return window.location.replace('login.html');
     const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
     userProfile = profile;
-    if (userProfile?.is_banned || userProfile?.banned) location.replace('banned.html');
     document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
     loadFeed();
+}
+
+function handleInput(el) {
+    el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+    document.getElementById('composer-actions').classList.toggle('hidden', el.value.trim().length === 0);
+    handleMentions(el);
 }
 
 async function handleMentions(input) {
@@ -169,7 +154,6 @@ async function handleMentions(input) {
     const cursor = input.selectionStart;
     const lastAt = text.lastIndexOf('@', cursor - 1);
     const mentionList = document.getElementById('mention-list');
-
     if (lastAt !== -1 && !text.slice(lastAt, cursor).includes(' ')) {
         const query = text.slice(lastAt + 1, cursor);
         if (query.length > 0) {
@@ -178,7 +162,6 @@ async function handleMentions(input) {
                 mentionList.innerHTML = users.map(u => `<div class="mention-item" onclick="selectMention('${u.username}', ${lastAt}, ${cursor})">@${u.username}</div>`).join('');
                 mentionList.style.display = 'block';
                 const rect = input.getBoundingClientRect();
-                // POSITION BELOW INPUT
                 mentionList.style.top = (rect.bottom + window.scrollY + 10) + 'px';
                 mentionList.style.left = rect.left + 'px';
                 return;
@@ -190,84 +173,86 @@ async function handleMentions(input) {
 
 function selectMention(name, start, end) {
     const input = document.getElementById('post-input');
-    const text = input.value;
-    input.value = text.slice(0, start) + '@' + name + ' ' + text.slice(end);
+    input.value = input.value.slice(0, start) + '@' + name + ' ' + input.value.slice(end);
     document.getElementById('mention-list').style.display = 'none';
     input.focus();
 }
 
-function handlePress(e, post) {
-    pressTimer = setTimeout(() => { showActionSheet(post); }, 800);
+/* 0.8s LOGIC RESTORED */
+function startPress(postId, userId, createdAt, content, targetIsBanned) {
+    const isOwner = userProfile?.id === userId;
+    const isCEO = userProfile?.is_official === true;
+    if (!isOwner && !isCEO) return;
+    pressTimer = setTimeout(() => {
+        const diff = (new Date() - new Date(createdAt)) / (1000 * 60);
+        const banBtn = document.getElementById('ban-btn');
+        document.getElementById('action-sheet').style.display = 'flex';
+        document.getElementById('edit-btn').style.display = (isOwner && diff < 20) ? 'flex' : 'none';
+        document.getElementById('burn-btn').style.display = (isOwner || isCEO) ? 'flex' : 'none';
+        
+        if (isCEO && !isOwner) {
+            banBtn.style.display = 'flex';
+            banBtn.querySelector('span').innerText = targetIsBanned ? "Unban User (CEO)" : "Ban User (CEO)";
+            banBtn.onclick = () => toggleBanUser(userId, targetIsBanned);
+        } else { banBtn.style.display = 'none'; }
+        
+        document.getElementById('edit-btn').onclick = () => openEditModal(postId, content);
+        document.getElementById('burn-btn').onclick = () => deletePost(postId);
+    }, 800);
 }
 
-function cancelPress() { clearTimeout(pressTimer); }
+function endPress() { clearTimeout(pressTimer); }
+function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
+function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
 
-function showActionSheet(post) {
-    const sheet = document.getElementById('action-sheet');
-    const options = document.getElementById('action-options');
-    const isOwner = post.user_id === userProfile.id;
-    const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
-    
-    let html = '';
-    if (isOwner) {
-        html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
-        if (canEdit) html += `<button class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
-    }
-    if (userProfile.is_official && !isOwner) {
-        html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
-    }
-    options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
-    sheet.classList.add('open');
-    lucide.createIcons();
+async function deletePost(id) { 
+    closeSheet(); 
+    await supabase.from('posts').delete().eq('id', id);
+    loadFeed(true); showToast("Burned!");
 }
 
-function closeActions() { document.getElementById('action-sheet').classList.remove('open'); }
-
-async function burnGist(id) {
-    const { error } = await supabase.from('posts').delete().eq('id', id);
-    if (!error) { showToast("Gist Burned!"); loadFeed(); closeActions(); }
+async function toggleBanUser(userId, status) {
+    closeSheet();
+    await supabase.from('profile').update({ is_banned: !status }).eq('id', userId);
+    showToast(status ? "Unbanned" : "Banned");
+    loadFeed(true);
 }
 
-async function banUser(userId) {
-    await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userId);
-    showToast("User Banned!");
-    closeActions();
+function openEditModal(id, oldContent) {
+    closeSheet();
+    document.getElementById('edit-textarea').value = oldContent;
+    document.getElementById('edit-modal').style.display = 'flex';
+    document.getElementById('save-edit-btn').onclick = async () => {
+        const newContent = document.getElementById('edit-textarea').value.trim();
+        if(newContent) {
+            await supabase.from('posts').update({ content: newContent }).eq('id', id);
+            closeEditModal(); loadFeed(true); showToast("Updated!");
+        }
+    };
 }
 
 async function publishPost() {
-    const rawContent = document.getElementById('post-input').value.trim();
-    if (!rawContent) return;
-    if (/<script|javascript:|onerror|eval/gi.test(rawContent)) {
-        document.getElementById('post-input').value = '';
-        if (userProfile?.is_official) {
-            document.getElementById('security-msg').innerText = "Developer Mode: Script tags blocked.";
-            document.getElementById('security-modal').style.display = 'flex';
-            return;
+    const content = document.getElementById('post-input').value.trim();
+    if (!content) return;
+    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content, school_name: userProfile.school_name || 'Global' });
+    if (!error) { document.getElementById('post-input').value = ''; handleInput(document.getElementById('post-input')); loadFeed(); showToast("Published!"); }
+}
+
+function formatContent(text) { 
+    let safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    if (safe.startsWith("Reposted from @")) {
+        const parts = safe.split(': ');
+        if (parts.length > 1) {
+            const header = parts.shift();
+            safe = `<span class="text-zinc-500 font-bold block mb-1 text-[11px]">${header}:</span>${parts.join(': ')}`;
         }
-        securityViolationCount++;
-        if (securityViolationCount >= 3) {
-            await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userProfile.id);
-            location.replace('banned.html');
-        } else { showToast("Security: Blocked"); }
-        return;
     }
-    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: rawContent, school_name: userProfile.school_name || 'Global' });
-    if (!error) { showToast("Gist Published!"); document.getElementById('post-input').value = ''; toggleActions(document.getElementById('post-input')); loadFeed(); }
+    return safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'userprofile.html?u=$1\'">@$1</span>');
 }
 
-function formatContent(text, postId) { 
-    let safe = sanitize(text);
-    if (safe.length > 280) {
-        safe = `<span id="short-${postId}">${safe.substring(0, 250)}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
-    }
-    safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
-    const urlRegex = /(https?:\/\/[^\s]+)/gi;
-    return safe.replace(urlRegex, (url) => `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${url}')"><i data-lucide="external-link" size="10"></i> LINK</span>`);
-}
-
-async function loadFeed() {
+async function loadFeed(silent = false) {
     const container = document.getElementById('feed-container');
-    let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').order('created_at', { ascending: false }).limit(40);
+    let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified, is_banned)').order('created_at', { ascending: false }).limit(40);
     if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
     const { data: posts } = await query;
     const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
@@ -275,24 +260,22 @@ async function loadFeed() {
     container.innerHTML = posts.map(post => {
         const username = post.profile?.username || 'homie';
         const isLiked = myLikes?.some(l => l.post_id === post.id);
-        let badge = post.profile?.is_official ? `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : (post.profile?.is_verified ? `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : '');
+        const badge = post.profile?.is_official ? `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : '';
         
         return `
-        <div class="post-card p-4" onmousedown="handlePress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" onmouseup="cancelPress()" ontouchstart="handlePress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" ontouchend="cancelPress()">
-            <div class="flex space-x-3">
-                <div class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase">${username[0]}</div>
+        <div class="post-card p-4">
+            <div class="flex space-x-3" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', \`${post.content}\`, ${post.profile?.is_banned})" ontouchend="endPress()">
+                <div class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase" onclick="location.href='userprofile.html?u=${username}'">${username[0]}</div>
                 <div class="flex-1">
                     <div class="flex items-center gap-1.5 mb-1">
-                        <span class="text-[14px] font-black uppercase tracking-tighter">@${username}</span>
+                        <span class="text-[14px] font-black uppercase" onclick="location.href='userprofile.html?u=${username}'">@${username}</span>
                         ${badge}
-                        ${currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${post.school_name}</span>` : ''}
                     </div>
-                    <div class="text-[14px] text-zinc-200 leading-snug break-words mb-3">${formatContent(post.content, post.id)}</div>
+                    <div class="text-[14px] text-zinc-200 leading-snug break-words mt-1 mb-3">${formatContent(post.content)}</div>
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
-                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
-                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
-                        <button onclick="handleRepost('${post.id}', \`${post.content}\`, '${username}')" class="flex items-center gap-2"><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
-                        <button onclick="handleShare('${post.id}', \`${post.content}\`)"><i data-lucide="upload" size="18"></i></button>
+                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${post.likes_count || 0}</span></button>
+                        <button onclick="location.href='gist.html?id=${post.id}'"><i data-lucide="message-circle" size="18"></i></button>
+                        <button onclick="handleRepost('${post.id}', \`${post.content}\`, '${username}')"><i data-lucide="repeat" size="18"></i></button>
                     </div>
                 </div>
             </div>
@@ -300,7 +283,8 @@ async function loadFeed() {
     }).join('');
     lucide.createIcons();
 }
-    async function handleLike(postId) {
+
+async function handleLike(postId) {
     const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', postId).eq('interaction_type', 'like').single();
     if (existing) {
         await supabase.from('interactions').delete().eq('id', existing.id);
@@ -309,32 +293,16 @@ async function loadFeed() {
         await supabase.from('interactions').insert({ user_id: userProfile.id, post_id: postId, interaction_type: 'like' });
         await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
     }
-    loadFeed();
+    loadFeed(true);
 }
 
-async function handleRepost(originalPostId, originalContent, originalAuthor) {
-    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: `Reposted from @${originalAuthor}: ${originalContent}`, school_name: userProfile.school_name || 'Global' });
-    if (!error) { await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); showToast("Reposted!"); loadFeed(); }
+async function handleRepost(id, content, author) {
+    await supabase.from('posts').insert({ user_id: userProfile.id, content: `Reposted from @${author}: ${content}`, school_name: userProfile.school_name || 'Global' });
+    await supabase.rpc('increment_stat', { post_id: id, field: 'reposts_count' });
+    loadFeed(true); showToast("Reposted!");
 }
 
-async function handleShare(postId, content) {
-    const url = `${window.location.origin}/gist.html?id=${postId}`;
-    if (navigator.share) navigator.share({ title: 'Sdel', text: content, url });
-    else { navigator.clipboard.writeText(url); showToast("Link Copied!"); }
-}
-
-function sanitize(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
-function safeRedirect(url) { document.getElementById('raw-link-display').innerText = url; document.getElementById('redirect-modal').style.display = 'flex'; document.getElementById('confirm-redirect-btn').onclick = () => { window.open(url, '_blank'); closeRedirect(); }; }
-function closeRedirect() { document.getElementById('redirect-modal').style.display = 'none'; }
-function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
-function toggleActions(el) { 
-    const card = document.getElementById('composer-card');
-    el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
-    card.classList.toggle('composer-expanded', el.value.length > 50);
-    document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
-    handleMentions(el);
-}
-function toggleReadMore(id) { document.getElementById(`short-${id}`).classList.add('hidden'); document.getElementById(`full-${id}`).classList.remove('hidden'); }
+function switchTab(mode) { currentMode = mode; loadFeed(); }
 function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
 
 init();
