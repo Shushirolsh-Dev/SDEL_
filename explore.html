@@ -32,15 +32,12 @@
         .bg-sdel { background-color: #FF6600; }
         .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; }
         .post-card:active { background: rgba(255, 102, 0, 0.05); }
-        .gist-content { user-select: none; -webkit-user-select: none; white-space: pre-wrap; word-break: break-word; text-align: left; width: 100%; }
+        .gist-content { user-select: none; -webkit-user-select: none; }
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
         .spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        
-        /* Fixed Composer Styling */
-        #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; min-height: 40px; overflow: hidden; padding-top: 4px; }
-        
+        #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; min-height: 24px; }
         #pull-indicator { height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #000; transition: height 0.2s ease; font-size: 10px; font-weight: 900; text-transform: uppercase; color: #FF6600; letter-spacing: 2px; }
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; box-shadow: 0 10px 30px rgba(255, 102, 0, 0.3); }
         #toast.show { transform: translateX(-50%) translateY(0); }
@@ -66,7 +63,7 @@
         #edit-textarea { background: #000; border: 1px solid #222; border-radius: 16px; width: 100%; color: white; padding: 15px; font-size: 14px; outline: none; margin: 15px 0; resize: none; }
 
         /* Aether Link Styling */
-        .aether-link { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 102, 0, 0.1); border: 1px solid rgba(255, 102, 0, 0.3); color: #FF6600; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; margin: 0 2px; transition: all 0.2s; cursor: pointer; vertical-align: middle; }
+        .aether-link { display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 102, 0, 0.1); border: 1px solid rgba(255, 102, 0, 0.3); color: #FF6600; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; text-transform: uppercase; margin: 4px 0; transition: all 0.2s; cursor: pointer; }
         .aether-link:active { background: #FF6600; color: black; }
         .sunlight-mode .aether-link { background: rgba(255, 102, 0, 0.05); }
 
@@ -74,8 +71,6 @@
         #redirect-modal { align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
         .redirect-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
         .raw-link-box { background: #000; border: 1px dashed #333; padding: 15px; border-radius: 12px; margin: 20px 0; word-break: break-all; font-family: monospace; font-size: 13px; color: #FF6600; }
-
-        .read-more-btn { color: #FF6600; font-weight: 800; text-transform: uppercase; font-size: 10px; margin-top: 8px; display: block; cursor: pointer; text-align: left; }
     </style>
 </head>
 <body class="pb-32">
@@ -143,7 +138,7 @@
     <div class="p-4 border-b border-white/5 flex space-x-3">
         <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase text-sdel">H</div>
         <div class="flex-1 pt-1">
-            <textarea id="post-input" placeholder="What's happening, homie?" oninput="handleInput(this)"></textarea>
+            <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
             <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
                 <span class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest italic">Public Gist</span>
                 <button id="post-btn" onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-tighter active:scale-95 transition">Post</button>
@@ -171,7 +166,7 @@ let currentMode = 'campus';
 let searchQuery = '';
 let pressTimer;
 
-Object.assign(window, { publishPost, toggleSearch, handleSearch, handleInput, switchTab, deletePost, toggleBanUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare, safeRedirect, closeRedirect, toggleReadMore });
+Object.assign(window, { publishPost, toggleSearch, handleSearch, toggleActions, switchTab, deletePost, toggleBanUser, closeSheet, closeEditModal, startPress, endPress, handleLike, handleRepost, handleShare, safeRedirect, closeRedirect });
 
 async function init() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -203,12 +198,7 @@ async function init() {
     setupPullToRefresh();
 }
 
-function handleInput(el) {
-    el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
-    document.getElementById('composer-actions').classList.toggle('hidden', el.value.trim().length === 0);
-}
-
+// Aether Security Layer: Customized Redirect Logic
 function safeRedirect(url) {
     const modal = document.getElementById('redirect-modal');
     const linkDisplay = document.getElementById('raw-link-display');
@@ -252,9 +242,7 @@ async function publishPost() {
 
     if (!error) { 
         showToast("Gist Published!"); 
-        const input = document.getElementById('post-input');
-        input.value = ''; 
-        input.style.height = '40px';
+        document.getElementById('post-input').value = ''; 
         loadFeed(); 
         window.scrollTo({ top: 0, behavior: 'smooth' }); 
     }
@@ -291,23 +279,6 @@ async function handleShare(postId, content, username) {
     const shareData = { title: `Gist from @${username}`, text: `${content}\n\nVia Sdel`, url: `${window.location.origin}/gist.html?id=${postId}` };
     try { if (navigator.share) await navigator.share(shareData); else { navigator.clipboard.writeText(shareData.url); showToast("Link Copied!"); } } catch (err) {}
 }
-
-function toggleReadMore(btn) {
-    const content = btn.previousElementSibling;
-    const fullText = content.getAttribute('data-full-content');
-    const currentShown = parseInt(content.getAttribute('data-shown-lines'));
-    const allLines = fullText.split('\n');
-    
-    const nextBatch = allLines.slice(0, currentShown + 10).join('\n');
-    content.innerHTML = formatContent(nextBatch);
-    content.setAttribute('data-shown-lines', currentShown + 10);
-    
-    if (allLines.length <= currentShown + 10) {
-        btn.remove();
-    }
-    lucide.createIcons();
-}
-
 async function loadFeed(silent = false) {
     const container = document.getElementById('feed-container');
     if (!silent && container.innerHTML === "") container.innerHTML = '<div class="py-10 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>';
@@ -333,34 +304,27 @@ async function loadFeed(silent = false) {
         const badge = getBadgeHTML(profile.is_official, profile.is_verified);
         const schoolTag = currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-600 font-bold uppercase tracking-widest">${post.school_name}</span>` : '';
 
-        const lines = post.content.split('\n');
-        const hasMore = lines.length > 10;
-        const displayContent = hasMore ? lines.slice(0, 10).join('\n') : post.content;
-
         let repostContext = '';
         if(post.post_type === 'repost' && post.parent) {
             const origProfile = post.parent.profile || {};
             const origBadge = getBadgeHTML(origProfile.is_official, origProfile.is_verified);
-            repostContext = `<div onclick="location.href='gist.html?id=${post.parent_id}'" class="flex items-center gap-1.5 mb.2 ml-10 text-[10px] text-zinc-500 font-bold uppercase italic cursor-pointer"><i data-lucide="repeat" size="12"></i> Reposted from @${origProfile.username || 'homie'} ${origBadge}</div>`;
+            repostContext = `<div onclick="location.href='gist.html?id=${post.parent_id}'" class="flex items-center gap-1.5 mb-2 ml-10 text-[10px] text-zinc-500 font-bold uppercase italic cursor-pointer"><i data-lucide="repeat" size="12"></i> Reposted from @${origProfile.username || 'homie'} ${origBadge}</div>`;
         }
 
         return `
         <div class="post-card p-4">
             ${repostContext}
-            <div class="flex space-x-3 items-start" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', \`${post.content}\`, ${profile.is_banned})" ontouchend="endPress()">
-                <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center font-black text-sdel text-xs uppercase flex-shrink-0">${username[0]}</div>
-                <div class="flex-1 min-w-0 flex flex-col items-start">
-                    <div class="flex items-center gap-1.5 mb-1 w-full">
-                        <span class="text-[13px] font-black uppercase tracking-tighter truncate">@${username}</span>
+            <div class="flex space-x-3" ontouchstart="startPress('${post.id}', '${post.user_id}', '${post.created_at}', \`${post.content}\`, ${profile.is_banned})" ontouchend="endPress()">
+                <div class="w-10 h-10 rounded-full bg-zinc-900 border border-white/5 flex items-center justify-center font-black text-sdel text-xs uppercase">${username[0]}</div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="text-[13px] font-black uppercase tracking-tighter">@${username}</span>
                         ${badge}
                         ${schoolTag}
                     </div>
-                    <div class="gist-content text-[14px] text-zinc-200 font-medium w-full text-left" data-full-content="${post.content.replace(/"/g, '&quot;')}" data-shown-lines="10">
-                        ${formatContent(displayContent)}
-                    </div>
-                    ${hasMore ? `<span class="read-more-btn" onclick="toggleReadMore(this)">Read More</span>` : ''}
-                    <div class="flex items-center justify-between text-zinc-500 max-w-[220px] mt-4">
-                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-1 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="16" fill="${isLiked ? 'currentColor' : 'none'}"></i> <span class="text-[10px]">${post.likes_count || 0}</span></button>
+                    <p class="gist-content text-[14px] text-zinc-200 font-medium mb-3">${formatContent(post.content)}</p>
+                    <div class="flex items-center justify-between text-zinc-500 max-w-[220px]">
+                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-1 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="16"  fill="${isLiked ? 'currentColor' : 'none'}"></i> <span class="text-[10px]">${post.likes_count || 0}</span></button>
                         <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-1"><i data-lucide="message-circle" size="16"></i> <span class="text-[10px]">${post.comments_count || 0}</span></button>
                         <button onclick="handleRepost('${post.id}', \`${post.content}\`)" class="flex items-center gap-1 ${isReposted ? 'text-green-500' : ''}"><i data-lucide="repeat" size="16"></i> <span class="text-[10px]">${post.reposts_count || 0}</span></button>
                         <button onclick="handleShare('${post.id}', \`${post.content}\`, '${username}')"><i data-lucide="share" size="16"></i></button>
@@ -382,7 +346,9 @@ function formatContent(text) {
     let formatted = text.replace(/@(\w+)/g, '<span class="text-sdel font-bold">@$1</span>');
     const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-z0-9.-]+\.(com|org|net|me|io|me|gov|edu)[^\s]*)/gi;
     formatted = formatted.replace(urlRegex, (url) => {
-        return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${url}')"><i data-lucide="external-link" size="10"></i>Open Link</span>`;
+        return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${url}')">
+                    <i data-lucide="external-link" size="12"></i> Open Link
+                </span>`;
     });
     return formatted;
 }
@@ -445,6 +411,7 @@ function endPress() { clearTimeout(pressTimer); }
 function closeSheet() { document.getElementById('action-sheet').style.display = 'none'; }
 function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
 function setupPullToRefresh() { window.addEventListener('touchend', async () => { if (window.scrollY === 0) await loadFeed(); }); }
+function toggleActions(el) { document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0); }
 function toggleSearch() { document.getElementById('search-container').classList.toggle('hidden'); }
 function handleSearch(val) { searchQuery = val; loadFeed(); }
 function switchTab(mode) { 
