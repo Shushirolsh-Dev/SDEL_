@@ -16,7 +16,6 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        /* Midnight Theme (Default) */
         :root {
             --bg: #000000;
             --surface: #0a0a0a;
@@ -27,7 +26,6 @@
             --nav-bg: rgba(0, 0, 0, 0.8);
         }
 
-        /* Sunlight Theme */
         .sunlight-mode {
             --bg: #ffffff;
             --surface: #f4f4f5;
@@ -46,6 +44,8 @@
         .stat-card { background: var(--card); border: 1px solid var(--border); backdrop-filter: blur(10px); }
         .post-card { background: transparent; border-bottom: 1px solid var(--border); }
         
+        .monetize-card { background: linear-gradient(135deg, #FF6600 0%, #cc5200 100%); color: black; }
+
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 11px; text-transform: uppercase; transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
         #toast.show { transform: translateX(-50%) translateY(0); }
 
@@ -58,7 +58,10 @@
     <nav class="sticky top-0 bg-[var(--nav-bg)] backdrop-blur-xl z-[100] border-b border-[var(--border)] p-5 flex items-center justify-between">
         <i data-lucide="chevron-left" onclick="history.back()" class="cursor-pointer"></i>
         <h2 id="nav-username" class="text-[10px] font-black uppercase tracking-[0.2em]">Profile</h2>
-        <i data-lucide="sun" id="theme-toggle" class="cursor-pointer text-sdel"></i>
+        <div class="flex items-center gap-4">
+            <i data-lucide="sun" id="theme-toggle" class="cursor-pointer text-sdel"></i>
+            <i data-lucide="settings" id="settings-btn" class="cursor-pointer opacity-50" onclick="location.href='settings.html'"></i>
+        </div>
     </nav>
 
     <div class="profile-header px-6 pt-10 pb-8 text-center">
@@ -95,6 +98,29 @@
         </div>
     </div>
 
+    <div id="monetize-section" class="px-6 mb-8 hidden">
+        <div class="monetize-card p-5 rounded-[2rem] shadow-xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-[11px] font-black uppercase tracking-widest">Sdel Pro Hub</h3>
+                <i data-lucide="trending-up" size="16"></i>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="location.href='badges.html'" class="bg-black/10 p-3 rounded-2xl flex flex-col items-center gap-2">
+                    <i data-lucide="award" size="18"></i>
+                    <span class="text-[8px] font-black uppercase">Badges</span>
+                </button>
+                <button onclick="location.href='ads.html'" class="bg-black/10 p-3 rounded-2xl flex flex-col items-center gap-2">
+                    <i data-lucide="megaphone" size="18"></i>
+                    <span class="text-[8px] font-black uppercase">Ads</span>
+                </button>
+                <button onclick="location.href='vendor.html'" class="bg-black/10 p-3 rounded-2xl flex flex-col items-center gap-2">
+                    <i data-lucide="store" size="18"></i>
+                    <span class="text-[8px] font-black uppercase">Vendor</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="px-6 mb-2 flex items-center gap-8 border-b border-[var(--border)]">
         <button class="py-4 text-[11px] font-black uppercase active-tab tracking-widest">Feed</button>
         <button class="py-4 text-[11px] font-black uppercase text-[var(--text-dim)] tracking-widest">Aether</button>
@@ -122,7 +148,6 @@ let isFollowing = false;
 let isHomie = false;
 let followerCount = 0;
 
-// Theme Toggle Logic
 document.getElementById('theme-toggle').onclick = () => {
     const isLight = document.documentElement.classList.toggle('sunlight-mode');
     localStorage.setItem('theme', isLight ? 'sunlight' : 'midnight');
@@ -146,6 +171,11 @@ async function init() {
     }
 
     if (!viewProfile) return history.back();
+
+    // Show monetize hub if viewing own profile
+    if (viewProfile.id === loggedInUser.id) {
+        document.getElementById('monetize-section').classList.remove('hidden');
+    }
 
     await checkFollowStatus();
     await loadStats();
@@ -193,8 +223,8 @@ function renderProfile() {
     const dmIcon = document.getElementById('dm-icon');
 
     if (viewProfile.id === loggedInUser.id) {
-        btn.innerText = "Edit Profile";
-        btn.onclick = () => location.href = 'settings.html';
+        btn.innerText = "Share Profile";
+        btn.onclick = window.shareProfile;
         dmBtn.style.display = 'none';
     } else {
         btn.innerText = isFollowing ? "Unfollow" : "Follow";
@@ -273,6 +303,11 @@ function showToast(msg) {
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 3000);
 }
+
+window.shareProfile = () => {
+    navigator.clipboard.writeText(window.location.href);
+    showToast("Profile Link Copied!");
+};
 
 init();
 </script>
