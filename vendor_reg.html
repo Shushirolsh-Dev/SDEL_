@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') document.documentElement.classList.add('sunlight-mode');
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Merchant Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        :root { --bg: #000; --surface: #0a0a0a; --card: #121212; --border: rgba(255,255,255,0.08); --text: #fff; --dim: #71717a; }
+        .sunlight-mode { --bg: #fff; --surface: #f4f4f5; --card: #ffffff; --border: #e4e4e7; --text: #09090b; --dim: #71717a; }
+        
+        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; transition: 0.3s; }
+        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 2.5rem; }
+        .text-sdel { color: #FF6600; }
+        .input-zinc { background: rgba(120,120,120,0.05); border: 1px solid var(--border); color: var(--text); padding: 16px; border-radius: 16px; font-size: 13px; font-weight: 600; outline: none; width: 100%; }
+        .input-zinc:focus { border-color: #FF6600; }
+        
+        .plan-card { border: 2px solid var(--border); transition: 0.3s; cursor: pointer; border-radius: 20px; }
+        .plan-card.active { border-color: #FF6600; background: rgba(255,102,0,0.05); }
+
+        * { font-style: normal !important; }
+    </style>
+</head>
+<body class="p-6 pb-20">
+
+    <nav class="flex items-center justify-between mb-10">
+        <button onclick="window.history.back()" class="p-3 bg-zinc-900/10 rounded-2xl border border-[var(--border)]">
+            <i data-lucide="arrow-left" size="20"></i>
+        </button>
+        <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">Merchant Hub</h1>
+        <div class="w-10"></div>
+    </nav>
+
+    <header class="mb-10 text-center">
+        <h2 class="text-3xl font-black uppercase tracking-tighter mb-2">Open Your <span class="text-sdel">Shop</span></h2>
+        <p class="text-[10px] font-bold text-[var(--dim)] uppercase tracking-widest">Scale your business on Sdel</p>
+    </header>
+
+    <div class="space-y-8">
+        <div class="glass-card p-6 flex items-center gap-4">
+            <div id="shopIcon" class="w-16 h-16 rounded-2xl bg-sdel/10 flex items-center justify-center text-sdel border border-sdel/20">
+                <i data-lucide="store" size="28"></i>
+            </div>
+            <div>
+                <h3 id="previewName" class="font-black uppercase text-sm tracking-tight">Your Business Name</h3>
+                <p id="previewCat" class="text-[10px] text-[var(--dim)] font-bold uppercase tracking-widest">Select Category</p>
+            </div>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Business Identity</label>
+                <input type="text" id="bizName" placeholder="Shop Name" class="input-zinc" oninput="updatePreview()">
+            </div>
+
+            <div>
+                <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Category</label>
+                <select id="bizCat" class="input-zinc appearance-none" onchange="updatePreview()">
+                    <option value="">Select Niche</option>
+                    <option value="Fashion">Fashion & Style</option>
+                    <option value="Electronics">Tech & Gadgets</option>
+                    <option value="Food">Food & Groceries</option>
+                    <option value="Services">Professional Services</option>
+                </select>
+            </div>
+
+            <div class="space-y-3">
+                <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 block">Choose Merchant Plan</label>
+                <div id="plan-container" class="grid grid-cols-1 gap-3">
+                    <p class="text-xs opacity-50 p-4">Loading plans...</p>
+                </div>
+            </div>
+
+            <button onclick="registerVendor()" id="regBtn" class="w-full bg-[#FF6600] text-white py-6 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-2xl shadow-sdel/30 active:scale-95 transition-all mt-6">
+                Launch My Shop
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let selectedPrice = 0;
+        let selectedTierId = "";
+
+        async function loadPlans() {
+            const { data: configs } = await supabase.from('app_config').select('*').filter('id', 'ilike', 'vendor_%').order('price', { ascending: true });
+            const cont = document.getElementById('plan-container');
+            if (configs) {
+                cont.innerHTML = configs.map(c => `
+                    <div class="plan-card p-5 flex justify-between items-center" id="card-${c.id}" onclick="selectPlan('${c.id}', ${c.price})">
+                        <div>
+                            <p class="font-black uppercase text-xs tracking-tight">${c.description}</p>
+                            <p class="text-[9px] text-[var(--dim)] font-bold uppercase">System Integration Fee</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sdel font-black text-sm">₦${c.price.toLocaleString()}</p>
+                        </div>
+                    </div>
+                `).join('');
+                // Default select first
+                selectPlan(configs[0].id, configs[0].price);
+            }
+        }
+
+        window.selectPlan = (id, price) => {
+            selectedPrice = price;
+            selectedTierId = id;
+            document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`card-${id}`).classList.add('active');
+        }
+
+        window.updatePreview = () => {
+            document.getElementById('previewName').innerText = document.getElementById('bizName').value || "Your Business Name";
+            document.getElementById('previewCat').innerText = document.getElementById('bizCat').value || "Select Category";
+        }
+
+        window.registerVendor = async () => {
+            const btn = document.getElementById('regBtn');
+            const biz = document.getElementById('bizName').value;
+            const cat = document.getElementById('bizCat').value;
+
+            if(!biz || !cat) return alert("Fill in shop details, homie.");
+
+            btn.disabled = true;
+            btn.innerText = "Processing Hub...";
+
+            const { data: { session } } = await supabase.auth.getSession();
+            if(!session) return window.location.href = 'login.html';
+
+            // Check if vendor table has these columns: business_name, category, tier_id, user_id
+            const { error } = await supabase.from('vendors').insert({
+                user_id: session.user.id,
+                business_name: biz,
+                category: cat,
+                tier_id: selectedTierId,
+                fee_paid: selectedPrice,
+                status: 'pending' // Admin must approve
+            });
+
+            if(!error) {
+                window.location.href = `checkout.html?amount=${selectedPrice}&type=vendor&name=${encodeURIComponent(biz)}`;
+            } else {
+                alert(error.message);
+                btn.disabled = false;
+                btn.innerText = "Launch My Shop";
+            }
+        };
+
+        loadPlans();
+        lucide.createIcons();
+    </script>
+</body>
+          </html>
+  
