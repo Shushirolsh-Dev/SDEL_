@@ -17,8 +17,8 @@
         
         /* Preview Styling */
         #image-preview-container { display: none; width: 100%; height: 200px; border-radius: 20px; overflow: hidden; margin-bottom: 15px; border: 1px solid #262626; position: relative; }
-        #image-preview { width: 100%; height: 100%; object-cover: cover; }
-        .remove-img { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 50%; color: white; cursor: pointer; }
+        #image-preview { width: 100%; height: 100%; object-fit: cover; }
+        .remove-img { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 50%; color: white; cursor: pointer; z-index: 10; }
 
         #inventory-list:empty::after { content: "YOUR SHOP IS EMPTY"; display: block; text-align: center; padding: 40px; font-size: 10px; font-weight: 900; color: #262626; letter-spacing: 0.2em; }
     </style>
@@ -110,6 +110,38 @@
             document.getElementById('file-status').innerText = "Snap Photo";
         };
 
+        // --- SIGHTENGINE AI PROTOCOL ---
+        async function runAIScan(file) {
+            const formData = new FormData();
+            formData.append('media', file);
+            formData.append('models', 'nudity-2.0,wad,offensive'); // wad covers Weapons, Alcohol, Drugs
+            formData.append('api_user', '351772232'); 
+            formData.append('api_secret', 'XpUucJxcrXRGGGWWpM7Akh6jAi8vAwKZ');
+
+            try {
+                const response = await fetch('https://api.sightengine.com/1.0/check.json', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                
+                if (result.status === 'failure') return { safe: false, error: result.error.message };
+
+                // Define triggers
+                const weapon = result.weapon > 0.5;
+                const drugs = result.drugs > 0.5;
+                const explicit = result.nudity.sexual_explicit > 0.5;
+
+                if (weapon || drugs || explicit) {
+                    return { safe: false, error: weapon ? "Weapons detected" : drugs ? "Illegal items detected" : "Explicit content detected" };
+                }
+                return { safe: true };
+            } catch (err) {
+                console.error("AI Scan Error:", err);
+                return { safe: true }; // Fallback to allow if API fails, or set to false for max safety
+            }
+        }
+
         window.saveProduct = async () => {
             const name = document.getElementById('p-name').value;
             const price = document.getElementById('p-price').value;
@@ -121,7 +153,21 @@
             if(!name || !price || !category) return alert("Fill Name, Price & Category!");
 
             const btn = document.getElementById('save-btn');
-            btn.disabled = true; btn.innerText = "UPLOADING...";
+            btn.disabled = true; 
+            btn.innerText = "AI SCANNING...";
+
+            // 1. AI Safety Scan (Only for new files)
+            if (file) {
+                const scan = await runAIScan(file);
+                if (!scan.safe) {
+                    alert(`🚨 BLOCKED: ${scan.error}. Sdel does not allow these items.`);
+                    btn.disabled = false;
+                    btn.innerText = "Launch";
+                    return;
+                }
+            }
+
+            btn.innerText = "UPLOADING...";
 
             let productPayload = { 
                 name, 
@@ -131,7 +177,7 @@
                 vendor_id: currentUserId 
             };
 
-            // Image Upload
+            // 2. Storage Upload
             if(file) {
                 const fileName = `${currentUserId}/${Date.now()}.jpg`;
                 const { data, error: uploadError } = await supabase.storage.from('market-assets').upload(fileName, file);
@@ -140,13 +186,13 @@
                     productPayload.image_url = `https://lgfyrlfjoazedwymjpfc.supabase.co/storage/v1/object/public/market-assets/${fileName}`;
                     productPayload.image_path = fileName;
                 } else {
-                    console.error(uploadError);
-                    alert("System Error: Check if bucket 'market-assets' is public.");
+                    alert("System Error: Storage Policy Blocked.");
                     btn.disabled = false; btn.innerText = "Launch";
                     return;
                 }
             }
 
+            // 3. Database Save
             const action = editId ? 
                 supabase.from('products').update(productPayload).eq('id', editId).eq('vendor_id', currentUserId) : 
                 supabase.from('products').insert([productPayload]);
@@ -156,7 +202,7 @@
                 alert("Shop Updated, Homie!");
                 location.reload();
             } else { 
-                alert("Database Error: " + error.message);
+                alert("Permission Denied: Only verified vendors can post.");
                 btn.disabled = false; btn.innerText = "Launch";
             }
         };
