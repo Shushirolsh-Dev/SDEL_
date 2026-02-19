@@ -54,7 +54,6 @@
         .sunlight-mode .search-container { background: #f4f4f5; border-color: #e4e4e7; }
         .sunlight-mode .search-container input { color: #121212; background: #f4f4f5; }
         .sunlight-mode .search-container input::placeholder { color: #71717a; }
-        .sunlight-mode .edit-option { background: #f4f4f5 !important; color: #121212 !important; border: 1px solid #e4e4e7; }
 
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
         #toast.show { transform: translateX(-50%) translateY(0); }
@@ -110,7 +109,7 @@
     <div id="action-sheet" class="action-sheet" onclick="closeActions()">
         <div class="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-6"></div>
         <div id="action-options" class="space-y-3" onclick="event.stopPropagation()"></div>
-        <button onclick="closeActions()" class="w-full mt-4 py-4 text-zinc-500 font-black uppercase text-xs" onclick="event.stopPropagation()">Cancel</button>
+        <button onclick="closeActions()" class="w-full mt-4 py-4 text-zinc-500 font-black uppercase text-xs">Cancel</button>
     </div>
 
     <div id="redirect-modal" class="modal-overlay">
@@ -162,7 +161,12 @@
         </div>
     </div>
 
-    <main id="feed-container"></main>
+    <main id="feed-container">
+        <div class="flex justify-center items-center py-20">
+            <i data-lucide="loader-2" class="spinner text-sdel animate-spin" size="32"></i>
+            <span class="ml-3 text-zinc-500 font-bold uppercase text-xs">Loading feed...</span>
+        </div>
+    </main>
 
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100]">
         <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
@@ -176,6 +180,8 @@
 
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+// Initialize Supabase
 const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
 let userProfile = null;
@@ -183,9 +189,27 @@ let currentMode = 'campus';
 let securityViolationCount = 0;
 let pressTimer = null;
 let searchQuery = '';
-let repostedPosts = new Set();
 
-Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention, toggleSearch, handleSearch, startPress, endPress, openEditModal, closeEditModal, saveEdit });
+// Make functions globally available
+window.publishPost = publishPost;
+window.switchTab = switchTab;
+window.safeRedirect = safeRedirect;
+window.closeRedirect = closeRedirect;
+window.handleLike = handleLike;
+window.toggleActions = toggleActions;
+window.toggleReadMore = toggleReadMore;
+window.handleShare = handleShare;
+window.handleRepost = handleRepost;
+window.closeActions = closeActions;
+window.burnGist = burnGist;
+window.banUser = banUser;
+window.selectMention = selectMention;
+window.toggleSearch = toggleSearch;
+window.handleSearch = handleSearch;
+window.startPress = startPress;
+window.endPress = endPress;
+window.openEditModal = openEditModal;
+window.closeEditModal = closeEditModal;
 
 function formatNum(num) {
     if (!num) return 0;
@@ -196,24 +220,48 @@ function formatNum(num) {
 }
 
 async function init() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return window.location.replace('login.html');
-    const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
-    userProfile = profile;
-    if (userProfile?.is_banned || userProfile?.banned) location.replace('banned.html');
-    document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
-    loadFeed();
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            window.location.replace('login.html');
+            return;
+        }
+        
+        const { data: profile } = await supabase
+            .from('profile')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+        
+        userProfile = profile;
+        
+        if (userProfile?.is_banned || userProfile?.banned) {
+            location.replace('banned.html');
+            return;
+        }
+        
+        document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
+        loadFeed();
+    } catch (error) {
+        console.error('Init error:', error);
+        document.getElementById('feed-container').innerHTML = `
+            <div class="p-8 text-center">
+                <p class="text-red-500 font-bold">Error loading feed. Please refresh.</p>
+            </div>
+        `;
+    }
 }
 
 // Search Functions
 function toggleSearch() {
     const container = document.getElementById('search-container');
-    container.style.display = container.style.display === 'none' ? 'flex' : 'none';
     if (container.style.display === 'flex') {
-        document.getElementById('search-input').focus();
-    } else {
+        container.style.display = 'none';
         searchQuery = '';
         loadFeed();
+    } else {
+        container.style.display = 'flex';
+        document.getElementById('search-input').focus();
     }
     lucide.createIcons();
 }
@@ -241,9 +289,16 @@ async function handleMentions(input) {
     if (lastAt !== -1 && !text.slice(lastAt, cursor).includes(' ')) {
         const query = text.slice(lastAt + 1, cursor);
         if (query.length > 0) {
-            const { data: users } = await supabase.from('profile').select('username').ilike('username', `${query}%`).limit(5);
+            const { data: users } = await supabase
+                .from('profile')
+                .select('username')
+                .ilike('username', `${query}%`)
+                .limit(5);
+            
             if (users?.length) {
-                mentionList.innerHTML = users.map(u => `<div class="mention-item" onclick="selectMention('${u.username}', ${lastAt}, ${cursor})">@${u.username}</div>`).join('');
+                mentionList.innerHTML = users.map(u => 
+                    `<div class="mention-item" onclick="selectMention('${u.username}', ${lastAt}, ${cursor})">@${u.username}</div>`
+                ).join('');
                 mentionList.style.display = 'block';
                 const rect = input.getBoundingClientRect();
                 mentionList.style.top = (rect.bottom + window.scrollY + 10) + 'px';
@@ -267,29 +322,30 @@ function selectMention(name, start, end) {
 function showActionSheet(post) {
     const sheet = document.getElementById('action-sheet');
     const options = document.getElementById('action-options');
-    const isOwner = post.user_id === userProfile.id;
+    const isOwner = post.user_id === userProfile?.id;
     const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
+    const isOfficial = userProfile?.is_official === true;
+    const targetUserBanned = post.profile?.is_banned || false;
     
     let html = '';
+    
+    // Owner options
     if (isOwner) {
         html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
+        
         if (canEdit) {
-            html += `<button onclick="openEditModal('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs edit-option flex items-center justify-center gap-2"><i data-lucide="edit-3" size="16"></i> Edit Gist (15 mins)</button>`;
+            html += `<button onclick="openEditModal('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="edit-3" size="16"></i> Edit Gist (15 mins)</button>`;
         } else if (isOwner) {
             html += `<button disabled class="w-full py-4 bg-zinc-800 text-zinc-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed"><i data-lucide="edit-3" size="16"></i> Edit Expired</button>`;
         }
     }
-    if (userProfile.is_official) {
-        if (!isOwner) {
-            // Check if user is currently banned
-            const isBanned = post.profile?.is_banned || false;
-            html += `<button onclick="toggleBanUser('${post.user_id}', ${isBanned})" class="w-full py-4 ${isBanned ? 'bg-green-600' : 'bg-red-600'} text-black rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="${isBanned ? 'shield' : 'shield-off'}" size="16"></i> ${isBanned ? 'Unban User' : 'Ban User'}</button>`;
-        }
-        // Official can burn any post
-        if (!isOwner) {
-            html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist (Admin)</button>`;
-        }
+    
+    // Official options
+    if (isOfficial && !isOwner) {
+        html += `<button onclick="toggleBanUser('${post.user_id}', ${targetUserBanned})" class="w-full py-4 ${targetUserBanned ? 'bg-green-600' : 'bg-red-600'} text-black rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="${targetUserBanned ? 'shield' : 'shield-off'}" size="16"></i> ${targetUserBanned ? 'Unban User' : 'Ban User'}</button>`;
+        html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist (Admin)</button>`;
     }
+    
     options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
     sheet.classList.add('open');
     lucide.createIcons();
@@ -315,7 +371,11 @@ async function saveEdit(postId) {
     const newContent = document.getElementById('edit-textarea').value.trim();
     if (!newContent) return;
     
-    const { error } = await supabase.from('posts').update({ content: newContent }).eq('id', postId);
+    const { error } = await supabase
+        .from('posts')
+        .update({ content: newContent })
+        .eq('id', postId);
+    
     if (!error) {
         showToast("Gist Updated!");
         closeEditModal();
@@ -324,13 +384,25 @@ async function saveEdit(postId) {
 }
 
 async function burnGist(id) {
-    const { error } = await supabase.from('posts').delete().eq('id', id);
-    if (!error) { showToast("Gist Burned!"); loadFeed(); closeActions(); }
+    const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', id);
+    
+    if (!error) { 
+        showToast("Gist Burned!"); 
+        loadFeed(); 
+        closeActions(); 
+    }
 }
 
 async function toggleBanUser(userId, currentStatus) {
     closeActions();
-    const { error } = await supabase.from('profile').update({ is_banned: !currentStatus, banned: !currentStatus }).eq('id', userId);
+    const { error } = await supabase
+        .from('profile')
+        .update({ is_banned: !currentStatus, banned: !currentStatus })
+        .eq('id', userId);
+    
     if (!error) {
         showToast(currentStatus ? "User Unbanned!" : "User Banned!");
         loadFeed();
@@ -338,15 +410,20 @@ async function toggleBanUser(userId, currentStatus) {
 }
 
 async function publishPost() {
+    if (!userProfile) return;
+    
     const rawContent = document.getElementById('post-input').value.trim();
     if (!rawContent) return;
     
-    // Anti-Hack Logic - STRICTER: Block any HTML tags or script patterns
+    // Anti-Hack Logic
     if (/<[^>]*>|javascript:|onerror|onload|eval|alert|document\.|window\.|fetch|XMLHttpRequest|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeypress|onkeyup/i.test(rawContent)) {
         document.getElementById('post-input').value = '';
         securityViolationCount++;
         if (securityViolationCount >= 3) {
-            await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userProfile.id);
+            await supabase
+                .from('profile')
+                .update({ is_banned: true, banned: true })
+                .eq('id', userProfile.id);
             location.replace('banned.html');
         } else { 
             document.getElementById('security-modal').style.display = 'flex';
@@ -355,11 +432,22 @@ async function publishPost() {
         return;
     }
 
-    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: rawContent, school_name: userProfile.school_name || 'Global' });
-    if (!error) { showToast("Gist Published!"); document.getElementById('post-input').value = ''; toggleActions(document.getElementById('post-input')); loadFeed(); }
+    const { error } = await supabase
+        .from('posts')
+        .insert({ 
+            user_id: userProfile.id, 
+            content: rawContent, 
+            school_name: userProfile.school_name || 'Global' 
+        });
+    
+    if (!error) { 
+        showToast("Gist Published!"); 
+        document.getElementById('post-input').value = ''; 
+        toggleActions(document.getElementById('post-input')); 
+        loadFeed(); 
+    }
 }
 
-// ============= CRITICAL FIX: PLAIN TEXT ONLY =============
 function escapeHTML(str) {
     if (!str) return '';
     const div = document.createElement('div');
@@ -370,23 +458,20 @@ function escapeHTML(str) {
 function formatContent(text, postId) {
     if (!text) return '';
     
-    // STEP 1: Escape everything to plain text first
+    // Escape everything first
     let safe = escapeHTML(text);
     
-    // STEP 2: Apply safe transformations
-    
-    // Professional Read More
+    // Read More
     if (safe.length > 280) {
         safe = `<span id="short-${postId}">${escapeHTML(safe.substring(0, 250))}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${escapeHTML(safe)}</span>`;
     }
     
-    // STEP 3: Mentions
+    // Mentions
     safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'homieprofile.html?u=$1\'">@$1</span>');
     
-    // STEP 4: Links - AGGRESSIVE matching for all URLs
+    // Links
     const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     safe = safe.replace(urlRegex, (url) => {
-        // Make sure URL has protocol for safeRedirect
         let fullUrl = url;
         if (!fullUrl.startsWith('http')) {
             fullUrl = 'https://' + fullUrl;
@@ -397,89 +482,181 @@ function formatContent(text, postId) {
     
     return safe;
 }
-// =========================================================
 
 async function loadFeed() {
+    if (!userProfile) return;
+    
     const container = document.getElementById('feed-container');
-    let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified, is_banned)').order('created_at', { ascending: false }).limit(40);
-    if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
-    const { data: posts } = await query;
-    const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
-    const { data: myReposts } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'repost');
-
-    // Filter by search query
-    let filteredPosts = posts;
-    if (searchQuery) {
-        filteredPosts = posts.filter(post => 
-            post.content.toLowerCase().includes(searchQuery) || 
-            post.profile?.username?.toLowerCase().includes(searchQuery)
-        );
-    }
-
-    container.innerHTML = filteredPosts.map(post => {
-        const username = post.profile?.username || 'homie';
-        const isLiked = myLikes?.some(l => l.post_id === post.id);
-        const hasReposted = myReposts?.some(r => r.post_id === post.id);
-        let badge = post.profile?.is_official ? `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : (post.profile?.is_verified ? `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : '');
+    container.innerHTML = '<div class="flex justify-center items-center py-20"><i data-lucide="loader-2" class="spinner text-sdel animate-spin" size="32"></i><span class="ml-3 text-zinc-500 font-bold uppercase text-xs">Loading feed...</span></div>';
+    lucide.createIcons();
+    
+    try {
+        let query = supabase
+            .from('posts')
+            .select('*, profile:user_id(username, is_official, is_verified, is_banned)')
+            .order('created_at', { ascending: false })
+            .limit(40);
         
-        return `
-        <div class="post-card p-4" onmousedown="startPress(event, ${JSON.stringify({...post, profile: post.profile}).replace(/"/g, '&quot;')})" onmouseup="endPress()" ontouchstart="startPress(event, ${JSON.stringify({...post, profile: post.profile}).replace(/"/g, '&quot;')})" ontouchend="endPress()">
-            <div class="flex space-x-3">
-                <div class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase">${escapeHTML(username[0])}</div>
-                <div class="flex-1">
-                    <div class="flex items-center gap-1.5 mb-1">
-                        <span class="text-[14px] font-black uppercase tracking-tighter">@${escapeHTML(username)}</span>
-                        ${badge}
-                        ${currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name || '')}</span>` : ''}
-                    </div>
-                    <div class="text-[14px] text-zinc-200 leading-snug break-words mb-3">${formatContent(post.content, post.id)}</div>
-                    <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
-                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
-                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
-                        <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" class="flex items-center gap-2 ${hasReposted ? 'text-green-500' : ''}" ${hasReposted ? 'disabled' : ''}><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
-                        <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)"><i data-lucide="upload" size="18"></i></button>
+        if (currentMode === 'campus' && userProfile?.school_name) {
+            query = query.eq('school_name', userProfile.school_name);
+        }
+        
+        const { data: posts, error } = await query;
+        if (error) throw error;
+        
+        const { data: myLikes } = await supabase
+            .from('interactions')
+            .select('post_id')
+            .eq('user_id', userProfile.id)
+            .eq('interaction_type', 'like');
+        
+        const { data: myReposts } = await supabase
+            .from('interactions')
+            .select('post_id')
+            .eq('user_id', userProfile.id)
+            .eq('interaction_type', 'repost');
+
+        // Filter by search query
+        let filteredPosts = posts || [];
+        if (searchQuery) {
+            filteredPosts = filteredPosts.filter(post => 
+                post.content.toLowerCase().includes(searchQuery) || 
+                post.profile?.username?.toLowerCase().includes(searchQuery)
+            );
+        }
+
+        if (filteredPosts.length === 0) {
+            container.innerHTML = '<div class="p-8 text-center"><p class="text-zinc-500 font-bold uppercase text-xs">No gists yet</p></div>';
+            return;
+        }
+
+        container.innerHTML = filteredPosts.map(post => {
+            const username = post.profile?.username || 'homie';
+            const isLiked = myLikes?.some(l => l.post_id === post.id);
+            const hasReposted = myReposts?.some(r => r.post_id === post.id);
+            
+            let badge = '';
+            if (post.profile?.is_official) {
+                badge = `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+            } else if (post.profile?.is_verified) {
+                badge = `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+            }
+            
+            // Escape the post data for the press event
+            const postData = encodeURIComponent(JSON.stringify({...post, profile: post.profile}));
+            
+            return `
+            <div class="post-card p-4" 
+                 onmousedown="startPress(event, ${JSON.stringify({...post, profile: post.profile}).replace(/"/g, '&quot;')})" 
+                 onmouseup="endPress()" 
+                 ontouchstart="startPress(event, ${JSON.stringify({...post, profile: post.profile}).replace(/"/g, '&quot;')})" 
+                 ontouchend="endPress()">
+                <div class="flex space-x-3">
+                    <div class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase">${escapeHTML(username[0])}</div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-1.5 mb-1">
+                            <span class="text-[14px] font-black uppercase tracking-tighter">@${escapeHTML(username)}</span>
+                            ${badge}
+                            ${currentMode === 'universe' && post.school_name ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name)}</span>` : ''}
+                        </div>
+                        <div class="text-[14px] text-zinc-200 leading-snug break-words mb-3">${formatContent(post.content, post.id)}</div>
+                        <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
+                            <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}">
+                                <i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i>
+                                <span class="text-xs font-bold">${formatNum(post.likes_count)}</span>
+                            </button>
+                            <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2">
+                                <i data-lucide="message-circle" size="18"></i>
+                                <span class="text-xs font-bold">${formatNum(post.comments_count)}</span>
+                            </button>
+                            <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" 
+                                    class="flex items-center gap-2 ${hasReposted ? 'text-green-500' : ''}">
+                                <i data-lucide="repeat" size="18"></i>
+                                <span class="text-xs font-bold">${formatNum(post.reposts_count)}</span>
+                            </button>
+                            <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)">
+                                <i data-lucide="upload" size="18"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>`;
-    }).join('');
-    lucide.createIcons();
+            </div>`;
+        }).join('');
+        
+        lucide.createIcons();
+    } catch (error) {
+        console.error('Load feed error:', error);
+        container.innerHTML = '<div class="p-8 text-center"><p class="text-red-500 font-bold">Error loading feed. Please refresh.</p></div>';
+    }
 }
 
 async function handleLike(postId) {
-    const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', postId).eq('interaction_type', 'like').single();
+    if (!userProfile) return;
+    
+    const { data: existing } = await supabase
+        .from('interactions')
+        .select('*')
+        .eq('user_id', userProfile.id)
+        .eq('post_id', postId)
+        .eq('interaction_type', 'like')
+        .maybeSingle();
+    
     if (existing) {
-        await supabase.from('interactions').delete().eq('id', existing.id);
-        await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
+        await supabase
+            .from('interactions')
+            .delete()
+            .eq('id', existing.id);
+        await supabase
+            .rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
     } else {
-        await supabase.from('interactions').insert({ user_id: userProfile.id, post_id: postId, interaction_type: 'like' });
-        await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
+        await supabase
+            .from('interactions')
+            .insert({ 
+                user_id: userProfile.id, 
+                post_id: postId, 
+                interaction_type: 'like' 
+            });
+        await supabase
+            .rpc('increment_stat', { post_id: postId, field: 'likes_count' });
     }
     loadFeed();
 }
 
 async function handleRepost(originalPostId, originalContent, originalAuthor) {
+    if (!userProfile) return;
+    
     // Check if already reposted
-    const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', originalPostId).eq('interaction_type', 'repost').single();
+    const { data: existing } = await supabase
+        .from('interactions')
+        .select('*')
+        .eq('user_id', userProfile.id)
+        .eq('post_id', originalPostId)
+        .eq('interaction_type', 'repost')
+        .maybeSingle();
     
     if (existing) {
         showToast("Already reposted!");
         return;
     }
     
-    const { error } = await supabase.from('posts').insert({ 
-        user_id: userProfile.id, 
-        content: `Reposted from @${originalAuthor}: ${originalContent}`, 
-        school_name: userProfile.school_name || 'Global' 
-    });
+    const { error } = await supabase
+        .from('posts')
+        .insert({ 
+            user_id: userProfile.id, 
+            content: `Reposted from @${originalAuthor}: ${originalContent}`, 
+            school_name: userProfile.school_name || 'Global' 
+        });
     
     if (!error) { 
-        await supabase.from('interactions').insert({ 
-            user_id: userProfile.id, 
-            post_id: originalPostId, 
-            interaction_type: 'repost' 
-        });
-        await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); 
+        await supabase
+            .from('interactions')
+            .insert({ 
+                user_id: userProfile.id, 
+                post_id: originalPostId, 
+                interaction_type: 'repost' 
+            });
+        await supabase
+            .rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); 
         showToast("Reposted!"); 
         loadFeed(); 
     }
@@ -487,17 +664,26 @@ async function handleRepost(originalPostId, originalContent, originalAuthor) {
 
 async function handleShare(postId, content) {
     const url = `${window.location.origin}/gist.html?id=${postId}`;
-    if (navigator.share) navigator.share({ title: 'Sdel', text: content, url });
-    else { navigator.clipboard.writeText(url); showToast("Link copied!"); }
+    if (navigator.share) {
+        navigator.share({ title: 'Sdel', text: content, url });
+    } else { 
+        navigator.clipboard.writeText(url); 
+        showToast("Link copied!"); 
+    }
 }
 
 function safeRedirect(url) { 
     document.getElementById('raw-link-display').innerText = url; 
     document.getElementById('redirect-modal').style.display = 'flex'; 
-    document.getElementById('confirm-redirect-btn').onclick = () => { window.open(url, '_blank'); closeRedirect(); }; 
+    document.getElementById('confirm-redirect-btn').onclick = () => { 
+        window.open(url, '_blank'); 
+        closeRedirect(); 
+    }; 
 }
 
-function closeRedirect() { document.getElementById('redirect-modal').style.display = 'none'; }
+function closeRedirect() { 
+    document.getElementById('redirect-modal').style.display = 'none'; 
+}
 
 function switchTab(mode) { 
     currentMode = mode; 
@@ -530,6 +716,7 @@ function showToast(msg) {
     setTimeout(() => t.classList.remove('show'), 3000); 
 }
 
+// Initialize
 init();
 </script>
 </body>
