@@ -9,103 +9,118 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel | Vendor Dashboard</title>
+    <title>Sdel | Merchant Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        :root { --bg: #000; --surface: #0a0a0a; --card: #121212; --border: #262626; --text: #fff; --sdel: #FF6600; }
-        .sunlight-mode { --bg: #fff; --surface: #f4f4f5; --card: #ffffff; --border: #e4e4e7; --text: #000; --sdel: #FF6600; }
+        :root { --bg: #000; --surface: #0a0a0a; --card: #121212; --border: rgba(255,255,255,0.08); --text: #fff; --dim: #71717a; }
+        .sunlight-mode { --bg: #fff; --surface: #f4f4f5; --card: #ffffff; --border: #e4e4e7; --text: #09090b; --dim: #71717a; }
         
         body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; transition: 0.3s; }
-        * { font-style: normal !important; }
+        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 2rem; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
 
-        /* Lock Overlay Styles */
-        #lock-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
-        .lock-card { background: var(--card); border: 1px solid var(--border); border-radius: 2.5rem; padding: 40px 24px; text-align: center; max-width: 400px; width: 100%; }
+        .stat-card { background: linear-gradient(145deg, var(--card), rgba(255,102,0,0.02)); }
+        
+        /* Navigation Bar Bottom */
+        .nav-dock { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; background: rgba(15,15,15,0.8); backdrop-filter: blur(20px); border: 1px solid var(--border); border-radius: 2rem; padding: 12px; display: flex; justify-content: space-around; z-index: 100; }
+        .nav-item { color: var(--dim); transition: 0.3s; }
+        .nav-item.active { color: #FF6600; }
+
+        * { font-style: normal !important; }
     </style>
 </head>
-<body>
+<body class="p-6 pb-32">
 
-    <div id="lock-overlay">
-        <div class="lock-card">
-            <div class="w-20 h-20 bg-[#FF660015] rounded-full flex items-center justify-center mx-auto mb-6">
-                <i data-lucide="lock" class="text-[#FF6600]" size="32"></i>
-            </div>
-            <h2 class="text-2xl font-black uppercase tracking-tighter mb-2">Shop Locked</h2>
-            <p id="lock-reason" class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-8 leading-relaxed">
-                Your monthly maintenance fee is due to keep your shop active.
-            </p>
-            
-            <div class="bg-zinc-500/5 p-6 rounded-3xl border border-white/5 mb-8">
-                <p class="text-[8px] font-black uppercase text-zinc-500 mb-1">Amount Due</p>
-                <h3 id="due-amount" class="text-3xl font-black text-[#FF6600]">₦0.00</h3>
-            </div>
+    <header class="flex items-center justify-between mb-8">
+        <div>
+            <p class="text-[10px] font-black uppercase text-sdel tracking-[0.3em] mb-1">Merchant Portal</p>
+            <h1 id="shop-welcome" class="text-2xl font-black uppercase tracking-tighter">Welcome, <span class="opacity-30">...</span></h1>
+        </div>
+        <div class="w-12 h-12 bg-sdel/10 border border-sdel/20 rounded-2xl flex items-center justify-center text-sdel">
+            <i data-lucide="store" size="24"></i>
+        </div>
+    </header>
 
-            <button onclick="payMonthlyFee()" class="w-full bg-[#FF6600] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-[#FF6600]/20 active:scale-95 transition-all">
-                Pay to Unlock
-            </button>
+    <div class="grid grid-cols-2 gap-4 mb-8">
+        <div class="glass-card p-5 stat-card">
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] tracking-widest mb-1">Total Sales</p>
+            <h3 class="text-xl font-black italic">₦0</h3>
+        </div>
+        <div class="glass-card p-5 stat-card">
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] tracking-widest mb-1">Active Items</p>
+            <h3 class="text-xl font-black italic">0</h3>
         </div>
     </div>
 
-    <main id="dashboard-content" class="p-6 opacity-0 transition-opacity duration-500">
-        <nav class="flex justify-between items-center mb-10">
-            <h1 class="text-lg font-black uppercase tracking-tighter">Vendor <span class="text-[#FF6600]">Panel</span></h1>
-            <div id="status-pill" class="text-[8px] font-black uppercase px-3 py-1 bg-green-500/10 text-green-500 rounded-full">Active</div>
-        </nav>
+    <section class="space-y-4">
+        <h2 class="text-[10px] font-black uppercase tracking-[0.2em] ml-2 text-[var(--dim)]">Store Management</h2>
         
-        <p class="text-zinc-500 font-bold uppercase text-[10px]">Welcome back, Merchant.</p>
-    </main>
+        <div onclick="window.location.href='vendor_add_product.html'" class="glass-card p-6 flex items-center justify-between cursor-pointer active:scale-95 transition-all border-sdel/20">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-sdel rounded-2xl flex items-center justify-center text-white">
+                    <i data-lucide="plus-circle" size="24"></i>
+                </div>
+                <div>
+                    <h4 class="font-black uppercase text-xs">Add New Product</h4>
+                    <p class="text-[9px] text-[var(--dim)] font-bold uppercase">List a new item to the market</p>
+                </div>
+            </div>
+            <i data-lucide="chevron-right" size="18" class="text-[var(--dim)]"></i>
+        </div>
+
+        <div onclick="window.location.href='vendor_orders.html'" class="glass-card p-6 flex items-center justify-between cursor-pointer active:scale-95 transition-all">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-zinc-800 rounded-2xl flex items-center justify-center text-white">
+                    <i data-lucide="package" size="24"></i>
+                </div>
+                <div>
+                    <h4 class="font-black uppercase text-xs">Manage Orders</h4>
+                    <p class="text-[9px] text-[var(--dim)] font-bold uppercase">0 Pending Requests</p>
+                </div>
+            </div>
+            <i data-lucide="chevron-right" size="18" class="text-[var(--dim)]"></i>
+        </div>
+    </section>
+
+    <nav class="nav-dock">
+        <a href="vendor_dashboard.html" class="nav-item active"><i data-lucide="layout-grid" size="20"></i></a>
+        <a href="vendor_inventory.html" class="nav-item"><i data-lucide="box" size="20"></i></a>
+        <a href="vendor_analytics.html" class="nav-item"><i data-lucide="bar-chart-3" size="20"></i></a>
+        <a href="vendor_settings.html" class="nav-item"><i data-lucide="user-cog" size="20"></i></a>
+    </nav>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'YOUR_KEY_HERE');
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        async function checkSubscription() {
+        async function loadShopData() {
             const { data: { session } } = await supabase.auth.getSession();
-            if(!session) return window.location.href = 'login.html';
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
 
-            // 1. Get Global Fee from app_config
-            const { data: config } = await supabase.from('app_config').select('price').eq('id', 'shop_monthly_fee').single();
-            const monthlyFee = config?.price || 0;
-            document.getElementById('due-amount').innerText = `₦${monthlyFee.toLocaleString()}`;
+            // Get shop details
+            const { data: vendor, error } = await supabase
+                .from('vendors')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single();
 
-            // 2. Get Vendor Details
-            const { data: vendor } = await supabase.from('vendors').select('*').eq('user_id', session.user.id).single();
-
-            if (!vendor) {
+            if (error || !vendor || vendor.status !== 'verified') {
                 window.location.href = 'vendor_reg.html';
                 return;
             }
 
-            // 3. Check for Overdue (30 Days)
-            const lastPayment = new Date(vendor.last_payment_date);
-            const now = new Date();
-            const diffInDays = Math.floor((now - lastPayment) / (1000 * 60 * 60 * 24));
-
-            if (diffInDays >= 30) {
-                showLock("Your monthly maintenance fee is due.");
-            } else if (vendor.status !== 'verified') {
-                showLock("Your shop is still awaiting admin approval.");
-                document.querySelector('.lock-card button').style.display = 'none'; // Can't pay if not approved
-            } else {
-                // All good!
-                document.getElementById('dashboard-content').classList.remove('opacity-0');
-            }
+            // Update UI with Shop Name
+            document.getElementById('shop-welcome').innerText = `Welcome, ${vendor.business_name}`;
+            lucide.createIcons();
         }
 
-        function showLock(reason) {
-            document.getElementById('lock-overlay').style.display = 'flex';
-            document.getElementById('lock-reason').innerText = reason;
-        }
-
-        window.payMonthlyFee = async () => {
-            // Redirect to your payment processing page (e.g., Paystack/Flutterwave)
-            const amount = document.getElementById('due-amount').innerText.replace(/\D/g,'');
-            window.location.href = `checkout.html?amount=${amount}&type=maintenance`;
-        };
-
-        checkSubscription();
+        loadShopData();
         lucide.createIcons();
     </script>
 </body>
