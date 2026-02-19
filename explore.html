@@ -54,7 +54,6 @@
         .sunlight-mode .search-container { background: #f4f4f5; border-color: #e4e4e7; }
         .sunlight-mode .search-container input { color: #121212; background: #f4f4f5; }
         .sunlight-mode .search-container input::placeholder { color: #71717a; }
-        .sunlight-mode .edit-option { background: #f4f4f5 !important; color: #121212 !important; border: 1px solid #e4e4e7; }
 
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
         #toast.show { transform: translateX(-50%) translateY(0); }
@@ -62,7 +61,8 @@
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px); padding: 20px; }
         .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
 
-        .aether-link { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 102, 0, 0.15); border: 1px solid rgba(255, 102, 0, 0.3); color: #FF6600; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-left: 4px; vertical-align: middle; }
+        .inline-link { color: #FF6600; font-weight: 600; cursor: pointer; text-decoration: none; display: inline; background: none; border: none; padding: 0; margin: 0; font-size: inherit; }
+        .inline-link:hover { text-decoration: underline; }
         
         .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #222; border-radius: 24px 24px 0 0; padding: 20px; z-index: 3000; transform: translateY(100%); transition: transform 0.3s ease; }
         .action-sheet.open { transform: translateY(0); }
@@ -73,17 +73,34 @@
         .search-container input::placeholder { color: #555; font-weight: 400; }
         .search-container .close-search { color: #FF6600; cursor: pointer; }
 
-        /* Edit Modal */
-        #edit-modal { display: none; }
-        .edit-modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 24px; border: 1px solid #222; }
-        #edit-textarea { width: 100%; background: #000; border: 1px solid #333; border-radius: 16px; color: white; padding: 16px; font-size: 14px; margin: 16px 0; resize: none; outline: none; }
-        .sunlight-mode #edit-textarea { background: #f4f4f5; color: #121212; border-color: #e4e4e7; }
-        .sunlight-mode .edit-modal-content { background: white; border-color: #eee; }
+        /* Link Warning Styling */
+        .link-warning { color: #FF6600; font-size: 11px; font-weight: 800; margin-top: 4px; }
+
+        /* Repost Modal */
+        #repost-modal { display: none; }
+        .repost-modal-content { background: #111; width: 100%; max-width: 500px; border-radius: 28px; padding: 24px; border: 1px solid #222; }
+        .sunlight-mode .repost-modal-content { background: white; border-color: #eee; }
+        #repost-message-display { background: rgba(255,102,0,0.05); border-left: 3px solid #FF6600; padding: 16px; border-radius: 12px; margin: 16px 0; max-height: 200px; overflow-y: auto; }
+        #repost-comment-input { width: 100%; background: #000; border: 1px solid #333; border-radius: 16px; color: white; padding: 16px; font-size: 14px; margin: 16px 0; resize: none; outline: none; min-height: 100px; }
+        .sunlight-mode #repost-comment-input { background: #f4f4f5; color: #121212; border-color: #e4e4e7; }
     </style>
 </head>
 <body class="pb-32">
     <div id="toast">Gist Published!</div>
     <div id="mention-list"></div>
+
+    <!-- Repost Modal -->
+    <div id="repost-modal" class="modal-overlay" onclick="closeRepostModal()">
+        <div class="repost-modal-content" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-black uppercase mb-2 text-sdel">Repost Gist</h3>
+            <div id="repost-message-display" class="text-sm text-zinc-200"></div>
+            <textarea id="repost-comment-input" placeholder="Add your comment (optional)..."></textarea>
+            <div class="flex gap-3">
+                <button onclick="closeRepostModal()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-xs">Cancel</button>
+                <button id="confirm-repost-btn" class="flex-1 py-4 bg-sdel text-black rounded-2xl font-black uppercase text-xs">Repost</button>
+            </div>
+        </div>
+    </div>
 
     <div id="security-modal" class="modal-overlay">
         <div class="modal-content border-red-900/50">
@@ -94,22 +111,9 @@
         </div>
     </div>
 
-    <!-- Edit Modal -->
-    <div id="edit-modal" class="modal-overlay" onclick="closeEditModal()">
-        <div class="edit-modal-content" onclick="event.stopPropagation()">
-            <h3 class="text-lg font-black uppercase mb-2 text-sdel">Edit Gist</h3>
-            <p class="text-[10px] text-zinc-500 font-bold uppercase mb-2">You have 15 minutes to edit</p>
-            <textarea id="edit-textarea" rows="4" placeholder="Edit your gist..."></textarea>
-            <div class="flex gap-3">
-                <button onclick="closeEditModal()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-xs">Cancel</button>
-                <button id="save-edit-btn" class="flex-1 py-4 bg-sdel text-black rounded-2xl font-black uppercase text-xs">Save</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="action-sheet" class="action-sheet" onclick="closeActions()">
+    <div id="action-sheet" class="action-sheet">
         <div class="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-6"></div>
-        <div id="action-options" class="space-y-3" onclick="event.stopPropagation()"></div>
+        <div id="action-options" class="space-y-3"></div>
         <button onclick="closeActions()" class="w-full mt-4 py-4 text-zinc-500 font-black uppercase text-xs">Cancel</button>
     </div>
 
@@ -183,29 +187,9 @@ let currentMode = 'campus';
 let securityViolationCount = 0;
 let pressTimer = null;
 let searchQuery = '';
+let currentRepostData = null;
 
-// Make functions globally available
-window.publishPost = publishPost;
-window.switchTab = switchTab;
-window.safeRedirect = safeRedirect;
-window.closeRedirect = closeRedirect;
-window.handleLike = handleLike;
-window.toggleActions = toggleActions;
-window.toggleReadMore = toggleReadMore;
-window.handleShare = handleShare;
-window.handleRepost = handleRepost;
-window.closeActions = closeActions;
-window.burnGist = burnGist;
-window.banUser = banUser;
-window.selectMention = selectMention;
-window.toggleSearch = toggleSearch;
-window.handleSearch = handleSearch;
-window.startPress = startPress;
-window.endPress = endPress;
-window.openEditModal = openEditModal;
-window.closeEditModal = closeEditModal;
-window.saveEdit = saveEdit;
-window.toggleBanUser = toggleBanUser;
+Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention, toggleSearch, handleSearch, startPress, endPress, openRepostModal, closeRepostModal, submitRepost });
 
 function formatNum(num) {
     if (!num) return 0;
@@ -222,7 +206,6 @@ async function init() {
     userProfile = profile;
     if (userProfile?.is_banned || userProfile?.banned) location.replace('banned.html');
     document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
-    lucide.createIcons();
     loadFeed();
 }
 
@@ -290,82 +273,171 @@ function showActionSheet(post) {
     const options = document.getElementById('action-options');
     const isOwner = post.user_id === userProfile.id;
     const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
-    const isOfficial = userProfile.is_official === true;
-    const targetUserBanned = post.profile?.is_banned || false;
     
     let html = '';
-    
-    // Owner options
     if (isOwner) {
         html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
-        
-        if (canEdit) {
-            html += `<button onclick="openEditModal('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs edit-option flex items-center justify-center gap-2"><i data-lucide="edit-3" size="16"></i> Edit Gist (15 mins)</button>`;
-        } else if (isOwner) {
-            html += `<button disabled class="w-full py-4 bg-zinc-800 text-zinc-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed"><i data-lucide="edit-3" size="16"></i> Edit Expired</button>`;
+        if (canEdit) html += `<button class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
+    }
+    if (userProfile.is_official && !isOwner) {
+        html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
+    }
+// Search Functions
+function toggleSearch() {
+    const container = document.getElementById('search-container');
+    container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+    if (container.style.display === 'flex') {
+        document.getElementById('search-input').focus();
+    } else {
+        searchQuery = '';
+        loadFeed();
+    }
+    lucide.createIcons();
+}
+
+function handleSearch(val) {
+    searchQuery = val.toLowerCase();
+    loadFeed();
+}
+
+// Press and Hold Logic (0.8s)
+function startPress(e, post) {
+    pressTimer = setTimeout(() => { showActionSheet(post); }, 800);
+}
+
+function endPress() { 
+    clearTimeout(pressTimer); 
+}
+
+async function handleMentions(input) {
+    const text = input.value;
+    const cursor = input.selectionStart;
+    const lastAt = text.lastIndexOf('@', cursor - 1);
+    const mentionList = document.getElementById('mention-list');
+
+    if (lastAt !== -1 && !text.slice(lastAt, cursor).includes(' ')) {
+        const query = text.slice(lastAt + 1, cursor);
+        if (query.length > 0) {
+            const { data: users } = await supabase.from('profile').select('username').ilike('username', `${query}%`).limit(5);
+            if (users?.length) {
+                mentionList.innerHTML = users.map(u => `<div class="mention-item" onclick="selectMention('${u.username}', ${lastAt}, ${cursor})">@${u.username}</div>`).join('');
+                mentionList.style.display = 'block';
+                const rect = input.getBoundingClientRect();
+                mentionList.style.top = (rect.bottom + window.scrollY + 10) + 'px';
+                mentionList.style.left = rect.left + 'px';
+                return;
+            }
         }
     }
+    mentionList.style.display = 'none';
+}
+
+function selectMention(name, start, end) {
+    const input = document.getElementById('post-input');
+    const text = input.value;
+    input.value = text.slice(0, start) + '@' + name + ' ' + text.slice(end);
+    document.getElementById('mention-list').style.display = 'none';
+    input.focus();
+    setTimeout(() => input.scrollTop = input.scrollHeight, 50);
+}
+
+function showActionSheet(post) {
+    const sheet = document.getElementById('action-sheet');
+    const options = document.getElementById('action-options');
+    const isOwner = post.user_id === userProfile.id;
+    const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
     
-    // Official options
-    if (isOfficial && !isOwner) {
-        html += `<button onclick="toggleBanUser('${post.user_id}', ${targetUserBanned})" class="w-full py-4 ${targetUserBanned ? 'bg-green-600' : 'bg-red-600'} text-black rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="${targetUserBanned ? 'shield' : 'shield-off'}" size="16"></i> ${targetUserBanned ? 'Unban User' : 'Ban User'}</button>`;
-        html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist (Admin)</button>`;
+    let html = '';
+    if (isOwner) {
+        html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
+        if (canEdit) html += `<button class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
     }
-    
+    if (userProfile.is_official && !isOwner) {
+        html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
+    }
     options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
     sheet.classList.add('open');
     lucide.createIcons();
 }
 
-function closeActions() { 
-    document.getElementById('action-sheet').classList.remove('open'); 
-}
-
-// Edit Functions
-function openEditModal(postId, currentContent) {
-    closeActions();
-    document.getElementById('edit-modal').style.display = 'flex';
-    document.getElementById('edit-textarea').value = currentContent;
-    document.getElementById('save-edit-btn').onclick = () => saveEdit(postId);
-}
-
-function closeEditModal() {
-    document.getElementById('edit-modal').style.display = 'none';
-}
-
-async function saveEdit(postId) {
-    const newContent = document.getElementById('edit-textarea').value.trim();
-    if (!newContent) return;
-    
-    const { error } = await supabase.from('posts').update({ content: newContent }).eq('id', postId);
-    if (!error) {
-        showToast("Gist Updated!");
-        closeEditModal();
-        loadFeed();
-    }
-}
+function closeActions() { document.getElementById('action-sheet').classList.remove('open'); }
 
 async function burnGist(id) {
     const { error } = await supabase.from('posts').delete().eq('id', id);
-    if (!error) { 
-        showToast("Gist Burned!"); 
-        loadFeed(); 
-        closeActions(); 
-    }
+    if (!error) { showToast("Gist Burned!"); loadFeed(); closeActions(); }
 }
 
-async function toggleBanUser(userId, currentStatus) {
-    closeActions();
-    const { error } = await supabase.from('profile').update({ is_banned: !currentStatus, banned: !currentStatus }).eq('id', userId);
-    if (!error) {
-        showToast(currentStatus ? "User Unbanned!" : "User Banned!");
-        loadFeed();
-    }
-}
-
-// Keep original banUser for backward compatibility
 async function banUser(userId) {
-    await toggleBanUser(userId, false);
+    await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userId);
+    showToast("User Banned!");
+    closeActions();
+}
+
+// Repost Modal Functions
+function openRepostModal(postId, reposterUsername, originalContent) {
+    // Check if already reposted
+    checkIfReposted(postId).then(hasReposted => {
+        if (hasReposted) {
+            showToast("Already reposted!");
+            return;
+        }
+        
+        currentRepostData = { postId, reposterUsername, originalContent };
+        const displayDiv = document.getElementById('repost-message-display');
+        displayDiv.innerHTML = `
+            <div class="text-sdel font-bold mb-2">Reposted from @${escapeHTML(reposterUsername)}</div>
+            <div class="text-zinc-200">"${escapeHTML(originalContent)}"</div>
+        `;
+        document.getElementById('repost-modal').style.display = 'flex';
+        document.getElementById('repost-comment-input').value = '';
+        lucide.createIcons();
+    });
+}
+
+function closeRepostModal() {
+    document.getElementById('repost-modal').style.display = 'none';
+    currentRepostData = null;
+}
+
+async function checkIfReposted(originalPostId) {
+    const { data } = await supabase.from('interactions')
+        .select('id')
+        .eq('user_id', userProfile.id)
+        .eq('post_id', originalPostId)
+        .eq('interaction_type', 'repost')
+        .maybeSingle();
+    return !!data;
+}
+
+async function submitRepost() {
+    if (!currentRepostData) return;
+    
+    const { postId, reposterUsername, originalContent } = currentRepostData;
+    const comment = document.getElementById('repost-comment-input').value.trim();
+    
+    // Build repost content
+    let repostContent = `Reposted from @${reposterUsername}\n"${originalContent}"`;
+    if (comment) {
+        repostContent += `\n\n${comment}`;
+    }
+    
+    const { error } = await supabase.from('posts').insert({ 
+        user_id: userProfile.id, 
+        content: repostContent, 
+        school_name: userProfile.school_name || 'Global' 
+    });
+    
+    if (!error) { 
+        await supabase.from('interactions').insert({ 
+            user_id: userProfile.id, 
+            post_id: postId, 
+            interaction_type: 'repost' 
+        });
+        await supabase.rpc('increment_stat', { post_id: postId, field: 'reposts_count' }); 
+        showToast("Reposted!"); 
+        closeRepostModal();
+        loadFeed(); 
+    }
 }
 
 async function publishPost() {
@@ -387,12 +459,7 @@ async function publishPost() {
     }
 
     const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: rawContent, school_name: userProfile.school_name || 'Global' });
-    if (!error) { 
-        showToast("Gist Published!"); 
-        document.getElementById('post-input').value = ''; 
-        toggleActions(document.getElementById('post-input')); 
-        loadFeed(); 
-    }
+    if (!error) { showToast("Gist Published!"); document.getElementById('post-input').value = ''; toggleActions(document.getElementById('post-input')); loadFeed(); }
 }
 
 // ============= CRITICAL FIX: PLAIN TEXT ONLY =============
@@ -404,14 +471,12 @@ function escapeHTML(str) {
 }
 
 function formatContent(text, postId) {
-    if (!text) return '';
-    
     // STEP 1: Escape everything to plain text first
     let safe = escapeHTML(text);
     
-    // STEP 2: Apply safe transformations
+    // STEP 2: Apply safe transformations (only after escaping)
     
-    // Professional Read More
+    // Professional Read More (5 lines/280 chars)
     if (safe.length > 280) {
         safe = `<span id="short-${postId}">${escapeHTML(safe.substring(0, 250))}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${escapeHTML(safe)}</span>`;
     }
@@ -419,15 +484,16 @@ function formatContent(text, postId) {
     // STEP 3: Mentions - Redirect to homieprofile.html
     safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'homieprofile.html?u=$1\'">@$1</span>');
     
-    // STEP 4: Links - AGGRESSIVE matching for all URLs
-    const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
+    // STEP 4: Links - Inline orange (no box) with conditional redirect
+    const urlRegex = /(https?:\/\/[^\s<]+)/gi;
     safe = safe.replace(urlRegex, (url) => {
-        let fullUrl = url;
-        if (!fullUrl.startsWith('http')) {
-            fullUrl = 'https://' + fullUrl;
+        const escapedUrl = escapeHTML(url);
+        // Check if it's homies.html - open directly
+        if (url.includes('homies.html')) {
+            return `<span class="inline-link" onclick="window.location.href='homies.html'">${escapedUrl}</span>`;
         }
-        const escapedUrl = escapeHTML(fullUrl);
-        return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}')"><i data-lucide="external-link" size="10"></i> LINK</span>`;
+        // All other links show warning
+        return `<span class="inline-link" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}')">${escapedUrl}</span>`;
     });
     
     return safe;
@@ -436,75 +502,41 @@ function formatContent(text, postId) {
 
 async function loadFeed() {
     const container = document.getElementById('feed-container');
-    let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified, is_banned)').order('created_at', { ascending: false }).limit(40);
-    if (currentMode === 'campus' && userProfile?.school_name) {
-        query = query.eq('school_name', userProfile.school_name);
-    }
+    let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').order('created_at', { ascending: false }).limit(40);
+    if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
     const { data: posts } = await query;
     const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
-    const { data: myReposts } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'repost');
 
     // Filter by search query if present
-    let filteredPosts = posts || [];
+    let filteredPosts = posts;
     if (searchQuery) {
-        filteredPosts = filteredPosts.filter(post => 
+        filteredPosts = posts.filter(post => 
             post.content.toLowerCase().includes(searchQuery) || 
             post.profile?.username?.toLowerCase().includes(searchQuery)
         );
     }
 
-    if (filteredPosts.length === 0) {
-        container.innerHTML = '<div class="p-8 text-center"><p class="text-zinc-500 font-bold uppercase text-xs">No gists yet</p></div>';
-        return;
-    }
-
     container.innerHTML = filteredPosts.map(post => {
         const username = post.profile?.username || 'homie';
         const isLiked = myLikes?.some(l => l.post_id === post.id);
-        const hasReposted = myReposts?.some(r => r.post_id === post.id);
-        
-        let badge = '';
-        if (post.profile?.is_official) {
-            badge = `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
-        } else if (post.profile?.is_verified) {
-            badge = `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
-        }
-        
-        // Safely stringify post for event handlers
-        const postStr = JSON.stringify(post).replace(/"/g, '&quot;');
+        let badge = post.profile?.is_official ? `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : (post.profile?.is_verified ? `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : '');
         
         return `
-        <div class="post-card p-4" 
-             onmousedown="startPress(event, ${postStr})" 
-             onmouseup="endPress()" 
-             ontouchstart="startPress(event, ${postStr})" 
-             ontouchend="endPress()">
+        <div class="post-card p-4" onmousedown="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" onmouseup="endPress()" ontouchstart="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" ontouchend="endPress()">
             <div class="flex space-x-3">
                 <div class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase">${escapeHTML(username[0])}</div>
                 <div class="flex-1">
                     <div class="flex items-center gap-1.5 mb-1">
                         <span class="text-[14px] font-black uppercase tracking-tighter">@${escapeHTML(username)}</span>
                         ${badge}
-                        ${currentMode === 'universe' && post.school_name ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name)}</span>` : ''}
+                        ${currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name || '')}</span>` : ''}
                     </div>
                     <div class="text-[14px] text-zinc-200 leading-snug break-words mb-3">${formatContent(post.content, post.id)}</div>
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
-                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}">
-                            <i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i>
-                            <span class="text-xs font-bold">${formatNum(post.likes_count)}</span>
-                        </button>
-                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2">
-                            <i data-lucide="message-circle" size="18"></i>
-                            <span class="text-xs font-bold">${formatNum(post.comments_count)}</span>
-                        </button>
-                        <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" 
-                                class="flex items-center gap-2 ${hasReposted ? 'text-green-500' : ''}">
-                            <i data-lucide="repeat" size="18"></i>
-                            <span class="text-xs font-bold">${formatNum(post.reposts_count)}</span>
-                        </button>
-                        <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)">
-                            <i data-lucide="upload" size="18"></i>
-                        </button>
+                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
+                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
+                        <button onclick="openRepostModal('${post.id}', '${escapeHTML(username)}', \`${escapeHTML(post.content)}\`)" class="flex items-center gap-2"><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
+                        <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)"><i data-lucide="upload" size="18"></i></button>
                     </div>
                 </div>
             </div>
@@ -514,13 +546,7 @@ async function loadFeed() {
 }
 
 async function handleLike(postId) {
-    const { data: existing } = await supabase.from('interactions')
-        .select('*')
-        .eq('user_id', userProfile.id)
-        .eq('post_id', postId)
-        .eq('interaction_type', 'like')
-        .maybeSingle();
-    
+    const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', postId).eq('interaction_type', 'like').single();
     if (existing) {
         await supabase.from('interactions').delete().eq('id', existing.id);
         await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
@@ -531,67 +557,27 @@ async function handleLike(postId) {
     loadFeed();
 }
 
+// Keep original handleRepost for backward compatibility but it won't be used
 async function handleRepost(originalPostId, originalContent, originalAuthor) {
-    // Check if already reposted
-    const { data: existing } = await supabase.from('interactions')
-        .select('*')
-        .eq('user_id', userProfile.id)
-        .eq('post_id', originalPostId)
-        .eq('interaction_type', 'repost')
-        .maybeSingle();
-    
-    if (existing) {
-        showToast("Already reposted!");
-        return;
-    }
-    
-    const { error } = await supabase.from('posts').insert({ 
-        user_id: userProfile.id, 
-        content: `Reposted from @${originalAuthor}: ${originalContent}`, 
-        school_name: userProfile.school_name || 'Global' 
-    });
-    
-    if (!error) { 
-        await supabase.from('interactions').insert({ 
-            user_id: userProfile.id, 
-            post_id: originalPostId, 
-            interaction_type: 'repost' 
-        });
-        await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); 
-        showToast("Reposted!"); 
-        loadFeed(); 
-    }
+    // This function is replaced by openRepostModal
+    openRepostModal(originalPostId, originalAuthor, originalContent);
 }
 
 async function handleShare(postId, content) {
     const url = `${window.location.origin}/gist.html?id=${postId}`;
-    if (navigator.share) {
-        navigator.share({ title: 'Sdel', text: content, url });
-    } else { 
-        navigator.clipboard.writeText(url); 
-        showToast("Link copied!"); 
-    }
+    if (navigator.share) navigator.share({ title: 'Sdel', text: content, url });
+    else { navigator.clipboard.writeText(url); showToast("Link copied!"); }
 }
 
 function safeRedirect(url) { 
     document.getElementById('raw-link-display').innerText = url; 
     document.getElementById('redirect-modal').style.display = 'flex'; 
-    document.getElementById('confirm-redirect-btn').onclick = () => { 
-        window.open(url, '_blank'); 
-        closeRedirect(); 
-    }; 
+    document.getElementById('confirm-redirect-btn').onclick = () => { window.open(url, '_blank'); closeRedirect(); }; 
 }
 
-function closeRedirect() { 
-    document.getElementById('redirect-modal').style.display = 'none'; 
-}
+function closeRedirect() { document.getElementById('redirect-modal').style.display = 'none'; }
 
-function switchTab(mode) { 
-    currentMode = mode; 
-    document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); 
-    document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); 
-    loadFeed(); 
-}
+function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
 
 function toggleActions(el) { 
     const card = document.getElementById('composer-card');
@@ -605,19 +591,10 @@ function toggleActions(el) {
     }, 10);
 }
 
-function toggleReadMore(id) { 
-    document.getElementById(`short-${id}`).classList.add('hidden'); 
-    document.getElementById(`full-${id}`).classList.remove('hidden'); 
-}
+function toggleReadMore(id) { document.getElementById(`short-${id}`).classList.add('hidden'); document.getElementById(`full-${id}`).classList.remove('hidden'); }
 
-function showToast(msg) { 
-    const t = document.getElementById('toast'); 
-    t.innerText = msg; 
-    t.classList.add('show'); 
-    setTimeout(() => t.classList.remove('show'), 3000); 
-}
+function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
 
-// Initialize
 init();
 </script>
 </body>
