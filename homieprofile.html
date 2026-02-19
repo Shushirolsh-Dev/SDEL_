@@ -19,7 +19,7 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .sunlight-mode body { background-color: #ffffff; color: #121212; }
-        .profile-header { background: linear-gradient(to bottom, rgba(255,102,0,0.15), transparent); }
+        .profile-header { background: linear-gradient(to bottom, rgba(255,102,0,0.12), transparent); }
         .stat-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(10px); }
         .sunlight-mode .stat-card { background: #f9f9f9; border-color: #eee; }
         .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); }
@@ -57,15 +57,15 @@
 
         <div class="grid grid-cols-3 gap-3">
             <div class="stat-card py-5 rounded-3xl">
-                <p id="stat-posts" class="text-xl font-black italic">0</p>
+                <p id="stat-posts" class="text-xl font-black">0</p>
                 <p class="text-[9px] text-zinc-500 font-black uppercase tracking-tighter">Gists</p>
             </div>
             <div class="stat-card py-5 rounded-3xl">
-                <p id="stat-followers" class="text-xl font-black italic">0</p>
+                <p id="stat-followers" class="text-xl font-black">0</p>
                 <p class="text-[9px] text-zinc-500 font-black uppercase tracking-tighter">Homies</p>
             </div>
             <div class="stat-card py-5 rounded-3xl">
-                <p id="stat-following" class="text-xl font-black italic">0</p>
+                <p id="stat-following" class="text-xl font-black">0</p>
                 <p class="text-[9px] text-zinc-500 font-black uppercase tracking-tighter">Following</p>
             </div>
         </div>
@@ -73,7 +73,7 @@
 
     <div class="px-6 mb-2 flex items-center gap-8 border-b border-white/5">
         <button class="py-4 text-[11px] font-black uppercase border-b-2 border-sdel text-sdel tracking-widest">Feed</button>
-        <button class="py-4 text-[11px] font-black uppercase text-zinc-600 tracking-widest">About</button>
+        <button class="py-4 text-[11px] font-black uppercase text-zinc-600 tracking-widest">Aether</button>
     </div>
 
     <main id="user-feed"></main>
@@ -95,7 +95,7 @@ const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhb
 let viewProfile = null;
 let loggedInUser = null;
 let isFollowing = false;
-let isHomie = false; // Mutual following
+let isHomie = false;
 
 async function init() {
     const { data: { session } } = await supabase.auth.getSession();
@@ -132,7 +132,6 @@ async function checkFollowStatus() {
 }
 
 async function loadStats() {
-    // Permanent Counts from DB
     const { count: posts } = await supabase.from('posts').select('*', { count: 'exact', head: true }).eq('user_id', viewProfile.id);
     const { count: followers } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', viewProfile.id);
     const { count: following } = await supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', viewProfile.id);
@@ -140,7 +139,6 @@ async function loadStats() {
     document.getElementById('stat-posts').innerText = posts || 0;
     document.getElementById('stat-following').innerText = following || 0;
 
-    // OFFICIAL 3% BOOST LOGIC
     let displayFollowers = followers || 0;
     if (viewProfile.is_official) {
         displayFollowers = Math.floor(displayFollowers * 1.03);
@@ -168,15 +166,15 @@ function renderProfile() {
         dmBtn.style.display = 'none';
     } else {
         btn.innerText = isFollowing ? "Unfollow" : "Follow";
-        btn.className = isFollowing ? "flex-1 max-w-[140px] py-3.5 bg-zinc-900 text-zinc-500 rounded-2xl text-[11px] font-black uppercase" : "flex-1 max-w-[140px] py-3.5 bg-sdel text-black rounded-2xl text-[11px] font-black uppercase";
+        btn.className = isFollowing ? "flex-1 max-w-[140px] py-3.5 bg-zinc-900 text-zinc-500 rounded-2xl text-[11px] font-black uppercase tracking-widest" : "flex-1 max-w-[140px] py-3.5 bg-sdel text-black rounded-2xl text-[11px] font-black uppercase tracking-widest";
         btn.onclick = toggleFollow;
 
-        // DM Gatekeeper Logic
         if (isHomie) {
             dmBtn.onclick = () => location.href = `dm.html?u=${viewProfile.username}`;
         } else {
             dmBtn.onclick = () => showToast("Must be mutual Homies to DM");
             dmIcon.setAttribute('data-lucide', 'user-plus');
+            dmIcon.classList.add('opacity-40');
         }
     }
     lucide.createIcons();
@@ -200,7 +198,6 @@ async function loadUserPosts() {
         return;
     }
 
-    // Standard Explore.html UI
     container.innerHTML = posts.map(post => `
         <div class="post-card p-5">
             <div class="flex space-x-3">
