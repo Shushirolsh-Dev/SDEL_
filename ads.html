@@ -27,46 +27,43 @@
         .options-menu { display: none; position: absolute; top: 110%; left: 0; right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; z-index: 50; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .option-item { padding: 14px; border-bottom: 1px solid var(--border); transition: 0.2s; }
         .show { display: block !important; }
-        
-        /* Preview Animation */
-        #preview-card { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     </style>
 </head>
 <body class="p-5 pb-32">
     <nav class="flex items-center justify-between mb-8">
         <button onclick="window.history.back()" class="p-2 card-zinc rounded-xl"><i data-lucide="arrow-left" size="20"></i></button>
-        <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">Ad Creator</h1>
+        <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">Ad Studio</h1>
         <div class="w-10"></div>
     </nav>
 
     <div class="mb-10">
-        <span class="text-[8px] font-black uppercase text-sdel mb-3 block text-center tracking-[0.2em]">Live Preview</span>
+        <span class="text-[8px] font-black uppercase text-sdel mb-3 block text-center tracking-[0.2em]">Ad Preview</span>
         <div id="preview-card" class="card-zinc rounded-[2.5rem] overflow-hidden max-w-sm mx-auto shadow-2xl">
             <div class="p-4 flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-sdel/20 border border-sdel flex items-center justify-center text-[10px] font-black">S</div>
+                <div class="w-8 h-8 rounded-full bg-sdel/20 border border-sdel flex items-center justify-center text-[10px] font-black text-sdel">B</div>
                 <div>
-                    <p class="text-[10px] font-bold">Your Business</p>
+                    <p id="previewBiz" class="text-[10px] font-bold">Business Name</p>
                     <p class="text-[8px] opacity-50 uppercase font-black tracking-tighter">Sponsored</p>
                 </div>
             </div>
-            <div class="aspect-square bg-zinc-900 flex items-center justify-center relative">
+            <div class="aspect-square bg-zinc-900/50 flex items-center justify-center relative">
                 <img id="previewImg" class="hidden w-full h-full object-cover">
                 <i id="previewIcon" data-lucide="image" class="opacity-10" size="48"></i>
             </div>
             <div class="p-5">
                 <h3 id="previewTitle" class="font-black uppercase text-sm mb-1 tracking-tight">Campaign Title</h3>
-                <p id="previewDesc" class="text-[10px] text-[var(--dim)] leading-relaxed line-clamp-2">Your ad description will appear here as the caption...</p>
+                <p id="previewDesc" class="text-[10px] text-[var(--dim)] leading-relaxed line-clamp-2">Your ad caption will look like this...</p>
                 <div class="mt-4 pt-4 border-t border-[var(--border)] flex justify-between items-center">
-                    <span class="text-[9px] font-black uppercase tracking-widest text-sdel">Learn More</span>
-                    <i data-lucide="external-link" size="14" class="text-sdel"></i>
+                    <span class="text-[9px] font-black uppercase tracking-widest text-sdel">Visit Site</span>
+                    <i data-lucide="arrow-up-right" size="14" class="text-sdel"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="space-y-5">
+    <div class="space-y-4">
         <div>
-            <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Select Ad Variety</label>
+            <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Budget Tier</label>
             <div class="custom-select" id="dropdownToggle" onclick="toggleDropdown()">
                 <div class="flex justify-between items-center">
                     <span id="selectedLabel">Loading prices...</span>
@@ -76,18 +73,19 @@
             </div>
         </div>
 
-        <input type="text" id="adTitle" placeholder="Business or Campaign Title" class="ig-input font-bold" oninput="updatePreview()">
-        <textarea id="adDesc" placeholder="Caption / Description..." rows="3" class="ig-input" oninput="updatePreview()"></textarea>
-        <input type="text" id="adLink" placeholder="Destination Link (WhatsApp/Web)" class="ig-input">
+        <input type="text" id="bizName" placeholder="Business Name" class="ig-input font-bold" oninput="updatePreview()">
+        <input type="text" id="adTitle" placeholder="Campaign Headline" class="ig-input font-bold" oninput="updatePreview()">
+        <textarea id="adDesc" placeholder="Caption..." rows="2" class="ig-input" oninput="updatePreview()"></textarea>
+        <input type="text" id="adLink" placeholder="Destination Link (URL or WhatsApp)" class="ig-input">
 
         <label for="adFile" class="flex items-center justify-center gap-3 border-2 border-dashed border-[var(--border)] p-5 rounded-2xl cursor-pointer hover:border-sdel/50 transition">
-            <i data-lucide="plus-circle" size="20" class="text-sdel"></i>
-            <span id="fileLabel" class="text-[10px] font-black uppercase tracking-widest">Add Media</span>
+            <i data-lucide="camera" size="20" class="text-sdel"></i>
+            <span id="fileLabel" class="text-[10px] font-black uppercase tracking-widest">Attach Media</span>
             <input type="file" id="adFile" class="hidden" accept="image/*" onchange="handleFile(this)">
         </label>
 
-        <button onclick="submitAdvert()" id="submitBtn" class="w-full bg-[#FF6600] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-sdel/30 active:scale-95 transition-all">
-            Launch Campaign
+        <button onclick="submitAdvert()" id="submitBtn" class="w-full bg-[#FF6600] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-2xl shadow-sdel/30 active:scale-95 transition-all mt-4">
+            Proceed to Checkout
         </button>
     </div>
 
@@ -113,8 +111,9 @@
         }
 
         window.updatePreview = () => {
-            document.getElementById('previewTitle').innerText = document.getElementById('adTitle').value || "Campaign Title";
-            document.getElementById('previewDesc').innerText = document.getElementById('adDesc').value || "Your ad description will appear here...";
+            document.getElementById('previewBiz').innerText = document.getElementById('bizName').value || "Business Name";
+            document.getElementById('previewTitle').innerText = document.getElementById('adTitle').value || "Campaign Headline";
+            document.getElementById('previewDesc').innerText = document.getElementById('adDesc').value || "Your caption will appear here...";
         };
 
         window.selectOption = (p, l) => { 
@@ -137,11 +136,12 @@
         window.submitAdvert = async () => {
             const btn = document.getElementById('submitBtn');
             const file = document.getElementById('adFile').files[0];
+            const biz = document.getElementById('bizName').value;
             const title = document.getElementById('adTitle').value;
             const desc = document.getElementById('adDesc').value;
             const link = document.getElementById('adLink').value;
 
-            if(!file || !title) return alert("Fill out the title and add a photo!");
+            if(!file || !biz || !title) return alert("Business Name, Headline, and Media are required!");
 
             btn.disabled = true;
             btn.innerText = "Processing...";
@@ -152,8 +152,8 @@
             const { data: { publicUrl } } = supabase.storage.from('adverts').getPublicUrl(fileName);
 
             const { error } = await supabase.from('promoted_ads').insert({
-                title, description: desc, media_url: publicUrl, cost: currentPrice, 
-                user_id: session.user.id, link_url: link, active: false
+                business_name: biz, title, description: desc, media_url: publicUrl, 
+                cost: currentPrice, user_id: session.user.id, link_url: link, active: false
             });
 
             if(!error) window.location.href = `adscheckout.html?cost=${currentPrice}&tier=${encodeURIComponent(currentTier)}`;
