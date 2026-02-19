@@ -61,8 +61,8 @@
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px); padding: 20px; }
         .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
 
-        .inline-link { color: #FF6600; font-weight: 600; cursor: pointer; text-decoration: none; display: inline; background: none; border: none; padding: 0; margin: 0; font-size: inherit; }
-        .inline-link:hover { text-decoration: underline; }
+        /* CHANGED: From box to inline orange text */
+        .inline-link { color: #FF6600; font-weight: 600; cursor: pointer; display: inline; background: none; border: none; padding: 0; margin: 0; font-size: inherit; text-decoration: underline; }
         
         .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #222; border-radius: 24px 24px 0 0; padding: 20px; z-index: 3000; transform: translateY(100%); transition: transform 0.3s ease; }
         .action-sheet.open { transform: translateY(0); }
@@ -73,10 +73,7 @@
         .search-container input::placeholder { color: #555; font-weight: 400; }
         .search-container .close-search { color: #FF6600; cursor: pointer; }
 
-        /* Link Warning Styling */
-        .link-warning { color: #FF6600; font-size: 11px; font-weight: 800; margin-top: 4px; }
-
-        /* Repost Modal */
+        /* NEW: Repost Modal */
         #repost-modal { display: none; }
         .repost-modal-content { background: #111; width: 100%; max-width: 500px; border-radius: 28px; padding: 24px; border: 1px solid #222; }
         .sunlight-mode .repost-modal-content { background: white; border-color: #eee; }
@@ -89,7 +86,7 @@
     <div id="toast">Gist Published!</div>
     <div id="mention-list"></div>
 
-    <!-- Repost Modal -->
+    <!-- NEW: Repost Modal -->
     <div id="repost-modal" class="modal-overlay" onclick="closeRepostModal()">
         <div class="repost-modal-content" onclick="event.stopPropagation()">
             <h3 class="text-lg font-black uppercase mb-2 text-sdel">Repost Gist</h3>
@@ -189,6 +186,7 @@ let pressTimer = null;
 let searchQuery = '';
 let currentRepostData = null;
 
+// ADDED: submitRepost and closeRepostModal to window
 Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention, toggleSearch, handleSearch, startPress, endPress, openRepostModal, closeRepostModal, submitRepost });
 
 function formatNum(num) {
@@ -282,79 +280,6 @@ function showActionSheet(post) {
     if (userProfile.is_official && !isOwner) {
         html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
     }
-// Search Functions
-function toggleSearch() {
-    const container = document.getElementById('search-container');
-    container.style.display = container.style.display === 'none' ? 'flex' : 'none';
-    if (container.style.display === 'flex') {
-        document.getElementById('search-input').focus();
-    } else {
-        searchQuery = '';
-        loadFeed();
-    }
-    lucide.createIcons();
-}
-
-function handleSearch(val) {
-    searchQuery = val.toLowerCase();
-    loadFeed();
-}
-
-// Press and Hold Logic (0.8s)
-function startPress(e, post) {
-    pressTimer = setTimeout(() => { showActionSheet(post); }, 800);
-}
-
-function endPress() { 
-    clearTimeout(pressTimer); 
-}
-
-async function handleMentions(input) {
-    const text = input.value;
-    const cursor = input.selectionStart;
-    const lastAt = text.lastIndexOf('@', cursor - 1);
-    const mentionList = document.getElementById('mention-list');
-
-    if (lastAt !== -1 && !text.slice(lastAt, cursor).includes(' ')) {
-        const query = text.slice(lastAt + 1, cursor);
-        if (query.length > 0) {
-            const { data: users } = await supabase.from('profile').select('username').ilike('username', `${query}%`).limit(5);
-            if (users?.length) {
-                mentionList.innerHTML = users.map(u => `<div class="mention-item" onclick="selectMention('${u.username}', ${lastAt}, ${cursor})">@${u.username}</div>`).join('');
-                mentionList.style.display = 'block';
-                const rect = input.getBoundingClientRect();
-                mentionList.style.top = (rect.bottom + window.scrollY + 10) + 'px';
-                mentionList.style.left = rect.left + 'px';
-                return;
-            }
-        }
-    }
-    mentionList.style.display = 'none';
-}
-
-function selectMention(name, start, end) {
-    const input = document.getElementById('post-input');
-    const text = input.value;
-    input.value = text.slice(0, start) + '@' + name + ' ' + text.slice(end);
-    document.getElementById('mention-list').style.display = 'none';
-    input.focus();
-    setTimeout(() => input.scrollTop = input.scrollHeight, 50);
-}
-
-function showActionSheet(post) {
-    const sheet = document.getElementById('action-sheet');
-    const options = document.getElementById('action-options');
-    const isOwner = post.user_id === userProfile.id;
-    const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
-    
-    let html = '';
-    if (isOwner) {
-        html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
-        if (canEdit) html += `<button class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
-    }
-    if (userProfile.is_official && !isOwner) {
-        html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
-    }
     options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
     sheet.classList.add('open');
     lucide.createIcons();
@@ -373,9 +298,8 @@ async function banUser(userId) {
     closeActions();
 }
 
-// Repost Modal Functions
+// NEW: Repost Modal Functions
 function openRepostModal(postId, reposterUsername, originalContent) {
-    // Check if already reposted
     checkIfReposted(postId).then(hasReposted => {
         if (hasReposted) {
             showToast("Already reposted!");
@@ -415,7 +339,6 @@ async function submitRepost() {
     const { postId, reposterUsername, originalContent } = currentRepostData;
     const comment = document.getElementById('repost-comment-input').value.trim();
     
-    // Build repost content
     let repostContent = `Reposted from @${reposterUsername}\n"${originalContent}"`;
     if (comment) {
         repostContent += `\n\n${comment}`;
@@ -444,7 +367,6 @@ async function publishPost() {
     const rawContent = document.getElementById('post-input').value.trim();
     if (!rawContent) return;
     
-    // Anti-Hack Logic - STRICTER: Block any HTML tags or script patterns
     if (/<[^>]*>|javascript:|onerror|onload|eval|alert|document\.|window\.|fetch|XMLHttpRequest|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeypress|onkeyup/i.test(rawContent)) {
         document.getElementById('post-input').value = '';
         securityViolationCount++;
@@ -462,7 +384,6 @@ async function publishPost() {
     if (!error) { showToast("Gist Published!"); document.getElementById('post-input').value = ''; toggleActions(document.getElementById('post-input')); loadFeed(); }
 }
 
-// ============= CRITICAL FIX: PLAIN TEXT ONLY =============
 function escapeHTML(str) {
     if (!str) return '';
     const div = document.createElement('div');
@@ -470,35 +391,25 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
+// CHANGED: formatContent to use inline links instead of boxes
 function formatContent(text, postId) {
-    // STEP 1: Escape everything to plain text first
     let safe = escapeHTML(text);
     
-    // STEP 2: Apply safe transformations (only after escaping)
-    
-    // Professional Read More (5 lines/280 chars)
     if (safe.length > 280) {
         safe = `<span id="short-${postId}">${escapeHTML(safe.substring(0, 250))}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${escapeHTML(safe)}</span>`;
     }
     
-    // STEP 3: Mentions - Redirect to homieprofile.html
     safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'homieprofile.html?u=$1\'">@$1</span>');
     
-    // STEP 4: Links - Inline orange (no box) with conditional redirect
     const urlRegex = /(https?:\/\/[^\s<]+)/gi;
     safe = safe.replace(urlRegex, (url) => {
         const escapedUrl = escapeHTML(url);
-        // Check if it's homies.html - open directly
-        if (url.includes('homies.html')) {
-            return `<span class="inline-link" onclick="window.location.href='homies.html'">${escapedUrl}</span>`;
-        }
-        // All other links show warning
+        // CHANGED: Use inline-link class instead of aether-link
         return `<span class="inline-link" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}')">${escapedUrl}</span>`;
     });
     
     return safe;
 }
-// =========================================================
 
 async function loadFeed() {
     const container = document.getElementById('feed-container');
@@ -507,7 +418,6 @@ async function loadFeed() {
     const { data: posts } = await query;
     const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
 
-    // Filter by search query if present
     let filteredPosts = posts;
     if (searchQuery) {
         filteredPosts = posts.filter(post => 
@@ -535,6 +445,7 @@ async function loadFeed() {
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
                         <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
                         <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
+                        <!-- CHANGED: Use openRepostModal instead of handleRepost -->
                         <button onclick="openRepostModal('${post.id}', '${escapeHTML(username)}', \`${escapeHTML(post.content)}\`)" class="flex items-center gap-2"><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
                         <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)"><i data-lucide="upload" size="18"></i></button>
                     </div>
@@ -557,9 +468,8 @@ async function handleLike(postId) {
     loadFeed();
 }
 
-// Keep original handleRepost for backward compatibility but it won't be used
+// CHANGED: handleRepost now calls modal (backward compatible)
 async function handleRepost(originalPostId, originalContent, originalAuthor) {
-    // This function is replaced by openRepostModal
     openRepostModal(originalPostId, originalAuthor, originalContent);
 }
 
@@ -569,7 +479,13 @@ async function handleShare(postId, content) {
     else { navigator.clipboard.writeText(url); showToast("Link copied!"); }
 }
 
+// CHANGED: safeRedirect with conditional for homies.html
 function safeRedirect(url) { 
+    // If it's homies.html, go directly without modal
+    if (url.includes('homies.html')) {
+        window.location.href = 'homies.html';
+        return;
+    }
     document.getElementById('raw-link-display').innerText = url; 
     document.getElementById('redirect-modal').style.display = 'flex'; 
     document.getElementById('confirm-redirect-btn').onclick = () => { window.open(url, '_blank'); closeRedirect(); }; 
