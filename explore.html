@@ -43,11 +43,11 @@
         .sunlight-mode #post-input { color: #121212; }
         .sunlight-mode .text-zinc-200 { color: #27272a !important; }
         .sunlight-mode .text-zinc-500 { color: #71717a !important; }
-        .sunlight-mode #mention-list { background: #ffffff; border-color: #eee; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .sunlight-mode [data-lucide] { color: #FF6600 !important; } /* Visibility Fix */
+        .sunlight-mode #mention-list { background: #ffffff; border-color: #eee; }
         .sunlight-mode .mention-item { color: #121212; border-color: #f5f5f5; }
         .sunlight-mode .composer-expanded { background: #fff7f2 !important; border-color: #ffd6ba !important; }
         .sunlight-mode .modal-content { background: #ffffff; border-color: #eee; color: #121212; }
-        .sunlight-mode .bg-zinc-900 { background-color: #f4f4f5; }
 
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
         #toast.show { transform: translateX(-50%) translateY(0); }
@@ -70,7 +70,7 @@
         <div class="modal-content border-red-900/50">
             <i data-lucide="shield-alert" class="text-red-600 mx-auto mb-4" size="48"></i>
             <h3 class="text-red-500 font-black uppercase mb-2">Security Warning</h3>
-            <p id="security-msg" class="text-xs text-zinc-400 font-bold leading-relaxed mb-6 uppercase">Unauthorized script detected. Your account status has been updated.</p>
+            <p id="security-msg" class="text-xs text-zinc-400 font-bold leading-relaxed mb-6 uppercase">Unauthorized code detected. Post treated as plain text.</p>
             <button onclick="document.getElementById('security-modal').style.display='none'" class="w-full py-4 bg-zinc-900 rounded-2xl font-black text-xs uppercase">I Understand</button>
         </div>
     </div>
@@ -85,7 +85,7 @@
         <div class="modal-content">
             <h3 class="text-lg font-black uppercase mb-2">Leaving Sdel</h3>
             <div id="raw-link-display" class="bg-black p-4 rounded-xl border border-zinc-800 text-sdel text-[10px] break-all mb-4 font-bold"></div>
-            <p class="text-[9px] text-red-500 font-black uppercase mb-6">Verify link before proceeding. Sdel does not verify external content.</p>
+            <p class="text-[9px] text-red-500 font-black uppercase mb-6">Sdel does not verify external content.</p>
             <div class="flex gap-3">
                 <button onclick="closeRedirect()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-xs">Abort</button>
                 <button id="confirm-redirect-btn" class="flex-1 py-4 bg-sdel text-black rounded-2xl font-black uppercase text-xs">Proceed</button>
@@ -139,7 +139,6 @@ const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhb
 
 let userProfile = null;
 let currentMode = 'campus';
-let securityViolationCount = 0;
 let pressTimer = null;
 
 Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention });
@@ -162,38 +161,8 @@ async function init() {
     loadFeed();
 }
 
-async function handleMentions(input) {
-    const text = input.value;
-    const cursor = input.selectionStart;
-    const lastAt = text.lastIndexOf('@', cursor - 1);
-    const mentionList = document.getElementById('mention-list');
-
-    if (lastAt !== -1 && !text.slice(lastAt, cursor).includes(' ')) {
-        const query = text.slice(lastAt + 1, cursor);
-        if (query.length > 0) {
-            const { data: users } = await supabase.from('profile').select('username').ilike('username', `${query}%`).limit(5);
-            if (users?.length) {
-                mentionList.innerHTML = users.map(u => `<div class="mention-item" onclick="selectMention('${u.username}', ${lastAt}, ${cursor})">@${u.username}</div>`).join('');
-                mentionList.style.display = 'block';
-                const rect = input.getBoundingClientRect();
-                mentionList.style.top = (rect.bottom + window.scrollY + 10) + 'px';
-                mentionList.style.left = rect.left + 'px';
-                return;
-            }
-        }
-    }
-    mentionList.style.display = 'none';
-}
-
-function selectMention(name, start, end) {
-    const input = document.getElementById('post-input');
-    const text = input.value;
-    input.value = text.slice(0, start) + '@' + name + ' ' + text.slice(end);
-    document.getElementById('mention-list').style.display = 'none';
-    input.focus();
-}
-
 function handlePress(e, post) {
+    cancelPress();
     pressTimer = setTimeout(() => { showActionSheet(post); }, 800);
 }
 
@@ -235,38 +204,28 @@ async function publishPost() {
     const rawContent = document.getElementById('post-input').value.trim();
     if (!rawContent) return;
     
-    // Anti-Hack Logic
-    if (/<script|javascript:|onerror|eval/gi.test(rawContent)) {
-        document.getElementById('post-input').value = '';
-        securityViolationCount++;
-        if (securityViolationCount >= 3) {
-            await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userProfile.id);
-            location.replace('banned.html');
-        } else { 
-            document.getElementById('security-modal').style.display = 'flex';
-        }
-        return;
-    }
-
     const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: rawContent, school_name: userProfile.school_name || 'Global' });
     if (!error) { showToast("Gist Published!"); document.getElementById('post-input').value = ''; toggleActions(document.getElementById('post-input')); loadFeed(); }
 }
 
 function formatContent(text, postId) { 
-    // Plain Text Sanitizer
-    let safe = sanitize(text);
+    // AGGRESSIVE PLAIN TEXT ESCAPE (No innerHTML tricks)
+    let safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+
+    // Mentions -> homieprofile.html
+    safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'homieprofile.html?u=$1\'">@$1</span>');
     
-    // Professional Read More (5 lines/280 chars)
+    // Link Engine (Detects how.com, https://..., etc)
+    const urlRegex = /((https?:\/\/)|(www\.))?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/[^\s]*)?/gi;
+    safe = safe.replace(urlRegex, (url) => {
+        let fullUrl = url.match(/^https?:\/\//) ? url : "https://" + url;
+        return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${fullUrl}')"><i data-lucide="external-link" size="10"></i> LINK</span>`;
+    });
+
     if (safe.length > 280) {
         safe = `<span id="short-${postId}">${safe.substring(0, 250)}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
     }
-    
-    // Mentions
-    safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
-    
-    // In-line Link Logic
-    const urlRegex = /(https?:\/\/[^\s]+)/gi;
-    return safe.replace(urlRegex, (url) => `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${url}')"><i data-lucide="external-link" size="10"></i> LINK</span>`);
+    return safe;
 }
 
 async function loadFeed() {
@@ -274,11 +233,11 @@ async function loadFeed() {
     let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').order('created_at', { ascending: false }).limit(40);
     if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
     const { data: posts } = await query;
-    const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
+    const { data: myInteractions } = await supabase.from('interactions').select('post_id, interaction_type').eq('user_id', userProfile.id);
 
     container.innerHTML = posts.map(post => {
         const username = post.profile?.username || 'homie';
-        const isLiked = myLikes?.some(l => l.post_id === post.id);
+        const isLiked = myInteractions?.some(i => i.post_id === post.id && i.interaction_type === 'like');
         let badge = post.profile?.is_official ? `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : (post.profile?.is_verified ? `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : '');
         
         return `
@@ -317,27 +276,39 @@ async function handleLike(postId) {
 }
 
 async function handleRepost(originalPostId, originalContent, originalAuthor) {
+    // Check if user already reposted this specific gist
+    const { data: exists } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', originalPostId).eq('interaction_type', 'repost').single();
+    if (exists) return showToast("Already Reposted!");
+
     const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: `Reposted from @${originalAuthor}: ${originalContent}`, school_name: userProfile.school_name || 'Global' });
-    if (!error) { await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); showToast("Reposted!"); loadFeed(); }
+    if (!error) { 
+        await supabase.from('interactions').insert({ user_id: userProfile.id, post_id: originalPostId, interaction_type: 'repost' });
+        await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); 
+        showToast("Reposted!"); loadFeed(); 
+    }
 }
 
 async function handleShare(postId, content) {
     const url = `${window.location.origin}/gist.html?id=${postId}`;
     if (navigator.share) navigator.share({ title: 'Sdel', text: content, url });
-    else { navigator.clipboard.writeText(url); showToast("Link copied!"); }
+    else { navigator.clipboard.writeText(url); showToast("Link Copied!"); }
 }
 
-function sanitize(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 function safeRedirect(url) { document.getElementById('raw-link-display').innerText = url; document.getElementById('redirect-modal').style.display = 'flex'; document.getElementById('confirm-redirect-btn').onclick = () => { window.open(url, '_blank'); closeRedirect(); }; }
 function closeRedirect() { document.getElementById('redirect-modal').style.display = 'none'; }
 function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
+
 function toggleActions(el) { 
     const card = document.getElementById('composer-card');
     el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+    
+    // Keyboard Visibility Logic: Keep typing end in view
+    window.scrollTo({ top: el.offsetTop - 100, behavior: 'smooth' });
+
     card.classList.toggle('composer-expanded', el.value.length > 50);
     document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
-    handleMentions(el);
 }
+
 function toggleReadMore(id) { document.getElementById(`short-${id}`).classList.add('hidden'); document.getElementById(`full-${id}`).classList.remove('hidden'); }
 function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
 
