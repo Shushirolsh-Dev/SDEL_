@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel Merchant | Market Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        body { background: #000; color: #fff; font-family: 'Poppins', sans-serif; }
+        .input-box { background: #121212; border: 1px solid #262626; border-radius: 15px; padding: 15px; width: 100%; outline: none; color: white; font-weight: bold; font-size: 13px; transition: 0.3s; }
+        .input-box:focus { border-color: #FF6600; box-shadow: 0 0 10px rgba(255,102,0,0.1); }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background: #FF6600; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
+        #inventory-list:empty::after { content: "YOUR SHOP IS EMPTY"; display: block; text-align: center; padding: 40px; font-size: 10px; font-weight: 900; color: #262626; letter-spacing: 0.2em; }
+    </style>
+</head>
+<body class="p-6 pb-24">
+
+    <nav class="flex items-center justify-between mb-8">
+        <button onclick="window.location.href='vendor_dashboard.html'" class="bg-zinc-900 p-3 rounded-xl text-gray-400">
+            <i data-lucide="chevron-left" size="20"></i>
+        </button>
+        <h1 class="text-xl font-black uppercase italic tracking-tighter">Inventory <span class="text-sdel">Manager</span></h1>
+        <div class="w-10"></div>
+    </nav>
+
+    <section class="space-y-6 mb-12" id="form-section">
+        <h2 id="form-title" class="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">List New Item</h2>
+        <div class="space-y-4">
+            <input type="hidden" id="edit-id">
+            <input type="text" id="p-name" placeholder="Product Name" class="input-box">
+            <div class="grid grid-cols-2 gap-4">
+                <input type="number" id="p-price" placeholder="Price (₦)" class="input-box">
+                <select id="p-category" class="input-box text-zinc-400"><option value="">Loading Categories...</option></select>
+            </div>
+            <textarea id="p-desc" placeholder="Product details..." class="input-box h-20"></textarea>
+            
+            <div class="flex items-center gap-4">
+                <input type="file" id="p-image" class="hidden" accept="image/*">
+                <button onclick="document.getElementById('p-image').click()" id="upload-trigger" class="flex-1 bg-zinc-900 py-4 rounded-2xl border border-dashed border-zinc-700 font-bold text-[10px] uppercase text-zinc-400 transition hover:border-sdel">
+                    <i data-lucide="image" class="inline mr-2" size="16"></i> <span id="file-status">Upload Photo</span>
+                </button>
+                <button onclick="saveProduct()" id="save-btn" class="flex-1 bg-sdel py-4 rounded-2xl font-black uppercase text-[10px] italic text-black tracking-widest shadow-lg shadow-orange-600/20">Launch</button>
+            </div>
+            <button id="cancel-edit" onclick="resetForm()" class="hidden w-full text-[9px] font-black uppercase text-zinc-500 text-center mt-2">Discard Changes</button>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="text-[10px] font-black uppercase text-zinc-500 tracking-widest mb-4 ml-1">My Active Items</h2>
+        <div id="inventory-list" class="space-y-3"></div>
+    </section>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let inventoryData = [];
+        let currentUserId = null;
+
+        // AUTH CHECK & INITIALIZATION
+        async function init() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUserId = session.user.id;
+            
+            loadCategories();
+            loadInventory();
+            lucide.createIcons();
+        }
+
+        // LOAD GLOBAL CATEGORIES
+        window.loadCategories = async () => {
+            const { data } = await supabase.from('categories').select('*').order('name');
+            const selector = document.getElementById('p-category');
+            if (data) {
+                selector.innerHTML = '<option value="">Select Category</option>' + data.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            }
+        };
+
+        // IMAGE UI FEEDBACK
+        document.getElementById('p-image').onchange = function() {
+            if(this.files[0]) {
+                document.getElementById('file-status').innerText = "Ready: " + this.files[0].name.substring(0,8) + "...";
+                document.getElementById('upload-trigger').classList.add('border-sdel', 'text-sdel');
+            }
+        };
+
+        // SAVE / UPDATE PRODUCT
+        window.saveProduct = async () => {
+            const name = document.getElementById('p-name').value;
+            const price = document.getElementById('p-price').value;
+            const category = document.getElementById('p-category').value;
+            const desc = document.getElementById('p-desc').value;
+            const file = document.getElementById('p-image').files[0];
+            const editId = document.getElementById('edit-id').value;
+
+            if(!name || !price || !category) return alert("Missing required fields, homie.");
+
+            const btn = document.getElementById('save-btn');
+            btn.disabled = true; 
+            btn.innerText = "PROCESSING...";
+
+            let productPayload = { 
+                name, 
+                price: parseFloat(price), 
+                category, 
+                description: desc,
+                vendor_id: currentUserId // This ensures the product is tied to this vendor
+            };
+
+            if(file) {
+                // Organize storage by vendor folders
+                const fileName = `${currentUserId}/${Date.now()}-${file.name.replace(/\s/g, '_')}`;
+                const { error: uploadError } = await supabase.storage.from('market-assets').upload(fileName, file);
+                
+                if(!uploadError) {
+                    productPayload.image_url = `https://lgfyrlfjoazedwymjpfc.supabase.co/storage/v1/object/public/market-assets/${fileName}`;
+                    productPayload.image_path = fileName;
+                } else {
+                    console.error("Upload error:", uploadError);
+                }
+            }
+
+            const action = editId ? 
+                supabase.from('products').update(productPayload).eq('id', editId).eq('vendor_id', currentUserId) : 
+                supabase.from('products').insert([productPayload]);
+
+            const { error } = await action;
+            if(!error) {
+                alert(editId ? "Product Updated!" : "Product Launched!");
+                location.reload();
+            } else { 
+                alert("Permission Denied or System Error."); 
+                btn.disabled = false; 
+                btn.innerText = "Launch"; 
+            }
+        };
+
+        // LOAD VENDOR'S SPECIFIC INVENTORY
+        window.loadInventory = async () => {
+            // Only fetch items belonging to this specific user
+            const { data } = await supabase
+                .from('products')
+                .select('*')
+                .eq('vendor_id', currentUserId)
+                .order('created_at', { ascending: false });
+
+            inventoryData = data || [];
+            const list = document.getElementById('inventory-list');
+            
+            list.innerHTML = inventoryData.map(p => `
+                <div class="card-zinc p-4 rounded-2xl flex items-center justify-between border-white/5">
+                    <div class="flex items-center gap-3">
+                        <img src="${p.image_url}" class="w-12 h-12 object-cover rounded-xl border border-white/10" onerror="this.src='https://placehold.co/100/121212/FF6600?text=Empty'">
+                        <div>
+                            <h4 class="text-[11px] font-black uppercase italic tracking-tight text-white">${p.name}</h4>
+                            <p class="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">${p.category} • ₦${p.price.toLocaleString()}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editProduct('${p.id}')" class="text-zinc-600 hover:text-sdel transition p-2"><i data-lucide="edit-3" size="16"></i></button>
+                        <button onclick="deleteItem('${p.id}', '${p.image_path}')" class="text-zinc-600 hover:text-red-500 transition p-2"><i data-lucide="trash-2" size="16"></i></button>
+                    </div>
+                </div>`).join('');
+            lucide.createIcons();
+        };
+
+        window.editProduct = (id) => {
+            const p = inventoryData.find(x => x.id === id);
+            if(!p) return;
+            
+            document.getElementById('edit-id').value = p.id;
+            document.getElementById('p-name').value = p.name;
+            document.getElementById('p-price').value = p.price;
+            document.getElementById('p-category').value = p.category;
+            document.getElementById('p-desc').value = p.description;
+            
+            document.getElementById('form-title').innerText = "Update Item";
+            document.getElementById('save-btn').innerText = "Update";
+            document.getElementById('cancel-edit').classList.remove('hidden');
+            document.getElementById('form-section').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        window.deleteItem = async (id, path) => {
+            if(!confirm("Remove this item from your shop?")) return;
+            
+            // Delete record only if it belongs to current vendor
+            const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', id)
+                .eq('vendor_id', currentUserId);
+
+            if(!error) {
+                if(path && path !== "null") {
+                    await supabase.storage.from('market-assets').remove([path]);
+                }
+                loadInventory();
+            } else {
+                alert("Unauthorized deletion attempt.");
+            }
+        };
+
+        window.resetForm = () => { location.reload(); };
+
+        init();
+    </script>
+</body>
+              </html>
+              
