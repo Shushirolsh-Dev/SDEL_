@@ -26,7 +26,6 @@
         .plan-card { border: 2px solid var(--border); transition: 0.3s; cursor: pointer; border-radius: 20px; }
         .plan-card.active { border-color: #FF6600; background: rgba(255,102,0,0.05); }
 
-        /* Custom Alert Style */
         #custom-alert { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; min-width: 300px; animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes slideDown { from { top: -100px; opacity: 0; } to { top: 20px; opacity: 1; } }
 
@@ -64,7 +63,6 @@
                 <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Business Identity</label>
                 <input type="text" id="bizName" placeholder="Shop Name" class="input-zinc" oninput="updatePreview()">
             </div>
-
             <div>
                 <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Category</label>
                 <select id="bizCat" class="input-zinc appearance-none" onchange="handleCategoryChange()">
@@ -79,35 +77,35 @@
                     <option value="Other">Other (Type below)</option>
                 </select>
             </div>
-
             <div id="customCatDiv" class="hidden">
                 <input type="text" id="customCat" placeholder="Type your category..." class="input-zinc" oninput="updatePreview()">
             </div>
-
             <div class="space-y-3">
                 <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 block">Choose Merchant Plan</label>
                 <div id="plan-container" class="grid grid-cols-1 gap-3">
                     <p class="text-xs opacity-50 p-4 font-bold uppercase">Fetching rates...</p>
                 </div>
             </div>
-
             <button onclick="registerVendor()" id="regBtn" class="w-full bg-[#FF6600] text-white py-6 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-2xl shadow-sdel/30 active:scale-95 transition-all mt-6">
                 Launch My Shop
             </button>
         </div>
 
         <div id="status-view" class="hidden text-center space-y-6">
-            <div class="glass-card p-10 space-y-4">
-                <div class="w-20 h-20 bg-sdel/10 rounded-full flex items-center justify-center mx-auto text-sdel">
-                    <i data-lucide="clock-4" size="40"></i>
+            <div id="status-card" class="glass-card p-10 space-y-4">
+                <div id="status-icon-div" class="w-20 h-20 bg-sdel/10 rounded-full flex items-center justify-center mx-auto text-sdel">
+                    <i id="status-icon" data-lucide="clock-4" size="40"></i>
                 </div>
-                <h2 class="text-2xl font-black uppercase tracking-tighter">Under Review</h2>
-                <p class="text-xs text-[var(--dim)] font-bold uppercase tracking-widest leading-relaxed">
+                <h2 id="status-title" class="text-2xl font-black uppercase tracking-tighter">Under Review</h2>
+                <p id="status-desc" class="text-xs text-[var(--dim)] font-bold uppercase tracking-widest leading-relaxed">
                     We'll review the details and get back to you shortly, homie.
                 </p>
             </div>
             <button id="startSellingBtn" class="w-full bg-zinc-800 text-[var(--dim)] py-6 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] cursor-not-allowed opacity-50">
                 Start Selling (Verification Pending)
+            </button>
+            <button id="retryBtn" onclick="reapply()" class="hidden w-full border border-sdel text-sdel py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">
+                Try Again
             </button>
         </div>
     </div>
@@ -126,17 +124,32 @@
             const { data: vendor } = await supabase.from('vendors').select('*').eq('user_id', session.user.id).single();
 
             if (vendor) {
+                // If verified, jump straight to dashboard
+                if (vendor.status === 'verified') {
+                    window.location.href = 'vendor_dashboard.html';
+                    return;
+                }
+
                 document.getElementById('reg-form').classList.add('hidden');
                 document.getElementById('status-view').classList.remove('hidden');
-                
-                if (vendor.status === 'verified') {
-                    const btn = document.getElementById('startSellingBtn');
-                    btn.classList.remove('bg-zinc-800', 'cursor-not-allowed', 'opacity-50');
-                    btn.classList.add('bg-sdel', 'text-white');
-                    btn.innerText = "Start Selling";
-                    btn.onclick = () => window.location.href = 'vendor_dashboard.html';
+
+                if (vendor.status === 'declined') {
+                    document.getElementById('status-icon-div').className = "w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto text-red-500";
+                    document.getElementById('status-icon').setAttribute('data-lucide', 'x-circle');
+                    document.getElementById('status-title').innerText = "Shop Rejected";
+                    document.getElementById('status-desc').innerText = "Your application was declined. Please review your details and try again.";
+                    document.getElementById('retryBtn').classList.remove('hidden');
+                    document.getElementById('startSellingBtn').classList.add('hidden');
+                    lucide.createIcons();
                 }
             }
+        }
+
+        window.reapply = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            const { error } = await supabase.from('vendors').delete().eq('user_id', session.user.id).eq('status', 'declined');
+            if (!error) location.reload();
+            else showAlert("Action failed. Try again later.");
         }
 
         async function loadPlans() {
@@ -187,15 +200,11 @@
             const biz = document.getElementById('bizName').value;
             let cat = document.getElementById('bizCat').value;
             if(cat === 'Other') cat = document.getElementById('customCat').value;
-
             if(!biz || !cat) return showAlert("Missing shop details, homie!");
-
             btn.disabled = true;
             btn.innerText = "Connecting...";
-
             const { data: { session } } = await supabase.auth.getSession();
             if(!session) return window.location.href = 'login.html';
-
             const { error } = await supabase.from('vendors').insert({
                 user_id: session.user.id,
                 business_name: biz,
@@ -204,7 +213,6 @@
                 fee_paid: selectedPrice,
                 status: 'pending'
             });
-
             if(!error) {
                 showAlert("Application Sent Successfully");
                 setTimeout(() => location.reload(), 1500);
@@ -224,4 +232,5 @@
         }
     </script>
 </body>
-</html>
+    </html>
+    
