@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') document.documentElement.classList.add('sunlight-mode');
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Vendor Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        :root { --bg: #000; --surface: #0a0a0a; --card: #121212; --border: #262626; --text: #fff; --sdel: #FF6600; }
+        .sunlight-mode { --bg: #fff; --surface: #f4f4f5; --card: #ffffff; --border: #e4e4e7; --text: #000; --sdel: #FF6600; }
+        
+        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; transition: 0.3s; }
+        * { font-style: normal !important; }
+
+        /* Lock Overlay Styles */
+        #lock-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .lock-card { background: var(--card); border: 1px solid var(--border); border-radius: 2.5rem; padding: 40px 24px; text-align: center; max-width: 400px; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div id="lock-overlay">
+        <div class="lock-card">
+            <div class="w-20 h-20 bg-[#FF660015] rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="lock" class="text-[#FF6600]" size="32"></i>
+            </div>
+            <h2 class="text-2xl font-black uppercase tracking-tighter mb-2">Shop Locked</h2>
+            <p id="lock-reason" class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-8 leading-relaxed">
+                Your monthly maintenance fee is due to keep your shop active.
+            </p>
+            
+            <div class="bg-zinc-500/5 p-6 rounded-3xl border border-white/5 mb-8">
+                <p class="text-[8px] font-black uppercase text-zinc-500 mb-1">Amount Due</p>
+                <h3 id="due-amount" class="text-3xl font-black text-[#FF6600]">₦0.00</h3>
+            </div>
+
+            <button onclick="payMonthlyFee()" class="w-full bg-[#FF6600] text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-[#FF6600]/20 active:scale-95 transition-all">
+                Pay to Unlock
+            </button>
+        </div>
+    </div>
+
+    <main id="dashboard-content" class="p-6 opacity-0 transition-opacity duration-500">
+        <nav class="flex justify-between items-center mb-10">
+            <h1 class="text-lg font-black uppercase tracking-tighter">Vendor <span class="text-[#FF6600]">Panel</span></h1>
+            <div id="status-pill" class="text-[8px] font-black uppercase px-3 py-1 bg-green-500/10 text-green-500 rounded-full">Active</div>
+        </nav>
+        
+        <p class="text-zinc-500 font-bold uppercase text-[10px]">Welcome back, Merchant.</p>
+    </main>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'YOUR_KEY_HERE');
+
+        async function checkSubscription() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if(!session) return window.location.href = 'login.html';
+
+            // 1. Get Global Fee from app_config
+            const { data: config } = await supabase.from('app_config').select('price').eq('id', 'shop_monthly_fee').single();
+            const monthlyFee = config?.price || 0;
+            document.getElementById('due-amount').innerText = `₦${monthlyFee.toLocaleString()}`;
+
+            // 2. Get Vendor Details
+            const { data: vendor } = await supabase.from('vendors').select('*').eq('user_id', session.user.id).single();
+
+            if (!vendor) {
+                window.location.href = 'vendor_reg.html';
+                return;
+            }
+
+            // 3. Check for Overdue (30 Days)
+            const lastPayment = new Date(vendor.last_payment_date);
+            const now = new Date();
+            const diffInDays = Math.floor((now - lastPayment) / (1000 * 60 * 60 * 24));
+
+            if (diffInDays >= 30) {
+                showLock("Your monthly maintenance fee is due.");
+            } else if (vendor.status !== 'verified') {
+                showLock("Your shop is still awaiting admin approval.");
+                document.querySelector('.lock-card button').style.display = 'none'; // Can't pay if not approved
+            } else {
+                // All good!
+                document.getElementById('dashboard-content').classList.remove('opacity-0');
+            }
+        }
+
+        function showLock(reason) {
+            document.getElementById('lock-overlay').style.display = 'flex';
+            document.getElementById('lock-reason').innerText = reason;
+        }
+
+        window.payMonthlyFee = async () => {
+            // Redirect to your payment processing page (e.g., Paystack/Flutterwave)
+            const amount = document.getElementById('due-amount').innerText.replace(/\D/g,'');
+            window.location.href = `checkout.html?amount=${amount}&type=maintenance`;
+        };
+
+        checkSubscription();
+        lucide.createIcons();
+    </script>
+</body>
+</html>
