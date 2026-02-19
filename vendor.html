@@ -124,16 +124,25 @@
             const { data: vendor } = await supabase.from('vendors').select('*').eq('user_id', session.user.id).single();
 
             if (vendor) {
-                // If verified, jump straight to dashboard
-                if (vendor.status === 'verified') {
-                    window.location.href = 'vendor_dashboard.html';
-                    return;
-                }
-
                 document.getElementById('reg-form').classList.add('hidden');
                 document.getElementById('status-view').classList.remove('hidden');
 
-                if (vendor.status === 'declined') {
+                if (vendor.status === 'verified') {
+                    // Success View
+                    document.getElementById('status-icon-div').className = "w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto text-green-500";
+                    document.getElementById('status-icon').setAttribute('data-lucide', 'check-circle');
+                    document.getElementById('status-title').innerText = "Verified!";
+                    document.getElementById('status-desc').innerText = "Your shop is live and ready for business. Let's make some money!";
+                    
+                    const btn = document.getElementById('startSellingBtn');
+                    btn.classList.remove('bg-zinc-800', 'cursor-not-allowed', 'opacity-50');
+                    btn.classList.add('bg-sdel', 'text-white');
+                    btn.innerText = "Enter Shop Dashboard";
+                    btn.onclick = () => window.location.href = 'vendor_dashboard.html';
+                    
+                    lucide.createIcons();
+                } else if (vendor.status === 'declined') {
+                    // Declined View
                     document.getElementById('status-icon-div').className = "w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto text-red-500";
                     document.getElementById('status-icon').setAttribute('data-lucide', 'x-circle');
                     document.getElementById('status-title').innerText = "Shop Rejected";
@@ -232,5 +241,4 @@
         }
     </script>
 </body>
-    </html>
-    
+</html>
