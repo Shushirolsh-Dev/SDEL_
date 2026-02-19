@@ -54,6 +54,7 @@
         .sunlight-mode .search-container { background: #f4f4f5; border-color: #e4e4e7; }
         .sunlight-mode .search-container input { color: #121212; background: #f4f4f5; }
         .sunlight-mode .search-container input::placeholder { color: #71717a; }
+        .sunlight-mode .edit-option { background: #f4f4f5 !important; color: #121212 !important; border: 1px solid #e4e4e7; }
 
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
         #toast.show { transform: translateX(-50%) translateY(0); }
@@ -72,8 +73,12 @@
         .search-container input::placeholder { color: #555; font-weight: 400; }
         .search-container .close-search { color: #FF6600; cursor: pointer; }
 
-        /* Link Warning Styling */
-        .link-warning { color: #FF6600; font-size: 11px; font-weight: 800; margin-top: 4px; }
+        /* Edit Modal */
+        #edit-modal { display: none; }
+        .edit-modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 24px; border: 1px solid #222; }
+        #edit-textarea { width: 100%; background: #000; border: 1px solid #333; border-radius: 16px; color: white; padding: 16px; font-size: 14px; margin: 16px 0; resize: none; outline: none; }
+        .sunlight-mode #edit-textarea { background: #f4f4f5; color: #121212; border-color: #e4e4e7; }
+        .sunlight-mode .edit-modal-content { background: white; border-color: #eee; }
     </style>
 </head>
 <body class="pb-32">
@@ -89,10 +94,23 @@
         </div>
     </div>
 
-    <div id="action-sheet" class="action-sheet">
+    <!-- Edit Modal -->
+    <div id="edit-modal" class="modal-overlay" onclick="closeEditModal()">
+        <div class="edit-modal-content" onclick="event.stopPropagation()">
+            <h3 class="text-lg font-black uppercase mb-2 text-sdel">Edit Gist</h3>
+            <p class="text-[10px] text-zinc-500 font-bold uppercase mb-2">You have 15 minutes to edit</p>
+            <textarea id="edit-textarea" rows="4" placeholder="Edit your gist..."></textarea>
+            <div class="flex gap-3">
+                <button onclick="closeEditModal()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-xs">Cancel</button>
+                <button id="save-edit-btn" class="flex-1 py-4 bg-sdel text-black rounded-2xl font-black uppercase text-xs">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="action-sheet" class="action-sheet" onclick="closeActions()">
         <div class="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-6"></div>
-        <div id="action-options" class="space-y-3"></div>
-        <button onclick="closeActions()" class="w-full mt-4 py-4 text-zinc-500 font-black uppercase text-xs">Cancel</button>
+        <div id="action-options" class="space-y-3" onclick="event.stopPropagation()"></div>
+        <button onclick="closeActions()" class="w-full mt-4 py-4 text-zinc-500 font-black uppercase text-xs" onclick="event.stopPropagation()">Cancel</button>
     </div>
 
     <div id="redirect-modal" class="modal-overlay">
@@ -165,8 +183,9 @@ let currentMode = 'campus';
 let securityViolationCount = 0;
 let pressTimer = null;
 let searchQuery = '';
+let repostedPosts = new Set();
 
-Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention, toggleSearch, handleSearch, startPress, endPress });
+Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention, toggleSearch, handleSearch, startPress, endPress, openEditModal, closeEditModal, saveEdit });
 
 function formatNum(num) {
     if (!num) return 0;
@@ -242,7 +261,6 @@ function selectMention(name, start, end) {
     input.value = text.slice(0, start) + '@' + name + ' ' + text.slice(end);
     document.getElementById('mention-list').style.display = 'none';
     input.focus();
-    // Scroll to bottom after mention
     setTimeout(() => input.scrollTop = input.scrollHeight, 50);
 }
 
@@ -255,27 +273,68 @@ function showActionSheet(post) {
     let html = '';
     if (isOwner) {
         html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
-        if (canEdit) html += `<button class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
+        if (canEdit) {
+            html += `<button onclick="openEditModal('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs edit-option flex items-center justify-center gap-2"><i data-lucide="edit-3" size="16"></i> Edit Gist (15 mins)</button>`;
+        } else if (isOwner) {
+            html += `<button disabled class="w-full py-4 bg-zinc-800 text-zinc-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2 cursor-not-allowed"><i data-lucide="edit-3" size="16"></i> Edit Expired</button>`;
+        }
     }
-    if (userProfile.is_official && !isOwner) {
-        html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
+    if (userProfile.is_official) {
+        if (!isOwner) {
+            // Check if user is currently banned
+            const isBanned = post.profile?.is_banned || false;
+            html += `<button onclick="toggleBanUser('${post.user_id}', ${isBanned})" class="w-full py-4 ${isBanned ? 'bg-green-600' : 'bg-red-600'} text-black rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="${isBanned ? 'shield' : 'shield-off'}" size="16"></i> ${isBanned ? 'Unban User' : 'Ban User'}</button>`;
+        }
+        // Official can burn any post
+        if (!isOwner) {
+            html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist (Admin)</button>`;
+        }
     }
     options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
     sheet.classList.add('open');
     lucide.createIcons();
 }
 
-function closeActions() { document.getElementById('action-sheet').classList.remove('open'); }
+function closeActions() { 
+    document.getElementById('action-sheet').classList.remove('open'); 
+}
+
+// Edit Functions
+function openEditModal(postId, currentContent) {
+    closeActions();
+    document.getElementById('edit-modal').style.display = 'flex';
+    document.getElementById('edit-textarea').value = currentContent;
+    document.getElementById('save-edit-btn').onclick = () => saveEdit(postId);
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+}
+
+async function saveEdit(postId) {
+    const newContent = document.getElementById('edit-textarea').value.trim();
+    if (!newContent) return;
+    
+    const { error } = await supabase.from('posts').update({ content: newContent }).eq('id', postId);
+    if (!error) {
+        showToast("Gist Updated!");
+        closeEditModal();
+        loadFeed();
+    }
+}
 
 async function burnGist(id) {
     const { error } = await supabase.from('posts').delete().eq('id', id);
     if (!error) { showToast("Gist Burned!"); loadFeed(); closeActions(); }
 }
 
-async function banUser(userId) {
-    await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userId);
-    showToast("User Banned!");
+async function toggleBanUser(userId, currentStatus) {
     closeActions();
+    const { error } = await supabase.from('profile').update({ is_banned: !currentStatus, banned: !currentStatus }).eq('id', userId);
+    if (!error) {
+        showToast(currentStatus ? "User Unbanned!" : "User Banned!");
+        loadFeed();
+    }
 }
 
 async function publishPost() {
@@ -291,7 +350,6 @@ async function publishPost() {
             location.replace('banned.html');
         } else { 
             document.getElementById('security-modal').style.display = 'flex';
-            // Refresh page after 3 seconds
             setTimeout(() => location.reload(), 3000);
         }
         return;
@@ -303,30 +361,37 @@ async function publishPost() {
 
 // ============= CRITICAL FIX: PLAIN TEXT ONLY =============
 function escapeHTML(str) {
-    // Convert all user content to plain text - no exceptions
+    if (!str) return '';
     const div = document.createElement('div');
-    div.textContent = str; // textContent ensures plain text, no HTML parsing
-    return div.innerHTML;   // Returns escaped HTML entities
+    div.textContent = str;
+    return div.innerHTML;
 }
 
 function formatContent(text, postId) {
+    if (!text) return '';
+    
     // STEP 1: Escape everything to plain text first
     let safe = escapeHTML(text);
     
-    // STEP 2: Apply safe transformations (only after escaping)
+    // STEP 2: Apply safe transformations
     
-    // Professional Read More (5 lines/280 chars)
+    // Professional Read More
     if (safe.length > 280) {
         safe = `<span id="short-${postId}">${escapeHTML(safe.substring(0, 250))}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${escapeHTML(safe)}</span>`;
     }
     
-    // STEP 3: Mentions - Redirect to homieprofile.html
+    // STEP 3: Mentions
     safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'homieprofile.html?u=$1\'">@$1</span>');
     
-    // STEP 4: Links - Orange with disclaimer
-    const urlRegex = /(https?:\/\/[^\s<]+)/gi;
+    // STEP 4: Links - AGGRESSIVE matching for all URLs
+    const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     safe = safe.replace(urlRegex, (url) => {
-        const escapedUrl = escapeHTML(url);
+        // Make sure URL has protocol for safeRedirect
+        let fullUrl = url;
+        if (!fullUrl.startsWith('http')) {
+            fullUrl = 'https://' + fullUrl;
+        }
+        const escapedUrl = escapeHTML(fullUrl);
         return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}')"><i data-lucide="external-link" size="10"></i> LINK</span>`;
     });
     
@@ -336,12 +401,13 @@ function formatContent(text, postId) {
 
 async function loadFeed() {
     const container = document.getElementById('feed-container');
-    let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').order('created_at', { ascending: false }).limit(40);
+    let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified, is_banned)').order('created_at', { ascending: false }).limit(40);
     if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
     const { data: posts } = await query;
     const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
+    const { data: myReposts } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'repost');
 
-    // Filter by search query if present
+    // Filter by search query
     let filteredPosts = posts;
     if (searchQuery) {
         filteredPosts = posts.filter(post => 
@@ -353,10 +419,11 @@ async function loadFeed() {
     container.innerHTML = filteredPosts.map(post => {
         const username = post.profile?.username || 'homie';
         const isLiked = myLikes?.some(l => l.post_id === post.id);
+        const hasReposted = myReposts?.some(r => r.post_id === post.id);
         let badge = post.profile?.is_official ? `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : (post.profile?.is_verified ? `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : '');
         
         return `
-        <div class="post-card p-4" onmousedown="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" onmouseup="endPress()" ontouchstart="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" ontouchend="endPress()">
+        <div class="post-card p-4" onmousedown="startPress(event, ${JSON.stringify({...post, profile: post.profile}).replace(/"/g, '&quot;')})" onmouseup="endPress()" ontouchstart="startPress(event, ${JSON.stringify({...post, profile: post.profile}).replace(/"/g, '&quot;')})" ontouchend="endPress()">
             <div class="flex space-x-3">
                 <div class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase">${escapeHTML(username[0])}</div>
                 <div class="flex-1">
@@ -369,7 +436,7 @@ async function loadFeed() {
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
                         <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
                         <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
-                        <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" class="flex items-center gap-2"><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
+                        <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" class="flex items-center gap-2 ${hasReposted ? 'text-green-500' : ''}" ${hasReposted ? 'disabled' : ''}><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
                         <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)"><i data-lucide="upload" size="18"></i></button>
                     </div>
                 </div>
@@ -392,8 +459,30 @@ async function handleLike(postId) {
 }
 
 async function handleRepost(originalPostId, originalContent, originalAuthor) {
-    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: `Reposted from @${originalAuthor}: ${originalContent}`, school_name: userProfile.school_name || 'Global' });
-    if (!error) { await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); showToast("Reposted!"); loadFeed(); }
+    // Check if already reposted
+    const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', originalPostId).eq('interaction_type', 'repost').single();
+    
+    if (existing) {
+        showToast("Already reposted!");
+        return;
+    }
+    
+    const { error } = await supabase.from('posts').insert({ 
+        user_id: userProfile.id, 
+        content: `Reposted from @${originalAuthor}: ${originalContent}`, 
+        school_name: userProfile.school_name || 'Global' 
+    });
+    
+    if (!error) { 
+        await supabase.from('interactions').insert({ 
+            user_id: userProfile.id, 
+            post_id: originalPostId, 
+            interaction_type: 'repost' 
+        });
+        await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); 
+        showToast("Reposted!"); 
+        loadFeed(); 
+    }
 }
 
 async function handleShare(postId, content) {
@@ -410,7 +499,12 @@ function safeRedirect(url) {
 
 function closeRedirect() { document.getElementById('redirect-modal').style.display = 'none'; }
 
-function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
+function switchTab(mode) { 
+    currentMode = mode; 
+    document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); 
+    document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); 
+    loadFeed(); 
+}
 
 function toggleActions(el) { 
     const card = document.getElementById('composer-card');
@@ -419,15 +513,22 @@ function toggleActions(el) {
     card.classList.toggle('composer-expanded', el.value.length > 50);
     document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
     handleMentions(el);
-    // Always scroll to bottom when typing/pasting
     setTimeout(() => {
         el.scrollTop = el.scrollHeight;
     }, 10);
 }
 
-function toggleReadMore(id) { document.getElementById(`short-${id}`).classList.add('hidden'); document.getElementById(`full-${id}`).classList.remove('hidden'); }
+function toggleReadMore(id) { 
+    document.getElementById(`short-${id}`).classList.add('hidden'); 
+    document.getElementById(`full-${id}`).classList.remove('hidden'); 
+}
 
-function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+function showToast(msg) { 
+    const t = document.getElementById('toast'); 
+    t.innerText = msg; 
+    t.classList.add('show'); 
+    setTimeout(() => t.classList.remove('show'), 3000); 
+}
 
 init();
 </script>
