@@ -61,8 +61,6 @@
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px); padding: 20px; }
         .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
 
-        /* CHANGED: From box to inline orange text */
-        .inline-link { color: #FF6600; font-weight: 600; cursor: pointer; display: inline; background: none; border: none; padding: 0; margin: 0; font-size: inherit; text-decoration: underline; }
         .aether-link { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 102, 0, 0.15); border: 1px solid rgba(255, 102, 0, 0.3); color: #FF6600; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-left: 4px; vertical-align: middle; }
         
         .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #222; border-radius: 24px 24px 0 0; padding: 20px; z-index: 3000; transform: translateY(100%); transition: transform 0.3s ease; }
@@ -74,31 +72,13 @@
         .search-container input::placeholder { color: #555; font-weight: 400; }
         .search-container .close-search { color: #FF6600; cursor: pointer; }
 
-        /* NEW: Repost Modal */
-        #repost-modal { display: none; }
-        .repost-modal-content { background: #111; width: 100%; max-width: 500px; border-radius: 28px; padding: 24px; border: 1px solid #222; }
-        .sunlight-mode .repost-modal-content { background: white; border-color: #eee; }
-        #repost-message-display { background: rgba(255,102,0,0.05); border-left: 3px solid #FF6600; padding: 16px; border-radius: 12px; margin: 16px 0; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; }
-        #repost-comment-input { width: 100%; background: #000; border: 1px solid #333; border-radius: 16px; color: white; padding: 16px; font-size: 14px; margin: 16px 0; resize: none; outline: none; min-height: 100px; }
-        .sunlight-mode #repost-comment-input { background: #f4f4f5; color: #121212; border-color: #e4e4e7; }
+        /* Link Warning Styling */
+        .link-warning { color: #FF6600; font-size: 11px; font-weight: 800; margin-top: 4px; }
     </style>
 </head>
 <body class="pb-32">
     <div id="toast">Gist Published!</div>
     <div id="mention-list"></div>
-
-    <!-- NEW: Repost Modal -->
-    <div id="repost-modal" class="modal-overlay" onclick="closeRepostModal()">
-        <div class="repost-modal-content" onclick="event.stopPropagation()">
-            <h3 class="text-lg font-black uppercase mb-2 text-sdel">Repost Gist</h3>
-            <div id="repost-message-display" class="text-sm text-zinc-200"></div>
-            <textarea id="repost-comment-input" placeholder="Add your comment (optional)..."></textarea>
-            <div class="flex gap-3">
-                <button onclick="closeRepostModal()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-xs">Cancel</button>
-                <button id="confirm-repost-btn" class="flex-1 py-4 bg-sdel text-black rounded-2xl font-black uppercase text-xs">Repost</button>
-            </div>
-        </div>
-    </div>
 
     <div id="security-modal" class="modal-overlay">
         <div class="modal-content border-red-900/50">
@@ -185,11 +165,8 @@ let currentMode = 'campus';
 let securityViolationCount = 0;
 let pressTimer = null;
 let searchQuery = '';
-// NEW: Store current repost data
-let currentRepostData = null;
 
-// ADDED: New functions to window object
-Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention, toggleSearch, handleSearch, startPress, endPress, openRepostModal, closeRepostModal, submitRepost });
+Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention, toggleSearch, handleSearch, startPress, endPress });
 
 function formatNum(num) {
     if (!num) return 0;
@@ -265,6 +242,7 @@ function selectMention(name, start, end) {
     input.value = text.slice(0, start) + '@' + name + ' ' + text.slice(end);
     document.getElementById('mention-list').style.display = 'none';
     input.focus();
+    // Scroll to bottom after mention
     setTimeout(() => input.scrollTop = input.scrollHeight, 50);
 }
 
@@ -300,65 +278,6 @@ async function banUser(userId) {
     closeActions();
 }
 
-// ============= NEW: Repost Modal Functions =============
-async function openRepostModal(postId, reposterUsername, originalContent) {
-    // Check if already reposted
-    const { data: existing } = await supabase.from('interactions')
-        .select('id')
-        .eq('user_id', userProfile.id)
-        .eq('post_id', postId)
-        .eq('interaction_type', 'repost')
-        .maybeSingle();
-    
-    if (existing) {
-        showToast("Already reposted!");
-        return;
-    }
-    
-    currentRepostData = { postId, reposterUsername, originalContent };
-    const displayDiv = document.getElementById('repost-message-display');
-    displayDiv.innerHTML = `Reposted from @${reposterUsername}\n"${originalContent}"`;
-    document.getElementById('repost-modal').style.display = 'flex';
-    document.getElementById('repost-comment-input').value = '';
-    lucide.createIcons();
-}
-
-function closeRepostModal() {
-    document.getElementById('repost-modal').style.display = 'none';
-    currentRepostData = null;
-}
-
-async function submitRepost() {
-    if (!currentRepostData) return;
-    
-    const { postId, reposterUsername, originalContent } = currentRepostData;
-    const comment = document.getElementById('repost-comment-input').value.trim();
-    
-    let repostContent = `Reposted from @${reposterUsername}\n"${originalContent}"`;
-    if (comment) {
-        repostContent += `\n\n${comment}`;
-    }
-    
-    const { error } = await supabase.from('posts').insert({ 
-        user_id: userProfile.id, 
-        content: repostContent, 
-        school_name: userProfile.school_name || 'Global' 
-    });
-    
-    if (!error) { 
-        await supabase.from('interactions').insert({ 
-            user_id: userProfile.id, 
-            post_id: postId, 
-            interaction_type: 'repost' 
-        });
-        await supabase.rpc('increment_stat', { post_id: postId, field: 'reposts_count' }); 
-        showToast("Reposted!"); 
-        closeRepostModal();
-        loadFeed(); 
-    }
-}
-// ======================================================
-
 async function publishPost() {
     const rawContent = document.getElementById('post-input').value.trim();
     if (!rawContent) return;
@@ -372,6 +291,7 @@ async function publishPost() {
             location.replace('banned.html');
         } else { 
             document.getElementById('security-modal').style.display = 'flex';
+            // Refresh page after 3 seconds
             setTimeout(() => location.reload(), 3000);
         }
         return;
@@ -383,13 +303,12 @@ async function publishPost() {
 
 // ============= CRITICAL FIX: PLAIN TEXT ONLY =============
 function escapeHTML(str) {
-    if (!str) return '';
+    // Convert all user content to plain text - no exceptions
     const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    div.textContent = str; // textContent ensures plain text, no HTML parsing
+    return div.innerHTML;   // Returns escaped HTML entities
 }
 
-// CHANGED: formatContent to use inline links instead of boxes
 function formatContent(text, postId) {
     // STEP 1: Escape everything to plain text first
     let safe = escapeHTML(text);
@@ -404,16 +323,16 @@ function formatContent(text, postId) {
     // STEP 3: Mentions - Redirect to homieprofile.html
     safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold" onclick="location.href=\'homieprofile.html?u=$1\'">@$1</span>');
     
-    // STEP 4: Links - Orange inline (no box)
+    // STEP 4: Links - Orange with disclaimer
     const urlRegex = /(https?:\/\/[^\s<]+)/gi;
     safe = safe.replace(urlRegex, (url) => {
         const escapedUrl = escapeHTML(url);
-        return `<span class="inline-link" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}')">${escapedUrl}</span>`;
+        return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}')"><i data-lucide="external-link" size="10"></i> LINK</span>`;
     });
     
     return safe;
 }
-// =========================================================
+    // =========================================================
 
 async function loadFeed() {
     const container = document.getElementById('feed-container');
@@ -450,8 +369,7 @@ async function loadFeed() {
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
                         <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
                         <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
-                        <!-- CHANGED: Use openRepostModal instead of direct repost -->
-                        <button onclick="openRepostModal('${post.id}', '${escapeHTML(username)}', \`${escapeHTML(post.content)}\`)" class="flex items-center gap-2"><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
+                        <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" class="flex items-center gap-2"><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
                         <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)"><i data-lucide="upload" size="18"></i></button>
                     </div>
                 </div>
@@ -473,9 +391,9 @@ async function handleLike(postId) {
     loadFeed();
 }
 
-// CHANGED: handleRepost now uses modal
 async function handleRepost(originalPostId, originalContent, originalAuthor) {
-    openRepostModal(originalPostId, originalAuthor, originalContent);
+    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: `Reposted from @${originalAuthor}: ${originalContent}`, school_name: userProfile.school_name || 'Global' });
+    if (!error) { await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); showToast("Reposted!"); loadFeed(); }
 }
 
 async function handleShare(postId, content) {
@@ -484,13 +402,7 @@ async function handleShare(postId, content) {
     else { navigator.clipboard.writeText(url); showToast("Link copied!"); }
 }
 
-// CHANGED: safeRedirect with conditional for homies.html
 function safeRedirect(url) { 
-    // If it's homies.html, go directly without modal
-    if (url.includes('homies.html')) {
-        window.location.href = 'homies.html';
-        return;
-    }
     document.getElementById('raw-link-display').innerText = url; 
     document.getElementById('redirect-modal').style.display = 'flex'; 
     document.getElementById('confirm-redirect-btn').onclick = () => { window.open(url, '_blank'); closeRedirect(); }; 
@@ -507,6 +419,7 @@ function toggleActions(el) {
     card.classList.toggle('composer-expanded', el.value.length > 50);
     document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
     handleMentions(el);
+    // Always scroll to bottom when typing/pasting
     setTimeout(() => {
         el.scrollTop = el.scrollHeight;
     }, 10);
