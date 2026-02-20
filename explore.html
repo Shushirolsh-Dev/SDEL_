@@ -492,35 +492,28 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
-// FIXED: formatContent with proper mention handling and internal redirects
+// FIXED: formatContent with proper repost handling - X/IG style
 function formatContent(text, postId) {
-    // Don't escape the entire text first - this was causing double-escaping
     let safe = text;
-    
-    // First, escape any HTML that might be in the text (but preserve our later additions)
     safe = escapeHTML(safe);
     
     if (safe.length > 280) {
         safe = `<span id="short-${postId}">${safe.substring(0, 250)}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
     }
     
-    // FIXED: Handle "Reposted from @username" pattern - use a temporary marker to avoid double-processing
-    safe = safe.replace(/Reposted from @(\w+)/g, 'REPOST_MARKER_$1');
+    // Handle repost pattern - only show "Reposted from @username" with clickable link
+    // This matches both "Reposted from @username:" and our stored format
+    safe = safe.replace(/Reposted from @(\w+):/g, 'Reposted from <a href="profile.html?u=$1" class="text-sdel font-bold no-underline hover:underline">@$1</a>:');
     
-    // Handle regular mentions - these become clickable spans
-    safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold cursor-pointer" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
+    // Handle regular mentions
+    safe = safe.replace(/@(\w+)/g, '<a href="profile.html?u=$1" class="text-sdel font-bold no-underline hover:underline">@$1</a>');
     
-    // Replace the repost markers with the proper HTML
-    safe = safe.replace(/REPOST_MARKER_(\w+)/g, 'Reposted from <span class="text-sdel font-bold cursor-pointer" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
-    
-    // IMPROVED: URL regex to catch more link formats
+    // URL regex for links
     const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     
     safe = safe.replace(urlRegex, (url) => {
-        // Skip if it's already part of a span (check if it's inside an HTML tag)
         if (url.includes('">') || url.includes('&quot;')) return url;
         
-        // Make sure URL has protocol for opening
         let fullUrl = url;
         if (!fullUrl.startsWith('http')) {
             fullUrl = 'https://' + fullUrl;
@@ -528,7 +521,6 @@ function formatContent(text, postId) {
         const escapedUrl = escapeHTML(fullUrl);
         const displayUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
         
-        // FIXED: Check for internal site links - redirect immediately without modal
         if (fullUrl.includes('profile.html') || 
             fullUrl.includes('messages.html') || 
             fullUrl.includes('homies.html') || 
@@ -536,19 +528,17 @@ function formatContent(text, postId) {
             fullUrl.includes('dashboard.html') || 
             fullUrl.includes('market.html') || 
             fullUrl.includes('explore.html')) {
-            return `<span class="inline-link" onclick="location.href='${escapedUrl.replace(/'/g, "\\'")}'">${displayUrl}</span>`;
+            return `<a href="${escapedUrl.replace(/'/g, "\\'")}" class="inline-link">${displayUrl}</a>`;
         }
         
-        // Trusted external domains - direct redirect
         if (fullUrl.includes('tiktok.com') || 
             fullUrl.includes('whatsapp.com') || 
             fullUrl.includes('wa.me') || 
             fullUrl.includes('thesdel.com')) {
-            return `<span class="inline-link" onclick="window.open('${escapedUrl.replace(/'/g, "\\'")}', '_blank')">${displayUrl}</span>`;
+            return `<a href="${escapedUrl.replace(/'/g, "\\'")}" target="_blank" class="inline-link">${displayUrl}</a>`;
         }
         
-        // All other links show warning modal
-        return `<span class="inline-link" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}')">${displayUrl}</span>`;
+        return `<a href="#" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}'); return false;" class="inline-link">${displayUrl}</a>`;
     });
     
     return safe;
@@ -590,9 +580,8 @@ async function loadFeed() {
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
                         <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
                         <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
-                        <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" 
-                                class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}" 
-                                ${hasReposted ? 'disabled' : ''}>
+                        <button onclick="handleRepost('${post.id}', '${escapeHTML(username)}', \`${escapeHTML(post.content)}\`)" 
+                                class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}">
                             <i data-lucide="repeat" size="18"></i>
                             <span class="text-xs font-bold">${formatNum(post.reposts_count)}</span>
                         </button>
@@ -617,21 +606,31 @@ async function handleLike(postId) {
     loadFeed();
 }
 
-// FIXED: Repost with prevention
-async function handleRepost(originalPostId, originalContent, originalAuthor) {
+// FIXED: X/IG style repost - always repost the original post content but attribute to the reposter
+async function handleRepost(originalPostId, originalAuthor, originalContent) {
     if (repostedPosts.has(originalPostId)) {
         showToast("Already Reposted!");
         return;
     }
 
-    if (originalContent.includes('Reposted from @')) {
-        showToast("Cannot repost a repost!");
-        return;
+    // Clean the content - if it's already a repost, extract the original content
+    let contentToRepost = originalContent;
+    
+    // If this is a repost of a repost, extract just the original message (remove all "Reposted from" prefixes)
+    if (contentToRepost.includes('Reposted from @')) {
+        // Find the last colon and take everything after it
+        const lastColonIndex = contentToRepost.lastIndexOf(':');
+        if (lastColonIndex !== -1) {
+            contentToRepost = contentToRepost.substring(lastColonIndex + 1).trim();
+        }
     }
-
+    
+    // Create new repost with clean format: "Reposted from @originalAuthor: content"
+    const newContent = `Reposted from @${originalAuthor}: ${contentToRepost}`;
+    
     const { error } = await supabase.from('posts').insert({ 
         user_id: userProfile.id, 
-        content: `Reposted from @${originalAuthor}: ${originalContent}`, 
+        content: newContent, 
         school_name: userProfile.school_name || 'Global' 
     });
     
@@ -658,7 +657,6 @@ async function handleShare(postId, content) {
 
 // FIXED: safeRedirect to handle internal links properly
 function safeRedirect(url) { 
-    // If it's an internal site link, redirect immediately
     if (url.includes('profile.html') || 
         url.includes('messages.html') || 
         url.includes('homies.html') || 
@@ -696,50 +694,59 @@ function showToast(msg) { const t = document.getElementById('toast'); t.innerTex
 init();
 </script>
 
-<!-- ADDED: JavaScript for fixing mentions and auto-linking domains (without changing any other code) -->
+<!-- CLEANUP SCRIPT: Fixes any hardcoded ugly mentions in the HTML -->
 <script>
-// This runs after the page loads and fixes any remaining issues
+// This runs after page load to clean up any hardcoded ugly mentions
 document.addEventListener('DOMContentLoaded', function() {
-    // Fix ugly location.href mentions to show @username
-    function fixUglyMentions() {
-        // Find all elements that might contain the ugly location.href pattern
-        const allElements = document.querySelectorAll('*:not(script):not(style)');
+    // Find and fix any remaining ugly location.href patterns
+    function cleanupUglyMentions() {
+        const elements = document.querySelectorAll('*:not(script):not(style)');
         
-        allElements.forEach(el => {
-            if (el.children.length === 0 && el.textContent) {
-                // Check if this element contains the ugly pattern
-                if (el.textContent.includes("location.href='profile.html?") || 
-                    el.textContent.includes('location.href="profile.html?')) {
-                    
-                    // Extract username
-                    const match = el.textContent.match(/[?&]u=([^'"]+)/);
-                    if (match) {
-                        const username = match[1];
-                        // Replace the whole content with just @username
-                        el.textContent = `@${username}`;
-                        // Make it clickable
-                        el.style.cursor = 'pointer';
-                        el.style.color = '#FF6600';
-                        el.style.fontWeight = 'bold';
-                        el.onclick = function() {
-                            location.href = `profile.html?u=${username}`;
-                        };
-                    }
+        elements.forEach(el => {
+            if (el.children.length === 0 && el.textContent && 
+                (el.textContent.includes("location.href='profile.html?") || 
+                 el.textContent.includes('location.href="profile.html?'))) {
+                
+                const match = el.textContent.match(/[?&]u=([^'"\s]+)/);
+                if (match) {
+                    const username = match[1];
+                    const link = document.createElement('a');
+                    link.href = `profile.html?u=${username}`;
+                    link.textContent = `@${username}`;
+                    link.className = 'text-sdel font-bold no-underline hover:underline';
+                    link.style.cursor = 'pointer';
+                    el.parentNode.replaceChild(link, el);
                 }
             }
         });
     }
     
-    // Auto-link any word that ends with a domain
+    // Auto-link any plain domains
     function autoLinkDomains() {
-        const domainRegex = /\b([a-zA-Z0-9][a-zA-Z0-9-]*\.(com|org|net|edu|gov|mil|io|co|me|tv|info|biz|dev|app|xyz|uk|us))\b/gi;
+        const domainRegex = /\b([a-zA-Z0-9][a-zA-Z0-9-]*\.(com|org|net|edu|gov|mil|io|co|me|tv|info|biz|dev|app|xyz))\b/gi;
         
-        // Walk through all text nodes
         const walker = document.createTreeWalker(
             document.body,
             NodeFilter.SHOW_TEXT,
             {
                 acceptNode: function(node) {
-                    // Skip if parent is script, style, or already a link
                     if (node.parentElement.tagName === 'SCRIPT' || 
-                        
+                        node.parentElement.tagName === 'STYLE' ||
+                        node.parentElement.tagName === 'A') {
+                        return NodeFilter.FILTER_REJECT;
+                    }
+                    return NodeFilter.FILTER_ACCEPT;
+                }
+            }
+        );
+        
+        const textNodes = [];
+        while (walker.nextNode()) textNodes.push(walker.currentNode);
+        
+        textNodes.forEach(textNode => {
+            const text = textNode.textContent;
+            if (domainRegex.test(text)) {
+                const span = document.createElement('span');
+                let lastIndex = 0;
+                let match;
+                domainR
