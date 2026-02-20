@@ -695,5 +695,51 @@ function showToast(msg) { const t = document.getElementById('toast'); t.innerTex
 
 init();
 </script>
-</body>
-</html>
+
+<!-- ADDED: JavaScript for fixing mentions and auto-linking domains (without changing any other code) -->
+<script>
+// This runs after the page loads and fixes any remaining issues
+document.addEventListener('DOMContentLoaded', function() {
+    // Fix ugly location.href mentions to show @username
+    function fixUglyMentions() {
+        // Find all elements that might contain the ugly location.href pattern
+        const allElements = document.querySelectorAll('*:not(script):not(style)');
+        
+        allElements.forEach(el => {
+            if (el.children.length === 0 && el.textContent) {
+                // Check if this element contains the ugly pattern
+                if (el.textContent.includes("location.href='profile.html?") || 
+                    el.textContent.includes('location.href="profile.html?')) {
+                    
+                    // Extract username
+                    const match = el.textContent.match(/[?&]u=([^'"]+)/);
+                    if (match) {
+                        const username = match[1];
+                        // Replace the whole content with just @username
+                        el.textContent = `@${username}`;
+                        // Make it clickable
+                        el.style.cursor = 'pointer';
+                        el.style.color = '#FF6600';
+                        el.style.fontWeight = 'bold';
+                        el.onclick = function() {
+                            location.href = `profile.html?u=${username}`;
+                        };
+                    }
+                }
+            }
+        });
+    }
+    
+    // Auto-link any word that ends with a domain
+    function autoLinkDomains() {
+        const domainRegex = /\b([a-zA-Z0-9][a-zA-Z0-9-]*\.(com|org|net|edu|gov|mil|io|co|me|tv|info|biz|dev|app|xyz|uk|us))\b/gi;
+        
+        // Walk through all text nodes
+        const walker = document.createTreeWalker(
+            document.body,
+            NodeFilter.SHOW_TEXT,
+            {
+                acceptNode: function(node) {
+                    // Skip if parent is script, style, or already a link
+                    if (node.parentElement.tagName === 'SCRIPT' || 
+                        
