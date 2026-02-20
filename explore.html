@@ -459,6 +459,7 @@ function cleanHarmfulContent(content) {
     });
 }
 
+// FIXED: submitPostFromModal - matches your actual table columns
 async function submitPostFromModal() {
     let content = document.getElementById('modal-post-input').value.trim();
     if (!content) return;
@@ -488,30 +489,41 @@ async function submitPostFromModal() {
         return;
     }
     
-    // Set expiration to 24 hours from now
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
-    
     if (currentEditPostId) {
-        const { error } = await supabase.from('posts').update({ content }).eq('id', currentEditPostId);
+        const { error } = await supabase.from('posts')
+            .update({ content })
+            .eq('id', currentEditPostId);
+            
         if (!error) {
             showToast("Gist Updated!");
             closePostModal();
             loadFeed();
+        } else {
+            console.error("Edit error:", error);
+            showToast("Error updating post");
         }
     } else {
+        // Insert with ONLY columns that exist in your table
         const { error } = await supabase.from('posts').insert({ 
             user_id: userProfile.id, 
             content, 
             school_name: userProfile.school_name || 'Global',
-            expires_at: expiresAt.toISOString()
+            post_type: 'post',
+            likes_count: 0,
+            comments_count: 0,
+            reposts_count: 0,
+            shares_count: 0
         });
+        
         if (!error) {
             showToast("Gist Published!");
             document.getElementById('post-input').value = '';
             toggleActions(document.getElementById('post-input'));
             closePostModal();
             loadFeed();
+        } else {
+            console.error("Insert error:", error);
+            showToast("Error: " + error.message);
         }
     }
 }
@@ -594,19 +606,20 @@ async function formatContent(text, postId) {
     return safe;
 }
 
+// FIXED: loadFeed - removed expires_at filter
 async function loadFeed() {
     const container = document.getElementById('feed-container');
-    const now = new Date().toISOString();
     
-    // Only show posts that haven't expired
+    // REMOVED expires_at filter since column doesn't exist
     let query = supabase
         .from('posts')
         .select('*, profile:user_id(username, is_official, is_verified)')
-        .gt('expires_at', now)
         .order('created_at', { ascending: false })
         .limit(40);
         
-    if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
+    if (currentMode === 'campus') {
+        query = query.eq('school_name', userProfile.school_name);
+    }
     
     const { data: posts } = await query;
     const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
@@ -643,12 +656,12 @@ async function loadFeed() {
                     </div>
                     <div class="text-[14px] text-zinc-200 leading-snug break-words mb-3">${post.formattedContent}</div>
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
-                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
-                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
+                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count || 0)}</span></button>
+                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count || 0)}</span></button>
                         <button onclick="handleRepost('${post.id}', '${escapeHTML(username)}', \`${escapeHTML(post.content)}\`)" 
                                 class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}">
                             <i data-lucide="repeat" size="18"></i>
-                            <span class="text-xs font-bold">${formatNum(post.reposts_count)}</span>
+                            <span class="text-xs font-bold">${formatNum(post.reposts_count || 0)}</span>
                         </button>
                         <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)"><i data-lucide="upload" size="18"></i></button>
                     </div>
@@ -669,8 +682,8 @@ async function handleLike(postId) {
         await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
     }
     loadFeed();
-    }
-    // FIXED: Repost with proper rules
+}
+// FIXED: handleRepost - matches your table columns
 async function handleRepost(originalPostId, originalAuthor, originalContent) {
     // Cannot repost own post
     if (originalAuthor === userProfile.username) {
@@ -681,26 +694,6 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
     // One repost per user per post
     if (repostedPosts.has(originalPostId)) {
         showToast("Already Reposted!");
-        return;
-    }
-
-    // Check if original post exists and is not expired
-    const { data: originalPost } = await supabase
-        .from('posts')
-        .select('expires_at')
-        .eq('id', originalPostId)
-        .single();
-        
-    if (!originalPost) {
-        showToast("Original gist not found!");
-        return;
-    }
-    
-    // Check if original post is expired
-    const now = new Date();
-    const expiresAt = new Date(originalPost.expires_at);
-    if (expiresAt < now) {
-        showToast("Original gist has expired!");
         return;
     }
 
@@ -720,14 +713,17 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         }
     }
     
-    // Repost inherits original expiration
     const newContent = `Reposted from @${originalAuthor}: ${contentToRepost}`;
     
     const { error } = await supabase.from('posts').insert({ 
         user_id: userProfile.id, 
         content: newContent, 
         school_name: userProfile.school_name || 'Global',
-        expires_at: originalPost.expires_at // Inherit original expiration
+        post_type: 'repost',
+        likes_count: 0,
+        comments_count: 0,
+        reposts_count: 0,
+        shares_count: 0
     });
     
     if (!error) { 
