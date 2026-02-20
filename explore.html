@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🔐 Security Test Playground</title>
+    <style>
+        body { 
+            background: #111; 
+            color: #fff; 
+            font-family: monospace;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .container {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 16px;
+            padding: 20px;
+        }
+        h1 { color: #FF6600; font-size: 24px; }
+        h2 { color: #FF6600; font-size: 18px; margin-top: 30px; }
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: #000;
+            border: 1px solid #333;
+            color: #0f0;
+            padding: 12px;
+            font-family: monospace;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #FF6600;
+            color: black;
+            border: none;
+            padding: 12px 24px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover { background: #ff8533; }
+        .result-box {
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            min-height: 60px;
+            color: #0f0;
+            word-break: break-all;
+        }
+        .bad { color: #ff4444; }
+        .good { color: #44ff44; }
+        .warning { 
+            background: #332200; 
+            border-left: 4px solid #FF6600;
+            padding: 10px;
+            margin: 20px 0;
+        }
+        .payload-item {
+            background: #000;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #333;
+            font-size: 12px;
+        }
+        .payload-item:hover {
+            border-color: #FF6600;
+            background: #1a1a1a;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-box {
+            background: #000;
+            padding: 15px;
+            border-radius: 8px;
+            flex: 1;
+            text-align: center;
+            border: 1px solid #333;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #FF6600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Security Test Playground</h1>
+        <div class="warning">
+            ⚠️ This is a DUMMY file - Completely isolated from your real site!<br>
+            Test anything here without getting banned! 🎯
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-number" id="test-count">0</div>
+                <div>Tests Run</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="blocked-count">0</div>
+                <div>Blocked</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="passed-count">0</div>
+                <div>Passed</div>
+            </div>
+        </div>
+
+        <h2>🧪 Test Input</h2>
+        <textarea id="test-input" placeholder="Paste your attack payload here..."></textarea>
+        
+        <div style="display: flex; flex-wrap: wrap;">
+            <button onclick="testSecurity()">🧪 TEST PAYLOAD</button>
+            <button onclick="clearAll()">🗑️ CLEAR</button>
+            <button onclick="runAllTests()">⚡ RUN ALL TESTS</button>
+            <button onclick="copyPayload()">📋 COPY PAYLOAD</button>
+        </div>
+
+        <h2>📋 Test Results</h2>
+        <div class="result-box" id="result">
+            Ready to test... enter a payload above
+        </div>
+
+        <h2>💉 XSS Attack Payloads (Click to test)</h2>
+        <div id="xss-payloads"></div>
+
+        <h2>🔥 SQL Injection Payloads (Click to test)</h2>
+        <div id="sql-payloads"></div>
+
+        <h2>📊 Test History</h2>
+        <div id="history" style="max-height: 200px; overflow-y: auto;"></div>
+    </div>
+
+    <script>
+        // ============ YOUR SANITIZATION LOGIC (COPIED FROM YOUR SITE) ============
+        const harmfulPatterns = [
+            /porn/i, /xxx/i, /adult/i, /sex/i, /nude/i, /onlyfans/i, /fansly/i,
+            /gambling/i, /casino/i, /bet/i, /betting/i, /poker/i, /slot/i,
+            /crypto/i, /bitcoin/i, /eth/i, /investment/i, /forex/i,
+            /drug/i, /weed/i, /cannabis/i, /marijuana/i, /cocaine/i,
+            /hack/i, /cheat/i, /exploit/i, /crack/i, /keygen/i,
+            /violence/i, /gore/i, /kill/i, /death/i,
+            /pharmacy/i, /viagra/i, /cialis/i, /prescription/i
+        ];
+
+        function scanContentForHarmfulLinks(content) {
+            const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
+            const urls = content.match(urlRegex) || [];
+            
+            if (urls.length > 5) {
+                return { safe: false, reason: "Too many links (max 5)" };
+            }
+            
+            for (const url of urls) {
+                const lowerUrl = url.toLowerCase();
+                for (const pattern of harmfulPatterns) {
+                    if (pattern.test(lowerUrl)) {
+                        return { safe: false, reason: "Harmful content detected", url };
+                    }
+                }
+            }
+            return { safe: true };
+        }
+
+        function cleanHarmfulContent(content) {
+            const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
+            return content.replace(urlRegex, (url) => {
+                const lowerUrl = url.toLowerCase();
+                for (const pattern of harmfulPatterns) {
+                    if (pattern.test(lowerUrl)) {
+                        return "[Link Unavailable]";
+                    }
+                }
+                return url;
+            });
+        }
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function checkXSS(content) {
+            const xssPattern = /<[^>]*>|javascript:|onerror|onload|eval|alert|document\.|window\.|fetch|XMLHttpRequest|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeypress|onkeyup/i;
+            return xssPattern.test(content);
+        }
+        // ============ END OF SANITIZATION LOGIC ============
+
+        let testsRun = 0;
+        let blockedCount = 0;
+        let passedCount = 0;
+        let history = [];
+
+        // XSS Payloads
+        const xssPayloads = [
+            "<script>alert('XSS')</script>",
+            "<img src=x onerror=alert('XSS')>",
+            "javascript:alert('XSS')",
+            "<svg onload=alert('XSS')>",
+            "<body onload=alert('XSS')>",
+            "\" onmouseover=\"alert('XSS')\"",
+            "%3Cscript%3Ealert('XSS')%3C/script%3E",
+            "<ScRiPt>alert('XSS')</ScRiPt>",
+            "<iframe src=\"javascript:alert('XSS')\"></iframe>",
+            "<object data=\"data:text/html;base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4=\">",
+            "<input onfocus=\"alert('XSS')\" autofocus>",
+            "<form action=\"javascript:alert('XSS')\"><input type=\"submit\">",
+            "<div style=\"expression(alert('XSS'))\">",
+            "<div style=\"background-image: url(javascript:alert('XSS'))\">",
+            "<meta http-equiv=\"refresh\" content=\"0;url=javascript:alert('XSS')\">",
+            "<audio src=x onerror=alert('XSS')>",
+            "<video src=x onerror=alert('XSS')>",
+            "<scr\tipt>alert('XSS')</scr\tip>",
+            "<!--><script>alert('XSS')</script>",
+            "'; DROP TABLE users; --"
+        ];
+
+        // SQL Injection Payloads
+        const sqlPayloads = [
+            "' OR '1'='1",
+            "' UNION SELECT username, password FROM users--",
+            "'; DROP TABLE posts; --",
+            "'; INSERT INTO profiles (is_official) VALUES (true); --",
+            "admin'--",
+            "' AND 1=CONVERT(int, @@version)--",
+            "'; SELECT * FROM users; --",
+            "' OR '1'='1' --",
+            "' UNION SELECT 1,2,3,4,5--",
+            "' AND (SELECT COUNT(*) FROM users) > 0--",
+            "' UnIoN SeLeCt * FrOm users--",
+            "' AND sleep(5)=0--"
+        ];
+
+        function displayPayloads() {
+            const xssDiv = document.getElementById('xss-payloads');
+            xssDiv.innerHTML = xssPayloads.map(p => 
+                `<div class="payload-item" onclick="testPayload('${p.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">${escapeHTML(p)}</div>`
+            ).join('');
+
+            const sqlDiv = document.getElementById('sql-payloads');
+            sqlDiv.innerHTML = sqlPayloads.map(p => 
+                `<div class="payload-item" onclick="testPayload('${p.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">${escapeHTML(p)}</div>`
+            ).join('');
+        }
+
+        function testPayload(payload) {
+            document.getElementById('test-input').value = payload;
+            testSecurity();
+        }
+
+        function testSecurity() {
+            const input = document.getElementById('test-input').value;
+            const resultDiv = document.getElementById('result');
+            
+            testsRun++;
+            
+            // Run all security checks
+            const linkCheck = scanContentForHarmfulLinks(input);
+            const hasXSS = checkXSS(input);
+            const cleaned = cleanHarmfulContent(input);
+            const escaped = escapeHTML(input);
+            
+            let isBlocked = false;
+            let reasons = [];
+            
+            if (!linkCheck.safe) {
+                isBlocked = true;
+                reasons.push(linkCheck.reason);
+            }
+            
+            if (hasXSS) {
+                isBlocked = true;
+                reasons.push("XSS pattern detected");
+            }
+            
+            if (isBlocked) {
+                blockedCount++;
+                resultDiv.innerHTML = `
+                    <span class="bad">🚫 BLOCKED</span><br>
+                    <span class="bad">Reasons: ${reasons.join(', ')}</span><br><br>
+                    <span class="good">Cleaned version: ${escapeHTML(cleaned)}</span><br>
+                    <span class="good">Escaped version: ${escaped}</span>
+                `;
+            } else {
+                passedCount++;
+                resultDiv.innerHTML = `
+                    <span class="good">✅ ALLOWED</span><br><br>
+                    <span>Original: ${escapeHTML(input)}</span><br>
+                    <span>Cleaned: ${escapeHTML(cleaned)}</span><br>
+                    <span>Escaped: ${escapeHTML(escaped)}</span>
+                `;
+            }
+            
+            // Add to history
+            history.unshift({
+                payload: input.substring(0, 50) + (input.length > 50 ? '...' : ''),
+                blocked: isBlocked,
+                reasons: reasons
+            });
+            
+            updateStats();
+            updateHistory();
+        }
+
+        function updateStats() {
+            document.getElementById('test-count').innerText = testsRun;
+            document.getElementById('blocked-count').innerText = blockedCount;
+            document.getElementById('passed-count').innerText = passedCount;
+        }
+
+        function updateHistory() {
+            const historyDiv = document.getElementById('history');
+            historyDiv.innerHTML = history.slice(0, 10).map(h => `
+                <div style="padding: 5px; border-bottom: 1px solid #333; font-size: 12px;">
+                    <span style="color: ${h.blocked ? '#ff4444' : '#44ff44'}">${h.blocked ? '🔴' : '🟢'}</span>
+                    ${escapeHTML(h.payload)}
+                    ${h.reasons.length ? `<span style="color: #FF6600; font-size: 10px;"> (${h.reasons.join(', ')})</span>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function clearAll() {
+            document.getElementById('test-input').value = '';
+            document.getElementById('result').innerHTML = 'Ready to test... enter a payload above';
+        }
+
+        function copyPayload() {
+            const input = document.getElementById('test-input');
+            input.select();
+            document.execCommand('copy');
+            alert('📋 Payload copied to clipboard!');
+        }
+
+        function runAllTests() {
+            const allPayloads = [...xssPayloads, ...sqlPayloads];
+            let i = 0;
+            
+            function runNext() {
+                if (i < allPayloads.length) {
+                    document.getElementById('test-input').value = allPayloads[i];
+                    testSecurity();
+                    i++;
+                    setTimeout(runNext, 100);
+                }
+            }
+            
+            if (confirm(`Run ${allPayloads.length} tests?`)) {
+                runNext();
+            }
+        }
+
+        // Initialize
+        displayPayloads();
+        updateStats();
+    </script>
+</body>
+            </html>
