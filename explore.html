@@ -85,29 +85,36 @@
         /* Link Warning Styling */
         .link-warning { color: #FF6600; font-size: 11px; font-weight: 800; margin-top: 4px; }
 
-        /* NEW: Custom Post Card Modal */
+        /* FULLSCREEN POST MODAL - X/IG Style */
         #post-modal { display: none; }
-        .post-modal-content { background: #111; width: 100%; max-width: 600px; border-radius: 28px; padding: 24px; border: 1px solid #222; }
+        .post-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(20px); }
+        .post-modal-content { background: #111; width: 100%; max-width: 600px; border-radius: 32px 32px 0 0; padding: 24px; border: 1px solid #222; border-bottom: none; animation: slideUp 0.3s ease; }
         .sunlight-mode .post-modal-content { background: white; border-color: #eee; }
-        #modal-post-input { width: 100%; background: #000; border: 1px solid #333; border-radius: 16px; color: white; padding: 20px; font-size: 16px; margin: 20px 0; resize: none; outline: none; min-height: 150px; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        #modal-post-input { width: 100%; background: #000; border: 1px solid #333; border-radius: 20px; color: white; padding: 20px; font-size: 18px; margin: 20px 0; resize: none; outline: none; min-height: 200px; }
         .sunlight-mode #modal-post-input { background: #f4f4f5; color: #121212; border-color: #e4e4e7; }
         .post-modal-footer { position: sticky; bottom: 0; background: #111; padding: 16px 0 0; border-top: 1px solid #222; margin-top: 16px; }
         .sunlight-mode .post-modal-footer { background: white; border-color: #eee; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .modal-close { font-size: 28px; cursor: pointer; color: #FF6600; }
     </style>
 </head>
 <body class="pb-32" ontouchstart="closeActionSheetOnTouch(event)">
     <div id="toast">Gist Published!</div>
     <div id="mention-list"></div>
 
-    <!-- NEW: Custom Post Card Modal -->
-    <div id="post-modal" class="modal-overlay" onclick="closePostModal()">
+    <!-- FULLSCREEN POST MODAL - X/IG Style -->
+    <div id="post-modal" class="post-modal-overlay" onclick="closePostModal()">
         <div class="post-modal-content" onclick="event.stopPropagation()">
-            <h3 id="post-modal-title" class="text-lg font-black uppercase mb-2 text-sdel">Create Gist</h3>
-            <textarea id="modal-post-input" placeholder="What's happening, homie?" rows="5"></textarea>
+            <div class="modal-header">
+                <h3 id="post-modal-title" class="text-xl font-black uppercase text-sdel">Create Gist</h3>
+                <span class="modal-close" onclick="closePostModal()">✕</span>
+            </div>
+            <textarea id="modal-post-input" placeholder="What's happening, homie?" rows="6" maxlength="500"></textarea>
             <div class="post-modal-footer">
                 <div class="flex gap-3">
-                    <button onclick="closePostModal()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-xs">Cancel</button>
-                    <button id="modal-post-btn" onclick="submitPostFromModal()" class="flex-1 py-4 bg-sdel text-black rounded-2xl font-black uppercase text-xs">Post</button>
+                    <button onclick="closePostModal()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-sm">Cancel</button>
+                    <button id="modal-post-btn" onclick="submitPostFromModal()" class="flex-1 py-4 bg-sdel text-black rounded-2xl font-black uppercase text-sm">Post</button>
                 </div>
             </div>
         </div>
@@ -153,7 +160,7 @@
         
         <div id="search-container" class="search-container">
             <i data-lucide="search" size="16" class="text-zinc-500"></i>
-            <input type="text" id="search-input" placeholder="Search keywords or @usernames..." oninput="handleSearch(this.value)">
+            <input type="text" id="search-input" placeholder="Search by name or @username..." oninput="handleSearch(this.value)">
             <i data-lucide="x" size="16" class="close-search" onclick="toggleSearch()"></i>
         </div>
         <div id="search-results"></div>
@@ -172,7 +179,6 @@
                 <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
                 <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
                     <span class="text-[10px] text-zinc-600 font-bold uppercase">Public Gist</span>
-                    <!-- MODIFIED: Open modal instead of direct post -->
                     <button onclick="openPostModal()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase">Post</button>
                 </div>
             </div>
@@ -242,7 +248,41 @@ function closeActionSheetOnTouch(event) {
     }
 }
 
-// Search Functions
+// Search Functions - shows first + last name
+async function handleSearch(val) {
+    searchQuery = val.toLowerCase();
+    const resultsDiv = document.getElementById('search-results');
+    
+    if (searchQuery.length > 1) {
+        const { data: users } = await supabase
+            .from('profile')
+            .select('username, first_name, last_name, is_verified')
+            .or(`username.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
+            .limit(5);
+            
+        if (users?.length > 0) {
+            resultsDiv.innerHTML = users.map(u => {
+                const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username;
+                return `
+                <div class="p-4 border-b border-white/5 flex items-center justify-between" onclick="location.href='profile.html?u=${u.username}'">
+                    <div>
+                        <span class="text-xs font-black uppercase block">@${u.username}</span>
+                        <span class="text-[10px] text-zinc-500">${fullName}</span>
+                    </div>
+                    <i data-lucide="chevron-right" size="14" class="text-zinc-600"></i>
+                </div>`;
+            }).join('');
+            resultsDiv.style.display = 'block';
+            lucide.createIcons();
+        } else {
+            resultsDiv.style.display = 'none';
+        }
+    } else {
+        resultsDiv.style.display = 'none';
+    }
+    loadFeed();
+}
+
 function toggleSearch() {
     const container = document.getElementById('search-container');
     const results = document.getElementById('search-results');
@@ -257,30 +297,7 @@ function toggleSearch() {
     lucide.createIcons();
 }
 
-async function handleSearch(val) {
-    searchQuery = val.toLowerCase();
-    const resultsDiv = document.getElementById('search-results');
-    
-    if (searchQuery.length > 1) {
-        const { data: users } = await supabase.from('profile').select('username, is_verified').ilike('username', `%${searchQuery}%`).limit(5);
-        if (users?.length > 0) {
-            resultsDiv.innerHTML = users.map(u => `
-                <div class="p-4 border-b border-white/5 flex items-center justify-between" onclick="location.href='profile.html?u=${u.username}'">
-                    <span class="text-xs font-black uppercase">@${u.username}</span>
-                    <i data-lucide="chevron-right" size="14" class="text-zinc-600"></i>
-                </div>`).join('');
-            resultsDiv.style.display = 'block';
-            lucide.createIcons();
-        } else {
-            resultsDiv.style.display = 'none';
-        }
-    } else {
-        resultsDiv.style.display = 'none';
-    }
-    loadFeed();
-}
-
-// Press and Hold Logic (0.8s)
+// Press and Hold Logic (0.8s) - RESTORED
 function startPress(e, post) {
     pressTimer = setTimeout(() => { showActionSheet(post); }, 800);
 }
@@ -289,6 +306,7 @@ function endPress() {
     clearTimeout(pressTimer); 
 }
 
+// FIXED: Mention dropdown - shows max 5, lightning fast
 async function handleMentions(input) {
     const text = input.value;
     const cursor = input.selectionStart;
@@ -298,12 +316,30 @@ async function handleMentions(input) {
     if (lastAt !== -1 && !text.slice(lastAt, cursor).includes(' ')) {
         const query = text.slice(lastAt + 1, cursor);
         if (query.length > 0) {
-            const { data: users } = await supabase.from('profile').select('username').ilike('username', `${query}%`).limit(5);
+            const { data: users } = await supabase
+                .from('profile')
+                .select('username, first_name, last_name')
+                .ilike('username', `${query}%`)
+                .limit(5);
+                
             if (users?.length) {
-                mentionList.innerHTML = users.map(u => `<div class="mention-item" onclick="selectMention('${u.username}', ${lastAt}, ${cursor})">@${u.username}</div>`).join('');
+                mentionList.innerHTML = users.map(u => {
+                    const displayName = [u.first_name, u.last_name].filter(Boolean).join(' ');
+                    return `<div class="mention-item" onclick="selectMention('${u.username}', ${lastAt}, ${cursor})">
+                        <span class="font-black">@${u.username}</span>
+                        ${displayName ? `<span class="text-[9px] text-zinc-400 block">${displayName}</span>` : ''}
+                    </div>`;
+                }).join('');
                 mentionList.style.display = 'block';
+                
+                // Position the dropdown
                 const rect = input.getBoundingClientRect();
-                mentionList.style.top = (rect.bottom + window.scrollY + 10) + 'px';
+                const textareaStyles = window.getComputedStyle(input);
+                const lineHeight = parseInt(textareaStyles.lineHeight) || 20;
+                const lines = text.substr(0, cursor).split('\n').length;
+                const topPosition = rect.top + window.scrollY + (lines * lineHeight) + 10;
+                
+                mentionList.style.top = topPosition + 'px';
                 mentionList.style.left = rect.left + 'px';
                 return;
             }
@@ -318,7 +354,26 @@ function selectMention(name, start, end) {
     input.value = text.slice(0, start) + '@' + name + ' ' + text.slice(end);
     document.getElementById('mention-list').style.display = 'none';
     input.focus();
-    setTimeout(() => input.scrollTop = input.scrollHeight, 50);
+    input.dispatchEvent(new Event('input'));
+}
+
+function showActionSheet(post) {
+    const sheet = document.getElementById('action-sheet');
+    const options = document.getElementById('action-options');
+    const isOwner = post.user_id === userProfile.id;
+    const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
+    
+    let html = '';
+    if (isOwner) {
+        html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
+        if (canEdit) html += `<button onclick="editGist('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
+    }
+    if (userProfile?.is_official && !isOwner) {
+        html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
+    }
+    options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
+    sheet.classList.add('open');
+    lucide.createIcons();
 }
 
 function closeActions() { document.getElementById('action-sheet').classList.remove('open'); }
@@ -359,7 +414,7 @@ function closePostModal() {
     currentEditPostId = null;
 }
 
-// NEW: Harmful content patterns to block
+// Harmful content patterns
 const harmfulPatterns = [
     /porn/i, /xxx/i, /adult/i, /sex/i, /nude/i, /onlyfans/i, /fansly/i,
     /gambling/i, /casino/i, /bet/i, /betting/i, /poker/i, /slot/i,
@@ -370,17 +425,14 @@ const harmfulPatterns = [
     /pharmacy/i, /viagra/i, /cialis/i, /prescription/i
 ];
 
-// NEW: Scan content for harmful links
 function scanContentForHarmfulLinks(content) {
     const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     const urls = content.match(urlRegex) || [];
     
-    // Check max links (5)
     if (urls.length > 5) {
         return { safe: false, reason: "Too many links (max 5)" };
     }
     
-    // Check each URL for harmful content
     for (const url of urls) {
         const lowerUrl = url.toLowerCase();
         for (const pattern of harmfulPatterns) {
@@ -393,7 +445,6 @@ function scanContentForHarmfulLinks(content) {
     return { safe: true };
 }
 
-// NEW: Clean content by removing harmful links
 function cleanHarmfulContent(content) {
     const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     
@@ -412,20 +463,17 @@ async function submitPostFromModal() {
     let content = document.getElementById('modal-post-input').value.trim();
     if (!content) return;
     
-    // NEW: Scan for harmful content
     const scanResult = scanContentForHarmfulLinks(content);
     if (!scanResult.safe) {
         if (scanResult.reason === "Too many links (max 5)") {
             showToast("Maximum 5 links allowed per post!");
             return;
         } else {
-            // Clean the content by removing harmful links
             content = cleanHarmfulContent(content);
             showToast("Some links were removed for safety");
         }
     }
     
-    // Security check for scripts
     if (/<[^>]*>|javascript:|onerror|onload|eval|alert|document\.|window\.|fetch|XMLHttpRequest|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeypress|onkeyup/i.test(content)) {
         document.getElementById('modal-post-input').value = '';
         securityViolationCount++;
@@ -440,6 +488,10 @@ async function submitPostFromModal() {
         return;
     }
     
+    // Set expiration to 24 hours from now
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+    
     if (currentEditPostId) {
         const { error } = await supabase.from('posts').update({ content }).eq('id', currentEditPostId);
         if (!error) {
@@ -451,7 +503,8 @@ async function submitPostFromModal() {
         const { error } = await supabase.from('posts').insert({ 
             user_id: userProfile.id, 
             content, 
-            school_name: userProfile.school_name || 'Global' 
+            school_name: userProfile.school_name || 'Global',
+            expires_at: expiresAt.toISOString()
         });
         if (!error) {
             showToast("Gist Published!");
@@ -473,7 +526,7 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
-// FIXED: formatContent with proper mention handling - checks DB for @usernames
+// FIXED: formatContent with proper mention handling
 async function formatContent(text, postId) {
     let safe = text;
     safe = escapeHTML(safe);
@@ -482,43 +535,33 @@ async function formatContent(text, postId) {
         safe = `<span id="short-${postId}">${safe.substring(0, 250)}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
     }
     
-    // First, handle repost pattern - check if username exists in DB
+    // Handle repost pattern
     const repostMatches = [...safe.matchAll(/Reposted from @(\w+):/g)];
     for (const match of repostMatches) {
         const username = match[1];
-        // Check if username exists in profile table
         const { data: user } = await supabase.from('profile').select('username').eq('username', username).maybeSingle();
         if (user) {
             safe = safe.replace(`Reposted from @${username}:`, `Reposted from <a href="profile.html?u=${username}" class="text-sdel font-bold no-underline hover:underline">@${username}</a>:`);
-        } else {
-            // If username doesn't exist, just show as plain text
-            safe = safe.replace(`Reposted from @${username}:`, `Reposted from @${username}:`);
         }
     }
     
-    // Handle regular mentions - check if username exists in DB
+    // Handle regular mentions
     const mentionMatches = [...safe.matchAll(/@(\w+)/g)];
     for (const match of mentionMatches) {
         const username = match[1];
-        // Skip if we already processed this as part of repost
         if (safe.includes(`Reposted from <a`)) continue;
         
-        // Check if username exists in profile table
         const { data: user } = await supabase.from('profile').select('username').eq('username', username).maybeSingle();
         if (user) {
             safe = safe.replace(new RegExp(`@${username}\\b`), `<a href="profile.html?u=${username}" class="text-sdel font-bold no-underline hover:underline">@${username}</a>`);
         }
-        // If username doesn't exist, leave as plain @username
     }
     
-    // URL regex for ALL domains (com, org, net, ng, etc.)
+    // URL regex for ALL domains
     const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     
     safe = safe.replace(urlRegex, (url) => {
-        // Skip if it's already part of a link
         if (url.includes('">') || url.includes('&quot;') || url.includes('profile.html')) return url;
-        
-        // Skip if it contains @ (already handled as mention)
         if (url.includes('@')) return url;
         
         let fullUrl = url;
@@ -528,7 +571,6 @@ async function formatContent(text, postId) {
         const escapedUrl = escapeHTML(fullUrl);
         const displayUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
         
-        // Internal links
         if (fullUrl.includes('profile.html') || 
             fullUrl.includes('messages.html') || 
             fullUrl.includes('homies.html') || 
@@ -539,7 +581,6 @@ async function formatContent(text, postId) {
             return `<a href="${escapedUrl.replace(/'/g, "\\'")}" class="inline-link">${displayUrl}</a>`;
         }
         
-        // Trusted domains
         if (fullUrl.includes('tiktok.com') || 
             fullUrl.includes('whatsapp.com') || 
             fullUrl.includes('wa.me') || 
@@ -547,7 +588,6 @@ async function formatContent(text, postId) {
             return `<a href="${escapedUrl.replace(/'/g, "\\'")}" target="_blank" class="inline-link">${displayUrl}</a>`;
         }
         
-        // All other links show warning
         return `<a href="#" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}'); return false;" class="inline-link">${displayUrl}</a>`;
     });
     
@@ -556,8 +596,18 @@ async function formatContent(text, postId) {
 
 async function loadFeed() {
     const container = document.getElementById('feed-container');
-    let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').order('created_at', { ascending: false }).limit(40);
+    const now = new Date().toISOString();
+    
+    // Only show posts that haven't expired
+    let query = supabase
+        .from('posts')
+        .select('*, profile:user_id(username, is_official, is_verified)')
+        .gt('expires_at', now)
+        .order('created_at', { ascending: false })
+        .limit(40);
+        
     if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
+    
     const { data: posts } = await query;
     const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
 
@@ -569,7 +619,6 @@ async function loadFeed() {
         );
     }
 
-    // Process each post's content with async formatContent
     const processedPosts = await Promise.all(filteredPosts.map(async (post) => {
         const formattedContent = await formatContent(post.content, post.id);
         return { ...post, formattedContent };
@@ -583,7 +632,7 @@ async function loadFeed() {
         let badge = post.profile?.is_official ? `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : (post.profile?.is_verified ? `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : '');
         
         return `
-        <div class="post-card p-4" onmousedown="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" onmouseup="endPress()" ontouchstart="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" ontouchend="endPress()">
+        <div class="post-card p-4" data-post-id="${post.id}" onmousedown="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" onmouseup="endPress()" ontouchstart="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" ontouchend="endPress()">
             <div class="flex space-x-3">
                 <div onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
                 <div class="flex-1">
@@ -620,12 +669,38 @@ async function handleLike(postId) {
         await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
     }
     loadFeed();
-}
-
-// FIXED: X/IG style repost
+    }
+    // FIXED: Repost with proper rules
 async function handleRepost(originalPostId, originalAuthor, originalContent) {
+    // Cannot repost own post
+    if (originalAuthor === userProfile.username) {
+        showToast("Cannot repost your own gist!");
+        return;
+    }
+    
+    // One repost per user per post
     if (repostedPosts.has(originalPostId)) {
         showToast("Already Reposted!");
+        return;
+    }
+
+    // Check if original post exists and is not expired
+    const { data: originalPost } = await supabase
+        .from('posts')
+        .select('expires_at')
+        .eq('id', originalPostId)
+        .single();
+        
+    if (!originalPost) {
+        showToast("Original gist not found!");
+        return;
+    }
+    
+    // Check if original post is expired
+    const now = new Date();
+    const expiresAt = new Date(originalPost.expires_at);
+    if (expiresAt < now) {
+        showToast("Original gist has expired!");
         return;
     }
 
@@ -636,7 +711,7 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         return;
     }
 
-    // Clean the content - if it's already a repost, extract just the original message
+    // Clean the content - extract root post
     let contentToRepost = originalContent;
     if (contentToRepost.includes('Reposted from @')) {
         const lastColonIndex = contentToRepost.lastIndexOf(':');
@@ -645,12 +720,14 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         }
     }
     
+    // Repost inherits original expiration
     const newContent = `Reposted from @${originalAuthor}: ${contentToRepost}`;
     
     const { error } = await supabase.from('posts').insert({ 
         user_id: userProfile.id, 
         content: newContent, 
-        school_name: userProfile.school_name || 'Global' 
+        school_name: userProfile.school_name || 'Global',
+        expires_at: originalPost.expires_at // Inherit original expiration
     });
     
     if (!error) { 
@@ -673,7 +750,6 @@ async function handleShare(postId, content) {
     else { navigator.clipboard.writeText(url); showToast("Link copied!"); }
 }
 
-// FIXED: safeRedirect to handle internal links properly
 function safeRedirect(url) { 
     if (url.includes('profile.html') || 
         url.includes('messages.html') || 
@@ -712,14 +788,11 @@ function showToast(msg) { const t = document.getElementById('toast'); t.innerTex
 init();
 </script>
 
-<!-- CLEANUP SCRIPT: Fixes any hardcoded ugly mentions in the HTML -->
+<!-- CLEANUP SCRIPT -->
 <script>
-// This runs after page load to clean up any hardcoded ugly mentions
 document.addEventListener('DOMContentLoaded', function() {
-    // Find and fix any remaining ugly location.href patterns
     function cleanupUglyMentions() {
         const elements = document.querySelectorAll('*:not(script):not(style)');
-        
         elements.forEach(el => {
             if (el.children.length === 0 && el.textContent && 
                 (el.textContent.includes("location.href='profile.html?") || 
@@ -739,10 +812,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Auto-link any plain domains (all TLDs)
     function autoLinkDomains() {
         const domainRegex = /\b([a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,})\b/gi;
-        
         const walker = document.createTreeWalker(
             document.body,
             NodeFilter.SHOW_TEXT,
@@ -793,7 +864,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Run cleanup
     setTimeout(() => {
         cleanupUglyMentions();
         autoLinkDomains();
