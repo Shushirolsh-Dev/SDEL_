@@ -65,9 +65,9 @@
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px); padding: 20px; }
         .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
 
-        /* CHANGED: Inline orange links instead of boxes */
-        .inline-link { color: #FF6600; font-weight: 600; cursor: pointer; display: inline; background: none; border: none; padding: 0; margin: 0; font-size: inherit; text-decoration: underline; }
-        .aether-link { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 102, 0, 0.15); border: 1px solid rgba(255, 102, 0, 0.3); color: #FF6600; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-left: 4px; vertical-align: middle; }
+        /* FIXED: Inline orange links with no underline */
+        .inline-link { color: #FF6600; font-weight: 600; cursor: pointer; display: inline; background: none; border: none; padding: 0; margin: 0; font-size: inherit; text-decoration: none; }
+        .inline-link:hover { text-decoration: underline; }
         
         .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #222; border-radius: 24px 24px 0 0; padding: 20px; z-index: 3000; transform: translateY(100%); transition: transform 0.3s ease; }
         .action-sheet.open { transform: translateY(0); }
@@ -430,7 +430,7 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
-// CHANGED: formatContent with inline orange links and trusted domains
+// FIXED: formatContent with better link detection and orange color (no underline)
 function formatContent(text, postId) {
     let safe = escapeHTML(text);
     if (safe.length > 280) {
@@ -440,16 +440,25 @@ function formatContent(text, postId) {
     // Mentions - direct redirect (no alert)
     safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold cursor-pointer" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
     
-    // Links - inline orange with conditional redirect
-    const urlRegex = /(https?:\/\/[^\s<]+)/gi;
+    // IMPROVED: Better URL regex to catch more link formats
+    const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
+    
     safe = safe.replace(urlRegex, (url) => {
-        const escapedUrl = escapeHTML(url);
-        // Check if it's a trusted domain (redirect straight away)
-        if (url.includes('tiktok.com') || url.includes('whatsapp.com') || url.includes('wa.me')) {
-            return `<span class="inline-link" onclick="window.open('${escapedUrl.replace(/'/g, "\\'")}', '_blank')">${escapedUrl}</span>`;
+        // Make sure URL has protocol for opening
+        let fullUrl = url;
+        if (!fullUrl.startsWith('http')) {
+            fullUrl = 'https://' + fullUrl;
         }
+        const escapedUrl = escapeHTML(fullUrl);
+        const displayUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
+        
+        // Check trusted domains
+        if (fullUrl.includes('tiktok.com') || fullUrl.includes('whatsapp.com') || fullUrl.includes('wa.me') || fullUrl.includes('homies.html')) {
+            return `<span class="inline-link" onclick="window.open('${escapedUrl.replace(/'/g, "\\'")}', '_blank')">${displayUrl}</span>`;
+        }
+        
         // All other links show warning modal
-        return `<span class="inline-link" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}')">${escapedUrl}</span>`;
+        return `<span class="inline-link" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}')">${displayUrl}</span>`;
     });
     
     return safe;
@@ -491,7 +500,7 @@ async function loadFeed() {
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
                         <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
                         <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
-                        <!-- CHANGED: Disable repost button if already reposted -->
+                        <!-- FIXED: Disable repost button if already reposted -->
                         <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" 
                                 class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}" 
                                 ${hasReposted ? 'disabled' : ''}>
@@ -519,11 +528,17 @@ async function handleLike(postId) {
     loadFeed();
 }
 
-// CHANGED: Repost with prevention and UI update
+// FIXED: Repost with prevention for both original and reposted posts
 async function handleRepost(originalPostId, originalContent, originalAuthor) {
     // Check if already reposted
     if (repostedPosts.has(originalPostId)) {
         showToast("Already Reposted!");
+        return;
+    }
+
+    // Check if this post is itself a repost (contains "Reposted from")
+    if (originalContent.includes('Reposted from @')) {
+        showToast("Cannot repost a repost!");
         return;
     }
 
