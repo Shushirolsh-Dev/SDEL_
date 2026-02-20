@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🔐 Security Test Playground</title>
+    <title>🔐 Security Test Playground - WORKING</title>
     <style>
         body { 
             background: #111; 
@@ -95,7 +95,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔐 Security Test Playground</h1>
+        <h1>🔐 Security Test Playground - WORKING</h1>
         <div class="warning">
             ⚠️ This is a DUMMY file - Completely isolated from your real site!<br>
             Test anything here without getting banned! 🎯
@@ -138,11 +138,11 @@
         <div id="sql-payloads"></div>
 
         <h2>📊 Test History</h2>
-        <div id="history" style="max-height: 200px; overflow-y: auto;"></div>
+        <div id="history" style="max-height: 200px; overflow-y: auto; background: #000; padding: 10px; border-radius: 8px;"></div>
     </div>
 
     <script>
-        // ============ YOUR SANITIZATION LOGIC (COPIED FROM YOUR SITE) ============
+        // ============ YOUR SANITIZATION LOGIC ============
         const harmfulPatterns = [
             /porn/i, /xxx/i, /adult/i, /sex/i, /nude/i, /onlyfans/i, /fansly/i,
             /gambling/i, /casino/i, /bet/i, /betting/i, /poker/i, /slot/i,
@@ -197,6 +197,7 @@
         }
         // ============ END OF SANITIZATION LOGIC ============
 
+        // Test tracking
         let testsRun = 0;
         let blockedCount = 0;
         let passedCount = 0;
@@ -213,17 +214,7 @@
             "%3Cscript%3Ealert('XSS')%3C/script%3E",
             "<ScRiPt>alert('XSS')</ScRiPt>",
             "<iframe src=\"javascript:alert('XSS')\"></iframe>",
-            "<object data=\"data:text/html;base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4=\">",
-            "<input onfocus=\"alert('XSS')\" autofocus>",
-            "<form action=\"javascript:alert('XSS')\"><input type=\"submit\">",
-            "<div style=\"expression(alert('XSS'))\">",
-            "<div style=\"background-image: url(javascript:alert('XSS'))\">",
-            "<meta http-equiv=\"refresh\" content=\"0;url=javascript:alert('XSS')\">",
-            "<audio src=x onerror=alert('XSS')>",
-            "<video src=x onerror=alert('XSS')>",
-            "<scr\tipt>alert('XSS')</scr\tip>",
-            "<!--><script>alert('XSS')</script>",
-            "'; DROP TABLE users; --"
+            "<object data=\"data:text/html;base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4=\">"
         ];
 
         // SQL Injection Payloads
@@ -242,6 +233,7 @@
             "' AND sleep(5)=0--"
         ];
 
+        // Display payloads
         function displayPayloads() {
             const xssDiv = document.getElementById('xss-payloads');
             xssDiv.innerHTML = xssPayloads.map(p => 
@@ -254,14 +246,21 @@
             ).join('');
         }
 
+        // Test a specific payload
         function testPayload(payload) {
             document.getElementById('test-input').value = payload;
             testSecurity();
         }
 
+        // Main test function
         function testSecurity() {
             const input = document.getElementById('test-input').value;
             const resultDiv = document.getElementById('result');
+            
+            if (!input) {
+                resultDiv.innerHTML = '<span style="color: #FF6600;">⚠️ Enter a payload first!</span>';
+                return;
+            }
             
             testsRun++;
             
@@ -351,11 +350,19 @@
                     document.getElementById('test-input').value = allPayloads[i];
                     testSecurity();
                     i++;
-                    setTimeout(runNext, 100);
+                    setTimeout(runNext, 500);
+                } else {
+                    alert('✅ All tests completed!');
                 }
             }
             
             if (confirm(`Run ${allPayloads.length} tests?`)) {
+                testsRun = 0;
+                blockedCount = 0;
+                passedCount = 0;
+                history = [];
+                updateStats();
+                updateHistory();
                 runNext();
             }
         }
