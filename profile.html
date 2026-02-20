@@ -172,7 +172,6 @@ async function init() {
 
     if (!viewProfile) return history.back();
 
-    // Show monetize hub if viewing own profile
     if (viewProfile.id === loggedInUser.id) {
         document.getElementById('monetize-section').classList.remove('hidden');
     }
@@ -214,8 +213,13 @@ function renderProfile() {
     document.getElementById('p-avatar').innerText = viewProfile.username[0].toUpperCase();
     document.getElementById('p-school').querySelector('span').innerText = viewProfile.school_name || 'Global Campus';
     
+    // UPDATED BADGE LOGIC
     if (viewProfile.is_official) {
         document.getElementById('p-badge').innerHTML = `<div class="bg-sdel rounded-full p-[2px] w-[18px] h-[18px] flex items-center justify-center border-2 border-[var(--bg)]"><i data-lucide="check" class="text-white" size="12" stroke-width="4"></i></div>`;
+    } else if (viewProfile.is_verified) {
+        document.getElementById('p-badge').innerHTML = `<div class="bg-zinc-500 rounded-full p-[2px] w-[18px] h-[18px] flex items-center justify-center border-2 border-[var(--bg)]"><i data-lucide="check" class="text-white" size="12" stroke-width="4"></i></div>`;
+    } else {
+        document.getElementById('p-badge').innerHTML = '';
     }
 
     const btn = document.getElementById('action-btn');
@@ -267,7 +271,7 @@ async function toggleFollow() {
 }
 
 async function loadUserPosts() {
-    const { data: posts } = await supabase.from('posts').select('*, profile:user_id(username, is_official)').eq('user_id', viewProfile.id).order('created_at', { ascending: false });
+    const { data: posts } = await supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').eq('user_id', viewProfile.id).order('created_at', { ascending: false });
     const container = document.getElementById('user-feed');
     
     if (!posts?.length) {
@@ -282,7 +286,7 @@ async function loadUserPosts() {
                 <div class="flex-1">
                     <div class="flex items-center gap-1.5 mb-1">
                         <span class="text-[13px] font-black uppercase tracking-tighter">@${post.profile.username}</span>
-                        ${post.profile.is_official ? `<div class="bg-sdel rounded-full p-[1px] w-[12px] h-[12px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="8" stroke-width="5"></i></div>` : ''}
+                        ${post.profile.is_official ? `<div class="bg-sdel rounded-full p-[1px] w-[12px] h-[12px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="8" stroke-width="5"></i></div>` : (post.profile.is_verified ? `<div class="bg-zinc-500 rounded-full p-[1px] w-[12px] h-[12px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="8" stroke-width="5"></i></div>` : '')}
                     </div>
                     <div class="text-[14px] text-[var(--text-dim)] leading-snug mb-4">${post.content}</div>
                     <div class="flex items-center justify-between text-[var(--text-dim)] max-w-[200px]">
@@ -312,5 +316,4 @@ window.shareProfile = () => {
 init();
 </script>
 </body>
-    </html>
-    
+</html>
