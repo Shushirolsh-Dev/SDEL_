@@ -40,6 +40,29 @@
         #school-results { position: absolute; left: 0; right: 0; background: #111; border: 1px solid #333; border-radius: 14px; mt: 5px; z-index: 1000; max-height: 200px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .uni-item { padding: 15px; font-size: 11px; font-weight: 900; text-transform: uppercase; border-bottom: 1px solid #222; cursor: pointer; }
         .uni-item:hover { background: #FF6600; color: black; }
+        
+        /* Honeypot styles - invisible to users */
+        .honeypot {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+            opacity: 0;
+            height: 0;
+            width: 0;
+            overflow: hidden;
+            pointer-events: none;
+            z-index: -9999;
+        }
+        .honeypot-field {
+            position: absolute;
+            opacity: 0;
+            height: 0;
+            width: 0;
+            padding: 0;
+            margin: 0;
+            border: none;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
@@ -51,6 +74,22 @@
             <p class="text-[12px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-3">Create your account</p>
         </div>
         <div id="msg" class="hidden p-4 mb-5 rounded text-sm font-black text-center uppercase"></div>
+        
+        <!-- HONEYPOT SECTION 1: Hidden container with invisible fields -->
+        <div class="honeypot">
+            <input type="text" id="website" name="website" autocomplete="off" tabindex="-1">
+            <input type="checkbox" id="confirm_age" name="confirm_age" tabindex="-1" checked>
+            <input type="text" id="middle_name" name="middle_name" value="leave_blank" tabindex="-1">
+        </div>
+        
+        <!-- HONEYPOT SECTION 2: Decoy fields that look real but are hidden via CSS -->
+        <div class="honeypot-field">
+            <input type="email" id="alt_email" placeholder="Alternate Email" tabindex="-1">
+        </div>
+        
+        <!-- HONEYPOT SECTION 3: Timestamp trap to detect bots -->
+        <input type="hidden" id="form_load_time" value="">
+        
         <div class="space-y-4">
             <div class="flex gap-3">
                 <input type="text" id="fname" placeholder="FIRST NAME" class="sdel-input w-1/2">
@@ -63,7 +102,7 @@
             </div>
             
             <div>
-                <input type="text" id="uname" placeholder="USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()" onblur="liveCheck('username', this.value, 'u-msg')">
+                <input type="text" id="uname" placeholder="USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase(); validateUsername(this)" onblur="liveCheck('username', this.value, 'u-msg')">
                 <p id="u-msg" class="live-msg hidden"></p>
             </div>
 
@@ -105,9 +144,184 @@
                 <input type="checkbox" id="agree" class="w-5 h-5 accent-[#FF6600]">
                 <label for="agree" class="text-[11px] font-bold text-gray-400 uppercase tracking-wide">I agree to the <a href="terms.html" class="text-white underline">Terms</a> & <a href="privacy.html" class="text-white underline">Privacy</a></label>
             </div>
+            
+            <!-- HONEYPOT SECTION 4: Fake submit button (bots might click this) -->
+            <div class="honeypot">
+                <button type="button" onclick="triggerHoneypot()" id="fake_submit">FAKE SUBMIT</button>
+            </div>
+            
             <button onclick="signUp()" id="s-btn" class="btn-orange mt-2">Create Account</button>
         </div>
     </div>
+    
+    <!-- Banned page redirect script -->
+    <script>
+        // Check if device is banned
+        function isDeviceBanned() {
+            const banned = localStorage.getItem('sdel_banned');
+            const bannedSession = sessionStorage.getItem('sdel_banned_session');
+            return banned === 'true' || bannedSession === 'true';
+        }
+        
+        // Permanent ban function - redirects to banned.html
+        function permanentlyBanDevice() {
+            // Store ban in both localStorage (persistent) and sessionStorage (redundant)
+            localStorage.setItem('sdel_banned', 'true');
+            sessionStorage.setItem('sdel_banned_session', 'true');
+            
+            // Set a cookie as additional persistence
+            document.cookie = "sdel_banned=1; max-age=" + (60*60*24*365) + "; path=/; SameSite=Strict";
+            
+            // Redirect to banned.html
+            window.location.href = 'banned.html';
+            return true;
+        }
+        
+        // Check for existing ban on page load
+        (function checkBanOnLoad() {
+            // Check localStorage
+            if (localStorage.getItem('sdel_banned') === 'true') {
+                window.location.href = 'banned.html';
+                return;
+            }
+            
+            // Check sessionStorage
+            if (sessionStorage.getItem('sdel_banned_session') === 'true') {
+                window.location.href = 'banned.html';
+                return;
+            }
+            
+            // Check cookie
+            if (document.cookie.split(';').some(cookie => cookie.trim().startsWith('sdel_banned=1'))) {
+                window.location.href = 'banned.html';
+                return;
+            }
+            
+            // Set form load time for honeypot
+            document.getElementById('form_load_time').value = Date.now().toString();
+        })();
+        
+        // Honeypot trigger function
+        function triggerHoneypot() {
+            permanentlyBanDevice();
+        }
+        
+        // Validate username - no spaces, block weird patterns
+        function validateUsername(input) {
+            const username = input.value;
+            
+            // Block spaces immediately
+            if (username.includes(' ')) {
+                input.value = username.replace(/\s/g, '');
+                showUsernameError("SPACES NOT ALLOWED", input);
+            }
+            
+            // Check for weird patterns and symbols
+            const weirdPatternRegex = /[;`^|\\<>{}[\]$%#@!~&*+=?]/;
+            const hasWeirdPattern = weirdPatternRegex.test(username);
+            
+            if (hasWeirdPattern) {
+                // Remove the weird characters
+                input.value = username.replace(weirdPatternRegex, '');
+                showUsernameError("INVALID CHARACTERS REMOVED", input);
+            }
+            
+            // Check for consecutive special characters or patterns like ;^^``
+            const consecutiveSpecialRegex = /[._]{2,}|[^a-zA-Z0-9._]{2,}/;
+            if (consecutiveSpecialRegex.test(username)) {
+                input.value = username.replace(/[^a-zA-Z0-9._]/g, '');
+                showUsernameError("INVALID PATTERN DETECTED", input);
+            }
+            
+            // Final validation: only allow letters, numbers, dots, underscores
+            // Username must start with letter or number (not dot or underscore)
+            const validUsernameRegex = /^[a-zA-Z0-9][a-zA-Z0-9._]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/;
+            if (username && !validUsernameRegex.test(username)) {
+                // Clean the username
+                let cleaned = username.replace(/[^a-zA-Z0-9._]/g, '');
+                // Ensure it doesn't start/end with dot or underscore
+                cleaned = cleaned.replace(/^[._]+|[._]+$/g, '');
+                if (cleaned) {
+                    input.value = cleaned;
+                }
+                showUsernameError("USERNAME MUST START/END WITH LETTER OR NUMBER", input);
+            }
+        }
+        
+        function showUsernameError(message, input) {
+            const msgEl = document.getElementById('u-msg');
+            msgEl.classList.remove('hidden');
+            msgEl.innerText = message;
+            msgEl.style.color = "#FF6600";
+            input.classList.add('shake-error');
+            setTimeout(() => input.classList.remove('shake-error'), 400);
+        }
+        
+        // Comprehensive username validation for signup
+        function isUsernameValid(username) {
+            if (!username) return false;
+            
+            // No spaces
+            if (username.includes(' ')) return false;
+            
+            // Must start with letter or number
+            if (!/^[a-zA-Z0-9]/.test(username)) return false;
+            
+            // Must end with letter or number
+            if (!/[a-zA-Z0-9]$/.test(username)) return false;
+            
+            // Only allowed characters: letters, numbers, dots, underscores
+            if (!/^[a-zA-Z0-9._]+$/.test(username)) return false;
+            
+            // No consecutive dots or underscores
+            if (/[._]{2,}/.test(username)) return false;
+            
+            // No weird patterns (double-check)
+            const weirdPatterns = ['^^', '``', ';;', '||', '\\\\', '//', '##', '$$', '%%', '^^', '&&', '**', '++', '==', '??', '>', '<'];
+            for (let pattern of weirdPatterns) {
+                if (username.includes(pattern)) return false;
+            }
+            
+            return true;
+        }
+        
+        // Honeypot detection function
+        function checkHoneypots() {
+            // Honeypot 1: Hidden field should be empty
+            const website = document.getElementById('website').value;
+            if (website && website.trim() !== '') {
+                console.log('Honeypot triggered: website field filled');
+                return true;
+            }
+            
+            // Honeypot 2: Middle name should be "leave_blank" (default value)
+            const middleName = document.getElementById('middle_name').value;
+            if (middleName !== 'leave_blank') {
+                console.log('Honeypot triggered: middle name changed');
+                return true;
+            }
+            
+            // Honeypot 3: Alt email should be empty (hidden field)
+            const altEmail = document.getElementById('alt_email').value;
+            if (altEmail && altEmail.trim() !== '') {
+                console.log('Honeypot triggered: alt email filled');
+                return true;
+            }
+            
+            // Honeypot 4: Form load time - check if form was submitted too quickly (less than 2 seconds)
+            const loadTime = document.getElementById('form_load_time').value;
+            if (loadTime) {
+                const timeSinceLoad = Date.now() - parseInt(loadTime);
+                if (timeSinceLoad < 2000) { // Less than 2 seconds - likely a bot
+                    console.log('Honeypot triggered: form submitted too quickly');
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+    </script>
+    
     <script>
         const f = document.getElementById('star-field');
         for(let i=0; i<80; i++) {
@@ -191,6 +405,18 @@
         }
 
         async function signUp() {
+            // CHECK FOR DEVICE BAN FIRST
+            if (isDeviceBanned()) {
+                window.location.href = 'banned.html';
+                return;
+            }
+            
+            // CHECK HONEYPOTS - if any trigger, permanently ban the device
+            if (checkHoneypots()) {
+                permanentlyBanDevice();
+                return; // Stop execution (redirect happens in permanentlyBanDevice)
+            }
+            
             const fn = document.getElementById('fname').value;
             const ln = document.getElementById('lname').value;
             const un = document.getElementById('uname').value;
@@ -203,6 +429,13 @@
             const btn = document.getElementById('s-btn');
 
             if(!fn || !ln || !un || !sc || !ph || !em || !pw || !rpw) return showMsg("FILL ALL FIELDS", "red");
+            
+            // VALIDATE USERNAME (comprehensive check)
+            if (!isUsernameValid(un)) {
+                showMsg("INVALID USERNAME: Use letters, numbers, . or _ only (no spaces, no weird symbols)", "red");
+                return;
+            }
+            
             if(!isUnique.username || !isUnique.phone || !isUnique.email) return showMsg("SOME DATA IS ALREADY REGISTERED", "red");
             if(ph.length !== 10) return showMsg("PHONE MUST BE 10 DIGITS", "red");
             
@@ -230,7 +463,6 @@
             });
 
             if (error) { 
-                // DIAGNOSTIC ALERT: Shows the RAW error so we know EXACTLY what Postgres is saying.
                 console.error("DEBUG:", error);
                 showMsg(error.message + (error.status ? " (Status: "+error.status+")" : ""), "red"); 
                 btn.innerText = "CREATE ACCOUNT"; btn.disabled = false; 
