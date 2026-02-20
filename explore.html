@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <script>
+        // ANTI-FLICKER: Apply theme immediately from global setting
         (function() {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'sunlight') {
@@ -23,83 +24,74 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        /* Elite Post Card */
-        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.05); transition: background 0.2s; }
+        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; }
         .post-card:active { background: rgba(255, 102, 0, 0.05); }
         
-        /* Elite Composer Card */
-        .elite-composer { background: linear-gradient(145deg, #111, #050505); border: 1px solid rgba(255,102,0,0.2); border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin: 20px; padding: 20px; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .editing-glow { border-color: #FF6600 !important; box-shadow: 0 0 20px rgba(255,102,0,0.2); }
-
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; font-weight: 900; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
         
-        #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 16px; font-weight: 500; }
+        #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; transition: min-height 0.2s; }
+        .composer-expanded { background: rgba(255,102,0,0.05) !important; border: 1px solid rgba(255,102,0,0.2) !important; border-radius: 16px; padding: 16px !important; }
 
-        /* Navigation Icon Colors */
-        .nav-inactive { color: #71717a; } /* Zinc */
-        .nav-active { color: #FF6600; }
-        
-        .sunlight-mode .nav-inactive { color: #121212; } /* Dark */
-        .sunlight-mode .nav-active { color: #FF6600; }
+        #mention-list { position: absolute; background: #0a0a0a; border: 1px solid #222; border-radius: 16px; width: 220px; z-index: 5000; display: none; box-shadow: 0 15px 40px rgba(0,0,0,0.6); overflow: hidden; }
+        .mention-item { padding: 14px 18px; border-bottom: 1px solid #1a1a1a; font-size: 12px; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.2s; color: white; }
+        .mention-item:hover { background: #FF6600; color: black; }
 
+        /* Sunlight Mode Overrides */
         .sunlight-mode body { background-color: #ffffff; color: #121212; }
-        .sunlight-mode .elite-composer { background: #f9f9f9; border-color: #eee; box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
-        .sunlight-mode #post-input { color: #121212; }
+        .sunlight-mode nav, .sunlight-mode .sticky { background-color: rgba(255,255,255,0.95) !important; border-color: #f0f0f0 !important; }
         .sunlight-mode .post-card { background: #ffffff; border-color: #f0f0f0; }
+        .sunlight-mode .post-card:active { background: #f9f9f9; }
+        .sunlight-mode #post-input { color: #121212; }
+        .sunlight-mode .text-zinc-200 { color: #27272a !important; }
+        .sunlight-mode .text-zinc-500 { color: #71717a !important; }
+        .sunlight-mode #mention-list { background: #ffffff; border-color: #eee; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .sunlight-mode .mention-item { color: #121212; border-color: #f5f5f5; }
+        .sunlight-mode .composer-expanded { background: #fff7f2 !important; border-color: #ffd6ba !important; }
+        .sunlight-mode .modal-content { background: #ffffff; border-color: #eee; color: #121212; }
+        .sunlight-mode .bg-zinc-900 { background-color: #f4f4f5; }
+        .sunlight-mode .action-sheet { background: white; border-color: #eee; }
+        .sunlight-mode .search-container { background: #f4f4f5; border-color: #e4e4e7; }
+        .sunlight-mode .search-container input { color: #121212; background: #f4f4f5; }
+        .sunlight-mode .search-container input::placeholder { color: #71717a; }
 
-        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s; z-index: 9999; }
+        /* Dark Nav Fix for Light Mode */
+        .sunlight-mode .bottom-nav { background-color: #000 !important; border-top: 1px solid #222 !important; }
+        .sunlight-mode .bottom-nav i { color: rgba(255,255,255,0.6) !important; }
+        .sunlight-mode .bottom-nav i.text-sdel { color: #FF6600 !important; }
+
+        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
         #toast.show { transform: translateX(-50%) translateY(0); }
         
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px); padding: 20px; }
+        .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
+
+        .aether-link { display: inline-flex; align-items: center; gap: 4px; background: rgba(255, 102, 0, 0.15); border: 1px solid rgba(255, 102, 0, 0.3); color: #FF6600; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-left: 4px; vertical-align: middle; }
+        
         .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #222; border-radius: 24px 24px 0 0; padding: 20px; z-index: 3000; transform: translateY(100%); transition: transform 0.3s ease; }
         .action-sheet.open { transform: translateY(0); }
+
+        .search-container { margin: 8px 16px; padding: 8px 12px; background: #111; border: 1px solid #222; border-radius: 12px; display: none; align-items: center; gap: 8px; }
+        .search-container input { flex: 1; background: transparent; border: none; outline: none; color: white; font-size: 13px; font-weight: 500; }
+        .search-container input::placeholder { color: #555; font-weight: 400; }
+        .search-container .close-search { color: #FF6600; cursor: pointer; }
+
+        #search-results { position: absolute; top: 100%; left: 0; right: 0; background: #000; z-index: 90; max-height: 300px; overflow-y: auto; display: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sunlight-mode #search-results { background: #fff; border-color: #eee; }
     </style>
 </head>
 <body class="pb-32">
-    <div id="toast">Action Successful!</div>
+    <div id="toast">Gist Published!</div>
+    <div id="mention-list"></div>
 
-    <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-[100] border-b border-white/5 pt-env(safe-area-inset-top)">
-        <div class="p-6 pb-2 flex items-center justify-between">
-            <h1 class="text-2xl font-black tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
-            <div class="flex items-center space-x-5">
-                <i data-lucide="search" size="22"></i>
-                <i data-lucide="bell" size="22" onclick="location.href='messages.html'"></i>
-                <i data-lucide="message-square" size="22" onclick="location.href='homies.html'"></i>
-            </div>
-        </div>
-        <div class="flex justify-around mt-2">
-            <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active px-6 py-4">The Campus</button>
-            <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn px-6 py-4">Universe</button>
-        </div>
-    </nav>
-
-    <div id="composer-card" class="elite-composer">
-        <div class="flex space-x-4">
-            <div id="my-avatar" class="w-12 h-12 rounded-2xl bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel border border-white/10 uppercase">H</div>
-            <div class="flex-1">
-                <span id="composer-label" class="text-[9px] font-black text-zinc-500 uppercase mb-1 block">New Gist</span>
-                <textarea id="post-input" placeholder="What's happening, homie?" rows="2" oninput="toggleActions(this)"></textarea>
-                <div id="composer-actions" class="mt-4 flex justify-between items-center hidden">
-                    <button onclick="cancelEdit()" id="cancel-btn" class="text-[10px] text-zinc-500 font-black uppercase hidden">Cancel</button>
-                    <div class="flex-1"></div>
-                    <button id="publish-btn" onclick="publishPost()" class="bg-sdel text-black px-6 py-2 rounded-xl text-[11px] font-black uppercase shadow-lg shadow-orange-600/20">Post Gist</button>
-                </div>
-            </div>
+    <div id="security-modal" class="modal-overlay">
+        <div class="modal-content border-red-900/50">
+            <i data-lucide="shield-alert" class="text-red-600 mx-auto mb-4" size="48"></i>
+            <h3 class="text-red-500 font-black uppercase mb-2">Security Warning</h3>
+            <p id="security-msg" class="text-xs text-zinc-400 font-bold leading-relaxed mb-6 uppercase">Unauthorized script detected. Your account status has been updated.</p>
+            <button onclick="document.getElementById('security-modal').style.display='none'" class="w-full py-4 bg-zinc-900 rounded-2xl font-black text-xs uppercase">I Understand</button>
         </div>
     </div>
-
-    <main id="feed-container"></main>
-
-    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-[100]">
-        <i data-lucide="home" class="nav-inactive" size="26" onclick="location.href='dashboard.html'"></i>
-        <i data-lucide="compass" class="nav-active" size="26" onclick="location.href='explore.html'"></i>
-        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 border-4 border-black" onclick="document.getElementById('post-input').focus()">
-            <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
-        </div>
-        <i data-lucide="shopping-cart" class="nav-inactive" size="26" onclick="location.href='market.html'"></i>
-        <i data-lucide="user" class="nav-inactive" size="26" onclick="location.href='profile.html'"></i>
-    </nav>
 
     <div id="action-sheet" class="action-sheet">
         <div class="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-6"></div>
@@ -107,132 +99,258 @@
         <button onclick="closeActions()" class="w-full mt-4 py-4 text-zinc-500 font-black uppercase text-xs">Cancel</button>
     </div>
 
+    <div id="redirect-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3 class="text-lg font-black uppercase mb-2">⚠️ Leaving Sdel</h3>
+            <div id="raw-link-display" class="bg-black p-4 rounded-xl border border-zinc-800 text-sdel text-[10px] break-all mb-4 font-bold"></div>
+            <p class="text-[9px] text-red-500 font-black uppercase mb-2">This link leads to an external website.</p>
+            <p class="text-[9px] text-zinc-500 font-bold uppercase mb-6">Sdel is not responsible for external content.</p>
+            <div class="flex gap-3">
+                <button onclick="closeRedirect()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-xs">Abort</button>
+                <button id="confirm-redirect-btn" class="flex-1 py-4 bg-sdel text-black rounded-2xl font-black uppercase text-xs">Proceed</button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-[100] border-b border-white/5 pt-env(safe-area-inset-top)">
+        <div class="p-6 pb-2 flex items-center justify-between">
+            <h1 class="text-2xl font-black tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
+            <div class="flex items-center space-x-5">
+                <i data-lucide="search" size="22" onclick="toggleSearch()" style="cursor: pointer;"></i>
+                <i data-lucide="bell" size="22" onclick="location.href='messages.html'" style="cursor: pointer;"></i>
+                <i data-lucide="message-square" size="22" onclick="location.href='homies.html'" style="cursor: pointer;"></i>
+            </div>
+        </div>
+        
+        <div id="search-container" class="search-container">
+            <i data-lucide="search" size="16" class="text-zinc-500"></i>
+            <input type="text" id="search-input" placeholder="Search keywords or @usernames..." oninput="handleSearch(this.value)">
+            <i data-lucide="x" size="16" class="close-search" onclick="toggleSearch()"></i>
+        </div>
+        <div id="search-results"></div>
+        
+        <div class="flex justify-around mt-2">
+            <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active px-6 py-4">The Campus</button>
+            <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn px-6 py-4">Universe</button>
+        </div>
+    </nav>
+
+    <div id="composer-card" class="m-4 p-4 border border-white/5 flex flex-col relative transition-all">
+        <div class="flex space-x-3">
+            <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase text-sdel">H</div>
+            <div class="flex-1">
+                <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
+                <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
+                    <span id="composer-status" class="text-[10px] text-zinc-600 font-bold uppercase">Public Gist</span>
+                    <button onclick="publishPost()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase">Post</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main id="feed-container"></main>
+
+    <nav class="bottom-nav fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black border-t border-white/10 z-[100]">
+        <i data-lucide="home" class="text-white/60" size="28" onclick="location.href='dashboard.html'"></i>
+        <i data-lucide="compass" class="text-sdel" size="28" onclick="location.href='explore.html'"></i>
+        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 border-4 border-black" onclick="document.getElementById('post-input').focus()">
+            <i data-lucide="plus" class="text-black" stroke-width="3" size="28"></i>
+        </div>
+        <i data-lucide="shopping-cart" class="text-white/60" size="28" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-white/60" size="28" onclick="location.href='profile.html'"></i>
+    </nav>
+
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
 let userProfile = null;
 let currentMode = 'campus';
-let editingPostId = null; // Essential for Edit Surgery
+let securityViolationCount = 0;
 let pressTimer = null;
+let searchQuery = '';
+let editingPostId = null; 
 
-Object.assign(window, { publishPost, switchTab, handleLike, handleRepost, editGist, cancelEdit, closeActions, startPress, endPress });
+Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention, toggleSearch, handleSearch, startPress, endPress, editGist });
+
+function formatNum(num) {
+    if (!num) return 0;
+    if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+    if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+    if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+    return num;
+}
 
 async function init() {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return window.location.replace('login.html');
     const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
     userProfile = profile;
+    if (userProfile?.is_banned || userProfile?.banned) location.replace('banned.html');
     document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
     loadFeed();
 }
 
-function startPress(e, post) { pressTimer = setTimeout(() => showActionSheet(post), 800); }
+function toggleSearch() {
+    const container = document.getElementById('search-container');
+    const results = document.getElementById('search-results');
+    container.style.display = container.style.display === 'none' ? 'flex' : 'none';
+    if (container.style.display === 'flex') {
+        document.getElementById('search-input').focus();
+    } else {
+        searchQuery = '';
+        results.style.display = 'none';
+        loadFeed();
+    }
+    lucide.createIcons();
+}
+
+async function handleSearch(val) {
+    searchQuery = val.toLowerCase();
+    const resultsDiv = document.getElementById('search-results');
+    if (searchQuery.length > 1) {
+        const { data: users } = await supabase.from('profile').select('username').ilike('username', `%${searchQuery}%`).limit(5);
+        if (users?.length > 0) {
+            resultsDiv.innerHTML = users.map(u => `
+                <div class="p-4 border-b border-white/5 flex items-center justify-between cursor-pointer" onclick="location.href='profile.html?u=${u.username}'">
+                    <span class="text-xs font-black uppercase">@${u.username}</span>
+                    <i data-lucide="chevron-right" size="14" class="text-zinc-600"></i>
+                </div>`).join('');
+            resultsDiv.style.display = 'block';
+            lucide.createIcons();
+        } else { resultsDiv.style.display = 'none'; }
+    } else { resultsDiv.style.display = 'none'; }
+    loadFeed();
+}
+
+function startPress(e, post) { pressTimer = setTimeout(() => { showActionSheet(post); }, 800); }
 function endPress() { clearTimeout(pressTimer); }
 
 function showActionSheet(post) {
-    if (post.user_id !== userProfile.id) return;
     const sheet = document.getElementById('action-sheet');
     const options = document.getElementById('action-options');
-    options.innerHTML = `<button onclick="editGist('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
+    const isOwner = post.user_id === userProfile.id;
+    const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
+    
+    let html = '';
+    if (isOwner) {
+        html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
+        if (canEdit) html += `<button onclick="editGist('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
+    }
+    if (userProfile.is_official && !isOwner) {
+        html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
+    }
+    options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
     sheet.classList.add('open');
     lucide.createIcons();
 }
 
 function closeActions() { document.getElementById('action-sheet').classList.remove('open'); }
 
-// --- EDIT SURGERY ---
 function editGist(id, content) {
     editingPostId = id;
     const input = document.getElementById('post-input');
-    const card = document.getElementById('composer-card');
     input.value = content;
-    document.getElementById('composer-label').innerText = "Updating Gist...";
-    document.getElementById('publish-btn').innerText = "Update";
-    document.getElementById('cancel-btn').classList.remove('hidden');
-    card.classList.add('editing-glow');
+    document.getElementById('composer-status').innerText = "Editing Mode";
     input.focus();
     toggleActions(input);
+    showToast("Editing Gist...");
     closeActions();
 }
 
-function cancelEdit() {
-    editingPostId = null;
-    document.getElementById('post-input').value = '';
-    document.getElementById('composer-label').innerText = "New Gist";
-    document.getElementById('publish-btn').innerText = "Post Gist";
-    document.getElementById('cancel-btn').classList.add('hidden');
-    document.getElementById('composer-card').classList.remove('editing-glow');
-    toggleActions(document.getElementById('post-input'));
+async function burnGist(id) {
+    const { error } = await supabase.from('posts').delete().eq('id', id);
+    if (!error) { showToast("Gist Burned!"); loadFeed(); closeActions(); }
+}
+
+async function banUser(userId) {
+    await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userId);
+    showToast("User Banned!");
+    closeActions();
 }
 
 async function publishPost() {
-    const content = document.getElementById('post-input').value.trim();
-    if (!content) return;
+    const rawContent = document.getElementById('post-input').value.trim();
+    if (!rawContent) return;
+    
+    if (/<[^>]*>|javascript:|onerror|onload|eval|alert|document\.|window\.|fetch/i.test(rawContent)) {
+        document.getElementById('post-input').value = '';
+        securityViolationCount++;
+        if (securityViolationCount >= 3) {
+            await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userProfile.id);
+            location.replace('banned.html');
+        } else { document.getElementById('security-modal').style.display = 'flex'; }
+        return;
+    }
 
     if (editingPostId) {
-        // UPDATE EXISTING POST
-        const { error } = await supabase.from('posts').update({ content }).eq('id', editingPostId);
-        if (!error) { showToast("Gist Updated!"); cancelEdit(); }
+        const { error } = await supabase.from('posts').update({ content: rawContent }).eq('id', editingPostId);
+        if (!error) { showToast("Gist Updated!"); editingPostId = null; document.getElementById('composer-status').innerText = "Public Gist"; }
     } else {
-        // NEW POST
-        const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content, school_name: userProfile.school_name || 'Global' });
-        if (!error) { showToast("Gist Published!"); cancelEdit(); }
+        const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: rawContent, school_name: userProfile.school_name || 'Global' });
+        if (!error) showToast("Gist Published!");
     }
+    
+    document.getElementById('post-input').value = '';
+    toggleActions(document.getElementById('post-input'));
     loadFeed();
 }
 
-// --- ANTI-LOOP REPOST SURGERY ---
-async function handleRepost(originalId, content, author) {
-    const repostCheck = `Reposted from @${author}:`;
-    
-    // Prevent reposting a repost of yourself (Chaos control)
-    if (content.includes(repostCheck) && author === userProfile.username) {
-        showToast("Chaos prevented, homie!");
-        return;
-    }
+function escapeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
 
-    // Prevent double reposting the same content
-    const { data: existing } = await supabase.from('posts').select('id').eq('user_id', userProfile.id).ilike('content', `%${content}%`).maybeSingle();
-    if (existing) {
-        showToast("Already in your gists!");
-        return;
+function formatContent(text, postId) {
+    let safe = escapeHTML(text);
+    if (safe.length > 280) {
+        safe = `<span id="short-${postId}">${safe.substring(0, 250)}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
     }
-
-    const { error } = await supabase.from('posts').insert({ 
-        user_id: userProfile.id, 
-        content: `${repostCheck} ${content}`, 
-        school_name: userProfile.school_name || 'Global' 
+    safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold cursor-pointer" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
+    const urlRegex = /(https?:\/\/[^\s<]+)/gi;
+    safe = safe.replace(urlRegex, (url) => {
+        return `<span class="aether-link" onclick="event.stopPropagation(); safeRedirect('${url.replace(/'/g, "\\'")}')"><i data-lucide="external-link" size="10"></i> LINK</span>`;
     });
-
-    if (!error) { 
-        await supabase.rpc('increment_stat', { post_id: originalId, field: 'reposts_count' });
-        showToast("Reposted!"); 
-        loadFeed(); 
-    }
+    return safe;
 }
 
 async function loadFeed() {
     const container = document.getElementById('feed-container');
-    let query = supabase.from('posts').select('*, profile:user_id(username)').order('created_at', { ascending: false });
+    let query = supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').order('created_at', { ascending: false }).limit(40);
     if (currentMode === 'campus') query = query.eq('school_name', userProfile.school_name);
     const { data: posts } = await query;
+    const { data: myLikes } = await supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like');
 
-    container.innerHTML = (posts || []).map(post => {
+    let filteredPosts = posts || [];
+    if (searchQuery) {
+        filteredPosts = posts.filter(post => 
+            post.content.toLowerCase().includes(searchQuery) || 
+            post.profile?.username?.toLowerCase().includes(searchQuery)
+        );
+    }
+
+    container.innerHTML = filteredPosts.map(post => {
         const username = post.profile?.username || 'homie';
+        const isLiked = myLikes?.some(l => l.post_id === post.id);
+        let badge = post.profile?.is_official ? `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : (post.profile?.is_verified ? `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : '');
+        
         return `
         <div class="post-card p-4" onmousedown="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" onmouseup="endPress()" ontouchstart="startPress(event, ${JSON.stringify(post).replace(/"/g, '&quot;')})" ontouchend="endPress()">
             <div class="flex space-x-3">
-                <div class="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center font-bold text-sdel text-xs border border-white/5 uppercase">${username[0]}</div>
+                <div onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
                 <div class="flex-1">
-                    <div class="flex items-center gap-1 mb-1">
-                        <span class="text-xs font-black uppercase">@${username}</span>
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <span onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="text-[14px] font-black uppercase tracking-tighter cursor-pointer">@${escapeHTML(username)}</span>
+                        ${badge}
+                        ${currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name || '')}</span>` : ''}
                     </div>
-                    <div class="text-sm text-zinc-200 leading-relaxed">${post.content}</div>
-                    <div class="flex items-center justify-between mt-4 text-zinc-500">
-                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-1.5"><i data-lucide="heart" size="16"></i><span class="text-[10px] font-bold">${post.likes_count || 0}</span></button>
-                        <button onclick="handleRepost('${post.id}', \`${post.content}\`, '${username}')" class="flex items-center gap-1.5"><i data-lucide="repeat" size="16"></i><span class="text-[10px] font-bold">${post.reposts_count || 0}</span></button>
-                        <i data-lucide="upload" size="16"></i>
+                    <div class="text-[14px] text-zinc-200 leading-snug break-words mb-3">${formatContent(post.content, post.id)}</div>
+                    <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
+                        <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
+                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
+                        <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" class="flex items-center gap-2"><i data-lucide="repeat" size="18"></i><span class="text-xs font-bold">${formatNum(post.reposts_count)}</span></button>
+                        <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)"><i data-lucide="upload" size="18"></i></button>
                     </div>
                 </div>
             </div>
@@ -241,17 +359,57 @@ async function loadFeed() {
     lucide.createIcons();
 }
 
+async function handleLike(postId) {
+    const { data: existing } = await supabase.from('interactions').select('*').eq('user_id', userProfile.id).eq('post_id', postId).eq('interaction_type', 'like').single();
+    if (existing) {
+        await supabase.from('interactions').delete().eq('id', existing.id);
+        await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
+    } else {
+        await supabase.from('interactions').insert({ user_id: userProfile.id, post_id: postId, interaction_type: 'like' });
+        await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
+    }
+    loadFeed();
+}
+
+async function handleRepost(originalPostId, originalContent, originalAuthor) {
+    const repostMarker = `Reposted from @${originalAuthor}:`;
+    if (originalContent.includes(repostMarker) && originalAuthor === userProfile.username) {
+        showToast("Chaos prevented, homie!");
+        return;
+    }
+    const { data: existing } = await supabase.from('posts').select('id').eq('user_id', userProfile.id).ilike('content', `%${repostMarker}%${originalContent}%`).maybeSingle();
+    if (existing) { showToast("Already reposted!"); return; }
+
+    const { error } = await supabase.from('posts').insert({ user_id: userProfile.id, content: `${repostMarker} ${originalContent}`, school_name: userProfile.school_name || 'Global' });
+    if (!error) { await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); showToast("Reposted!"); loadFeed(); }
+}
+
+async function handleShare(postId, content) {
+    const url = `${window.location.origin}/gist.html?id=${postId}`;
+    if (navigator.share) navigator.share({ title: 'Sdel', text: content, url });
+    else { navigator.clipboard.writeText(url); showToast("Link copied!"); }
+}
+
+function safeRedirect(url) { 
+    document.getElementById('raw-link-display').innerText = url; 
+    document.getElementById('redirect-modal').style.display = 'flex'; 
+    document.getElementById('confirm-redirect-btn').onclick = () => { window.open(url, '_blank'); closeRedirect(); }; 
+}
+
+function closeRedirect() { document.getElementById('redirect-modal').style.display = 'none'; }
+function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
+
 function toggleActions(el) { 
-    el.style.height = 'auto'; 
-    el.style.height = el.scrollHeight + 'px';
+    const card = document.getElementById('composer-card');
+    el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px';
+    card.classList.toggle('composer-expanded', el.value.length > 50);
     document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
 }
 
-function switchTab(mode) { currentMode = mode; document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe'); loadFeed(); }
+function toggleReadMore(id) { document.getElementById(`short-${id}`).classList.add('hidden'); document.getElementById(`full-${id}`).classList.remove('hidden'); }
 function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
 
 init();
 </script>
 </body>
-    </html>
-    
+</html>
