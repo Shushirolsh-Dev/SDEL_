@@ -492,25 +492,33 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
-// FIXED: formatContent with better link detection and orange color (no underline)
+// FIXED: formatContent with proper mention handling and internal redirects
 function formatContent(text, postId) {
-    let safe = escapeHTML(text);
+    // Don't escape the entire text first - this was causing double-escaping
+    let safe = text;
+    
+    // First, escape any HTML that might be in the text (but preserve our later additions)
+    safe = escapeHTML(safe);
+    
     if (safe.length > 280) {
-        safe = `<span id="short-${postId}">${escapeHTML(safe.substring(0, 250))}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${escapeHTML(safe)}</span>`;
+        safe = `<span id="short-${postId}">${safe.substring(0, 250)}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
     }
     
-    // FIXED: First handle "Reposted from @username" pattern to make it clickable without showing the redirect code
-    safe = safe.replace(/Reposted from @(\w+)/g, 'Reposted from <span class="text-sdel font-bold cursor-pointer" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
+    // FIXED: Handle "Reposted from @username" pattern - use a temporary marker to avoid double-processing
+    safe = safe.replace(/Reposted from @(\w+)/g, 'REPOST_MARKER_$1');
     
-    // Then handle regular mentions
+    // Handle regular mentions - these become clickable spans
     safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold cursor-pointer" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
     
-    // IMPROVED: Better URL regex to catch more link formats
+    // Replace the repost markers with the proper HTML
+    safe = safe.replace(/REPOST_MARKER_(\w+)/g, 'Reposted from <span class="text-sdel font-bold cursor-pointer" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
+    
+    // IMPROVED: URL regex to catch more link formats
     const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     
     safe = safe.replace(urlRegex, (url) => {
-        // Skip if it's already part of a mention or repost span
-        if (url.startsWith('@')) return url;
+        // Skip if it's already part of a span (check if it's inside an HTML tag)
+        if (url.includes('">') || url.includes('&quot;')) return url;
         
         // Make sure URL has protocol for opening
         let fullUrl = url;
@@ -520,11 +528,21 @@ function formatContent(text, postId) {
         const escapedUrl = escapeHTML(fullUrl);
         const displayUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
         
-        // FIXED: Trusted domains - direct redirect
+        // FIXED: Check for internal site links - redirect immediately without modal
+        if (fullUrl.includes('profile.html') || 
+            fullUrl.includes('messages.html') || 
+            fullUrl.includes('homies.html') || 
+            fullUrl.includes('gist.html') || 
+            fullUrl.includes('dashboard.html') || 
+            fullUrl.includes('market.html') || 
+            fullUrl.includes('explore.html')) {
+            return `<span class="inline-link" onclick="location.href='${escapedUrl.replace(/'/g, "\\'")}'">${displayUrl}</span>`;
+        }
+        
+        // Trusted external domains - direct redirect
         if (fullUrl.includes('tiktok.com') || 
             fullUrl.includes('whatsapp.com') || 
             fullUrl.includes('wa.me') || 
-            fullUrl.includes('homies.html') ||
             fullUrl.includes('thesdel.com')) {
             return `<span class="inline-link" onclick="window.open('${escapedUrl.replace(/'/g, "\\'")}', '_blank')">${displayUrl}</span>`;
         }
@@ -638,7 +656,20 @@ async function handleShare(postId, content) {
     else { navigator.clipboard.writeText(url); showToast("Link copied!"); }
 }
 
+// FIXED: safeRedirect to handle internal links properly
 function safeRedirect(url) { 
+    // If it's an internal site link, redirect immediately
+    if (url.includes('profile.html') || 
+        url.includes('messages.html') || 
+        url.includes('homies.html') || 
+        url.includes('gist.html') || 
+        url.includes('dashboard.html') || 
+        url.includes('market.html') || 
+        url.includes('explore.html')) {
+        location.href = url;
+        return;
+    }
+    
     document.getElementById('raw-link-display').innerText = url; 
     document.getElementById('redirect-modal').style.display = 'flex'; 
     document.getElementById('confirm-redirect-btn').onclick = () => { window.open(url, '_blank'); closeRedirect(); }; 
