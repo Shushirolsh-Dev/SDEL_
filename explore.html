@@ -208,6 +208,7 @@ let pressTimer = null;
 let searchQuery = '';
 let currentEditPostId = null;
 let repostedPosts = new Set(); // Track reposted posts for UI
+let mentionTimeout = null; // For debouncing
 
 Object.assign(window, { publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, selectMention, toggleSearch, handleSearch, startPress, endPress, editGist, openPostModal, closePostModal, submitPostFromModal });
 
@@ -297,7 +298,7 @@ function toggleSearch() {
     lucide.createIcons();
 }
 
-// Press and Hold Logic (0.8s) - RESTORED
+// Press and Hold Logic (0.8s)
 function startPress(e, post) {
     pressTimer = setTimeout(() => { showActionSheet(post); }, 800);
 }
@@ -306,23 +307,40 @@ function endPress() {
     clearTimeout(pressTimer); 
 }
 
-// FIXED: Mention dropdown - shows max 5, lightning fast
+// FIXED: Mention dropdown - working version
 async function handleMentions(input) {
     const text = input.value;
     const cursor = input.selectionStart;
     const lastAt = text.lastIndexOf('@', cursor - 1);
     const mentionList = document.getElementById('mention-list');
 
-    if (lastAt !== -1 && !text.slice(lastAt, cursor).includes(' ')) {
-        const query = text.slice(lastAt + 1, cursor);
-        if (query.length > 0) {
+    // Clear previous timeout
+    if (mentionTimeout) clearTimeout(mentionTimeout);
+
+    // Hide if no @ or if there's a space after @
+    if (lastAt === -1 || text.slice(lastAt, cursor).includes(' ')) {
+        mentionList.style.display = 'none';
+        return;
+    }
+
+    const query = text.slice(lastAt + 1, cursor);
+    
+    // Don't search if query is empty
+    if (query.length === 0) {
+        mentionList.style.display = 'none';
+        return;
+    }
+
+    // Debounce search
+    mentionTimeout = setTimeout(async () => {
+        try {
             const { data: users } = await supabase
                 .from('profile')
                 .select('username, first_name, last_name')
                 .ilike('username', `${query}%`)
                 .limit(5);
                 
-            if (users?.length) {
+            if (users && users.length > 0) {
                 mentionList.innerHTML = users.map(u => {
                     const displayName = [u.first_name, u.last_name].filter(Boolean).join(' ');
                     return `<div class="mention-item" onclick="selectMention('${u.username}', ${lastAt}, ${cursor})">
@@ -330,22 +348,20 @@ async function handleMentions(input) {
                         ${displayName ? `<span class="text-[9px] text-zinc-400 block">${displayName}</span>` : ''}
                     </div>`;
                 }).join('');
-                mentionList.style.display = 'block';
                 
                 // Position the dropdown
                 const rect = input.getBoundingClientRect();
-                const textareaStyles = window.getComputedStyle(input);
-                const lineHeight = parseInt(textareaStyles.lineHeight) || 20;
-                const lines = text.substr(0, cursor).split('\n').length;
-                const topPosition = rect.top + window.scrollY + (lines * lineHeight) + 10;
-                
-                mentionList.style.top = topPosition + 'px';
+                mentionList.style.top = (rect.bottom + window.scrollY + 5) + 'px';
                 mentionList.style.left = rect.left + 'px';
-                return;
+                mentionList.style.display = 'block';
+            } else {
+                mentionList.style.display = 'none';
             }
+        } catch (error) {
+            console.error("Mention search error:", error);
+            mentionList.style.display = 'none';
         }
-    }
-    mentionList.style.display = 'none';
+    }, 300); // Wait 300ms after user stops typing
 }
 
 function selectMention(name, start, end) {
@@ -683,6 +699,7 @@ async function handleLike(postId) {
     }
     loadFeed();
 }
+
 // FIXED: handleRepost - matches your table columns
 async function handleRepost(originalPostId, originalAuthor, originalContent) {
     // Cannot repost own post
