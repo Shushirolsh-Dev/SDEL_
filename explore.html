@@ -378,11 +378,73 @@ function closePostModal() {
     currentEditPostId = null;
 }
 
+// NEW: Harmful content patterns to block
+const harmfulPatterns = [
+    /porn/i, /xxx/i, /adult/i, /sex/i, /nude/i, /onlyfans/i, /fansly/i,
+    /gambling/i, /casino/i, /bet/i, /betting/i, /poker/i, /slot/i,
+    /crypto/i, /bitcoin/i, /eth/i, /investment/i, /forex/i,
+    /drug/i, /weed/i, /cannabis/i, /marijuana/i, /cocaine/i,
+    /hack/i, /cheat/i, /exploit/i, /crack/i, /keygen/i,
+    /violence/i, /gore/i, /kill/i, /death/i,
+    /pharmacy/i, /viagra/i, /cialis/i, /prescription/i
+];
+
+// NEW: Scan content for harmful links
+function scanContentForHarmfulLinks(content) {
+    const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
+    const urls = content.match(urlRegex) || [];
+    
+    // Check max links (5)
+    if (urls.length > 5) {
+        return { safe: false, reason: "Too many links (max 5)" };
+    }
+    
+    // Check each URL for harmful content
+    for (const url of urls) {
+        const lowerUrl = url.toLowerCase();
+        for (const pattern of harmfulPatterns) {
+            if (pattern.test(lowerUrl)) {
+                return { safe: false, reason: "Harmful content detected", url };
+            }
+        }
+    }
+    
+    return { safe: true };
+}
+
+// NEW: Clean content by removing harmful links
+function cleanHarmfulContent(content) {
+    const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
+    
+    return content.replace(urlRegex, (url) => {
+        const lowerUrl = url.toLowerCase();
+        for (const pattern of harmfulPatterns) {
+            if (pattern.test(lowerUrl)) {
+                return "[Link Unavailable]";
+            }
+        }
+        return url;
+    });
+}
+
 async function submitPostFromModal() {
-    const content = document.getElementById('modal-post-input').value.trim();
+    let content = document.getElementById('modal-post-input').value.trim();
     if (!content) return;
     
-    // Security check
+    // NEW: Scan for harmful content
+    const scanResult = scanContentForHarmfulLinks(content);
+    if (!scanResult.safe) {
+        if (scanResult.reason === "Too many links (max 5)") {
+            showToast("Maximum 5 links allowed per post!");
+            return;
+        } else {
+            // Clean the content by removing harmful links
+            content = cleanHarmfulContent(content);
+            showToast("Some links were removed for safety");
+        }
+    }
+    
+    // Security check for scripts
     if (/<[^>]*>|javascript:|onerror|onload|eval|alert|document\.|window\.|fetch|XMLHttpRequest|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeypress|onkeyup/i.test(content)) {
         document.getElementById('modal-post-input').value = '';
         securityViolationCount++;
@@ -437,13 +499,19 @@ function formatContent(text, postId) {
         safe = `<span id="short-${postId}">${escapeHTML(safe.substring(0, 250))}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${escapeHTML(safe)}</span>`;
     }
     
-    // FIXED: Mentions - direct redirect to profile (NO ALERT)
+    // FIXED: First handle "Reposted from @username" pattern to make it clickable without showing the redirect code
+    safe = safe.replace(/Reposted from @(\w+)/g, 'Reposted from <span class="text-sdel font-bold cursor-pointer" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
+    
+    // Then handle regular mentions
     safe = safe.replace(/@(\w+)/g, '<span class="text-sdel font-bold cursor-pointer" onclick="location.href=\'profile.html?u=$1\'">@$1</span>');
     
     // IMPROVED: Better URL regex to catch more link formats
     const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     
     safe = safe.replace(urlRegex, (url) => {
+        // Skip if it's already part of a mention or repost span
+        if (url.startsWith('@')) return url;
+        
         // Make sure URL has protocol for opening
         let fullUrl = url;
         if (!fullUrl.startsWith('http')) {
@@ -452,7 +520,7 @@ function formatContent(text, postId) {
         const escapedUrl = escapeHTML(fullUrl);
         const displayUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
         
-        // FIXED: Trusted domains (tiktok, whatsapp, wa.me, thesdel.com) - direct redirect
+        // FIXED: Trusted domains - direct redirect
         if (fullUrl.includes('tiktok.com') || 
             fullUrl.includes('whatsapp.com') || 
             fullUrl.includes('wa.me') || 
@@ -486,7 +554,7 @@ async function loadFeed() {
     container.innerHTML = filteredPosts.map(post => {
         const username = post.profile?.username || 'homie';
         const isLiked = myLikes?.some(l => l.post_id === post.id);
-        const hasReposted = repostedPosts.has(post.id); // Check if user already reposted this
+        const hasReposted = repostedPosts.has(post.id);
         
         let badge = post.profile?.is_official ? `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : (post.profile?.is_verified ? `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>` : '');
         
@@ -504,7 +572,6 @@ async function loadFeed() {
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
                         <button onclick="handleLike('${post.id}')" class="flex items-center gap-2 ${isLiked ? 'text-sdel' : ''}"><i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}"></i><span class="text-xs font-bold">${formatNum(post.likes_count)}</span></button>
                         <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count)}</span></button>
-                        <!-- FIXED: Disable repost button if already reposted -->
                         <button onclick="handleRepost('${post.id}', \`${escapeHTML(post.content)}\`, '${escapeHTML(username)}')" 
                                 class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}" 
                                 ${hasReposted ? 'disabled' : ''}>
@@ -532,15 +599,13 @@ async function handleLike(postId) {
     loadFeed();
 }
 
-// FIXED: Repost with prevention for both original and reposted posts
+// FIXED: Repost with prevention
 async function handleRepost(originalPostId, originalContent, originalAuthor) {
-    // Check if already reposted
     if (repostedPosts.has(originalPostId)) {
         showToast("Already Reposted!");
         return;
     }
 
-    // Check if this post is itself a repost (contains "Reposted from")
     if (originalContent.includes('Reposted from @')) {
         showToast("Cannot repost a repost!");
         return;
@@ -553,14 +618,12 @@ async function handleRepost(originalPostId, originalContent, originalAuthor) {
     });
     
     if (!error) { 
-        // Record the repost
         await supabase.from('interactions').insert({ 
             user_id: userProfile.id, 
             post_id: originalPostId, 
             interaction_type: 'repost' 
         });
         
-        // Update local set
         repostedPosts.add(originalPostId);
         
         await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); 
