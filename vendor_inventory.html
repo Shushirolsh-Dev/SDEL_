@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') document.documentElement.classList.add('sunlight-mode');
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --bg: #000; --surface: #0a0a0a; --card: #121212; --border: rgba(255,255,255,0.08); --text: #fff; --dim: #71717a; }
+        .sunlight-mode { --bg: #fff; --surface: #f4f4f5; --card: #ffffff; --border: #e4e4e7; --text: #09090b; --dim: #71717a; }
+        
+        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; transition: 0.3s; }
+        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 2rem; }
+        .text-sdel { color: #FF6600; }
+        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 1.5rem; padding: 1.5rem; }
+        
+        * { font-style: normal !important; }
+    </style>
+</head>
+<body class="p-6">
+
+    <nav class="flex items-center justify-between mb-8">
+        <button onclick="window.location.href='vendor_dashboard.html'" class="p-3 bg-zinc-900/10 rounded-2xl border border-[var(--border)]">
+            <i data-lucide="arrow-left" size="20"></i>
+        </button>
+        <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">ANALYTICS</h1>
+        <div class="w-10"></div>
+    </nav>
+
+    <!-- Date Range -->
+    <div class="glass-card p-4 mb-6 flex justify-between items-center">
+        <span class="text-xs font-black">Last 30 Days</span>
+        <i data-lucide="calendar" size="16" class="text-[var(--dim)]"></i>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="stat-card">
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Revenue</p>
+            <p class="text-2xl font-black" id="totalRevenue">₦0</p>
+            <p class="text-[10px] text-green-500 font-bold mt-1">↑ 12.5%</p>
+        </div>
+        <div class="stat-card">
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Orders</p>
+            <p class="text-2xl font-black" id="totalOrderCount">0</p>
+            <p class="text-[10px] text-green-500 font-bold mt-1">↑ 8.3%</p>
+        </div>
+        <div class="stat-card">
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Conversion</p>
+            <p class="text-2xl font-black" id="conversionRate">3.2%</p>
+            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Avg. order value</p>
+        </div>
+        <div class="stat-card">
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Visitors</p>
+            <p class="text-2xl font-black" id="visitors">1,234</p>
+            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Last 30 days</p>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="glass-card p-6 mb-6">
+        <h2 class="font-black text-xs uppercase tracking-wider mb-4">Revenue Trend</h2>
+        <canvas id="revenueChart" style="height: 200px; width: 100%;"></canvas>
+    </div>
+
+    <!-- Product Performance -->
+    <div class="glass-card p-6">
+        <h2 class="font-black text-xs uppercase tracking-wider mb-4">Product Performance</h2>
+        <div class="space-y-3" id="productPerformance">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let myChart;
+        
+        async function loadAnalytics() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            const { data: vendor } = await supabase.from('vendors').select('*').eq('user_id', session.user.id).single();
+            
+            if (!vendor || vendor.status !== 'verified') {
+                window.location.href = 'merchant_hub.html';
+                return;
+            }
+
+            // Mock analytics data
+            document.getElementById('totalRevenue').innerText = '₦' + (Math.random() * 500000).toFixed(0);
+            document.getElementById('totalOrderCount').innerText = Math.floor(Math.random() * 200);
+            
+            // Generate mock product performance
+            const products = [
+                { name: 'Product A', sales: 45, revenue: 450000 },
+                { name: 'Product B', sales: 32, revenue: 224000 },
+                { name: 'Product C', sales: 28, revenue: 196000 },
+                { name: 'Product D', sales: 15, revenue: 105000 }
+            ];
+
+            const perfList = document.getElementById('productPerformance');
+            perfList.innerHTML = products.map(p => `
+                <div class="flex items-center justify-between p-3 bg-zinc-900/20 rounded-xl">
+                    <div>
+                        <p class="font-black text-xs">${p.name}</p>
+                        <p class="text-[8px] text-[var(--dim)]">${p.sales} units sold</p>
+                    </div>
+                    <p class="font-black text-sdel text-sm">₦${p.revenue.toLocaleString()}</p>
+                </div>
+            `).join('');
+
+            // Initialize chart
+            initChart();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('revenueChart').getContext('2d');
+            
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    datasets: [{
+                        label: 'Revenue',
+                        data: [12000, 19000, 15000, 25000],
+                        borderColor: '#FF6600',
+                        backgroundColor: 'rgba(255,102,0,0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#71717a' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#71717a' }
+                        }
+                    }
+                }
+            });
+        }
+
+        loadAnalytics().then(() => lucide.createIcons());
+    </script>
+</body>
+</html>
