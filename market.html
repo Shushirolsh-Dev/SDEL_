@@ -104,6 +104,29 @@
             50% { opacity: 0.4; }
         }
 
+        /* Share button styling */
+        .share-btn {
+            background: rgba(255, 102, 0, 0.1);
+            border: 1px solid rgba(255, 102, 0, 0.3);
+            color: #FF6600;
+            width: 40px;
+            height: 40px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .share-btn:active {
+            background: #FF6600;
+            color: black;
+            transform: scale(0.9);
+        }
+        .sunlight-mode .share-btn {
+            background: rgba(255, 102, 0, 0.05);
+        }
+
         /* Nav should always be visible */
         nav, .fixed.bottom-0 {
             visibility: visible !important;
@@ -243,6 +266,52 @@
             window.renderProducts(allProducts);
         }
 
+        // NEW: Share product function
+        window.shareProduct = async (product) => {
+            const shareData = {
+                title: product.name,
+                text: `Check out ${product.name} on Sdel Market! ${product.description || ''}`,
+                url: `${window.location.origin}/product.html?id=${product.id}`
+            };
+            
+            if (navigator.share) {
+                try {
+                    await navigator.share(shareData);
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        navigator.clipboard.writeText(shareData.url);
+                        showToast("Link copied!");
+                    }
+                }
+            } else {
+                navigator.clipboard.writeText(shareData.url);
+                showToast("Link copied!");
+            }
+        };
+
+        // Toast function
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            if (!toast) {
+                const newToast = document.createElement('div');
+                newToast.id = 'toast';
+                newToast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:#FF6600;color:black;padding:12px 24px;border-radius:30px;font-weight:600;font-size:13px;box-shadow:0 10px 25px rgba(255,102,0,.3);transition:transform .3s;z-index:9999;';
+                newToast.innerText = msg;
+                document.body.appendChild(newToast);
+                setTimeout(() => {
+                    newToast.style.transform = 'translateX(-50%) translateY(0)';
+                }, 10);
+                setTimeout(() => {
+                    newToast.style.transform = 'translateX(-50%) translateY(-100px)';
+                    setTimeout(() => newToast.remove(), 300);
+                }, 2000);
+            } else {
+                toast.innerText = msg;
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            }
+        }
+
         window.renderProducts = (items) => {
             const list = document.getElementById('product-list');
             if (items.length === 0) {
@@ -257,6 +326,12 @@
                         <img src="${item.image_url}" class="object-cover h-full w-full" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Preview'">
                         <div class="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
                              <p class="text-[8px] text-sdel font-black uppercase tracking-widest">${item.category}</p>
+                        </div>
+                        <!-- NEW: Share button -->
+                        <div class="absolute top-3 right-3">
+                            <button onclick="shareProduct(${JSON.stringify(item).replace(/"/g, '&quot;')})" class="share-btn">
+                                <i data-lucide="share-2" size="16"></i>
+                            </button>
                         </div>
                     </div>
                     <div class="p-6 space-y-2">
@@ -282,13 +357,14 @@
                 </div>`;
             }).join('');
             lucide.createIcons();
-        }
+        };
 
         window.addToCart = async (id) => {
             userCart[id] = 1;
             window.renderProducts(allProducts); 
             await supabase.from('cart').insert([{ user_id: currentUserId, product_id: id, quantity: 1 }]);
             updateCartCountDisplay();
+            showToast("Added to cart!");
         };
 
         window.updateQty = async (id, change) => {
