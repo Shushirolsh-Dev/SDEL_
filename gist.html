@@ -1,6 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        // ANTI-FLICKER: Apply theme immediately from global setting
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') {
+                document.documentElement.classList.add('sunlight-mode');
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Sdel | Gist</title>
@@ -9,7 +18,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; overscroll-behavior-y: contain; }
+        body { background-color: #000; color: white; overscroll-behavior-y: contain; transition: background-color 0.3s; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
@@ -37,6 +46,26 @@
         .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 24px; padding: 24px; border: 1px solid #222; }
         #edit-textarea { background: #000; border: 1px solid #222; border-radius: 16px; width: 100%; color: white; padding: 15px; font-size: 14px; outline: none; margin: 15px 0; resize: none; }
         #edit-textarea:focus { border-color: #FF6600; }
+
+        /* Username links - no italics */
+        .username-link { color: #FF6600; font-weight: 800; cursor: pointer; text-decoration: none; text-transform: uppercase; letter-spacing: 0.02em; }
+        .username-link:hover { text-decoration: underline; }
+
+        /* Sunlight Mode Overrides */
+        .sunlight-mode body { background-color: #ffffff; color: #121212; }
+        .sunlight-mode nav { background-color: rgba(255,255,255,0.95) !important; border-color: #e4e4e7 !important; }
+        .sunlight-mode .fixed.bottom-0 { background-color: rgba(255, 255, 255, 0.9) !important; border-color: #e4e4e7 !important; }
+        .sunlight-mode #comment-input { background: #f4f4f5; border-color: #e4e4e7; color: #121212; }
+        .sunlight-mode .sheet-content { background: white; border-color: #eee; }
+        .sunlight-mode .modal-content { background: white; border-color: #eee; color: #121212; }
+        .sunlight-mode #edit-textarea { background: #f4f4f5; border-color: #e4e4e7; color: #121212; }
+        .sunlight-mode .text-zinc-300 { color: #27272a; }
+        .sunlight-mode .text-zinc-500 { color: #71717a; }
+        .sunlight-mode .text-zinc-600 { color: #52525b; }
+        .sunlight-mode .text-zinc-700 { color: #3f3f46; }
+        .sunlight-mode .bg-zinc-900 { background-color: #f4f4f5; }
+        .sunlight-mode .border-white\/5 { border-color: #e4e4e7; }
+        .sunlight-mode .border-white\/10 { border-color: #e4e4e7; }
     </style>
 </head>
 <body class="pb-24">
@@ -56,7 +85,7 @@
 
     <div id="edit-modal">
         <div class="modal-content">
-            <h3 class="font-black italic uppercase text-sdel italic tracking-tighter">Edit your gist</h3>
+            <h3 class="font-black uppercase text-sdel tracking-tighter">Edit your gist</h3>
             <textarea id="edit-textarea" rows="4"></textarea>
             <div class="flex gap-3">
                 <button onclick="closeEditModal()" class="flex-1 py-3 bg-zinc-900 rounded-xl font-bold uppercase text-xs">Abort</button>
@@ -68,7 +97,7 @@
     <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/5 pt-env(safe-area-inset-top)">
         <div class="px-4 py-4 flex items-center gap-4">
             <button onclick="history.back()" class="p-2 -ml-2"><i data-lucide="arrow-left"></i></button>
-            <h1 class="text-lg font-black italic tracking-tighter uppercase">The <span class="text-sdel">Gist</span></h1>
+            <h1 class="text-lg font-black uppercase tracking-tighter">The <span class="text-sdel">Gist</span></h1>
         </div>
     </nav>
 
@@ -132,7 +161,7 @@
             const container = document.getElementById('gist-thread');
             const { data: post, error } = await supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').eq('id', postId).single();
             if (error || !post) {
-                container.innerHTML = `<div class="text-center py-20 opacity-50 font-bold uppercase italic">Gist not found, homie.</div>`;
+                container.innerHTML = `<div class="text-center py-20 opacity-50 font-bold uppercase">Gist not found, homie.</div>`;
                 return;
             }
             const { data: comments } = await supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').eq('parent_id', postId).order('created_at', { ascending: true });
@@ -142,16 +171,16 @@
             let html = `
                 <div class="mb-4">
                     <div class="flex items-center gap-3 mb-4">
-                        <div class="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center font-black text-sdel border border-white/10 uppercase">${profile.username?.[0] || 'H'}</div>
+                        <div onclick="location.href='profile.html?u=${profile.username || ''}'" class="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center font-black text-sdel border border-white/10 uppercase cursor-pointer">${profile.username?.[0] || 'H'}</div>
                         <div>
                             <div class="flex items-center gap-1.5">
-                                <span class="font-black italic uppercase tracking-tighter">@${profile.username || 'homie'}</span>
+                                <span onclick="location.href='profile.html?u=${profile.username || ''}'" class="username-link">@${profile.username || 'homie'}</span>
                                 ${badge}
                             </div>
                             <span class="text-[10px] text-zinc-500 uppercase font-bold">${new Date(post.created_at).toLocaleString()}</span>
                         </div>
                     </div>
-                    <p class="text-lg text-zinc-100 font-medium leading-relaxed mb-6">${post.content}</p>
+                    <p class="text-lg text-zinc-100 font-medium leading-relaxed mb-6">${escapeHTML(post.content)}</p>
                     <div class="flex items-center gap-6 text-zinc-500 border-y border-white/5 py-4">
                         <div class="flex items-center gap-1.5"><span class="font-black text-white">${post.likes_count || 0}</span> <span class="text-[10px] uppercase font-bold">Likes</span></div>
                         <div class="flex items-center gap-1.5"><span class="font-black text-white">${post.comments_count || 0}</span> <span class="text-[10px] uppercase font-bold">Replies</span></div>
@@ -160,7 +189,7 @@
                 <div class="mt-4">
                     <h2 class="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-6">Replies</h2>
                     <div id="comments-list" class="flex flex-col gap-6">
-                        ${comments?.length ? comments.map(c => renderComment(c)).join('') : '<p class="text-center py-10 text-zinc-700 font-bold italic uppercase text-xs">No replies yet...</p>'}
+                        ${comments?.length ? comments.map(c => renderComment(c)).join('') : '<p class="text-center py-10 text-zinc-700 font-bold uppercase text-xs">No replies yet...</p>'}
                     </div>
                 </div>`;
             container.innerHTML = html;
@@ -171,13 +200,20 @@
             const profile = comment.profile || {};
             const badge = getBadgeHTML(profile.is_official, profile.is_verified);
             return `
-                <div class="comment-card" ontouchstart="startPress('${comment.id}', '${comment.user_id}', \`${comment.content}\`, '${comment.created_at}')" ontouchend="endPress()" onmousedown="startPress('${comment.id}', '${comment.user_id}', \`${comment.content}\`, '${comment.created_at}')" onmouseup="endPress()">
+                <div class="comment-card" ontouchstart="startPress('${comment.id}', '${comment.user_id}', \`${escapeHTML(comment.content)}\`, '${comment.created_at}')" ontouchend="endPress()" onmousedown="startPress('${comment.id}', '${comment.user_id}', \`${escapeHTML(comment.content)}\`, '${comment.created_at}')" onmouseup="endPress()">
                     <div class="flex items-center gap-2 mb-1">
-                        <span class="text-xs font-black italic uppercase tracking-tighter">@${profile.username || 'homie'}</span>
+                        <span onclick="location.href='profile.html?u=${profile.username || ''}'" class="username-link text-xs">@${profile.username || 'homie'}</span>
                         ${badge}
                     </div>
-                    <p class="text-sm text-zinc-300">${comment.content}</p>
+                    <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
                 </div>`;
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
         }
 
         window.openEditModal = (id, oldContent) => {
@@ -220,8 +256,19 @@
             const input = document.getElementById('comment-input');
             const content = input.value.trim();
             if (!content) return;
+            
+            // Basic security check
+            if (/<[^>]*>|javascript:|onerror|onload|eval/i.test(content)) {
+                showToast("Invalid input");
+                return;
+            }
+            
             const { error } = await supabase.from('posts').insert({
-                user_id: userProfile.id, content, parent_id: postId, post_type: 'comment', school_name: 'Gist' 
+                user_id: userProfile.id, 
+                content, 
+                parent_id: postId, 
+                post_type: 'comment', 
+                school_name: 'Gist' 
             });
             if (!error) {
                 await supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' });
