@@ -134,8 +134,8 @@
         <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 border-4 border-[var(--bg)] shadow-xl" onclick="location.href='explore.html'">
             <i data-lucide="plus" class="text-black" stroke-width="3"></i>
         </div>
-        <i data-lucide="shopping-cart" class="opacity-50"></i>
-        <i data-lucide="user" class="text-sdel"></i>
+        <i data-lucide="shopping-cart" class="opacity-50" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-sdel" onclick="location.href='profile.html'"></i>
     </nav>
 
 <script type="module">
@@ -213,7 +213,6 @@ function renderProfile() {
     document.getElementById('p-avatar').innerText = viewProfile.username[0].toUpperCase();
     document.getElementById('p-school').querySelector('span').innerText = viewProfile.school_name || 'Global Campus';
     
-    // UPDATED BADGE LOGIC
     if (viewProfile.is_official) {
         document.getElementById('p-badge').innerHTML = `<div class="bg-sdel rounded-full p-[2px] w-[18px] h-[18px] flex items-center justify-center border-2 border-[var(--bg)]"><i data-lucide="check" class="text-white" size="12" stroke-width="4"></i></div>`;
     } else if (viewProfile.is_verified) {
@@ -228,7 +227,7 @@ function renderProfile() {
 
     if (viewProfile.id === loggedInUser.id) {
         btn.innerText = "Share Profile";
-        btn.onclick = window.shareProfile;
+        btn.onclick = shareProfile;
         dmBtn.style.display = 'none';
     } else {
         btn.innerText = isFollowing ? "Unfollow" : "Follow";
@@ -308,10 +307,24 @@ function showToast(msg) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-window.shareProfile = () => {
-    navigator.clipboard.writeText(window.location.href);
-    showToast("Profile Link Copied!");
-};
+function shareProfile() {
+    const profileUrl = window.location.href;
+    const username = viewProfile?.username || 'Sdel User';
+    
+    if (navigator.share) {
+        navigator.share({
+            title: `${username} on Sdel`,
+            text: `Check out ${username}'s profile on Sdel!`,
+            url: profileUrl
+        }).catch(() => {
+            navigator.clipboard.writeText(profileUrl);
+            showToast("Profile Link Copied!");
+        });
+    } else {
+        navigator.clipboard.writeText(profileUrl);
+        showToast("Profile Link Copied!");
+    }
+}
 
 init();
 </script>
