@@ -138,11 +138,15 @@
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        
+        // Initialize Supabase client
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
+        // Get checkout items from localStorage
         let checkoutItems = JSON.parse(localStorage.getItem('checkout_items')) || [];
         let selectedMethod = 'pod';
 
+        // Modal functions
         window.showAlert = (title, desc, type = 'error', orderCode = null) => {
             const modal = document.getElementById('custom-modal');
             const icon = document.getElementById('modal-icon');
@@ -170,13 +174,27 @@
             document.getElementById('custom-modal').style.display = 'none';
         };
 
-        function init() {
-            if(checkoutItems.length === 0) window.location.href = 'market.html';
+        // Initialize page
+        async function init() {
+            if(checkoutItems.length === 0) {
+                window.location.href = 'market.html';
+                return;
+            }
+            
+            // Check if user is authenticated
+            const { data: { user }, error } = await supabase.auth.getUser();
+            if (error || !user) {
+                showAlert("Authentication Required", "Please log in to continue with checkout");
+                setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+                return;
+            }
+            
             renderSummary();
             createStars();
             lucide.createIcons();
         }
 
+        // Render order summary
         function renderSummary() {
             const container = document.getElementById('summary-items');
             let total = 0;
@@ -196,69 +214,109 @@
             document.getElementById('final-total').innerText = `₦${total.toLocaleString()}`;
         }
 
+        // Set payment method
         window.setMethod = (m) => {
-            if(m === 'wallet') return; 
+            if(m === 'wallet') return; // Disable wallet for now
             selectedMethod = m;
             document.querySelectorAll('.method-card').forEach(c => c.classList.remove('active'));
             document.getElementById(`method-${m}`).classList.add('active');
         };
 
+        // Confirm order function
         window.confirmOrder = async () => {
             const btn = document.getElementById('pay-btn');
-            const name = document.getElementById('cust-name').value;
-            const phone = document.getElementById('cust-phone').value;
+            const name = document.getElementById('cust-name').value.trim();
+            const phone = document.getElementById('cust-phone').value.trim();
+            const address = document.getElementById('cust-address').value.trim();
+            const room = document.getElementById('cust-room').value.trim();
             
-            if(!name || phone.length !== 10) { 
-                showAlert("Missing Info", "Enter your full name and exactly 10-digits for your phone number."); 
+            // Validate inputs
+            if(!name) { 
+                showAlert("Missing Info", "Please enter your full name"); 
+                return; 
+            }
+            
+            if(phone.length !== 10) { 
+                showAlert("Missing Info", "Please enter a valid 10-digit phone number"); 
+                return; 
+            }
+            
+            if(!address) { 
+                showAlert("Missing Info", "Please enter your delivery address"); 
                 return; 
             }
 
             btn.disabled = true;
             btn.innerText = "Processing Order...";
 
-            const orderItems = checkoutItems.map(item => ({
-                id: item.products.id,
-                name: item.products.name,
-                price: item.products.price,
-                quantity: item.quantity
-            }));
-
             try {
-                const { data, error } = await supabase.from('orders').insert([{
-                    user_id: checkoutItems[0].user_id,
-                    total_amount: checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0),
-                    delivery_fee: 0,
-                    items: orderItems,
-                    status: 'pending',
-                    payment_method: selectedMethod,
-                    delivery_info: {
-                        name, 
-                        phone: "+234" + phone,
-                        address: document.getElementById('cust-address').value,
-                        room: document.getElementById('cust-room').value
-                    }
-                }]).select('order_code'); 
+                // Get the current authenticated user
+                const { data: { user }, error: userError } = await supabase.auth.getUser();
+                
+                if (userError || !user) {
+                    throw new Error("Please log in to place an order");
+                }
+
+                // Prepare order items
+                const orderItems = checkoutItems.map(item => ({
+                    id: item.products.id,
+                    name: item.products.name,
+                    price: item.products.price,
+                    quantity: item.quantity
+                }));
+
+                // Calculate total
+                const totalAmount = checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0);
+
+                // Insert order
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([{
+                        user_id: user.id,  // Use the authenticated user's ID
+                        total_amount: totalAmount,
+                        delivery_fee: 0,
+                        items: orderItems,
+                        status: 'pending',
+                        payment_method: selectedMethod,
+                        item_name: orderItems[0]?.name || 'Order',
+                        delivery_info: {
+                            name, 
+                            phone: "+234" + phone,
+                            address: address,
+                            room: room || 'Not specified'
+                        }
+                    }])
+                    .select('order_code'); 
 
                 if(error) throw error;
 
-                const idsToRemove = checkoutItems.map(i => i.id);
-                await supabase.from('cart').delete().in('id', idsToRemove);
+                // Clear cart items
+                const idsToRemove = checkoutItems.map(i => i.id).filter(id => id);
+                if(idsToRemove.length > 0) {
+                    await supabase.from('cart').delete().in('id', idsToRemove);
+                }
                 
+                // Clear localStorage
                 localStorage.removeItem('checkout_items');
                 
-                const generatedCode = data[0].order_code;
-                showAlert("Order Placed", "Your order is being processed!", "success", generatedCode);
+                // Show success message
+                const generatedCode = data[0]?.order_code || 'N/A';
+                showAlert("Order Placed!", "Your order has been confirmed", "success", generatedCode);
                 
-                setTimeout(() => { window.location.href = 'dashboard.html'; }, 4000);
+                // Redirect after delay
+                setTimeout(() => { 
+                    window.location.href = 'dashboard.html'; 
+                }, 4000);
 
             } catch (err) {
-                console.error(err);
-                showAlert("Order Failed", "DATABASE ERROR: " + err.message);
+                console.error('Order Error:', err);
+                showAlert("Order Failed", err.message || "Database error occurred");
                 btn.disabled = false;
                 btn.innerText = "Confirm Order";
             }
         };
 
+        // Create falling stars effect
         function createStars() {
             const container = document.getElementById('stars');
             for (let i = 0; i < 50; i++) {
@@ -272,6 +330,7 @@
             }
         }
 
+        // Start the app
         init();
     </script>
 </body>
