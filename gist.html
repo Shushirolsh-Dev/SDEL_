@@ -23,13 +23,16 @@
         .bg-sdel { background-color: #FF6600; }
         
         .comment-card { 
-            border-left: 2px solid rgba(255, 102, 0, 0.2); 
-            margin-left: 12px; 
-            padding-left: 16px; 
+            background: rgba(18, 18, 18, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 3px solid #FF6600;
+            border-radius: 16px;
+            padding: 16px;
             transition: all 0.2s; 
             user-select: none; 
             -webkit-user-select: none; 
         }
+        .comment-card:active { background: rgba(255, 102, 0, 0.05); }
 
         #comment-input { resize: none; background: #111; border: 1px solid #222; outline: none; width: 100%; color: white; font-size: 14px; border-radius: 20px; padding: 12px 18px; transition: border 0.3s; }
         #comment-input:focus { border-color: #FF6600; }
@@ -47,9 +50,25 @@
         #edit-textarea { background: #000; border: 1px solid #222; border-radius: 16px; width: 100%; color: white; padding: 15px; font-size: 14px; outline: none; margin: 15px 0; resize: none; }
         #edit-textarea:focus { border-color: #FF6600; }
 
-        /* Username links - no italics */
+        /* Username links - no underline on hover */
         .username-link { color: #FF6600; font-weight: 800; cursor: pointer; text-decoration: none; text-transform: uppercase; letter-spacing: 0.02em; }
-        .username-link:hover { text-decoration: underline; }
+        .username-link:hover { text-decoration: none; }
+
+        /* Original post container */
+        .original-post-container {
+            background: rgba(18, 18, 18, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        /* Comments section */
+        .comments-section {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
 
         /* Sunlight Mode Overrides */
         .sunlight-mode body { background-color: #ffffff; color: #121212; }
@@ -66,6 +85,19 @@
         .sunlight-mode .bg-zinc-900 { background-color: #f4f4f5; }
         .sunlight-mode .border-white\/5 { border-color: #e4e4e7; }
         .sunlight-mode .border-white\/10 { border-color: #e4e4e7; }
+        .sunlight-mode .original-post-container {
+            background: rgba(240, 240, 245, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        .sunlight-mode .original-post-container .text-zinc-100 { color: #121212; }
+        .sunlight-mode .original-post-container .text-white { color: #121212; }
+        .sunlight-mode .original-post-container .border-white\/5 { border-color: #e4e4e7; }
+        .sunlight-mode .comment-card {
+            background: rgba(240, 240, 245, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-left: 3px solid #FF6600;
+        }
+        .sunlight-mode .comment-card:active { background: rgba(255, 102, 0, 0.05); }
     </style>
 </head>
 <body class="pb-24">
@@ -116,12 +148,14 @@
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         const urlParams = new URLSearchParams(window.location.search);
         const postId = urlParams.get('id');
         let userProfile = null;
         let pressTimer;
+        let lastCommentTime = 0; // For rate limiting
 
         window.closeSheet = () => document.getElementById('action-sheet').style.display = 'none';
         window.closeEditModal = () => document.getElementById('edit-modal').style.display = 'none';
@@ -148,33 +182,175 @@
         };
         window.endPress = () => clearTimeout(pressTimer);
 
+        // OFFLINE PROFANITY FILTER - Completely free, no API calls
+        const badWords = [
+            // English swear words
+            'fuck', 'fucking', 'fucker', 'fucked', 'fuckin', 'fuk', 'fukin', 'fuker', 'fck', 'f**k',
+            'shit', 'shitting', 'shitter', 'shitted', 'shet', 'sh*t',
+            'bastard', 'basterd', 'b@stard', 'b*****d',
+            'bitch', 'bitching', 'bitchy', 'b*tch', 'biatch',
+            'ass', 'asses', 'arse', 'a**', 'asshole', 'ashole',
+            'cunt', 'c***', 'c**t',
+            'dick', 'dik', 'd1ck', 'd**k',
+            'pussy', 'p***y',
+            'whore', 'ho', 'hoe',
+            'slut', 'slutty',
+            'nigga', 'nigger', 'n*gga', 'n***a',
+            'retard', 'retarted',
+            'faggot', 'fag', 'f@g',
+            'motherfucker', 'mofo', 'mf',
+            'cock', 'c0ck', 'c**k',
+            'piss', 'pissed',
+            'twat', 'twaat',
+            'wanker', 'wank',
+            
+            // Variations with common substitutions
+            'fuk', 'phuck', 'phuk', 'fukk',
+            'shet', 'shyt', 'sh1t',
+            'b1tch', 'beeyatch',
+            'a55', '@ss',
+            
+            // Add more as needed
+        ];
+
+        function containsProfanity(text) {
+            if (!text) return false;
+            
+            // Convert to lowercase and normalize
+            let normalized = text.toLowerCase();
+            
+            // Remove common obfuscations
+            normalized = normalized.replace(/[0-9]/g, ''); // Remove numbers
+            normalized = normalized.replace(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g, ''); // Remove special chars
+            
+            // Split into words
+            const words = normalized.split(/\s+/);
+            
+            // Check each word against bad words list
+            for (const word of words) {
+                for (const badWord of badWords) {
+                    // Remove any remaining special characters from the word
+                    const cleanWord = word.replace(/[^a-z]/g, '');
+                    const cleanBadWord = badWord.replace(/[^a-z]/g, '');
+                    
+                    // Check if word contains bad word (for cases like "fucking")
+                    if (cleanWord.includes(cleanBadWord)) {
+                        return true;
+                    }
+                    
+                    // Check for exact matches
+                    if (cleanWord === cleanBadWord) {
+                        return true;
+                    }
+                    
+                    // Check for common leetspeak
+                    const leetWord = word.replace(/0/g, 'o').replace(/1/g, 'i').replace(/3/g, 'e').replace(/4/g, 'a').replace(/5/g, 's').replace(/7/g, 't');
+                    if (leetWord.includes(cleanBadWord)) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+
         async function init() {
             if (!postId) return window.location.replace('explore.html');
+            
+            if (!/^[a-zA-Z0-9-]+$/.test(postId)) {
+                return window.location.replace('explore.html');
+            }
+            
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) return window.location.replace('login.html');
+            
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             userProfile = profile;
             loadGist();
         }
 
+        const harmfulPatterns = [
+            /porn/i, /xxx/i, /adult/i, /sex/i, /nude/i, /onlyfans/i, /fansly/i, /nsfw/i, /18\+/i,
+            /gambling/i, /casino/i, /bet/i, /betting/i, /poker/i, /slot/i, /blackjack/i, /roulette/i,
+            /crypto/i, /bitcoin/i, /eth/i, /ethereum/i, /investment/i, /forex/i, /trading/i, /mining/i, /binary/i,
+            /drug/i, /weed/i, /cannabis/i, /marijuana/i, /cocaine/i, /heroin/i, /mdma/i, /lsd/i, /pharmacy/i,
+            /hack/i, /cheat/i, /exploit/i, /crack/i, /keygen/i, /warez/i, /torrent/i, /pirate/i,
+            /violence/i, /gore/i, /kill/i, /death/i, /murder/i, /terror/i, /bomb/i, /weapon/i,
+            /viagra/i, /cialis/i, /levitra/i, /xanax/i, /valium/i, /adderall/i, /oxycontin/i,
+            /free money/i, /work from home/i, /earn money/i, /get rich/i, /millionaire/i,
+            /verify your account/i, /confirm your details/i, /login here/i, /update payment/i
+        ];
+
+        function sanitizeInput(input) {
+            if (!input) return '';
+            
+            input = input.replace(/[\u200B-\u200D\uFEFF\u00A0\u2028\u2029]/g, '');
+            input = input.replace(/[\x00-\x1F\x7F]/g, '');
+            input = input.normalize('NFKC');
+            input = input.replace(/<[^>]*>/g, '');
+            input = input.replace(/(javascript|data|vbscript):/gi, 'blocked:');
+            input = input.replace(/on\w+\s*=/gi, 'blocked=');
+            input = input.trim().substring(0, 1000);
+            
+            return input;
+        }
+
+        function scanContent(content) {
+            const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
+            const urls = content.match(urlRegex) || [];
+            
+            if (urls.length > 2) {
+                return { safe: false, reason: "Too many links (max 2)" };
+            }
+            
+            const lowerContent = content.toLowerCase();
+            for (const pattern of harmfulPatterns) {
+                if (pattern.test(lowerContent)) {
+                    return { safe: false, reason: "Harmful content blocked" };
+                }
+            }
+            
+            for (const url of urls) {
+                const lowerUrl = url.toLowerCase();
+                for (const pattern of harmfulPatterns) {
+                    if (pattern.test(lowerUrl)) {
+                        return { safe: false, reason: "Harmful link blocked" };
+                    }
+                }
+            }
+            
+            return { safe: true };
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
         async function loadGist() {
             const container = document.getElementById('gist-thread');
+            
             const { data: post, error } = await supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').eq('id', postId).single();
+            
             if (error || !post) {
                 container.innerHTML = `<div class="text-center py-20 opacity-50 font-bold uppercase">Gist not found, homie.</div>`;
                 return;
             }
+            
             const { data: comments } = await supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').eq('parent_id', postId).order('created_at', { ascending: true });
+            
             const profile = post.profile || {};
             const badge = getBadgeHTML(profile.is_official, profile.is_verified);
 
             let html = `
-                <div class="mb-4">
+                <div class="original-post-container">
                     <div class="flex items-center gap-3 mb-4">
-                        <div onclick="location.href='profile.html?u=${profile.username || ''}'" class="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center font-black text-sdel border border-white/10 uppercase cursor-pointer">${profile.username?.[0] || 'H'}</div>
+                        <div onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center font-black text-sdel border border-white/10 uppercase cursor-pointer">${escapeHTML(profile.username?.[0] || 'H')}</div>
                         <div>
                             <div class="flex items-center gap-1.5">
-                                <span onclick="location.href='profile.html?u=${profile.username || ''}'" class="username-link">@${profile.username || 'homie'}</span>
+                                <span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link">@${escapeHTML(profile.username || 'homie')}</span>
                                 ${badge}
                             </div>
                             <span class="text-[10px] text-zinc-500 uppercase font-bold">${new Date(post.created_at).toLocaleString()}</span>
@@ -188,7 +364,7 @@
                 </div>
                 <div class="mt-4">
                     <h2 class="text-[10px] font-black uppercase text-zinc-600 tracking-widest mb-6">Replies</h2>
-                    <div id="comments-list" class="flex flex-col gap-6">
+                    <div class="comments-section">
                         ${comments?.length ? comments.map(c => renderComment(c)).join('') : '<p class="text-center py-10 text-zinc-700 font-bold uppercase text-xs">No replies yet...</p>'}
                     </div>
                 </div>`;
@@ -201,19 +377,13 @@
             const badge = getBadgeHTML(profile.is_official, profile.is_verified);
             return `
                 <div class="comment-card" ontouchstart="startPress('${comment.id}', '${comment.user_id}', \`${escapeHTML(comment.content)}\`, '${comment.created_at}')" ontouchend="endPress()" onmousedown="startPress('${comment.id}', '${comment.user_id}', \`${escapeHTML(comment.content)}\`, '${comment.created_at}')" onmouseup="endPress()">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span onclick="location.href='profile.html?u=${profile.username || ''}'" class="username-link text-xs">@${profile.username || 'homie'}</span>
+                    <div class="flex items-center gap-2 mb-2">
+                        <span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link text-xs">@${escapeHTML(profile.username || 'homie')}</span>
                         ${badge}
+                        <span class="text-[8px] text-zinc-500 uppercase font-bold ml-auto">${new Date(comment.created_at).toLocaleString()}</span>
                     </div>
                     <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
                 </div>`;
-        }
-
-        function escapeHTML(str) {
-            if (!str) return '';
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
         }
 
         window.openEditModal = (id, oldContent) => {
@@ -226,7 +396,23 @@
             modal.style.display = 'flex';
             
             saveBtn.onclick = async () => {
-                const newContent = textarea.value.trim();
+                let newContent = textarea.value.trim();
+                
+                newContent = sanitizeInput(newContent);
+                
+                // Check for profanity
+                if (containsProfanity(newContent)) {
+                    showToast("Please keep it clean!");
+                    return;
+                }
+                
+                const scanResult = scanContent(newContent);
+                
+                if (!scanResult.safe) {
+                    showToast(scanResult.reason);
+                    return;
+                }
+                
                 if (newContent && newContent !== oldContent) {
                     await supabase.from('posts').update({ content: newContent }).eq('id', id);
                     closeEditModal();
@@ -254,13 +440,37 @@
 
         window.postComment = async () => {
             const input = document.getElementById('comment-input');
-            const content = input.value.trim();
+            let content = input.value.trim();
             if (!content) return;
             
-            // Basic security check
-            if (/<[^>]*>|javascript:|onerror|onload|eval/i.test(content)) {
-                showToast("Invalid input");
+            const now = Date.now();
+            if (now - lastCommentTime < 5000) {
+                showToast("Slow down! Wait 5 seconds");
                 return;
+            }
+            
+            content = sanitizeInput(content);
+            
+            // NEW: Check for profanity
+            if (containsProfanity(content)) {
+                showToast("Please keep it clean!");
+                input.value = '';
+                return;
+            }
+            
+            const scanResult = scanContent(content);
+            if (!scanResult.safe) {
+                showToast(scanResult.reason);
+                input.value = '';
+                return;
+            }
+            
+            const sqlPatterns = [/--/, /;/, /\bunion\b/i, /\bselect\b/i, /\bdrop\b/i, /\binsert\b/i, /\bdelete\b/i, /\bupdate\b/i, /\bexec\b/i];
+            for (const pattern of sqlPatterns) {
+                if (pattern.test(content)) {
+                    showToast("Invalid input");
+                    return;
+                }
             }
             
             const { error } = await supabase.from('posts').insert({
@@ -270,7 +480,9 @@
                 post_type: 'comment', 
                 school_name: 'Gist' 
             });
+            
             if (!error) {
+                lastCommentTime = now;
                 await supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' });
                 input.value = '';
                 input.style.height = 'auto';
