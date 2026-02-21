@@ -24,6 +24,51 @@
         .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 1.5rem; padding: 1.5rem; }
         
         * { font-style: normal !important; }
+        
+        .loading-spinner {
+            border: 3px solid var(--border);
+            border-top: 3px solid #FF6600;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--card);
+            color: var(--text);
+            text-align: center;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="p-6">
@@ -36,109 +81,375 @@
         <div class="w-10"></div>
     </nav>
 
+    <!-- Platform Fee Notice -->
+    <div class="glass-card p-4 mb-6 bg-gradient-to-r from-[#FF6600]/10 to-transparent">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i data-lucide="percent" size="16" class="text-sdel"></i>
+                <span class="text-xs font-black">Platform Fee: <span id="platformFeePercentage">10</span>%</span>
+                <div class="tooltip">
+                    <i data-lucide="info" size="14" class="text-[var(--dim)]"></i>
+                    <span class="tooltiptext">This fee is deducted from your revenue before payout</span>
+                </div>
+            </div>
+            <button onclick="showFeeCalculator()" class="text-[10px] bg-sdel/20 text-sdel px-3 py-1 rounded-full font-black">Calculate My Earnings</button>
+        </div>
+    </div>
+
     <!-- Date Range -->
     <div class="glass-card p-4 mb-6 flex justify-between items-center">
-        <span class="text-xs font-black">Last 30 Days</span>
+        <span class="text-xs font-black" id="dateRange">Last 30 Days</span>
         <i data-lucide="calendar" size="16" class="text-[var(--dim)]"></i>
     </div>
 
     <!-- Key Metrics -->
     <div class="grid grid-cols-2 gap-3 mb-6">
         <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Revenue</p>
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Gross Revenue</p>
             <p class="text-2xl font-black" id="totalRevenue">₦0</p>
-            <p class="text-[10px] text-green-500 font-bold mt-1">↑ 12.5%</p>
+            <p class="text-[10px] text-green-500 font-bold mt-1" id="revenueChange">↑ 0%</p>
+        </div>
+        <div class="stat-card">
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Platform Fee</p>
+            <p class="text-2xl font-black text-sdel" id="platformFee">₦0</p>
+            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">10% of revenue</p>
+        </div>
+        <div class="stat-card">
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Your Earnings</p>
+            <p class="text-2xl font-black text-green-500" id="vendorEarnings">₦0</p>
+            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">After fees</p>
         </div>
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Orders</p>
             <p class="text-2xl font-black" id="totalOrderCount">0</p>
-            <p class="text-[10px] text-green-500 font-bold mt-1">↑ 8.3%</p>
+            <p class="text-[10px] text-green-500 font-bold mt-1" id="orderChange">↑ 0%</p>
         </div>
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Conversion</p>
-            <p class="text-2xl font-black" id="conversionRate">3.2%</p>
-            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Avg. order value</p>
+            <p class="text-2xl font-black" id="conversionRate">0%</p>
+            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Views: <span id="totalViews">0</span></p>
         </div>
         <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Visitors</p>
-            <p class="text-2xl font-black" id="visitors">1,234</p>
-            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Last 30 days</p>
+            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Avg. Order</p>
+            <p class="text-2xl font-black" id="avgOrderValue">₦0</p>
+            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Per transaction</p>
         </div>
     </div>
 
     <!-- Chart -->
     <div class="glass-card p-6 mb-6">
-        <h2 class="font-black text-xs uppercase tracking-wider mb-4">Revenue Trend</h2>
+        <h2 class="font-black text-xs uppercase tracking-wider mb-4">Revenue Trend (Last 30 Days)</h2>
         <canvas id="revenueChart" style="height: 200px; width: 100%;"></canvas>
     </div>
 
-    <!-- Product Performance -->
-    <div class="glass-card p-6">
+    <!-- Product Performance with Views -->
+    <div class="glass-card p-6 mb-6">
         <h2 class="font-black text-xs uppercase tracking-wider mb-4">Product Performance</h2>
         <div class="space-y-3" id="productPerformance">
-            <!-- Dynamically populated -->
+            <div class="text-center py-8 text-[var(--dim)]">
+                <div class="loading-spinner"></div>
+                <p class="text-sm mt-4">Loading analytics...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payout Calculator Modal (Hidden by default) -->
+    <div id="feeCalculatorModal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden" style="z-index: 1000;">
+        <div class="glass-card p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-black text-sm">Earnings Calculator</h3>
+                <button onclick="hideFeeCalculator()" class="p-2 hover:bg-zinc-800 rounded-full">
+                    <i data-lucide="x" size="16"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-[var(--dim)]">Platform Fee Percentage</label>
+                    <input type="number" id="feePercentage" value="10" min="0" max="100" class="w-full p-3 bg-zinc-900/20 rounded-xl border border-[var(--border)] mt-1">
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-black uppercase text-[var(--dim)]">Revenue (₦)</label>
+                    <input type="number" id="calculatorRevenue" class="w-full p-3 bg-zinc-900/20 rounded-xl border border-[var(--border)] mt-1">
+                </div>
+                
+                <div class="p-4 bg-zinc-900/20 rounded-xl">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-xs">Platform Fee:</span>
+                        <span class="font-black text-sdel" id="calculatedFee">₦0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-xs">Your Earnings:</span>
+                        <span class="font-black text-green-500" id="calculatedEarnings">₦0</span>
+                    </div>
+                </div>
+                
+                <button onclick="calculateEarnings()" class="w-full bg-sdel text-black font-black py-3 rounded-xl">
+                    Calculate
+                </button>
+            </div>
         </div>
     </div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         let myChart;
-        
+        let refreshInterval;
+        const PLATFORM_FEE_PERCENTAGE = 10; // 10% fee - you can change this
+
         async function loadAnalytics() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                window.location.href = 'login.html';
-                return;
-            }
-
-            const { data: vendor } = await supabase.from('vendors').select('*').eq('user_id', session.user.id).single();
-            
-            if (!vendor || vendor.status !== 'verified') {
-                window.location.href = 'merchant_hub.html';
-                return;
-            }
-
-            // Mock analytics data
-            document.getElementById('totalRevenue').innerText = '₦' + (Math.random() * 500000).toFixed(0);
-            document.getElementById('totalOrderCount').innerText = Math.floor(Math.random() * 200);
-            
-            // Generate mock product performance
-            const products = [
-                { name: 'Product A', sales: 45, revenue: 450000 },
-                { name: 'Product B', sales: 32, revenue: 224000 },
-                { name: 'Product C', sales: 28, revenue: 196000 },
-                { name: 'Product D', sales: 15, revenue: 105000 }
-            ];
-
-            const perfList = document.getElementById('productPerformance');
-            perfList.innerHTML = products.map(p => `
-                <div class="flex items-center justify-between p-3 bg-zinc-900/20 rounded-xl">
-                    <div>
-                        <p class="font-black text-xs">${p.name}</p>
-                        <p class="text-[8px] text-[var(--dim)]">${p.sales} units sold</p>
+            try {
+                // Show loading state
+                const perfList = document.getElementById('productPerformance');
+                perfList.innerHTML = `
+                    <div class="text-center py-8 text-[var(--dim)]">
+                        <div class="loading-spinner"></div>
+                        <p class="text-sm mt-4">Loading analytics...</p>
                     </div>
-                    <p class="font-black text-sdel text-sm">₦${p.revenue.toLocaleString()}</p>
-                </div>
-            `).join('');
+                `;
 
-            // Initialize chart
-            initChart();
+                // Get current logged in user
+                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+                
+                if (sessionError) throw sessionError;
+                
+                if (!session) {
+                    window.location.href = 'login.html';
+                    return;
+                }
+
+                // Get the vendor record for this user
+                const { data: vendor, error: vendorError } = await supabase
+                    .from('vendors')
+                    .select('id, business_name, status')
+                    .eq('user_id', session.user.id)
+                    .single();
+
+                if (vendorError || !vendor) {
+                    window.location.href = 'merchant_hub.html';
+                    return;
+                }
+
+                if (vendor.status !== 'verified') {
+                    window.location.href = 'merchant_hub.html';
+                    return;
+                }
+
+                // Calculate date range (last 30 days)
+                const endDate = new Date();
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - 30);
+                
+                // Previous period for comparison
+                const prevStartDate = new Date(startDate);
+                prevStartDate.setDate(prevStartDate.getDate() - 30);
+                const prevEndDate = new Date(startDate);
+
+                // Format dates
+                const startDateStr = startDate.toISOString();
+                const endDateStr = endDate.toISOString();
+
+                // Fetch CURRENT period orders (accepted only)
+                const { data: orders, error: ordersError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('vendor_id', vendor.id)
+                    .eq('status', 'accepted')
+                    .gte('created_at', startDateStr)
+                    .lte('created_at', endDateStr);
+
+                if (ordersError) throw ordersError;
+
+                // Fetch PREVIOUS period orders for comparison
+                const { data: prevOrders } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('vendor_id', vendor.id)
+                    .eq('status', 'accepted')
+                    .gte('created_at', prevStartDate.toISOString())
+                    .lt('created_at', prevEndDate.toISOString());
+
+                // Fetch product views for this vendor
+                const { data: views, error: viewsError } = await supabase
+                    .from('product_views')
+                    .select('*')
+                    .eq('vendor_id', vendor.id)
+                    .gte('viewed_at', startDateStr)
+                    .lte('viewed_at', endDateStr);
+
+                if (viewsError) {
+                    console.log('Views table might not exist yet:', viewsError);
+                }
+
+                // Calculate metrics
+                const totalRevenue = orders?.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0) || 0;
+                const totalOrders = orders?.length || 0;
+                const totalViews = views?.length || 0;
+                
+                // Calculate platform fee and vendor earnings
+                const platformFee = (totalRevenue * PLATFORM_FEE_PERCENTAGE) / 100;
+                const vendorEarnings = totalRevenue - platformFee;
+                
+                const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+                const conversionRate = totalViews > 0 ? ((totalOrders / totalViews) * 100).toFixed(1) : '0.0';
+
+                // Previous period metrics
+                const prevRevenue = prevOrders?.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0) || 0;
+                const prevOrdersCount = prevOrders?.length || 0;
+
+                // Calculate changes
+                const revenueChange = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue * 100).toFixed(1) : 0;
+                const orderChange = prevOrdersCount > 0 ? ((totalOrders - prevOrdersCount) / prevOrdersCount * 100).toFixed(1) : 0;
+
+                // Update UI
+                document.getElementById('totalRevenue').innerText = '₦' + totalRevenue.toLocaleString();
+                document.getElementById('platformFee').innerText = '₦' + platformFee.toLocaleString();
+                document.getElementById('vendorEarnings').innerText = '₦' + vendorEarnings.toLocaleString();
+                document.getElementById('totalOrderCount').innerText = totalOrders;
+                document.getElementById('conversionRate').innerText = conversionRate + '%';
+                document.getElementById('totalViews').innerText = totalViews.toLocaleString();
+                document.getElementById('avgOrderValue').innerText = '₦' + avgOrderValue.toLocaleString();
+                document.getElementById('platformFeePercentage').innerText = PLATFORM_FEE_PERCENTAGE;
+
+                // Update change indicators
+                const revenueChangeEl = document.getElementById('revenueChange');
+                const orderChangeEl = document.getElementById('orderChange');
+                
+                revenueChangeEl.innerHTML = (revenueChange >= 0 ? '↑' : '↓') + ' ' + Math.abs(revenueChange) + '%';
+                revenueChangeEl.className = revenueChange >= 0 ? 'text-[10px] text-green-500 font-bold mt-1' : 'text-[10px] text-red-500 font-bold mt-1';
+                
+                orderChangeEl.innerHTML = (orderChange >= 0 ? '↑' : '↓') + ' ' + Math.abs(orderChange) + '%';
+                orderChangeEl.className = orderChange >= 0 ? 'text-[10px] text-green-500 font-bold mt-1' : 'text-[10px] text-red-500 font-bold mt-1';
+
+                // Calculate product performance with view data
+                const productStats = {};
+                
+                // Process orders
+                orders?.forEach(order => {
+                    let items = order.items;
+                    if (typeof items === 'string') {
+                        try {
+                            items = JSON.parse(items);
+                        } catch (e) {
+                            return;
+                        }
+                    }
+                    
+                    if (Array.isArray(items)) {
+                        items.forEach(item => {
+                            const productId = item.id || 'unknown';
+                            if (!productStats[productId]) {
+                                productStats[productId] = {
+                                    name: item.name || 'Unknown Product',
+                                    quantity: 0,
+                                    revenue: 0,
+                                    views: 0
+                                };
+                            }
+                            productStats[productId].quantity += item.quantity || 1;
+                            productStats[productId].revenue += (Number(item.price) * (item.quantity || 1));
+                        });
+                    }
+                });
+
+                // Add view counts
+                views?.forEach(view => {
+                    const productId = view.product_id;
+                    if (productStats[productId]) {
+                        productStats[productId].views += 1;
+                    }
+                });
+
+                // Display top products
+                const perfList = document.getElementById('productPerformance');
+                
+                if (Object.keys(productStats).length === 0) {
+                    perfList.innerHTML = `
+                        <div class="text-center py-8 text-[var(--dim)]">
+                            <i data-lucide="package-x" size="40" class="mx-auto mb-3"></i>
+                            <p class="text-sm">No sales yet in the last 30 days</p>
+                        </div>
+                    `;
+                } else {
+                    const topProducts = Object.values(productStats)
+                        .sort((a, b) => b.revenue - a.revenue)
+                        .slice(0, 5);
+                    
+                    perfList.innerHTML = topProducts.map(p => {
+                        const conversion = p.views > 0 ? ((p.quantity / p.views) * 100).toFixed(1) : '0.0';
+                        return `
+                            <div class="flex items-center justify-between p-3 bg-zinc-900/20 rounded-xl">
+                                <div class="flex-1">
+                                    <p class="font-black text-xs">${p.name}</p>
+                                    <div class="flex gap-3 mt-1">
+                                        <p class="text-[8px] text-[var(--dim)]">${p.quantity} sold</p>
+                                        <p class="text-[8px] text-[var(--dim)]">${p.views} views</p>
+                                        <p class="text-[8px] text-sdel">${conversion}% conv.</p>
+                                    </div>
+                                </div>
+                                <p class="font-black text-sdel text-sm">₦${p.revenue.toLocaleString()}</p>
+                            </div>
+                        `;
+                    }).join('');
+                }
+// Prepare weekly chart data
+                const weeklyData = prepareWeeklyData(orders || [], startDate);
+                initChart(weeklyData.labels, weeklyData.values);
+
+                // Refresh Lucide icons
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('productPerformance').innerHTML = `
+                    <div class="text-center py-8 text-red-500">
+                        <i data-lucide="alert-circle" size="40" class="mx-auto mb-3"></i>
+                        <p class="text-sm">Error loading analytics</p>
+                    </div>
+                `;
+            }
         }
 
-        function initChart() {
+        function prepareWeeklyData(orders, startDate) {
+            const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+            const weeklyRevenue = [0, 0, 0, 0];
+            
+            orders.forEach(order => {
+                const orderDate = new Date(order.created_at);
+                const daysDiff = Math.floor((orderDate - startDate) / (1000 * 60 * 60 * 24));
+                let weekIndex = Math.floor(daysDiff / 7);
+                
+                if (weekIndex < 0) weekIndex = 0;
+                if (weekIndex > 3) weekIndex = 3;
+                
+                weeklyRevenue[weekIndex] += Number(order.total_amount) || 0;
+            });
+
+            return { labels: weeks, values: weeklyRevenue };
+        }
+
+        function initChart(labels, data) {
             const ctx = document.getElementById('revenueChart').getContext('2d');
             
             if (myChart) myChart.destroy();
 
+            const isDark = !document.documentElement.classList.contains('sunlight-mode');
+            const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+            const textColor = '#71717a';
+
             myChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    labels: labels,
                     datasets: [{
-                        label: 'Revenue',
-                        data: [12000, 19000, 15000, 25000],
+                        label: 'Revenue (₦)',
+                        data: data,
                         borderColor: '#FF6600',
                         backgroundColor: 'rgba(255,102,0,0.1)',
                         tension: 0.4,
@@ -149,23 +460,63 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { display: false }
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => '₦' + context.raw.toLocaleString()
+                            }
+                        }
                     },
                     scales: {
                         y: {
-                            grid: { color: 'rgba(255,255,255,0.1)' },
-                            ticks: { color: '#71717a' }
+                            grid: { color: gridColor },
+                            ticks: { 
+                                color: textColor,
+                                callback: (value) => '₦' + value.toLocaleString()
+                            },
+                            beginAtZero: true
                         },
                         x: {
                             grid: { display: false },
-                            ticks: { color: '#71717a' }
+                            ticks: { color: textColor }
                         }
                     }
                 }
             });
         }
 
-        loadAnalytics().then(() => lucide.createIcons());
+        // Calculator functions
+        window.showFeeCalculator = function() {
+            document.getElementById('feeCalculatorModal').classList.remove('hidden');
+            document.getElementById('calculatorRevenue').value = document.getElementById('totalRevenue').innerText.replace('₦', '').replace(',', '');
+            calculateEarnings();
+        };
+
+        window.hideFeeCalculator = function() {
+            document.getElementById('feeCalculatorModal').classList.add('hidden');
+        };
+
+        window.calculateEarnings = function() {
+            const revenue = parseFloat(document.getElementById('calculatorRevenue').value) || 0;
+            const feePercent = parseFloat(document.getElementById('feePercentage').value) || 10;
+            
+            const fee = (revenue * feePercent) / 100;
+            const earnings = revenue - fee;
+            
+            document.getElementById('calculatedFee').innerText = '₦' + fee.toLocaleString();
+            document.getElementById('calculatedEarnings').innerText = '₦' + earnings.toLocaleString();
+        };
+
+        // Load analytics when page loads
+        loadAnalytics().then(() => {
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(loadAnalytics, 60000);
+        });
+
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        });
+
     </script>
 </body>
 </html>
