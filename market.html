@@ -225,6 +225,13 @@
         let currentUserId = "GUEST_USER"; 
         let allProducts = [];
         let userCart = {}; 
+        
+        // Generate a unique session ID for this visitor
+        let visitorSessionId = localStorage.getItem('visitor_session_id');
+        if (!visitorSessionId) {
+            visitorSessionId = 'session_' + Math.random().toString(36).substring(2) + Date.now();
+            localStorage.setItem('visitor_session_id', visitorSessionId);
+        }
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -264,6 +271,33 @@
             const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
             allProducts = data || [];
             window.renderProducts(allProducts);
+        }
+
+        // NEW: Function to track product views
+        async function trackProductView(productId, vendorId) {
+            try {
+                // Don't track if no vendor ID
+                if (!vendorId) return;
+                
+                // Check if product_views table exists and insert
+                const { error } = await supabase
+                    .from('product_views')
+                    .insert([{
+                        product_id: productId,
+                        vendor_id: vendorId,
+                        viewer_id: currentUserId !== "GUEST_USER" ? currentUserId : null,
+                        session_id: visitorSessionId,
+                        viewed_at: new Date().toISOString()
+                    }]);
+                
+                if (error) {
+                    // If table doesn't exist, log but don't break the app
+                    console.log('Note: product_views table may not exist yet - this is fine for now');
+                }
+            } catch (e) {
+                // Silently fail - tracking shouldn't break the user experience
+                console.log('View tracking skipped');
+            }
         }
 
         // ENHANCED: Share product function with image support
@@ -347,6 +381,15 @@
                 list.innerHTML = `<div class="col-span-full text-center py-20 opacity-30"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">No Items Found</p></div>`;
                 return;
             }
+            
+            // For each product being rendered, track that it was viewed
+            items.forEach(item => {
+                // Small delay to not block rendering
+                setTimeout(() => {
+                    trackProductView(item.id, item.vendor_id);
+                }, 100);
+            });
+            
             list.innerHTML = items.map(item => {
                 const inCart = userCart[item.id];
                 return `
@@ -445,6 +488,11 @@
         };
 
         window.viewFromSearch = (id) => { 
+            // Track view when viewing from search
+            const product = allProducts.find(p => p.id === id);
+            if (product) {
+                trackProductView(product.id, product.vendor_id);
+            }
             window.renderProducts(allProducts.filter(p => p.id === id)); 
             closeSearch(); 
         };
