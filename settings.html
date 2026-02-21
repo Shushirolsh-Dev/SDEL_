@@ -31,7 +31,8 @@
         .sunlight-mode nav { background: rgba(255,255,255,0.95); }
         .sunlight-mode .card-zinc { background: #f4f4f5; border: 2px solid #e4e4e7; color: #121212; }
         .sunlight-mode .bottom-nav { background: #ffffff; border-top: 2px solid #e4e4e7; }
-        .sunlight-mode .bottom-nav i { color: #121212; }
+        .sunlight-mode .bottom-nav i { color: #000000; } /* Changed to black for inactive icons */
+        .sunlight-mode .bottom-nav i.text-sdel { color: #FF6600; } /* Keep active icon orange */
         .sunlight-mode .stars { display: none; }
         
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
@@ -40,6 +41,7 @@
 
         .modal-overlay { backdrop-filter: blur(25px); z-index: 200; position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; padding: 24px; overflow-y: auto; }
         .input-zinc { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; width: 100%; padding: 16px; border-radius: 16px; font-size: 14px; outline: none; }
+        .warning-box { background: rgba(255,0,0,0.1); border: 1px solid rgba(255,0,0,0.3); border-radius: 16px; padding: 16px; margin-bottom: 20px; }
     </style>
 </head>
 <body class="pb-32">
@@ -124,12 +126,12 @@
     </div>
 
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bottom-nav z-[100]">
-        <i data-lucide="home" class="text-white opacity-40" onclick="location.href='dashboard.html'"></i>
-        <i data-lucide="compass" class="text-white opacity-40" onclick="location.href='explore.html'"></i>
+        <i data-lucide="home" class="opacity-40" onclick="location.href='dashboard.html'"></i>
+        <i data-lucide="compass" class="opacity-40" onclick="location.href='explore.html'"></i>
         <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black" onclick="location.href='post-story.html'">
             <i data-lucide="camera" class="text-black" size="28"></i>
         </div>
-        <i data-lucide="shopping-cart" class="text-white opacity-40" onclick="location.href='market.html'"></i>
+        <i data-lucide="shopping-cart" class="opacity-40" onclick="location.href='market.html'"></i>
         <i data-lucide="user" class="text-sdel" size="28"></i>
     </nav>
 
@@ -138,6 +140,7 @@
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         let currentUser = null;
+        let userProfile = null;
 
         const themeBtn = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
@@ -190,6 +193,7 @@
         async function loadProfile() {
             const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUser.id).single();
             if (!profile) return;
+            userProfile = profile;
             document.getElementById('p-full-name').innerText = (profile.first_name || "User") + " " + (profile.last_name || "");
             document.getElementById('p-email').innerText = currentUser.email;
             document.getElementById('p-balance').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
@@ -200,7 +204,126 @@
         window.closeModal = (id) => document.getElementById(id).style.display = 'none';
 
         document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut().then(() => window.location.replace('login.html')));
-        
+
+        // Delete Account Functionality
+        window.openDeleteModal = () => {
+            if (!document.getElementById('delete-modal')) {
+                const deleteModal = document.createElement('div');
+                deleteModal.id = 'delete-modal';
+                deleteModal.className = 'modal-overlay';
+                deleteModal.innerHTML = `
+                    <div class="flex justify-between items-center mb-6 relative z-10">
+                        <h2 class="text-2xl font-black uppercase italic text-red-500">Delete <span class="text-white">Account</span></h2>
+                        <button onclick="closeDeleteModal()" class="text-white"><i data-lucide="x" size="28"></i></button>
+                    </div>
+                    <div class="space-y-5 relative z-10">
+                        <div class="warning-box">
+                            <p class="text-red-500 text-xs font-black uppercase mb-2">⚠️ CRITICAL ACTION</p>
+                            <p class="text-white/80 text-sm font-bold mb-1">Current Balance: <span class="text-sdel text-lg" id="delete-balance">₦0</span></p>
+                            <p class="text-white/60 text-[10px] font-bold uppercase tracking-wider">This balance will be PERMANENTLY LOST</p>
+                        </div>
+                        
+                        <div class="bg-black/40 p-5 rounded-2xl border border-white/10">
+                            <p class="text-white/80 text-[11px] font-bold uppercase mb-4 leading-relaxed">
+                                By deleting your account, you acknowledge that:
+                            </p>
+                            <ul class="text-white/60 text-[10px] font-bold uppercase space-y-3 mb-4">
+                                <li class="flex items-start gap-2">• All personal data will be permanently erased</li>
+                                <li class="flex items-start gap-2">• Your wallet balance (₦<span id="delete-balance-list">0</span>) will be forfeited</li>
+                                <li class="flex items-start gap-2">• This action is irreversible and cannot be undone</li>
+                                <li class="flex items-start gap-2">• You will lose access to all purchases and content</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-6">
+                            <p class="text-white/40 text-[9px] font-bold uppercase mb-2">Confirm by entering your password</p>
+                            <input id="delete-password" type="password" class="input-zinc mb-3" placeholder="Enter your password">
+                            <div id="delete-error" class="text-red-500 text-[10px] font-bold uppercase mb-3 hidden">Incorrect password</div>
+                            <button id="confirm-delete-btn" class="w-full bg-red-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-wider hover:bg-red-700 transition">Permanently Delete Account</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(deleteModal);
+                lucide.createIcons();
+            }
+            
+            // Update balance in delete modal
+            const balance = userProfile?.wallet_balance || 0;
+            document.getElementById('delete-balance') && (document.getElementById('delete-balance').innerText = `₦${balance.toLocaleString()}`);
+            document.getElementById('delete-balance-list') && (document.getElementById('delete-balance-list').innerText = balance.toLocaleString());
+            
+            document.getElementById('delete-modal').style.display = 'block';
+        }
+
+        window.closeDeleteModal = () => {
+            document.getElementById('delete-modal').style.display = 'none';
+            document.getElementById('delete-password') && (document.getElementById('delete-password').value = '');
+            document.getElementById('delete-error')?.classList.add('hidden');
+        }
+
+        // Handle delete confirmation
+        document.addEventListener('click', async (e) => {
+            if (e.target.id === 'confirm-delete-btn') {
+                const password = document.getElementById('delete-password').value;
+                const errorEl = document.getElementById('delete-error');
+                
+                if (!password) {
+                    errorEl.innerText = 'Password is required';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                e.target.disabled = true;
+                e.target.innerText = 'VERIFYING...';
+
+                try {
+                    // Verify password by attempting to sign in
+                    const { error: signInError } = await supabase.auth.signInWithPassword({
+                        email: currentUser.email,
+                        password: password
+                    });
+
+                    if (signInError) {
+                        errorEl.innerText = 'Incorrect password';
+                        errorEl.classList.remove('hidden');
+                        e.target.disabled = false;
+                        e.target.innerText = 'Permanently Delete Account';
+                        return;
+                    }
+
+                    e.target.innerText = 'DELETING...';
+
+                    // Delete profile data
+                    const { error: profileError } = await supabase
+                        .from('profile')
+                        .delete()
+                        .eq('id', currentUser.id);
+
+                    if (profileError) throw profileError;
+
+                    // Delete auth user (requires admin - may need RLS)
+                    const { error: deleteError } = await supabase.rpc('delete_user');
+                    
+                    if (deleteError) {
+                        console.warn('Auth delete warning:', deleteError);
+                    }
+
+                    // Sign out
+                    await supabase.auth.signOut();
+                    
+                    // Redirect to goodbye page or login
+                    window.location.replace('login.html?deleted=true');
+                    
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    errorEl.innerText = 'Error deleting account. Contact support.';
+                    errorEl.classList.remove('hidden');
+                    e.target.disabled = false;
+                    e.target.innerText = 'Permanently Delete Account';
+                }
+            }
+        });
+
         checkSession();
         lucide.createIcons();
     </script>
