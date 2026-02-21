@@ -50,11 +50,19 @@
         #toast.show { transform: translateX(-50%) translateY(0); }
 
         .active-tab { border-bottom: 2px solid #FF6600; color: #FF6600; }
+
+        /* Bottom nav always visible - no loading */
+        .fixed.bottom-0 {
+            visibility: visible !important;
+            opacity: 1 !important;
+            transform: none !important;
+        }
     </style>
 </head>
 <body class="pb-32">
     <div id="toast">Copied!</div>
 
+    <!-- TOP NAV - Always visible -->
     <nav class="sticky top-0 bg-[var(--nav-bg)] backdrop-blur-xl z-[100] border-b border-[var(--border)] p-5 flex items-center justify-between">
         <i data-lucide="chevron-left" onclick="history.back()" class="cursor-pointer"></i>
         <h2 id="nav-username" class="text-[10px] font-black uppercase tracking-[0.2em]">Profile</h2>
@@ -128,14 +136,15 @@
 
     <main id="user-feed"></main>
 
+    <!-- BOTTOM NAV - Always visible (no loading) -->
     <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-[var(--nav-bg)] border-t border-[var(--border)] z-[100] backdrop-blur-lg">
-        <i data-lucide="home" class="opacity-50" onclick="location.href='dashboard.html'"></i>
-        <i data-lucide="compass" class="opacity-50" onclick="location.href='explore.html'"></i>
-        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 border-4 border-[var(--bg)] shadow-xl" onclick="location.href='explore.html'">
+        <i data-lucide="home" class="opacity-50 cursor-pointer" onclick="location.href='dashboard.html'"></i>
+        <i data-lucide="compass" class="opacity-50 cursor-pointer" onclick="location.href='explore.html'"></i>
+        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 border-4 border-[var(--bg)] shadow-xl cursor-pointer" onclick="location.href='explore.html'">
             <i data-lucide="plus" class="text-black" stroke-width="3"></i>
         </div>
-        <i data-lucide="shopping-cart" class="opacity-50" onclick="location.href='market.html'"></i>
-        <i data-lucide="user" class="text-sdel" onclick="location.href='profile.html'"></i>
+        <i data-lucide="shopping-cart" class="opacity-50 cursor-pointer" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-sdel cursor-pointer" onclick="location.href='profile.html'"></i>
     </nav>
 
 <script type="module">
@@ -307,21 +316,56 @@ function showToast(msg) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// FIXED: Share profile with correct username in URL
-function shareProfile() {
+// ENHANCED: Share profile with username, URL, AND avatar image
+async function shareProfile() {
     const username = viewProfile?.username || 'Sdel User';
     const profileUrl = `https://thesdel.com/profile.html?u=${username}`;
+    const avatarElement = document.getElementById('p-avatar');
+    const avatarText = avatarElement?.innerText || '?';
     
-    if (navigator.share) {
-        navigator.share({
+    try {
+        // Try to get avatar image if available
+        let files = [];
+        
+        // If we have a real avatar image URL (you'd need to add this to your profile table)
+        if (viewProfile?.avatar_url) {
+            try {
+                const response = await fetch(viewProfile.avatar_url);
+                const blob = await response.blob();
+                const imageFile = new File([blob], 'avatar.jpg', { type: blob.type || 'image/jpeg' });
+                files = [imageFile];
+            } catch (imgErr) {
+                console.warn("Could not fetch avatar:", imgErr);
+            }
+        }
+        
+        const shareData = {
             title: `${username} on Sdel`,
             text: `Check out ${username}'s profile on Sdel!`,
             url: profileUrl
-        }).catch(() => {
+        };
+        
+        // Add image if available and supported
+        if (files.length > 0 && navigator.canShare && navigator.canShare({ files: files })) {
+            shareData.files = files;
+        }
+        
+        if (navigator.share) {
+            try {
+                await navigator.share(shareData);
+                showToast("Profile shared!");
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    navigator.clipboard.writeText(profileUrl);
+                    showToast("Profile Link Copied!");
+                }
+            }
+        } else {
             navigator.clipboard.writeText(profileUrl);
             showToast("Profile Link Copied!");
-        });
-    } else {
+        }
+    } catch (error) {
+        console.error("Share error:", error);
         navigator.clipboard.writeText(profileUrl);
         showToast("Profile Link Copied!");
     }
@@ -330,4 +374,4 @@ function shareProfile() {
 init();
 </script>
 </body>
-</html>
+                </html>
