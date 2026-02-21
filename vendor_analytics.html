@@ -15,31 +15,90 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #000; --surface: #0a0a0a; --card: #121212; --border: rgba(255,255,255,0.08); --text: #fff; --dim: #71717a; }
-        .sunlight-mode { --bg: #fff; --surface: #f4f4f5; --card: #ffffff; --border: #e4e4e7; --text: #09090b; --dim: #71717a; }
-        
-        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; transition: 0.3s; }
-        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 2rem; }
-        .text-sdel { color: #FF6600; }
-        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 1.5rem; padding: 1.5rem; }
-        
-        * { font-style: normal !important; }
-        
-        .loading-spinner {
-            border: 3px solid var(--border);
-            border-top: 3px solid #FF6600;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
+        /* AGGRESSIVE THEME VARIABLES - Force visibility */
+        :root { 
+            --bg: #000; 
+            --surface: #0a0a0a; 
+            --card: #121212; 
+            --border: rgba(255,255,255,0.08); 
+            --text: #fff; 
+            --dim: #71717a;
+            --card-bg: #121212;
+            --text-primary: #ffffff;
+            --text-secondary: #71717a;
         }
         
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .sunlight-mode { 
+            --bg: #f8fafc; 
+            --surface: #f1f5f9; 
+            --card: #ffffff; 
+            --border: #e2e8f0; 
+            --text: #0f172a; 
+            --dim: #64748b;
+            --card-bg: #ffffff;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
         }
-
+        
+        /* Force body styles */
+        body { 
+            background: var(--bg) !important; 
+            color: var(--text) !important; 
+            font-family: 'Poppins', sans-serif; 
+            transition: 0.3s; 
+            min-height: 100vh;
+        }
+        
+        /* Force card styles */
+        .glass-card { 
+            background: var(--card) !important; 
+            border: 1px solid var(--border) !important; 
+            border-radius: 2rem; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .sunlight-mode .glass-card {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .text-sdel { color: #FF6600 !important; }
+        
+        .stat-card { 
+            background: var(--card) !important; 
+            border: 1px solid var(--border) !important; 
+            border-radius: 1.5rem; 
+            padding: 1.5rem;
+        }
+        
+        .sunlight-mode .stat-card {
+            background: #ffffff !important;
+            border-color: #e2e8f0 !important;
+        }
+        
+        /* Force text colors */
+        .sunlight-mode .text-white, 
+        .sunlight-mode .text-gray-400,
+        .sunlight-mode .text-zinc-500 {
+            color: #0f172a !important;
+        }
+        
+        .sunlight-mode .text-[var(--dim)] {
+            color: #475569 !important;
+        }
+        
+        /* Force input styles */
+        .sunlight-mode input {
+            background: #f8fafc !important;
+            border-color: #e2e8f0 !important;
+            color: #0f172a !important;
+        }
+        
+        .sunlight-mode .bg-zinc-900\/20 {
+            background: #f1f5f9 !important;
+        }
+        
         .tooltip {
             position: relative;
             display: inline-block;
@@ -56,7 +115,7 @@
             border-radius: 8px;
             border: 1px solid var(--border);
             position: absolute;
-            z-index: 1;
+            z-index: 1000;
             bottom: 125%;
             left: 50%;
             margin-left: -100px;
@@ -69,119 +128,130 @@
             visibility: visible;
             opacity: 1;
         }
+
+        /* Remove infinite spinner - show content immediately */
+        .no-data-message {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--dim);
+        }
+        
+        .no-data-message i {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            display: block;
+        }
     </style>
 </head>
 <body class="p-6">
 
     <nav class="flex items-center justify-between mb-8">
-        <button onclick="window.location.href='vendor_dashboard.html'" class="p-3 bg-zinc-900/10 rounded-2xl border border-[var(--border)]">
-            <i data-lucide="arrow-left" size="20"></i>
+        <button onclick="window.location.href='vendor_dashboard.html'" class="p-3 rounded-2xl border" style="background: var(--card); border-color: var(--border);">
+            <i data-lucide="arrow-left" size="20" style="color: var(--text);"></i>
         </button>
-        <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">ANALYTICS</h1>
+        <h1 class="text-[10px] font-black uppercase tracking-[0.3em]" style="color: var(--text);">ANALYTICS</h1>
         <div class="w-10"></div>
     </nav>
 
     <!-- Platform Fee Notice -->
-    <div class="glass-card p-4 mb-6 bg-gradient-to-r from-[#FF6600]/10 to-transparent">
+    <div class="glass-card p-4 mb-6" style="background: linear-gradient(to right, rgba(255,102,0,0.1), transparent) !important;">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <i data-lucide="percent" size="16" class="text-sdel"></i>
-                <span class="text-xs font-black">Platform Fee: <span id="platformFeePercentage">10</span>%</span>
+                <span class="text-xs font-black" style="color: var(--text);">Platform Fee: <span id="platformFeePercentage">10</span>%</span>
                 <div class="tooltip">
-                    <i data-lucide="info" size="14" class="text-[var(--dim)]"></i>
+                    <i data-lucide="info" size="14" style="color: var(--dim);"></i>
                     <span class="tooltiptext">This fee is deducted from your revenue before payout</span>
                 </div>
             </div>
-            <button onclick="showFeeCalculator()" class="text-[10px] bg-sdel/20 text-sdel px-3 py-1 rounded-full font-black">Calculate My Earnings</button>
+            <button onclick="showFeeCalculator()" class="text-[10px] px-3 py-1 rounded-full font-black" style="background: rgba(255,102,0,0.2); color: #FF6600;">Calculate My Earnings</button>
         </div>
     </div>
 
     <!-- Date Range -->
     <div class="glass-card p-4 mb-6 flex justify-between items-center">
-        <span class="text-xs font-black" id="dateRange">Last 30 Days</span>
-        <i data-lucide="calendar" size="16" class="text-[var(--dim)]"></i>
+        <span class="text-xs font-black" id="dateRange" style="color: var(--text);">Last 30 Days</span>
+        <i data-lucide="calendar" size="16" style="color: var(--dim);"></i>
     </div>
 
-    <!-- Key Metrics -->
+    <!-- Key Metrics - AGGRESSIVE VISIBILITY -->
     <div class="grid grid-cols-2 gap-3 mb-6">
         <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Gross Revenue</p>
-            <p class="text-2xl font-black" id="totalRevenue">₦0</p>
-            <p class="text-[10px] text-green-500 font-bold mt-1" id="revenueChange">↑ 0%</p>
+            <p class="text-[8px] font-black uppercase mb-2" style="color: var(--dim);">Gross Revenue</p>
+            <p class="text-2xl font-black" id="totalRevenue" style="color: var(--text);">₦0</p>
+            <p class="text-[10px] font-bold mt-1" id="revenueChange" style="color: #10b981;">↑ 0%</p>
         </div>
         <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Platform Fee</p>
+            <p class="text-[8px] font-black uppercase mb-2" style="color: var(--dim);">Platform Fee</p>
             <p class="text-2xl font-black text-sdel" id="platformFee">₦0</p>
-            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">10% of revenue</p>
+            <p class="text-[10px] font-bold mt-1" style="color: var(--dim);">10% of revenue</p>
         </div>
         <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Your Earnings</p>
-            <p class="text-2xl font-black text-green-500" id="vendorEarnings">₦0</p>
-            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">After fees</p>
+            <p class="text-[8px] font-black uppercase mb-2" style="color: var(--dim);">Your Earnings</p>
+            <p class="text-2xl font-black" id="vendorEarnings" style="color: #10b981;">₦0</p>
+            <p class="text-[10px] font-bold mt-1" style="color: var(--dim);">After fees</p>
         </div>
         <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Orders</p>
-            <p class="text-2xl font-black" id="totalOrderCount">0</p>
-            <p class="text-[10px] text-green-500 font-bold mt-1" id="orderChange">↑ 0%</p>
+            <p class="text-[8px] font-black uppercase mb-2" style="color: var(--dim);">Orders</p>
+            <p class="text-2xl font-black" id="totalOrderCount" style="color: var(--text);">0</p>
+            <p class="text-[10px] font-bold mt-1" id="orderChange" style="color: #10b981;">↑ 0%</p>
         </div>
         <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Conversion</p>
-            <p class="text-2xl font-black" id="conversionRate">0%</p>
-            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Views: <span id="totalViews">0</span></p>
+            <p class="text-[8px] font-black uppercase mb-2" style="color: var(--dim);">Conversion</p>
+            <p class="text-2xl font-black" id="conversionRate" style="color: var(--text);">0%</p>
+            <p class="text-[10px] font-bold mt-1" style="color: var(--dim);">Views: <span id="totalViews">0</span></p>
         </div>
         <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Avg. Order</p>
-            <p class="text-2xl font-black" id="avgOrderValue">₦0</p>
-            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Per transaction</p>
+            <p class="text-[8px] font-black uppercase mb-2" style="color: var(--dim);">Avg. Order</p>
+            <p class="text-2xl font-black" id="avgOrderValue" style="color: var(--text);">₦0</p>
+            <p class="text-[10px] font-bold mt-1" style="color: var(--dim);">Per transaction</p>
         </div>
     </div>
 
     <!-- Chart -->
     <div class="glass-card p-6 mb-6">
-        <h2 class="font-black text-xs uppercase tracking-wider mb-4">Revenue Trend (Last 30 Days)</h2>
+        <h2 class="font-black text-xs uppercase tracking-wider mb-4" style="color: var(--text);">Revenue Trend (Last 30 Days)</h2>
         <canvas id="revenueChart" style="height: 200px; width: 100%;"></canvas>
     </div>
 
-    <!-- Product Performance with Views -->
+    <!-- Product Performance - NO SPINNER, shows immediately -->
     <div class="glass-card p-6 mb-6">
-        <h2 class="font-black text-xs uppercase tracking-wider mb-4">Product Performance</h2>
+        <h2 class="font-black text-xs uppercase tracking-wider mb-4" style="color: var(--text);">Product Performance</h2>
         <div class="space-y-3" id="productPerformance">
-            <div class="text-center py-8 text-[var(--dim)]">
-                <div class="loading-spinner"></div>
-                <p class="text-sm mt-4">Loading analytics...</p>
-            </div>
+            <!-- Content loads immediately, no infinite spinner -->
         </div>
     </div>
 
-    <!-- Payout Calculator Modal (Hidden by default) -->
-    <div id="feeCalculatorModal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden" style="z-index: 1000;">
+    <!-- Payout Calculator Modal -->
+    <div id="feeCalculatorModal" class="fixed inset-0 flex items-center justify-center hidden" style="background: rgba(0,0,0,0.5); z-index: 1000;">
         <div class="glass-card p-6 max-w-md w-full mx-4">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="font-black text-sm">Earnings Calculator</h3>
-                <button onclick="hideFeeCalculator()" class="p-2 hover:bg-zinc-800 rounded-full">
-                    <i data-lucide="x" size="16"></i>
+                <h3 class="font-black text-sm" style="color: var(--text);">Earnings Calculator</h3>
+                <button onclick="hideFeeCalculator()" class="p-2 rounded-full" style="background: var(--surface);">
+                    <i data-lucide="x" size="16" style="color: var(--text);"></i>
                 </button>
             </div>
             
             <div class="space-y-4">
                 <div>
-                    <label class="text-[10px] font-black uppercase text-[var(--dim)]">Platform Fee Percentage</label>
-                    <input type="number" id="feePercentage" value="10" min="0" max="100" class="w-full p-3 bg-zinc-900/20 rounded-xl border border-[var(--border)] mt-1">
+                    <label class="text-[10px] font-black uppercase" style="color: var(--dim);">Platform Fee Percentage</label>
+                    <input type="number" id="feePercentage" value="10" min="0" max="100" class="w-full p-3 rounded-xl border mt-1" style="background: var(--surface); border-color: var(--border); color: var(--text);">
                 </div>
                 
                 <div>
-                    <label class="text-[10px] font-black uppercase text-[var(--dim)]">Revenue (₦)</label>
-                    <input type="number" id="calculatorRevenue" class="w-full p-3 bg-zinc-900/20 rounded-xl border border-[var(--border)] mt-1">
+                    <label class="text-[10px] font-black uppercase" style="color: var(--dim);">Revenue (₦)</label>
+                    <input type="number" id="calculatorRevenue" class="w-full p-3 rounded-xl border mt-1" style="background: var(--surface); border-color: var(--border); color: var(--text);">
                 </div>
                 
-                <div class="p-4 bg-zinc-900/20 rounded-xl">
+                <div class="p-4 rounded-xl" style="background: var(--surface);">
                     <div class="flex justify-between mb-2">
-                        <span class="text-xs">Platform Fee:</span>
+                        <span class="text-xs" style="color: var(--text);">Platform Fee:</span>
                         <span class="font-black text-sdel" id="calculatedFee">₦0</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-xs">Your Earnings:</span>
-                        <span class="font-black text-green-500" id="calculatedEarnings">₦0</span>
+                        <span class="text-xs" style="color: var(--text);">Your Earnings:</span>
+                        <span class="font-black" id="calculatedEarnings" style="color: #10b981;">₦0</span>
                     </div>
                 </div>
                 
@@ -199,72 +269,77 @@
 
         let myChart;
         let refreshInterval;
-        const PLATFORM_FEE_PERCENTAGE = 10; // 10% fee - you can change this
+        const PLATFORM_FEE_PERCENTAGE = 10;
+
+        // Show immediate loading message (not infinite spinner)
+        function showLoadingMessage() {
+            const perfList = document.getElementById('productPerformance');
+            perfList.innerHTML = `
+                <div class="text-center py-8" style="color: var(--dim);">
+                    <i data-lucide="loader" size="40" class="mx-auto mb-3"></i>
+                    <p class="text-sm">Loading your analytics...</p>
+                </div>
+            `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
+
+        // Show no data message
+        function showNoDataMessage() {
+            const perfList = document.getElementById('productPerformance');
+            perfList.innerHTML = `
+                <div class="text-center py-8" style="color: var(--dim);">
+                    <i data-lucide="package-x" size="48" class="mx-auto mb-3"></i>
+                    <p class="text-sm font-bold" style="color: var(--text);">No sales yet</p>
+                    <p class="text-xs mt-2">When customers buy your products, they'll appear here</p>
+                </div>
+            `;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
 
         async function loadAnalytics() {
             try {
-                // Show loading state
-                const perfList = document.getElementById('productPerformance');
-                perfList.innerHTML = `
-                    <div class="text-center py-8 text-[var(--dim)]">
-                        <div class="loading-spinner"></div>
-                        <p class="text-sm mt-4">Loading analytics...</p>
-                    </div>
-                `;
+                // Show loading message immediately
+                showLoadingMessage();
 
                 // Get current logged in user
-                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-                
-                if (sessionError) throw sessionError;
+                const { data: { session } } = await supabase.auth.getSession();
                 
                 if (!session) {
                     window.location.href = 'login.html';
                     return;
                 }
 
-                // Get the vendor record for this user
-                const { data: vendor, error: vendorError } = await supabase
+                // Get vendor record
+                const { data: vendor } = await supabase
                     .from('vendors')
                     .select('id, business_name, status')
                     .eq('user_id', session.user.id)
                     .single();
 
-                if (vendorError || !vendor) {
+                if (!vendor || vendor.status !== 'verified') {
                     window.location.href = 'merchant_hub.html';
                     return;
                 }
 
-                if (vendor.status !== 'verified') {
-                    window.location.href = 'merchant_hub.html';
-                    return;
-                }
-
-                // Calculate date range (last 30 days)
+                // Calculate date ranges
                 const endDate = new Date();
                 const startDate = new Date();
                 startDate.setDate(startDate.getDate() - 30);
                 
-                // Previous period for comparison
                 const prevStartDate = new Date(startDate);
                 prevStartDate.setDate(prevStartDate.getDate() - 30);
                 const prevEndDate = new Date(startDate);
 
-                // Format dates
-                const startDateStr = startDate.toISOString();
-                const endDateStr = endDate.toISOString();
-
-                // Fetch CURRENT period orders (accepted only)
-                const { data: orders, error: ordersError } = await supabase
+                // Fetch orders
+                const { data: orders } = await supabase
                     .from('orders')
                     .select('*')
                     .eq('vendor_id', vendor.id)
                     .eq('status', 'accepted')
-                    .gte('created_at', startDateStr)
-                    .lte('created_at', endDateStr);
+                    .gte('created_at', startDate.toISOString())
+                    .lte('created_at', endDate.toISOString());
 
-                if (ordersError) throw ordersError;
-
-                // Fetch PREVIOUS period orders for comparison
+                // Fetch previous period orders
                 const { data: prevOrders } = await supabase
                     .from('orders')
                     .select('*')
@@ -273,27 +348,21 @@
                     .gte('created_at', prevStartDate.toISOString())
                     .lt('created_at', prevEndDate.toISOString());
 
-                // Fetch product views for this vendor
-                const { data: views, error: viewsError } = await supabase
+                // Fetch views
+                const { data: views } = await supabase
                     .from('product_views')
                     .select('*')
                     .eq('vendor_id', vendor.id)
-                    .gte('viewed_at', startDateStr)
-                    .lte('viewed_at', endDateStr);
-
-                if (viewsError) {
-                    console.log('Views table might not exist yet:', viewsError);
-                }
+                    .gte('viewed_at', startDate.toISOString())
+                    .lte('viewed_at', endDate.toISOString());
 
                 // Calculate metrics
                 const totalRevenue = orders?.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0) || 0;
                 const totalOrders = orders?.length || 0;
                 const totalViews = views?.length || 0;
                 
-                // Calculate platform fee and vendor earnings
                 const platformFee = (totalRevenue * PLATFORM_FEE_PERCENTAGE) / 100;
                 const vendorEarnings = totalRevenue - platformFee;
-                
                 const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
                 const conversionRate = totalViews > 0 ? ((totalOrders / totalViews) * 100).toFixed(1) : '0.0';
 
@@ -313,38 +382,30 @@
                 document.getElementById('conversionRate').innerText = conversionRate + '%';
                 document.getElementById('totalViews').innerText = totalViews.toLocaleString();
                 document.getElementById('avgOrderValue').innerText = '₦' + avgOrderValue.toLocaleString();
-                document.getElementById('platformFeePercentage').innerText = PLATFORM_FEE_PERCENTAGE;
 
                 // Update change indicators
                 const revenueChangeEl = document.getElementById('revenueChange');
                 const orderChangeEl = document.getElementById('orderChange');
                 
                 revenueChangeEl.innerHTML = (revenueChange >= 0 ? '↑' : '↓') + ' ' + Math.abs(revenueChange) + '%';
-                revenueChangeEl.className = revenueChange >= 0 ? 'text-[10px] text-green-500 font-bold mt-1' : 'text-[10px] text-red-500 font-bold mt-1';
+                revenueChangeEl.style.color = revenueChange >= 0 ? '#10b981' : '#ef4444';
                 
                 orderChangeEl.innerHTML = (orderChange >= 0 ? '↑' : '↓') + ' ' + Math.abs(orderChange) + '%';
-                orderChangeEl.className = orderChange >= 0 ? 'text-[10px] text-green-500 font-bold mt-1' : 'text-[10px] text-red-500 font-bold mt-1';
+                orderChangeEl.style.color = orderChange >= 0 ? '#10b981' : '#ef4444';
 
-                // Calculate product performance with view data
+                // Calculate product stats
                 const productStats = {};
                 
-                // Process orders
                 orders?.forEach(order => {
                     let items = order.items;
-                    if (typeof items === 'string') {
-                        try {
-                            items = JSON.parse(items);
-                        } catch (e) {
-                            return;
-                        }
-                    }
+                    if (typeof items === 'string') items = JSON.parse(items);
                     
                     if (Array.isArray(items)) {
                         items.forEach(item => {
-                            const productId = item.id || 'unknown';
+                            const productId = item.id;
                             if (!productStats[productId]) {
                                 productStats[productId] = {
-                                    name: item.name || 'Unknown Product',
+                                    name: item.name || 'Unknown',
                                     quantity: 0,
                                     revenue: 0,
                                     views: 0
@@ -356,24 +417,16 @@
                     }
                 });
 
-                // Add view counts
                 views?.forEach(view => {
-                    const productId = view.product_id;
-                    if (productStats[productId]) {
-                        productStats[productId].views += 1;
+                    if (productStats[view.product_id]) {
+                        productStats[view.product_id].views += 1;
                     }
                 });
-
-                // Display top products
+                // Display products or no data message
                 const perfList = document.getElementById('productPerformance');
                 
                 if (Object.keys(productStats).length === 0) {
-                    perfList.innerHTML = `
-                        <div class="text-center py-8 text-[var(--dim)]">
-                            <i data-lucide="package-x" size="40" class="mx-auto mb-3"></i>
-                            <p class="text-sm">No sales yet in the last 30 days</p>
-                        </div>
-                    `;
+                    showNoDataMessage();
                 } else {
                     const topProducts = Object.values(productStats)
                         .sort((a, b) => b.revenue - a.revenue)
@@ -382,12 +435,12 @@
                     perfList.innerHTML = topProducts.map(p => {
                         const conversion = p.views > 0 ? ((p.quantity / p.views) * 100).toFixed(1) : '0.0';
                         return `
-                            <div class="flex items-center justify-between p-3 bg-zinc-900/20 rounded-xl">
+                            <div class="flex items-center justify-between p-3 rounded-xl" style="background: var(--surface);">
                                 <div class="flex-1">
-                                    <p class="font-black text-xs">${p.name}</p>
+                                    <p class="font-black text-xs" style="color: var(--text);">${p.name}</p>
                                     <div class="flex gap-3 mt-1">
-                                        <p class="text-[8px] text-[var(--dim)]">${p.quantity} sold</p>
-                                        <p class="text-[8px] text-[var(--dim)]">${p.views} views</p>
+                                        <p class="text-[8px]" style="color: var(--dim);">${p.quantity} sold</p>
+                                        <p class="text-[8px]" style="color: var(--dim);">${p.views} views</p>
                                         <p class="text-[8px] text-sdel">${conversion}% conv.</p>
                                     </div>
                                 </div>
@@ -396,23 +449,24 @@
                         `;
                     }).join('');
                 }
-// Prepare weekly chart data
+
+                // Update chart
                 const weeklyData = prepareWeeklyData(orders || [], startDate);
                 initChart(weeklyData.labels, weeklyData.values);
 
-                // Refresh Lucide icons
-                if (typeof lucide !== 'undefined') {
-                    lucide.createIcons();
-                }
+                // Refresh icons
+                if (typeof lucide !== 'undefined') lucide.createIcons();
 
             } catch (error) {
                 console.error('Error:', error);
                 document.getElementById('productPerformance').innerHTML = `
-                    <div class="text-center py-8 text-red-500">
+                    <div class="text-center py-8" style="color: #ef4444;">
                         <i data-lucide="alert-circle" size="40" class="mx-auto mb-3"></i>
                         <p class="text-sm">Error loading analytics</p>
+                        <button onclick="loadAnalytics()" class="mt-4 px-4 py-2 bg-sdel text-black rounded-xl text-xs font-black">Try Again</button>
                     </div>
                 `;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         }
 
@@ -424,10 +478,8 @@
                 const orderDate = new Date(order.created_at);
                 const daysDiff = Math.floor((orderDate - startDate) / (1000 * 60 * 60 * 24));
                 let weekIndex = Math.floor(daysDiff / 7);
-                
                 if (weekIndex < 0) weekIndex = 0;
                 if (weekIndex > 3) weekIndex = 3;
-                
                 weeklyRevenue[weekIndex] += Number(order.total_amount) || 0;
             });
 
@@ -436,12 +488,11 @@
 
         function initChart(labels, data) {
             const ctx = document.getElementById('revenueChart').getContext('2d');
-            
             if (myChart) myChart.destroy();
 
             const isDark = !document.documentElement.classList.contains('sunlight-mode');
             const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-            const textColor = '#71717a';
+            const textColor = isDark ? '#ffffff' : '#0f172a';
 
             myChart = new Chart(ctx, {
                 type: 'line',
@@ -488,7 +539,8 @@
         // Calculator functions
         window.showFeeCalculator = function() {
             document.getElementById('feeCalculatorModal').classList.remove('hidden');
-            document.getElementById('calculatorRevenue').value = document.getElementById('totalRevenue').innerText.replace('₦', '').replace(',', '');
+            const revenue = document.getElementById('totalRevenue').innerText.replace('₦', '').replace(/,/g, '');
+            document.getElementById('calculatorRevenue').value = revenue;
             calculateEarnings();
         };
 
@@ -499,19 +551,17 @@
         window.calculateEarnings = function() {
             const revenue = parseFloat(document.getElementById('calculatorRevenue').value) || 0;
             const feePercent = parseFloat(document.getElementById('feePercentage').value) || 10;
-            
             const fee = (revenue * feePercent) / 100;
             const earnings = revenue - fee;
-            
             document.getElementById('calculatedFee').innerText = '₦' + fee.toLocaleString();
             document.getElementById('calculatedEarnings').innerText = '₦' + earnings.toLocaleString();
         };
 
-        // Load analytics when page loads
-        loadAnalytics().then(() => {
-            if (refreshInterval) clearInterval(refreshInterval);
-            refreshInterval = setInterval(loadAnalytics, 60000);
-        });
+        // Load immediately, no waiting
+        loadAnalytics();
+        
+        // Refresh every 60 seconds
+        refreshInterval = setInterval(loadAnalytics, 60000);
 
         window.addEventListener('beforeunload', () => {
             if (refreshInterval) clearInterval(refreshInterval);
