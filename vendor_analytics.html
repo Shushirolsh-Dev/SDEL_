@@ -160,7 +160,7 @@
         </div>
     </div>
 
-    <!-- Manual Refresh Button (for testing) -->
+    <!-- Manual Refresh Button -->
     <div class="fixed bottom-6 right-6">
         <button onclick="forceRefresh()" class="bg-sdel text-black p-4 rounded-full shadow-lg shadow-orange-600/20">
             <i data-lucide="refresh-cw" size="20"></i>
@@ -174,11 +174,9 @@
 
         const PLATFORM_FEE_PERCENTAGE = 10;
         let currentDateRange = 30;
-        let lastUpdateTime = Date.now();
 
         // Manual refresh function
         window.forceRefresh = () => {
-            lastUpdateTime = Date.now();
             loadAnalytics();
         };
 
@@ -194,8 +192,25 @@
                     return;
                 }
 
-                const vendorId = session.user.id;
-                console.log('Vendor ID:', vendorId);
+                // FIRST: Get the vendor record for this user
+                const { data: vendor, error: vendorError } = await supabase
+                    .from('vendors')
+                    .select('id, business_name')
+                    .eq('user_id', session.user.id)
+                    .single();
+
+                if (vendorError || !vendor) {
+                    console.error('Vendor not found:', vendorError);
+                    document.getElementById('productPerformance').innerHTML = `
+                        <div class="text-center py-8 text-red-500">
+                            <p>You need to register as a vendor first</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const vendorId = vendor.id; // This is the CORRECT vendor ID from vendors table
+                console.log('Vendor ID:', vendorId, 'Business:', vendor.business_name);
 
                 // Date ranges
                 const endDate = new Date();
@@ -206,8 +221,8 @@
                     startDate.setFullYear(2000);
                 }
 
-                // 1. FETCH ALL ORDERS (without status filter first to debug)
-                const { data: allOrders, error: ordersError } = await supabase
+                // 1. FETCH ORDERS for this vendor
+                const { data: allOrders } = await supabase
                     .from('orders')
                     .select('*')
                     .eq('vendor_id', vendorId)
@@ -215,25 +230,12 @@
                     .lte('created_at', endDate.toISOString())
                     .order('created_at', { ascending: false });
 
-                if (ordersError) {
-                    console.error('Orders error:', ordersError);
-                }
-
-                console.log('All orders found:', allOrders?.length || 0);
-                if (allOrders?.length > 0) {
-                    console.log('Sample order:', allOrders[0]);
-                }
+                console.log('Orders found:', allOrders?.length || 0);
 
                 // Count by status
                 const pendingOrders = allOrders?.filter(o => o.status === 'pending') || [];
                 const acceptedOrders = allOrders?.filter(o => o.status === 'accepted') || [];
                 const rejectedOrders = allOrders?.filter(o => o.status === 'rejected') || [];
-
-                console.log('Order counts:', {
-                    pending: pendingOrders.length,
-                    accepted: acceptedOrders.length,
-                    rejected: rejectedOrders.length
-                });
 
                 // Update status counts
                 document.getElementById('pendingOrders').innerText = pendingOrders.length;
@@ -242,14 +244,12 @@
 
                 // Calculate revenue metrics
                 const totalRevenue = acceptedOrders.reduce((sum, order) => sum + (parseFloat(order.total_amount) || 0), 0);
-                console.log('Total revenue:', totalRevenue);
-                
                 const platformFee = (totalRevenue * PLATFORM_FEE_PERCENTAGE) / 100;
                 const vendorEarnings = totalRevenue - platformFee;
                 const avgOrderValue = acceptedOrders.length > 0 ? totalRevenue / acceptedOrders.length : 0;
 
-                // 2. FETCH VIEWS
-                const { data: views, error: viewsError } = await supabase
+                // 2. FETCH VIEWS for this vendor
+                const { data: views } = await supabase
                     .from('product_views')
                     .select('*')
                     .eq('vendor_id', vendorId)
@@ -257,12 +257,7 @@
                     .lte('viewed_at', endDate.toISOString())
                     .order('viewed_at', { ascending: false });
 
-                if (viewsError) {
-                    console.error('Views error:', viewsError);
-                }
-
                 const totalViews = views?.length || 0;
-                console.log('Total views:', totalViews);
                 
                 // Calculate conversion rate
                 const conversionRate = totalViews > 0 
@@ -278,26 +273,26 @@
                 document.getElementById('conversionRate').innerText = conversionRate + '%';
                 document.getElementById('avgOrderValue').innerText = '₦' + avgOrderValue.toLocaleString();
 
-                // Update changes with placeholder data for now
-                document.getElementById('revenueChange').innerHTML = '↑ 0%';
+                // Update changes with placeholder
+                document.getElementById('revenueChange').innerHTML = acceptedOrders.length > 0 ? '↑ New orders' : '⟳ No changes';
                 document.getElementById('revenueChange').className = 'text-[10px] font-bold mt-1 text-green-500';
                 
-                document.getElementById('orderChange').innerHTML = '↑ 0%';
+                document.getElementById('orderChange').innerHTML = acceptedOrders.length > 0 ? '↑ Active' : '⟳ Waiting';
                 document.getElementById('orderChange').className = 'text-[10px] font-bold mt-1 text-green-500';
 
-                // Product Performance
-                const productStats = {};
-                
-                // Get product names from products table
+                // Get product names for better display
                 const { data: products } = await supabase
                     .from('products')
                     .select('id, name')
-                    .eq('vendor_id', vendorId);
+                    .eq('vendor_id', session.user.id); // Products use user_id, not vendor_id
                 
                 const productNameMap = {};
                 products?.forEach(p => {
                     productNameMap[p.id] = p.name;
                 });
+
+                // Product Performance
+                const productStats = {};
                 
                 // Count views per product
                 views?.forEach(view => {
@@ -424,34 +419,29 @@
         // Load immediately
         loadAnalytics();
         
-        // Refresh every 5 seconds for true "live" feel
-        setInterval(() => {
-            console.log('🔄 Auto-refreshing...');
-            loadAnalytics();
-        }, 5000);
+        // Refresh every 10 seconds
+        setInterval(loadAnalytics, 10000);
 
-          // Real-time subscription
-        const channel = supabase
+        // Real-time subscription
+        supabase
             .channel('analytics-live')
             .on('postgres_changes', { 
                 event: '*', 
                 schema: 'public', 
                 table: 'orders'
-            }, (payload) => {
-                console.log('📦 Orders changed:', payload);
+            }, () => {
+                console.log('📦 Orders changed - updating');
                 loadAnalytics();
             })
             .on('postgres_changes', { 
                 event: '*', 
                 schema: 'public', 
                 table: 'product_views'
-            }, (payload) => {
-                console.log('👁️ Views changed:', payload);
+            }, () => {
+                console.log('👁️ Views changed - updating');
                 loadAnalytics();
             })
-            .subscribe((status) => {
-                console.log('📡 Subscription status:', status);
-            });
+            .subscribe();
 
     </script>
 </body>
