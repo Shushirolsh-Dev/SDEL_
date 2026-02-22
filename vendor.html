@@ -29,6 +29,53 @@
         #custom-alert { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; min-width: 300px; animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes slideDown { from { top: -100px; opacity: 0; } to { top: 20px; opacity: 1; } }
 
+        /* Violation message styles */
+        .violation-card {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .violation-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+        }
+        .fraud-icon { background: #8b5cf620; color: #8b5cf6; }
+        .suspended-icon { background: #ef444420; color: #ef4444; }
+        .deleted-icon { background: #ef444420; color: #ef4444; }
+        .violation-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -0.05em;
+            margin-bottom: 0.5rem;
+        }
+        .violation-message {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--dim);
+            margin-bottom: 1.5rem;
+        }
+        .rules-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #FF6600;
+            font-size: 0.7rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-bottom: 1.5rem;
+        }
+
         * { font-style: normal !important; }
     </style>
 </head>
@@ -37,6 +84,39 @@
     <div id="custom-alert" class="glass-card p-5 shadow-2xl flex items-center gap-4">
         <div class="p-2 bg-sdel/20 rounded-lg text-sdel"><i data-lucide="bell" size="20"></i></div>
         <p id="alert-msg" class="text-xs font-black uppercase tracking-tight"></p>
+    </div>
+
+    <!-- Rules Modal -->
+    <div id="rulesModal" class="fixed inset-0 bg-black/90 flex items-center justify-center p-6 z-50 hidden">
+        <div class="glass-card p-8 max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-sm font-black uppercase text-sdel">Marketplace Rules</h2>
+                <button onclick="hideRulesModal()" class="text-[var(--dim)]"><i data-lucide="x" size="20"></i></button>
+            </div>
+            <div class="space-y-4 text-[10px] font-medium">
+                <p class="text-sdel font-black">1. VALID PAYMENT REFERENCES</p>
+                <p>Submitting fake or invalid payment references will result in immediate suspension and fraud labeling.</p>
+                
+                <p class="text-sdel font-black mt-4">2. PROHIBITED PRODUCTS</p>
+                <p>No counterfeit, illegal, or harmful products. Violations lead to permanent deletion.</p>
+                
+                <p class="text-sdel font-black mt-4">3. SHOP SUSPENSION</p>
+                <p>Shops can be suspended for policy violations. Contact support for review.</p>
+                
+                <p class="text-sdel font-black mt-4">4. FRAUD PENALTIES</p>
+                <p>Fraudulent activity results in permanent fraud status. Must create new shop after review.</p>
+                
+                <p class="text-sdel font-black mt-4">5. PAYMENT TIMELY</p>
+                <p>Monthly fees must be paid on time. Overdue shops are locked until payment is reset.</p>
+                
+                <div class="mt-6 pt-4 border-t border-[var(--border)]">
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" id="agreeRules" class="w-4 h-4 accent-sdel">
+                        <span class="text-[9px] font-bold">I have read and agree to the rules</span>
+                    </label>
+                </div>
+            </div>
+        </div>
     </div>
 
     <nav class="flex items-center justify-between mb-10">
@@ -58,8 +138,18 @@
             </div>
         </div>
 
-        <!-- Verified glitch fix: Show form only if NOT verified -->
+        <!-- Rules Link Card (for new users) -->
+        <div class="glass-card p-4 flex items-center justify-between cursor-pointer" onclick="showRulesModal()">
+            <div class="flex items-center gap-3">
+                <i data-lucide="scroll-text" size="20" class="text-sdel"></i>
+                <span class="text-[10px] font-black uppercase">Marketplace Rules & Guidelines</span>
+            </div>
+            <i data-lucide="chevron-right" size="16" class="text-[var(--dim)]"></i>
+        </div>
+
+        <!-- Registration Form (shown only for new/pending/declined) -->
         <div id="reg-form" class="space-y-4">
+            <!-- ... existing form fields ... -->
             <div>
                 <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Business Identity</label>
                 <input type="text" id="bizName" placeholder="Shop Name" class="input-zinc" oninput="updatePreview()">
@@ -88,7 +178,7 @@
                 </div>
             </div>
 
-            <!-- MANUAL PAYMENT METHOD ADDED -->
+            <!-- MANUAL PAYMENT METHOD -->
             <div class="glass-card p-6 space-y-4 mt-4">
                 <div class="flex items-center gap-3 border-b border-[var(--border)] pb-3">
                     <i data-lucide="credit-card" size="18" class="text-sdel"></i>
@@ -101,19 +191,19 @@
                     <p class="text-sm font-bold flex justify-between"><span>Amount:</span> <span class="text-sdel" id="displayAmount">₦0</span></p>
                 </div>
 
-                <!-- Payment ID field (new column will be auto-created) -->
+                <!-- Payment ID field -->
                 <div>
                     <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Payment ID / Reference</label>
                     <input type="text" id="paymentRef" placeholder="e.g., OPay transaction ID" class="input-zinc">
                 </div>
 
-                <!-- Confirmation checkbox (does NOT disable submission) -->
+                <!-- Confirmation checkbox -->
                 <label class="flex items-center gap-3 cursor-pointer mt-2">
                     <input type="checkbox" id="payConfirmCheck" class="w-5 h-5 accent-sdel">
                     <span class="text-xs font-bold uppercase">I confirm that I have paid</span>
                 </label>
 
-                <!-- Button to open banking app with prefilled details -->
+                <!-- Button to open banking app -->
                 <button onclick="openBankingApp()" class="w-full bg-[#0A5CFF] text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg flex items-center justify-center gap-2">
                     <i data-lucide="smartphone" size="16"></i> Pay with Bank
                 </button>
@@ -124,22 +214,9 @@
             </button>
         </div>
 
-        <div id="status-view" class="hidden text-center space-y-6">
-            <div id="status-card" class="glass-card p-10 space-y-4">
-                <div id="status-icon-div" class="w-20 h-20 bg-sdel/10 rounded-full flex items-center justify-center mx-auto text-sdel">
-                    <i id="status-icon" data-lucide="clock-4" size="40"></i>
-                </div>
-                <h2 id="status-title" class="text-2xl font-black uppercase tracking-tighter">Under Review</h2>
-                <p id="status-desc" class="text-xs text-[var(--dim)] font-bold uppercase tracking-widest leading-relaxed">
-                    We'll review the details and get back to you shortly, homie.
-                </p>
-            </div>
-            <button id="startSellingBtn" class="w-full bg-zinc-800 text-[var(--dim)] py-6 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] cursor-not-allowed opacity-50">
-                Start Selling (Verification Pending)
-            </button>
-            <button id="retryBtn" onclick="reapply()" class="hidden w-full border border-sdel text-sdel py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest">
-                Try Again
-            </button>
+        <!-- Status View (shown when user has a shop) -->
+        <div id="status-view" class="hidden space-y-6">
+            <!-- This will be dynamically filled based on status -->
         </div>
     </div>
 
@@ -150,6 +227,16 @@
         let selectedPrice = 0;
         let selectedTierId = "";
 
+        // Rules Modal Functions
+        window.showRulesModal = () => {
+            document.getElementById('rulesModal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        window.hideRulesModal = () => {
+            document.getElementById('rulesModal').classList.add('hidden');
+        }
+
         // GLOBAL FUNCTION TO OPEN BANKING APP
         window.openBankingApp = () => {
             const amount = selectedPrice || 0;
@@ -157,96 +244,154 @@
                 showAlert("Please select a plan first");
                 return;
             }
-            // Try to open banking app using intent:// scheme for Android (most common)
-            // Also fallback to a tel prompt for universal usage
             const account = "7084174994";
             const accountName = "PETER PHILIP";
             const bank = "OPay";
             const note = encodeURIComponent("Sdel merchant fee payment");
             
-            // This uses ' intent:// ' for Android to open banking apps that handle UPI-like flows
-            // Since OPay isn't strictly UPI, we use a generic tel:// to copy? But better to show user info and copy to clipboard
-            // Actually most Nigerian banking apps respond to "bank transfer" deeplinks? Not consistent.
-            // We'll copy to clipboard and launch default transfer app if possible.
-            // Safer: copy account number and open dialer? But we promised banking app.
-            // Let's create a deeplink for pay with bank that opens any transfer app using 'tg://'? Not perfect.
-            // Use 'intent://' for Android (opens list of banking apps if any handle 'bank transfer' intents)
-            // For iOS, we can use 'https://' but not sure.
-            // Alternative: copy to clipboard and suggest user open bank app manually.
-            
-            // More reliable: show prompt with details and open default SMS (to copy easily)
             const deepLink = `intent://pay?account=${account}&amount=${amount}&bank=${bank}&note=${note}#Intent;scheme=bank;package=com.opay.agent;end;`;
             
-            // fallback: copy to clipboard and try to open any banking app via market?
-            // We'll copy details and try to launch a universal link
             navigator.clipboard.writeText(`Account Name: PETER PHILIP\nAccount: 7084174994\nAmount: ₦${amount}\nBank: OPay`).then(() => {
                 showAlert("Account details copied! Opening banking apps...");
             }).catch(() => {});
 
-            // Attempt to open intent:// for Android (does nothing on iOS)
             window.location.href = deepLink;
             
-            // Also try a universal 'tg://' for telegram? Not ideal.
-            // Secondary: try to open with 'https://' banking apps might register
             setTimeout(() => {
-                // If nothing happened, at least they have account copied
                 showAlert("If bank app didn't open, paste details manually.");
             }, 500);
         };
 
-        // CHECK VERIFIED STATUS FIRST BEFORE SHOWING FORM (FIX GLITCH)
+        // CHECK VENDOR STATUS AND SHOW APPROPRIATE MESSAGE
         async function checkVendorStatus() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                // Optionally redirect to login if not authenticated, but we keep form visible for demo? But requirement: if not verified, show form? Wait we only want to show form if NOT verified, else show dashboard redirect
-                return false; // no session means we can show form? but better handle: if no session, maybe login needed. We'll allow form but supabase will reject.
+                return false;
             }
 
             const { data: vendor } = await supabase.from('vendors').select('*').eq('user_id', session.user.id).single();
 
             if (vendor) {
-                // Hide form completely if vendor exists (regardless of status? but spec says check verified specifically)
+                // Hide form
                 document.getElementById('reg-form').classList.add('hidden');
-                document.getElementById('status-view').classList.remove('hidden');
+                
+                const statusView = document.getElementById('status-view');
+                statusView.classList.remove('hidden');
 
+            // Clear and set appropriate status message
                 if (vendor.status === 'verified') {
-                    // Verified: AUTOMATIC REDIRECT to dashboard after 1.5 seconds
-                    document.getElementById('status-icon-div').className = "w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto text-green-500";
-                    document.getElementById('status-icon').setAttribute('data-lucide', 'check-circle');
-                    document.getElementById('status-title').innerText = "Verified!";
-                    document.getElementById('status-desc').innerText = "Your shop is live! Redirecting to dashboard...";
-                    
-                    // Hide the button since we're auto-redirecting
-                    document.getElementById('startSellingBtn').classList.add('hidden');
-                    
+                    statusView.innerHTML = `
+                        <div class="glass-card p-10 space-y-4">
+                            <div class="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto text-green-500">
+                                <i data-lucide="check-circle" size="40"></i>
+                            </div>
+                            <h2 class="text-2xl font-black uppercase tracking-tighter">Verified!</h2>
+                            <p class="text-xs text-[var(--dim)] font-bold uppercase tracking-widest leading-relaxed">
+                                Your shop is live! Redirecting to dashboard...
+                            </p>
+                        </div>
+                    `;
                     lucide.createIcons();
-                    
-                    // AUTO REDIRECT AFTER 1.5 SECONDS
                     setTimeout(() => {
                         window.location.href = 'vendor_dashboard.html';
                     }, 1500);
                     
-                    return true; // verified
+                } else if (vendor.status === 'fraud') {
+                    statusView.innerHTML = `
+                        <div class="violation-card">
+                            <div class="violation-icon fraud-icon">
+                                <i data-lucide="alert-octagon" size="30"></i>
+                            </div>
+                            <h2 class="violation-title">Fraud Detected</h2>
+                            <p class="violation-message">You've been penalized for submitting an invalid payment reference.</p>
+                            <div onclick="showRulesModal()" class="rules-link">
+                                <i data-lucide="scroll-text" size="14"></i>
+                                <span>View Marketplace Rules</span>
+                            </div>
+                            <button onclick="location.reload()" class="w-full bg-sdel/10 text-sdel py-4 rounded-2xl font-black uppercase text-xs">
+                                Contact Support
+                            </button>
+                        </div>
+                    `;
+                    
+                } else if (vendor.status === 'suspended') {
+                    statusView.innerHTML = `
+                        <div class="violation-card">
+                            <div class="violation-icon suspended-icon">
+                                <i data-lucide="alert-circle" size="30"></i>
+                            </div>
+                            <h2 class="violation-title">Shop Suspended</h2>
+                            <p class="violation-message">Your shop has been suspended for violating marketplace rules.</p>
+                            <div onclick="showRulesModal()" class="rules-link">
+                                <i data-lucide="scroll-text" size="14"></i>
+                                <span>View Violation Details</span>
+                            </div>
+                            <button onclick="location.reload()" class="w-full bg-sdel/10 text-sdel py-4 rounded-2xl font-black uppercase text-xs">
+                                Appeal Suspension
+                            </button>
+                        </div>
+                    `;
+                    
+                } else if (vendor.status === 'deleted_permanently') {
+                    statusView.innerHTML = `
+                        <div class="violation-card">
+                            <div class="violation-icon deleted-icon">
+                                <i data-lucide="trash-2" size="30"></i>
+                            </div>
+                            <h2 class="violation-title">Shop Deleted</h2>
+                            <p class="violation-message">Your shop violated our terms and has been permanently removed.</p>
+                            <div onclick="showRulesModal()" class="rules-link">
+                                <i data-lucide="scroll-text" size="14"></i>
+                                <span>Read Terms & Conditions</span>
+                            </div>
+                            <button onclick="reapply()" class="w-full bg-sdel text-white py-4 rounded-2xl font-black uppercase text-xs mt-4">
+                                Apply for New Shop
+                            </button>
+                        </div>
+                    `;
+                    
                 } else if (vendor.status === 'declined') {
-                    document.getElementById('status-icon-div').className = "w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto text-red-500";
-                    document.getElementById('status-icon').setAttribute('data-lucide', 'x-circle');
-                    document.getElementById('status-title').innerText = "Shop Rejected";
-                    document.getElementById('status-desc').innerText = "Your application was declined. Please review your details and try again.";
-                    document.getElementById('retryBtn').classList.remove('hidden');
-                    document.getElementById('startSellingBtn').classList.add('hidden');
-                    lucide.createIcons();
-                    return false; // not verified
-                } else {
-                    // pending
-                    return false; // not verified
+                    statusView.innerHTML = `
+                        <div class="glass-card p-10 space-y-4">
+                            <div class="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto text-red-500">
+                                <i data-lucide="x-circle" size="40"></i>
+                            </div>
+                            <h2 class="text-2xl font-black uppercase tracking-tighter">Shop Rejected</h2>
+                            <p class="text-xs text-[var(--dim)] font-bold uppercase tracking-widest leading-relaxed">
+                                Your application was declined. Please review your details and try again.
+                            </p>
+                            <button onclick="reapply()" class="w-full border border-sdel text-sdel py-4 rounded-2xl font-black uppercase text-[10px]">
+                                Try Again
+                            </button>
+                        </div>
+                    `;
+                    
+                } else if (vendor.status === 'pending') {
+                    statusView.innerHTML = `
+                        <div class="glass-card p-10 space-y-4">
+                            <div class="w-20 h-20 bg-sdel/10 rounded-full flex items-center justify-center mx-auto text-sdel">
+                                <i data-lucide="clock-4" size="40"></i>
+                            </div>
+                            <h2 class="text-2xl font-black uppercase tracking-tighter">Under Review</h2>
+                            <p class="text-xs text-[var(--dim)] font-bold uppercase tracking-widest leading-relaxed">
+                                We'll review your application and payment reference: ${vendor.payment_ref || 'N/A'}
+                            </p>
+                            <div class="bg-black/20 p-3 rounded-xl text-[9px] font-bold">
+                                Payment ID: <span class="text-sdel">${vendor.payment_ref || 'Not provided'}</span>
+                            </div>
+                        </div>
+                    `;
                 }
+                
+                lucide.createIcons();
+                return true;
             }
-            return false; // no vendor -> not verified, show form
+            return false;
         }
 
         window.reapply = async () => {
             const { data: { session } } = await supabase.auth.getSession();
-            const { error } = await supabase.from('vendors').delete().eq('user_id', session.user.id).eq('status', 'declined');
+            const { error } = await supabase.from('vendors').delete().eq('user_id', session.user.id);
             if (!error) location.reload();
             else showAlert("Action failed. Try again later.");
         }
@@ -262,7 +407,6 @@
                     </div>
                 `).join('');
                 selectPlan(configs[0].id, configs[0].price);
-                // update display amount
                 document.getElementById('displayAmount').innerText = '₦' + configs[0].price.toLocaleString();
             }
         }
@@ -304,14 +448,12 @@
             if(cat === 'Other') cat = document.getElementById('customCat').value;
             if(!biz || !cat) return showAlert("Missing shop details, homie!");
             
-            // payment reference & confirmation check (optional, doesn't block)
             const paymentRef = document.getElementById('paymentRef').value;
             const confirmPaid = document.getElementById('payConfirmCheck').checked;
             
             if (!confirmPaid) {
                 showAlert("Please confirm you have paid (checkbox)");
-                // we do NOT block submission? spec says: "without ticking user cannot submit application" — actually says "cannot submit"? reading: "create that without ticking user cannot submit application". So we should block.
-                return; // BLOCK SUBMISSION IF NOT CHECKED
+                return;
             }
             if (!paymentRef) {
                 showAlert("Please enter payment reference ID");
@@ -323,7 +465,6 @@
             const { data: { session } } = await supabase.auth.getSession();
             if(!session) return window.location.href = 'login.html';
             
-            // Insert with payment_ref field (if column doesn't exist, supabase will throw; we need to add column via SQL. But spec says "create that without ticking user cannot submit application I don't have column for payment id well create that" – so we must ensure column exists. We'll include in insert and assume it's added.)
             const { error } = await supabase.from('vendors').insert({
                 user_id: session.user.id,
                 business_name: biz,
@@ -331,7 +472,7 @@
                 tier_id: selectedTierId,
                 fee_paid: selectedPrice,
                 status: 'pending',
-                payment_ref: paymentRef  // new column needed. Alert if missing.
+                payment_ref: paymentRef
             });
             
             if(!error) {
@@ -346,15 +487,10 @@
             }
         };
 
-        // INIT
         async function init() {
             await loadPlans();
-            const isVerified = await checkVendorStatus();
-            // if verified, form already hidden. if not verified, form stays visible.
-            if (isVerified) {
-                // do nothing extra
-            } else {
-                // ensure form is visible, status hidden
+            const hasShop = await checkVendorStatus();
+            if (!hasShop) {
                 document.getElementById('reg-form').classList.remove('hidden');
                 document.getElementById('status-view').classList.add('hidden');
             }
