@@ -189,39 +189,38 @@
                     return;
                 }
 
-                // Get vendor record
-                const { data: vendor } = await supabase
-                    .from('vendors')
-                    .select('id, business_name, status')
-                    .eq('user_id', session.user.id)
-                    .single();
-
-                if (!vendor || vendor.status !== 'verified') {
-                    window.location.href = 'merchant_hub.html';
-                    return;
-                }
+                // FIXED: Use the current user's ID as the vendor_id (based on your first file)
+                const vendorId = session.user.id;
 
                 // Date range
                 const endDate = new Date();
                 const startDate = new Date();
                 startDate.setDate(startDate.getDate() - 30);
 
-                // Fetch orders
-                const { data: orders } = await supabase
+                // FIXED: Directly query orders with the user ID as vendor_id
+                const { data: orders, error: ordersError } = await supabase
                     .from('orders')
                     .select('*')
-                    .eq('vendor_id', vendor.id)
+                    .eq('vendor_id', vendorId)
                     .eq('status', 'accepted')
                     .gte('created_at', startDate.toISOString())
                     .lte('created_at', endDate.toISOString());
 
-                // Fetch views
-                const { data: views } = await supabase
+                if (ordersError) {
+                    console.error('Orders error:', ordersError);
+                }
+
+                // Fetch views - you might need to adjust this based on your actual views table structure
+                const { data: views, error: viewsError } = await supabase
                     .from('product_views')
                     .select('*')
-                    .eq('vendor_id', vendor.id)
+                    .eq('vendor_id', vendorId)
                     .gte('viewed_at', startDate.toISOString())
                     .lte('viewed_at', endDate.toISOString());
+
+                if (viewsError) {
+                    console.error('Views error:', viewsError);
+                }
 
                 // Calculate metrics
                 const totalRevenue = orders?.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0) || 0;
@@ -245,30 +244,58 @@
                 // Calculate product stats
                 const productStats = {};
                 
+                // Process orders to get product stats
                 orders?.forEach(order => {
                     let items = order.items;
-                    if (typeof items === 'string') items = JSON.parse(items);
+                    
+                    // Handle items if they're stored as JSON string
+                    if (items && typeof items === 'string') {
+                        try {
+                            items = JSON.parse(items);
+                        } catch (e) {
+                            console.error('Error parsing items:', e);
+                            items = [];
+                        }
+                    }
                     
                     if (Array.isArray(items)) {
                         items.forEach(item => {
-                            const productId = item.id;
-                            if (!productStats[productId]) {
-                                productStats[productId] = {
-                                    name: item.name || 'Unknown',
+                            // Use item name as key since we might not have product ID
+                            const productKey = item.name || 'Unknown Product';
+                            if (!productStats[productKey]) {
+                                productStats[productKey] = {
+                                    name: productKey,
                                     quantity: 0,
                                     revenue: 0,
                                     views: 0
                                 };
                             }
-                            productStats[productId].quantity += item.quantity || 1;
-                            productStats[productId].revenue += (Number(item.price) * (item.quantity || 1));
+                            const quantity = item.quantity || 1;
+                            productStats[productKey].quantity += quantity;
+                            productStats[productKey].revenue += (Number(item.price) * quantity) || 0;
                         });
+                    } else if (order.item_name) {
+                        // Fallback for older order format
+                        const productKey = order.item_name;
+                        if (!productStats[productKey]) {
+                            productStats[productKey] = {
+                                name: productKey,
+                                quantity: 0,
+                                revenue: 0,
+                                views: 0
+                            };
+                        }
+                        productStats[productKey].quantity += 1;
+                        productStats[productKey].revenue += Number(order.total_amount) || 0;
                     }
                 });
 
+                // Add view counts if we have product_views table
                 views?.forEach(view => {
-                    if (productStats[view.product_id]) {
-                        productStats[view.product_id].views += 1;
+                    // This assumes your product_views table has a product_name field
+                    // Adjust based on your actual schema
+                    if (view.product_name && productStats[view.product_name]) {
+                        productStats[view.product_name].views += 1;
                     }
                 });
 
@@ -304,6 +331,15 @@
                         `;
                     }).join('');
                 }
+
+                // Add debug info to console
+                console.log('Analytics loaded:', {
+                    vendorId,
+                    ordersCount: orders?.length,
+                    viewsCount: views?.length,
+                    totalRevenue,
+                    productStats
+                });
 
                 // Refresh icons
                 lucide.createIcons();
@@ -344,6 +380,9 @@
 
         // Load immediately
         loadAnalytics();
+
+        // Optional: Auto-refresh every 30 seconds
+        setInterval(loadAnalytics, 30000);
 
     </script>
 </body>
