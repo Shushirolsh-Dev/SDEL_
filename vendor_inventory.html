@@ -104,7 +104,7 @@
             <i data-lucide="arrow-left" size="20"></i>
         </button>
         <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">INVENTORY</h1>
-        <button onclick="window.location.href='add-product.html'" class="p-3 bg-sdel/20 text-sdel rounded-2xl border border-sdel/30">
+        <button onclick="window.location.href='vendor_add_product.html'" class="p-3 bg-sdel/20 text-sdel rounded-2xl border border-sdel/30">
             <i data-lucide="plus" size="20"></i>
         </button>
     </nav>
@@ -132,7 +132,7 @@
 
     <!-- Quick Actions -->
     <div class="fixed bottom-24 left-6 right-6">
-        <button onclick="loadInventory()" class="w-full glass-card p-4 text-sdel font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
+        <button onclick="window.loadInventory()" class="w-full glass-card p-4 text-sdel font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2">
             <i data-lucide="refresh-cw" size="16"></i>
             Refresh Inventory
         </button>
@@ -145,7 +145,7 @@
         let currentVendorId = null;
         let currentProduct = null;
 
-        async function loadInventory() {
+        window.loadInventory = async function() {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (!session) {
@@ -172,11 +172,11 @@
 
                 currentVendorId = vendor.id;
 
-                // Fetch products
+                // Fetch products - using vendor_id from products table
                 const { data: products } = await supabase
                     .from('products')
                     .select('*')
-                    .eq('vendor_id', session.user.id) // Using user_id since products use user_id
+                    .eq('vendor_id', session.user.id)
                     .order('created_at', { ascending: false });
 
                 if (!products || products.length === 0) {
@@ -184,7 +184,7 @@
                         <div class="glass-card p-12 text-center space-y-4">
                             <i data-lucide="package" size="40" class="mx-auto text-[var(--dim)]"></i>
                             <p class="text-sm text-[var(--dim)]">No products yet</p>
-                            <button onclick="window.location.href='add-product.html'" class="px-6 py-3 bg-sdel text-black rounded-xl text-xs font-black inline-block">Add Product</button>
+                            <button onclick="window.location.href='vendor_add_product.html'" class="px-6 py-3 bg-sdel text-black rounded-xl text-xs font-black inline-block">Add Product</button>
                         </div>
                     `;
                     lucide.createIcons();
@@ -259,7 +259,7 @@
             } catch (error) {
                 console.error('Error:', error);
             }
-        }
+        };
 
         // Modal functions
         window.openEditModal = (product) => {
@@ -302,7 +302,7 @@
                 
             if (!error) {
                 hideEditModal();
-                loadInventory();
+                window.loadInventory();
                 showToast(`Stock updated to ${newStock} units`);
             }
         };
@@ -316,10 +316,10 @@
         }
 
         // Load inventory
-        loadInventory();
+        window.loadInventory();
         
         // Real-time updates
-        setInterval(loadInventory, 10000);
+        setInterval(() => window.loadInventory(), 10000);
     </script>
 </body>
-  </html>
+</html>
