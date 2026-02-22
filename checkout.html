@@ -122,7 +122,7 @@
                 </div>
                 <div class="flex justify-between text-zinc-400 text-xs font-bold">
                     <span>Delivery Fee</span>
-                    <span>₦0</span>
+                    <span id="delivery-fee-display">₦0</span>
                 </div>
                 <div class="flex justify-between text-white text-lg font-black italic">
                     <span>TOTAL</span>
@@ -146,6 +146,9 @@
         let checkoutItems = JSON.parse(localStorage.getItem('checkout_items')) || [];
         let selectedMethod = 'pod';
         let userFirstName = '';
+        let deliveryFee = 0;
+        let deliveryType = 'free';
+        let deliveryValue = 0;
 
         // Modal functions
         window.showAlert = (title, desc, type = 'error', orderCode = null) => {
@@ -174,6 +177,48 @@
         window.closeModal = () => {
             document.getElementById('custom-modal').style.display = 'none';
         };
+
+        // Load delivery settings from app_config
+        async function loadDeliverySettings() {
+            // Get delivery type
+            const { data: typeData, error: typeError } = await supabase
+                .from('app_config')
+                .select('price')
+                .eq('id', 'delivery_type')
+                .maybeSingle();
+            
+            // Get delivery value
+            const { data: valueData, error: valueError } = await supabase
+                .from('app_config')
+                .select('price')
+                .eq('id', 'delivery_value')
+                .maybeSingle();
+            
+            // Set values (with defaults)
+            deliveryType = typeData?.price === 1 ? 'flat' : typeData?.price === 2 ? 'percentage' : 'free';
+            deliveryValue = valueData?.price || 0;
+            
+            // Calculate delivery fee based on type
+            const subtotal = checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0);
+            
+            if (deliveryType === 'free') {
+                deliveryFee = 0;
+            } else if (deliveryType === 'flat') {
+                deliveryFee = deliveryValue;
+            } else if (deliveryType === 'percentage') {
+                deliveryFee = (subtotal * deliveryValue) / 100;
+            }
+            
+            document.getElementById('delivery-fee-display').innerText = `₦${deliveryFee.toLocaleString()}`;
+            updateTotal();
+        }
+
+        // Update total with delivery fee
+        function updateTotal() {
+            const subtotal = checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0);
+            const total = subtotal + deliveryFee;
+            document.getElementById('final-total').innerText = `₦${total.toLocaleString()}`;
+        }
 
         // Initialize page
         async function init() {
@@ -204,6 +249,8 @@
                 document.getElementById('cust-name').value = userFirstName;
             }
             
+            // Load delivery settings first
+            await loadDeliverySettings();
             renderSummary();
             createStars();
             lucide.createIcons();
@@ -212,11 +259,10 @@
         // Render order summary
         function renderSummary() {
             const container = document.getElementById('summary-items');
-            let total = 0;
+            const subtotal = checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0);
             
             container.innerHTML = checkoutItems.map(item => {
                 const price = item.products.price * item.quantity;
-                total += price;
                 return `
                     <div class="flex justify-between items-center">
                         <p class="text-xs font-bold text-zinc-300">${item.products.name} <span class="text-zinc-600">x${item.quantity}</span></p>
@@ -225,8 +271,8 @@
                 `;
             }).join('');
 
-            document.getElementById('subtotal').innerText = `₦${total.toLocaleString()}`;
-            document.getElementById('final-total').innerText = `₦${total.toLocaleString()}`;
+            document.getElementById('subtotal').innerText = `₦${subtotal.toLocaleString()}`;
+            updateTotal();
         }
 
         // Set payment method
@@ -320,19 +366,20 @@
                     quantity: item.quantity
                 }));
 
-                // Calculate total
-                const totalAmount = checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0);
+                // Calculate total with delivery fee
+                const subtotal = checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0);
+                const totalAmount = subtotal + deliveryFee;
 
                 // CHECK AND DEDUCT STOCK BEFORE CREATING ORDER
                 await checkAndDeductStock(orderItems);
 
-                // Insert order
+                // Insert order with dynamic delivery fee
                 const { data, error } = await supabase
                     .from('orders')
                     .insert([{
                         user_id: user.id,
                         total_amount: totalAmount,
-                        delivery_fee: 0,
+                        delivery_fee: deliveryFee,
                         items: orderItems,
                         status: 'pending',
                         payment_method: selectedMethod,
@@ -366,7 +413,7 @@
                 // Redirect after delay
                 setTimeout(() => { 
                     window.location.href = 'dashboard.html'; 
-                }, 5000);
+                }, 8000);
 
             } catch (err) {
                 console.error('Order Error:', err);
