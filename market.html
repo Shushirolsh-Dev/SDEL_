@@ -131,6 +131,32 @@
         nav, .fixed.bottom-0 {
             visibility: visible !important;
         }
+        
+        /* Stock badge styling */
+        .stock-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .stock-high { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .stock-low { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .stock-medium { background: rgba(255, 102, 0, 0.15); color: #FF6600; border: 1px solid rgba(255, 102, 0, 0.3); }
+        .stock-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .stock-dot.high { background: #22c55e; }
+        .stock-dot.low { background: #ef4444; }
+        .stock-dot.medium { background: #FF6600; }
     </style>
 </head>
 <body class="pb-24">
@@ -374,6 +400,29 @@
             }
         }
 
+        // Function to update stock when items are added to cart
+        async function updateProductStock(productId, quantityChange) {
+            // Find the product
+            const product = allProducts.find(p => p.id === productId);
+            if (!product) return;
+            
+            const currentStock = product.stock || 0;
+            const newStock = Math.max(0, currentStock - quantityChange);
+            
+            // Update in database
+            const { error } = await supabase
+                .from('products')
+                .update({ stock: newStock })
+                .eq('id', productId);
+                
+            if (!error) {
+                // Update local array
+                product.stock = newStock;
+                // Re-render to show updated stock
+                window.renderProducts(allProducts);
+            }
+        }
+
         window.renderProducts = (items) => {
             const list = document.getElementById('product-list');
             if (items.length === 0) {
@@ -381,7 +430,7 @@
                 return;
             }
             
-            // For each product being rendered, track that it was viewed
+             // For each product being rendered, track that it was viewed
             items.forEach(item => {
                 // Small delay to not block rendering
                 setTimeout(() => {
@@ -392,6 +441,27 @@
             list.innerHTML = items.map(item => {
                 const inCart = userCart[item.id];
                 const stock = item.stock || 0;
+                
+                // Determine stock status
+                let stockClass = 'stock-high';
+                let stockText = 'In Stock';
+                let dotClass = 'high';
+                
+                if (stock === 0) {
+                    stockClass = 'stock-low';
+                    stockText = 'Out of Stock';
+                    dotClass = 'low';
+                } else if (stock < 5) {
+                    stockClass = 'stock-low';
+                    stockText = '🔥 Low Stock - ' + stock + ' left';
+                    dotClass = 'low';
+                } else if (stock < 10) {
+                    stockClass = 'stock-medium';
+                    stockText = '⚠️ Only ' + stock + ' left';
+                    dotClass = 'medium';
+                } else {
+                    stockText = '✅ ' + stock + ' in stock';
+                }
                 
                 return `
                 <div class="card-zinc rounded-3xl overflow-hidden flex flex-col">
@@ -414,19 +484,10 @@
                         </div>
                         <p class="text-[10px] text-zinc-500 font-bold leading-relaxed line-clamp-2 h-8">${item.description || ''}</p>
                         
-                        <!-- Stock indicator at bottom - Always visible -->
-                        <div class="flex items-center gap-2 mt-2 ${stock === 0 ? 'opacity-100' : ''}">
-                            ${stock > 0 ? `
-                                <span class="text-[9px] ${stock < 5 ? 'text-red-500' : 'text-green-500'} font-black flex items-center gap-1">
-                                    <span class="w-1.5 h-1.5 rounded-full ${stock < 5 ? 'bg-red-500' : 'bg-green-500'}"></span>
-                                    ${stock < 5 ? '🔥 Only ' + stock + ' left' : '✅ ' + stock + ' in stock'}
-                                </span>
-                            ` : `
-                                <span class="text-[9px] text-red-500 font-black flex items-center gap-1">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
-                                    ❌ Out of stock
-                                </span>
-                            `}
+                        <!-- BIG STOCK INDICATOR - Very visible -->
+                        <div class="stock-badge ${stockClass} w-full justify-center my-3">
+                            <span class="stock-dot ${dotClass}"></span>
+                            <span class="font-black">${stockText}</span>
                         </div>
                         
                         <div class="mt-4 flex gap-2">
@@ -452,21 +513,48 @@
         };
 
         window.addToCart = async (id) => {
+            const product = allProducts.find(p => p.id === id);
+            if (!product || (product.stock || 0) < 1) {
+                showToast("Out of stock!");
+                return;
+            }
+            
+            // Update cart
             userCart[id] = 1;
-            window.renderProducts(allProducts); 
+            
+            // Deduct from stock (1 item)
+            await updateProductStock(id, 1);
+            
+            // Add to cart database
             await supabase.from('cart').insert([{ user_id: currentUserId, product_id: id, quantity: 1 }]);
+            
             updateCartCountDisplay();
             showToast("Added to cart!");
         };
 
         window.updateQty = async (id, change) => {
+            const product = allProducts.find(p => p.id === id);
+            if (!product) return;
+            
             let newQty = (userCart[id] || 0) + change;
-            if (newQty < 1) return; 
+            if (newQty < 1) return;
             
+            // Check stock if increasing
+            if (change > 0 && (product.stock || 0) < change) {
+                showToast("Not enough stock!");
+                return;
+            }
+            
+            // Update cart quantity
             userCart[id] = newQty;
-            window.renderProducts(allProducts); 
             
+            // Deduct or add back to stock
+            await updateProductStock(id, -change); // Negative change adds back to stock
+            
+            // Update cart database
             await supabase.from('cart').update({ quantity: newQty }).eq('user_id', currentUserId).eq('product_id', id);
+            
+            window.renderProducts(allProducts);
         };
 
         window.filterProducts = (cat, e) => {
