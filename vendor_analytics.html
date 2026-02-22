@@ -386,24 +386,27 @@
             }
         }
 
-        // Date range changer
+         // Date range changer
         window.changeDateRange = (days) => {
             currentDateRange = days === 'all' ? 'all' : parseInt(days);
             loadAnalytics();
         };
 
-        // Load immediately and refresh
+        // Load immediately
         loadAnalytics();
+        
+        // LIVE UPDATES - Refresh every 10 seconds
         setInterval(loadAnalytics, 10000);
 
-        // Real-time subscription
+        // REAL-TIME SUBSCRIPTION - Updates instantly when data changes
         supabase
-            .channel('analytics-channel')
+            .channel('analytics-live-channel')
             .on('postgres_changes', { 
                 event: '*', 
                 schema: 'public', 
                 table: 'orders'
             }, () => {
+                console.log('🔄 Orders changed - updating analytics');
                 loadAnalytics();
             })
             .on('postgres_changes', { 
@@ -411,6 +414,7 @@
                 schema: 'public', 
                 table: 'product_views'
             }, () => {
+                console.log('👁️ Views changed - updating analytics');
                 loadAnalytics();
             })
             .subscribe();
