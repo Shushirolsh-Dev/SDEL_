@@ -99,7 +99,7 @@
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Gross Revenue</p>
             <p class="text-2xl font-black" id="totalRevenue">₦0</p>
-            <p class="text-[10px] font-bold mt-1" id="revenueChange">⟳ 0%</p>
+            <p class="text-[10px] font-bold mt-1" id="revenueChange">Total before fees</p>
         </div>
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Platform Fee (10%)</p>
@@ -114,7 +114,7 @@
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Orders</p>
             <p class="text-2xl font-black" id="totalOrderCount">0</p>
-            <p class="text-[10px] font-bold mt-1" id="orderChange">⟳ 0%</p>
+            <p class="text-[10px] font-bold mt-1" id="orderChange">Total orders</p>
         </div>
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Product Views</p>
@@ -128,7 +128,7 @@
         </div>
     </div>
 
-    <!-- Status Breakdown (Matches Order Command) -->
+    <!-- Status Breakdown -->
     <div class="grid grid-cols-3 gap-2 mb-6">
         <div class="glass-card p-4 text-center">
             <p class="text-[8px] font-black uppercase text-[var(--dim)]">Pending</p>
@@ -152,9 +152,9 @@
         </div>
     </div>
 
-    <!-- Recent Orders Preview -->
+    <!-- Recent Orders -->
     <div class="glass-card p-6 mb-6">
-        <h2 class="font-black text-xs uppercase tracking-wider mb-4">📦 Recent Accepted Orders</h2>
+        <h2 class="font-black text-xs uppercase tracking-wider mb-4">📦 Recent Orders</h2>
         <div class="space-y-2" id="recentOrders">
             <!-- Content loads here -->
         </div>
@@ -169,32 +169,11 @@
         let currentDateRange = 30;
         let currentUserId = null;
 
-        // Toast function (copied from Order Command)
-        function showToast(msg, type = 'success') {
-            // Check if toast exists, if not create it
-            let toast = document.getElementById('analytics-toast');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'analytics-toast';
-                toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:#121212;border:1px solid #FF6600;color:white;padding:12px 24px;border-radius:20px;font-weight:600;font-size:13px;box-shadow:0 10px 25px rgba(0,0,0,0.5);transition:transform .3s;z-index:9999;display:flex;align-items:center;gap:8px;';
-                toast.innerHTML = `<div style="background:rgba(255,102,0,0.1);padding:8px;border-radius:12px;color:#FF6600;"><i data-lucide="bell" size="16"></i></div><span>${msg}</span>`;
-                document.body.appendChild(toast);
-                setTimeout(() => {
-                    toast.style.transform = 'translateX(-50%) translateY(0)';
-                }, 10);
-                setTimeout(() => {
-                    toast.style.transform = 'translateX(-50%) translateY(-100px)';
-                    setTimeout(() => toast.remove(), 300);
-                }, 2000);
-                lucide.createIcons();
-            }
-        }
-
         async function loadAnalytics() {
             try {
                 console.log('🔄 Loading analytics at', new Date().toLocaleTimeString());
                 
-                // Get current user (EXACTLY like Order Command)
+                // Get current user
                 const { data: { session } } = await supabase.auth.getSession();
                 
                 if (!session) {
@@ -214,11 +193,11 @@
                     startDate.setFullYear(2000);
                 }
 
-                // 1. FETCH ALL ORDERS for this vendor (EXACTLY like Order Command)
+                // FETCH ALL ORDERS
                 const { data: allOrders, error } = await supabase
                     .from('orders')
                     .select('*')
-                    .eq('vendor_id', currentUserId)  // Uses user ID directly, just like Order Command
+                    .eq('vendor_id', currentUserId)
                     .order('created_at', { ascending: false });
 
                 if (error) {
@@ -226,47 +205,56 @@
                     return;
                 }
 
-                console.log('Total orders found:', allOrders?.length || 0);
+                console.log('Total orders in database:', allOrders?.length || 0);
 
                 // Filter by date range
-                const filteredOrders = allOrders?.filter(order => 
-                    new Date(order.created_at) >= startDate && new Date(order.created_at) <= endDate
-                ) || [];
+                const filteredOrders = allOrders?.filter(order => {
+                    const orderDate = new Date(order.created_at);
+                    return orderDate >= startDate && orderDate <= endDate;
+                }) || [];
 
-                // Count by status (matches Order Command tabs)
+                console.log('Orders in date range:', filteredOrders.length);
+
+                // Count by status
                 const pendingOrders = filteredOrders.filter(o => o.status === 'pending') || [];
                 const acceptedOrders = filteredOrders.filter(o => o.status === 'accepted') || [];
                 const rejectedOrders = filteredOrders.filter(o => o.status === 'rejected') || [];
-
-                console.log('Order counts:', {
-                    pending: pendingOrders.length,
-                    accepted: acceptedOrders.length,
-                    rejected: rejectedOrders.length
-                });
 
                 // Update status counts
                 document.getElementById('pendingOrders').innerText = pendingOrders.length;
                 document.getElementById('acceptedOrders').innerText = acceptedOrders.length;
                 document.getElementById('rejectedOrders').innerText = rejectedOrders.length;
 
-                // Calculate revenue from ACCEPTED orders only
-                const totalRevenue = acceptedOrders.reduce((sum, order) => sum + (parseFloat(order.total_amount) || 0), 0);
-                const platformFee = (totalRevenue * PLATFORM_FEE_PERCENTAGE) / 100;
-                const vendorEarnings = totalRevenue - platformFee;
-                const avgOrderValue = acceptedOrders.length > 0 ? totalRevenue / acceptedOrders.length : 0;
+                // GROSS REVENUE: Sum of ALL orders (pending + accepted)
+                const grossRevenue = filteredOrders.reduce((sum, order) => sum + (parseFloat(order.total_amount) || 0), 0);
+                
+                // PLATFORM FEE: 10% of gross revenue
+                const platformFee = (grossRevenue * PLATFORM_FEE_PERCENTAGE) / 100;
+                
+                // YOUR EARNINGS: Gross revenue minus platform fee
+                const vendorEarnings = grossRevenue - platformFee;
+                
+                const avgOrderValue = filteredOrders.length > 0 ? grossRevenue / filteredOrders.length : 0;
+
+                console.log('Revenue calculations:', {
+                    grossRevenue,
+                    platformFee,
+                    vendorEarnings,
+                    avgOrderValue
+                });
 
                 // Update main metrics
-                document.getElementById('totalRevenue').innerText = '₦' + totalRevenue.toLocaleString();
+                document.getElementById('totalRevenue').innerText = '₦' + grossRevenue.toLocaleString();
                 document.getElementById('platformFee').innerText = '₦' + platformFee.toLocaleString();
                 document.getElementById('vendorEarnings').innerText = '₦' + vendorEarnings.toLocaleString();
-                document.getElementById('totalOrderCount').innerText = acceptedOrders.length;
+                document.getElementById('totalOrderCount').innerText = filteredOrders.length;
                 document.getElementById('avgOrderValue').innerText = '₦' + avgOrderValue.toLocaleString();
 
-                // Update change indicators
-                document.getElementById('revenueChange').innerHTML = acceptedOrders.length > 0 ? '↑ Active' : '⟳ No sales';
-                document.getElementById('orderChange').innerHTML = pendingOrders.length > 0 ? `↑ ${pendingOrders.length} pending` : '⟳ All processed';
+                // Update indicators
+                document.getElementById('revenueChange').innerHTML = `${filteredOrders.length} orders total`;
+                document.getElementById('orderChange').innerHTML = `${acceptedOrders.length} completed`;
 
-                // 2. FETCH PRODUCT VIEWS (if table exists)
+                // FETCH PRODUCT VIEWS
                 const { data: views } = await supabase
                     .from('product_views')
                     .select('*')
@@ -283,7 +271,7 @@
                 document.getElementById('totalViews').innerText = totalViews.toLocaleString();
                 document.getElementById('conversionRate').innerText = conversionRate + '%';
 
-                // 3. Get product names
+                // Get product names
                 const { data: products } = await supabase
                     .from('products')
                     .select('id, name')
@@ -294,7 +282,7 @@
                     productNameMap[p.id] = p.name;
                 });
 
-                // 4. Calculate product performance
+                // Calculate product performance
                 const productStats = {};
                 
                 // Add view counts
@@ -314,8 +302,8 @@
                     productStats[productId].views += 1;
                 });
 
-                // Add order data
-                acceptedOrders.forEach(order => {
+                // Add order data from ALL orders
+                filteredOrders.forEach(order => {
                     let items = order.items;
                     if (items && typeof items === 'string') {
                         try {
@@ -378,26 +366,29 @@
                     }).join('');
                 }
 
-                // Display recent accepted orders (like Order Command but simplified)
+                // Display recent orders
                 const recentList = document.getElementById('recentOrders');
                 
-                if (acceptedOrders.length === 0) {
+                if (filteredOrders.length === 0) {
                     recentList.innerHTML = `
                         <div class="text-center py-4 text-[var(--dim)]">
-                            <p class="text-xs">No accepted orders yet</p>
+                            <p class="text-xs">No orders yet</p>
                         </div>
                     `;
                 } else {
-                    recentList.innerHTML = acceptedOrders.slice(0, 5).map(order => {
+                    recentList.innerHTML = filteredOrders.slice(0, 5).map(order => {
                         const delivery = order.delivery_info || {};
                         const date = new Date(order.created_at).toLocaleDateString();
+                        const statusColor = order.status === 'accepted' ? 'text-green-500' : 
+                                          order.status === 'rejected' ? 'text-red-500' : 'text-sdel';
                         return `
                             <div class="flex items-center justify-between p-2 bg-zinc-900/10 rounded-lg">
                                 <div>
                                     <p class="text-xs font-bold">${order.order_code || 'No Code'}</p>
                                     <p class="text-[8px] text-[var(--dim)]">${delivery.name || 'Customer'} • ${date}</p>
+                                    <p class="text-[8px] ${statusColor} uppercase font-black">${order.status}</p>
                                 </div>
-                                <p class="font-black text-green-500 text-sm">₦${(parseFloat(order.total_amount) || 0).toLocaleString()}</p>
+                                <p class="font-black text-sdel text-sm">₦${(parseFloat(order.total_amount) || 0).toLocaleString()}</p>
                             </div>
                         `;
                     }).join('');
@@ -420,7 +411,6 @@
         // Manual refresh
         window.forceRefresh = () => {
             loadAnalytics();
-            showToast('Analytics refreshed');
         };
 
         // Load immediately
@@ -429,14 +419,13 @@
         // Refresh every 10 seconds
         setInterval(loadAnalytics, 10000);
 
-        // Real-time subscription (EXACTLY like Order Command)
+        // Real-time subscription
         supabase
             .channel('analytics-channel')
             .on('postgres_changes', { 
                 event: '*', 
                 schema: 'public', 
-                table: 'orders',
-                filter: `vendor_id=eq.${currentUserId}`
+                table: 'orders'
             }, () => {
                 console.log('📦 Orders changed - updating');
                 loadAnalytics();
@@ -453,4 +442,4 @@
 
     </script>
 </body>
-</html>
+    </html>
