@@ -157,6 +157,19 @@
         .stock-dot.high { background: #22c55e; }
         .stock-dot.low { background: #ef4444; }
         .stock-dot.medium { background: #FF6600; }
+        
+        /* Reserved badge */
+        .reserved-badge {
+            background: rgba(255, 102, 0, 0.15);
+            color: #FF6600;
+            border: 1px solid rgba(255, 102, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 30px;
+            font-size: 8px;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin-left: 6px;
+        }
     </style>
 </head>
 <body class="pb-24">
@@ -400,29 +413,6 @@
             }
         }
 
-        // Function to update stock when items are added to cart
-        async function updateProductStock(productId, quantityChange) {
-            // Find the product
-            const product = allProducts.find(p => p.id === productId);
-            if (!product) return;
-            
-            const currentStock = product.stock || 0;
-            const newStock = Math.max(0, currentStock - quantityChange);
-            
-            // Update in database
-            const { error } = await supabase
-                .from('products')
-                .update({ stock: newStock })
-                .eq('id', productId);
-                
-            if (!error) {
-                // Update local array
-                product.stock = newStock;
-                // Re-render to show updated stock
-                window.renderProducts(allProducts);
-            }
-        }
-
         window.renderProducts = (items) => {
             const list = document.getElementById('product-list');
             if (items.length === 0) {
@@ -430,7 +420,7 @@
                 return;
             }
             
-             // For each product being rendered, track that it was viewed
+               // For each product being rendered, track that it was viewed
             items.forEach(item => {
                 // Small delay to not block rendering
                 setTimeout(() => {
@@ -484,7 +474,7 @@
                         </div>
                         <p class="text-[10px] text-zinc-500 font-bold leading-relaxed line-clamp-2 h-8">${item.description || ''}</p>
                         
-                        <!-- BIG STOCK INDICATOR - Very visible -->
+                        <!-- STOCK INDICATOR -->
                         <div class="stock-badge ${stockClass} w-full justify-center my-3">
                             <span class="stock-dot ${dotClass}"></span>
                             <span class="font-black">${stockText}</span>
@@ -519,37 +509,25 @@
                 return;
             }
             
-            // Update cart
+            // Update cart only - NO stock deduction here!
             userCart[id] = 1;
             
-            // Deduct from stock (1 item)
-            await updateProductStock(id, 1);
-            
-            // Add to cart database
+            // Add to cart database only
             await supabase.from('cart').insert([{ user_id: currentUserId, product_id: id, quantity: 1 }]);
             
             updateCartCountDisplay();
             showToast("Added to cart!");
+            
+            // Re-render to show updated cart UI only (stock unchanged)
+            window.renderProducts(allProducts);
         };
 
         window.updateQty = async (id, change) => {
-            const product = allProducts.find(p => p.id === id);
-            if (!product) return;
-            
             let newQty = (userCart[id] || 0) + change;
             if (newQty < 1) return;
             
-            // Check stock if increasing
-            if (change > 0 && (product.stock || 0) < change) {
-                showToast("Not enough stock!");
-                return;
-            }
-            
-            // Update cart quantity
+            // Update cart quantity only - NO stock changes here!
             userCart[id] = newQty;
-            
-            // Deduct or add back to stock
-            await updateProductStock(id, -change); // Negative change adds back to stock
             
             // Update cart database
             await supabase.from('cart').update({ quantity: newQty }).eq('user_id', currentUserId).eq('product_id', id);
