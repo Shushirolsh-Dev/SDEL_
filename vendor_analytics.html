@@ -51,6 +51,22 @@
             visibility: visible;
             opacity: 1;
         }
+        
+        .live-badge {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+            margin-right: 6px;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body class="p-6">
@@ -59,7 +75,10 @@
         <button onclick="window.location.href='vendor_dashboard.html'" class="p-3 bg-zinc-900/10 rounded-2xl border border-[var(--border)]">
             <i data-lucide="arrow-left" size="20"></i>
         </button>
-        <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">ANALYTICS</h1>
+        <div class="flex items-center gap-2">
+            <span class="live-badge"></span>
+            <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">LIVE ANALYTICS</h1>
+        </div>
         <div class="w-10"></div>
     </nav>
 
@@ -141,6 +160,13 @@
         </div>
     </div>
 
+    <!-- Manual Refresh Button (for testing) -->
+    <div class="fixed bottom-6 right-6">
+        <button onclick="forceRefresh()" class="bg-sdel text-black p-4 rounded-full shadow-lg shadow-orange-600/20">
+            <i data-lucide="refresh-cw" size="20"></i>
+        </button>
+    </div>
+
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         
@@ -148,10 +174,18 @@
 
         const PLATFORM_FEE_PERCENTAGE = 10;
         let currentDateRange = 30;
-        let previousPeriodData = null;
+        let lastUpdateTime = Date.now();
+
+        // Manual refresh function
+        window.forceRefresh = () => {
+            lastUpdateTime = Date.now();
+            loadAnalytics();
+        };
 
         async function loadAnalytics() {
             try {
+                console.log('🔄 Loading analytics at', new Date().toLocaleTimeString());
+                
                 // Get current user
                 const { data: { session } } = await supabase.auth.getSession();
                 
@@ -161,6 +195,7 @@
                 }
 
                 const vendorId = session.user.id;
+                console.log('Vendor ID:', vendorId);
 
                 // Date ranges
                 const endDate = new Date();
@@ -168,18 +203,11 @@
                 if (currentDateRange !== 'all') {
                     startDate.setDate(startDate.getDate() - currentDateRange);
                 } else {
-                    startDate.setFullYear(2000); // Get all data from year 2000
+                    startDate.setFullYear(2000);
                 }
 
-                // Previous period for comparison (only if not "all")
-                const prevEndDate = new Date(startDate);
-                const prevStartDate = new Date(startDate);
-                if (currentDateRange !== 'all') {
-                    prevStartDate.setDate(prevStartDate.getDate() - currentDateRange);
-                }
-
-                // 1. FETCH ORDERS (same as your Order Command page)
-                const { data: allOrders } = await supabase
+                // 1. FETCH ALL ORDERS (without status filter first to debug)
+                const { data: allOrders, error: ordersError } = await supabase
                     .from('orders')
                     .select('*')
                     .eq('vendor_id', vendorId)
@@ -187,36 +215,25 @@
                     .lte('created_at', endDate.toISOString())
                     .order('created_at', { ascending: false });
 
-                // Fetch previous period orders for comparison
-                const { data: prevOrders } = currentDateRange !== 'all' ? await supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('vendor_id', vendorId)
-                    .eq('status', 'accepted')
-                    .gte('created_at', prevStartDate.toISOString())
-                    .lte('created_at', prevEndDate.toISOString()) : { data: [] };
+                if (ordersError) {
+                    console.error('Orders error:', ordersError);
+                }
 
-                // 2. FETCH REAL VIEWS from your product_views table
-                const { data: views } = await supabase
-                    .from('product_views')
-                    .select('*')
-                    .eq('vendor_id', vendorId)
-                    .gte('viewed_at', startDate.toISOString())
-                    .lte('viewed_at', endDate.toISOString())
-                    .order('viewed_at', { ascending: false });
-
-                // Fetch previous period views
-                const { data: prevViews } = currentDateRange !== 'all' ? await supabase
-                    .from('product_views')
-                    .select('*')
-                    .eq('vendor_id', vendorId)
-                    .gte('viewed_at', prevStartDate.toISOString())
-                    .lte('viewed_at', prevEndDate.toISOString()) : { data: [] };
+                console.log('All orders found:', allOrders?.length || 0);
+                if (allOrders?.length > 0) {
+                    console.log('Sample order:', allOrders[0]);
+                }
 
                 // Count by status
                 const pendingOrders = allOrders?.filter(o => o.status === 'pending') || [];
                 const acceptedOrders = allOrders?.filter(o => o.status === 'accepted') || [];
                 const rejectedOrders = allOrders?.filter(o => o.status === 'rejected') || [];
+
+                console.log('Order counts:', {
+                    pending: pendingOrders.length,
+                    accepted: acceptedOrders.length,
+                    rejected: rejectedOrders.length
+                });
 
                 // Update status counts
                 document.getElementById('pendingOrders').innerText = pendingOrders.length;
@@ -225,25 +242,32 @@
 
                 // Calculate revenue metrics
                 const totalRevenue = acceptedOrders.reduce((sum, order) => sum + (parseFloat(order.total_amount) || 0), 0);
-                const prevRevenue = prevOrders?.reduce((sum, order) => sum + (parseFloat(order.total_amount) || 0), 0) || 0;
+                console.log('Total revenue:', totalRevenue);
                 
                 const platformFee = (totalRevenue * PLATFORM_FEE_PERCENTAGE) / 100;
                 const vendorEarnings = totalRevenue - platformFee;
                 const avgOrderValue = acceptedOrders.length > 0 ? totalRevenue / acceptedOrders.length : 0;
 
-                // VIEWS METRICS - NOW REAL DATA!
+                // 2. FETCH VIEWS
+                const { data: views, error: viewsError } = await supabase
+                    .from('product_views')
+                    .select('*')
+                    .eq('vendor_id', vendorId)
+                    .gte('viewed_at', startDate.toISOString())
+                    .lte('viewed_at', endDate.toISOString())
+                    .order('viewed_at', { ascending: false });
+
+                if (viewsError) {
+                    console.error('Views error:', viewsError);
+                }
+
                 const totalViews = views?.length || 0;
-                const prevViewsCount = prevViews?.length || 0;
+                console.log('Total views:', totalViews);
                 
-                // Calculate conversion rate (Orders / Views)
+                // Calculate conversion rate
                 const conversionRate = totalViews > 0 
                     ? ((acceptedOrders.length / totalViews) * 100).toFixed(1) 
                     : '0.0';
-
-                // Calculate percentage changes
-                const revenueChange = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue * 100).toFixed(1) : (totalRevenue > 0 ? 100 : 0);
-                const ordersChange = prevOrders?.length > 0 ? ((acceptedOrders.length - prevOrders.length) / prevOrders.length * 100).toFixed(1) : (acceptedOrders.length > 0 ? 100 : 0);
-                const viewsChange = prevViewsCount > 0 ? ((totalViews - prevViewsCount) / prevViewsCount * 100).toFixed(1) : (totalViews > 0 ? 100 : 0);
 
                 // Update UI
                 document.getElementById('totalRevenue').innerText = '₦' + totalRevenue.toLocaleString();
@@ -254,25 +278,36 @@
                 document.getElementById('conversionRate').innerText = conversionRate + '%';
                 document.getElementById('avgOrderValue').innerText = '₦' + avgOrderValue.toLocaleString();
 
-                // Update changes with colors
-                const revenueChangeEl = document.getElementById('revenueChange');
-                revenueChangeEl.innerHTML = (revenueChange >= 0 ? '↑' : '↓') + ' ' + Math.abs(revenueChange) + '%';
-                revenueChangeEl.className = `text-[10px] font-bold mt-1 ${revenueChange >= 0 ? 'text-green-500' : 'text-red-500'}`;
+                // Update changes with placeholder data for now
+                document.getElementById('revenueChange').innerHTML = '↑ 0%';
+                document.getElementById('revenueChange').className = 'text-[10px] font-bold mt-1 text-green-500';
+                
+                document.getElementById('orderChange').innerHTML = '↑ 0%';
+                document.getElementById('orderChange').className = 'text-[10px] font-bold mt-1 text-green-500';
 
-                const orderChangeEl = document.getElementById('orderChange');
-                orderChangeEl.innerHTML = (ordersChange >= 0 ? '↑' : '↓') + ' ' + Math.abs(ordersChange) + '%';
-                orderChangeEl.className = `text-[10px] font-bold mt-1 ${ordersChange >= 0 ? 'text-green-500' : 'text-red-500'}`;
-
-                // Product Performance with REAL view counts
+                // Product Performance
                 const productStats = {};
                 
-                // First, count views per product
+                // Get product names from products table
+                const { data: products } = await supabase
+                    .from('products')
+                    .select('id, name')
+                    .eq('vendor_id', vendorId);
+                
+                const productNameMap = {};
+                products?.forEach(p => {
+                    productNameMap[p.id] = p.name;
+                });
+                
+                // Count views per product
                 views?.forEach(view => {
-                    const productId = view.product_id || 'unknown';
+                    const productId = view.product_id;
+                    if (!productId) return;
+                    
                     if (!productStats[productId]) {
                         productStats[productId] = {
                             id: productId,
-                            name: `Product ${productId.slice(0, 8)}...`, // You'll need product names from another table
+                            name: productNameMap[productId] || `Product ${productId.slice(0, 8)}...`,
                             views: 0,
                             orders: 0,
                             revenue: 0
@@ -281,7 +316,7 @@
                     productStats[productId].views += 1;
                 });
 
-                // Then add order data
+                // Add order data
                 acceptedOrders.forEach(order => {
                     let items = order.items;
                     if (items && typeof items === 'string') {
@@ -294,11 +329,13 @@
                     
                     if (Array.isArray(items)) {
                         items.forEach(item => {
-                            const productId = item.id || 'unknown';
+                            const productId = item.id;
+                            if (!productId) return;
+                            
                             if (!productStats[productId]) {
                                 productStats[productId] = {
                                     id: productId,
-                                    name: item.name || 'Unknown Product',
+                                    name: productNameMap[productId] || item.name || 'Unknown',
                                     views: 0,
                                     orders: 0,
                                     revenue: 0
@@ -357,10 +394,11 @@
                 } else {
                     recentViewsList.innerHTML = views?.slice(0, 5).map(view => {
                         const date = new Date(view.viewed_at).toLocaleString();
+                        const productName = productNameMap[view.product_id] || 'Unknown Product';
                         return `
                             <div class="flex items-center justify-between p-2 bg-zinc-900/10 rounded-lg">
                                 <div>
-                                    <p class="text-xs font-bold">Product ID: ${view.product_id?.slice(0, 8)}...</p>
+                                    <p class="text-xs font-bold">${productName}</p>
                                     <p class="text-[8px] text-[var(--dim)]">${date}</p>
                                 </div>
                                 <i data-lucide="eye" size="14" class="text-sdel"></i>
@@ -369,16 +407,7 @@
                     }).join('');
                 }
 
-                // Debug log
-                console.log('🔥 LIVE ANALYTICS:', {
-                    period: currentDateRange + ' days',
-                    revenue: { current: totalRevenue, previous: prevRevenue, change: revenueChange + '%' },
-                    orders: { accepted: acceptedOrders.length, pending: pendingOrders.length, rejected: rejectedOrders.length },
-                    views: { current: totalViews, previous: prevViewsCount, change: viewsChange + '%' },
-                    conversion: conversionRate + '%',
-                    products: productStats
-                });
-
+                console.log('✅ Analytics updated at', new Date().toLocaleTimeString());
                 lucide.createIcons();
 
             } catch (error) {
@@ -386,7 +415,7 @@
             }
         }
 
-         // Date range changer
+        // Date range changer
         window.changeDateRange = (days) => {
             currentDateRange = days === 'all' ? 'all' : parseInt(days);
             loadAnalytics();
@@ -395,29 +424,34 @@
         // Load immediately
         loadAnalytics();
         
-        // LIVE UPDATES - Refresh every 10 seconds
-        setInterval(loadAnalytics, 10000);
+        // Refresh every 5 seconds for true "live" feel
+        setInterval(() => {
+            console.log('🔄 Auto-refreshing...');
+            loadAnalytics();
+        }, 5000);
 
-        // REAL-TIME SUBSCRIPTION - Updates instantly when data changes
-        supabase
-            .channel('analytics-live-channel')
+          // Real-time subscription
+        const channel = supabase
+            .channel('analytics-live')
             .on('postgres_changes', { 
                 event: '*', 
                 schema: 'public', 
                 table: 'orders'
-            }, () => {
-                console.log('🔄 Orders changed - updating analytics');
+            }, (payload) => {
+                console.log('📦 Orders changed:', payload);
                 loadAnalytics();
             })
             .on('postgres_changes', { 
                 event: '*', 
                 schema: 'public', 
                 table: 'product_views'
-            }, () => {
-                console.log('👁️ Views changed - updating analytics');
+            }, (payload) => {
+                console.log('👁️ Views changed:', payload);
                 loadAnalytics();
             })
-            .subscribe();
+            .subscribe((status) => {
+                console.log('📡 Subscription status:', status);
+            });
 
     </script>
 </body>
