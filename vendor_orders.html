@@ -9,12 +9,19 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
-        body { background-color: #000; color: white; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+        body { background-color: #000; color: white; overflow-x: hidden; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
-        .card-zinc { background: rgba(12, 12, 12, 0.8); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(12px); }
+        .card-zinc { background: rgba(12, 12, 12, 0.8); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(12px); border-radius: 2.5rem; }
         .tab-active { background: #FF6600 !important; color: black !important; }
         .delivery-badge { background: rgba(255, 102, 0, 0.1); border: 1px dashed rgba(255, 102, 0, 0.3); border-radius: 16px; padding: 12px; }
+        .delivered-btn { background: #10b981; color: white; padding: 12px; border-radius: 20px; font-weight: 700; font-size: 11px; text-transform: uppercase; width: 100%; }
+        .delivered-btn:hover { background: #059669; }
+        .delivered-btn:disabled { background: #065f46; opacity: 0.5; cursor: not-allowed; }
+        .accept-btn { background: white; color: black; padding: 12px; border-radius: 20px; font-weight: 700; font-size: 11px; text-transform: uppercase; width: 100%; }
+        .decline-btn { background: #1a1a1a; color: #ef4444; border: 1px solid #ef444433; padding: 12px; border-radius: 20px; font-weight: 700; font-size: 11px; text-transform: uppercase; width: 100%; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 100px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .status-delivered { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b98133; }
     </style>
 </head>
 <body class="pb-20">
@@ -33,22 +40,25 @@
 
     <main class="p-5 max-w-5xl mx-auto space-y-8">
         <div class="grid grid-cols-2 gap-4">
-            <div class="card-zinc p-6 rounded-[2.5rem]">
+            <div class="card-zinc p-6 relative overflow-hidden">
                 <p class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Queue Size</p>
                 <div class="flex items-baseline space-x-2">
                     <span id="pending-count" class="text-3xl font-black">0</span>
                     <span class="text-[10px] font-bold text-sdel uppercase">Orders</span>
                 </div>
+                <i data-lucide="package" class="absolute -right-4 -bottom-4 text-white/5 rotate-12" size="80"></i>
             </div>
-            <div class="card-zinc p-6 rounded-[2.5rem] bg-gradient-to-br from-zinc-900/50 to-black">
+            
+            <div class="card-zinc p-6 border-sdel/10 bg-gradient-to-br from-zinc-900/50 to-black">
                 <p class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Value</p>
-                <div class="text-2xl font-black text-sdel" id="total-pending-val">₦0</div>
+                <div class="text-2xl md:text-3xl font-black text-sdel" id="total-pending-val">₦0</div>
             </div>
         </div>
 
         <div class="flex p-1.5 bg-zinc-900/50 rounded-2xl border border-white/5 max-w-md mx-auto">
             <button onclick="changeView('pending')" id="btn-pending" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl tab-active">Pending</button>
             <button onclick="changeView('accepted')" id="btn-accepted" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl text-zinc-500">Accepted</button>
+            <button onclick="changeView('delivered')" id="btn-delivered" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl text-zinc-500">Delivered</button>
             <button onclick="changeView('rejected')" id="btn-rejected" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl text-zinc-500">History</button>
         </div>
 
@@ -102,6 +112,19 @@
             }
 
             loadOrders();
+
+            // Real-time subscription
+            supabase
+                .channel('vendor-orders')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'orders',
+                    filter: `vendor_id=eq.${currentUser.id}`
+                }, () => {
+                    loadOrders();
+                })
+                .subscribe();
         }
 
         window.changeView = (status) => {
@@ -116,12 +139,11 @@
 
             const feed = document.getElementById('admin-orders-feed');
             
-            // FIXED: Using user.id (which matches orders.vendor_id)
             const { data: orders, error } = await supabase
                 .from('orders')
                 .select('*')
                 .eq('status', currentStatus)
-                .eq('vendor_id', currentUser.id)  // ← USING USER.ID
+                .eq('vendor_id', currentUser.id)
                 .order('created_at', { ascending: false });
 
             if (error) { 
@@ -147,10 +169,12 @@
             feed.innerHTML = orders.map(order => {
                 const delivery = order.delivery_info || {};
                 const items = order.items || [];
+                const isDelivered = order.delivered_at !== null;
                 
                 return `
                 <div class="card-zinc p-7 rounded-[2.8rem] space-y-6">
-                    <div class="flex justify-between">
+                    <!-- Header -->
+                    <div class="flex justify-between items-start">
                         <div>
                             <span class="bg-zinc-900 text-zinc-500 text-[9px] font-black px-3 py-1 rounded-full">${order.order_code || 'NEW'}</span>
                             <h3 class="text-lg font-black uppercase mt-2">${delivery.name || 'Customer'}</h3>
@@ -161,6 +185,7 @@
                         </div>
                     </div>
 
+                    <!-- Delivery Info -->
                     <div class="delivery-badge">
                         <div class="space-y-2 text-[11px] font-bold text-zinc-300">
                             <div class="flex items-center gap-2"><i data-lucide="phone" size="14"></i> ${delivery.phone || 'No Phone'}</div>
@@ -168,6 +193,7 @@
                         </div>
                     </div>
 
+                    <!-- Items -->
                     <div class="bg-black/40 p-5 rounded-[1.8rem]">
                         ${items.map(i => `
                             <div class="flex justify-between text-[11px] font-bold">
@@ -177,19 +203,50 @@
                         `).join('')}
                     </div>
 
+                    <!-- Status Badge for Delivered -->
+                    ${currentStatus === 'delivered' ? `
+                        <div class="text-center p-4 bg-zinc-900/50 rounded-xl border border-white/5">
+                            <span class="status-badge status-delivered">
+                                <i data-lucide="check-circle" size="12" class="inline mr-1"></i> DELIVERED
+                            </span>
+                            <p class="text-[10px] text-zinc-600 mt-2">${new Date(order.delivered_at).toLocaleString()}</p>
+                        </div>
+                    ` : ''}
+
+                    <!-- Action Buttons -->
                     ${currentStatus === 'pending' ? `
-                    <div class="grid grid-cols-2 gap-4">
-                        <button onclick="updateOrder('${order.id}', 'accepted', 'Your order has been verified!')" 
-                                class="bg-white text-black py-4 rounded-2xl font-black uppercase text-[10px]">Accept</button>
-                        <button onclick="updateOrder('${order.id}', 'rejected', 'Order declined')" 
-                                class="bg-zinc-900 text-red-500 py-4 rounded-2xl font-black uppercase text-[10px] border border-red-500/10">Decline</button>
-                    </div>` : `
-                    <div class="text-center p-2 bg-zinc-900/50 rounded-xl">
-                        <p class="text-[9px] font-black uppercase ${currentStatus === 'accepted' ? 'text-green-500' : 'text-red-500'}">
-                            Order ${currentStatus}
-                        </p>
-                    </div>
-                    `}
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="updateOrder('${order.id}', 'accepted', 'Your order has been verified!')" 
+                                    class="accept-btn">Accept</button>
+                            <button onclick="updateOrder('${order.id}', 'rejected', 'Order declined')" 
+                                    class="decline-btn">Decline</button>
+                        </div>
+                    ` : ''}
+
+                    ${currentStatus === 'accepted' ? `
+                        <div class="space-y-3">
+                            <div class="text-center p-2 bg-zinc-900/50 rounded-xl border border-white/5">
+                                <p class="text-[9px] font-black uppercase text-green-500">Order accepted</p>
+                            </div>
+                            ${!isDelivered ? `
+                                <button onclick="markAsDelivered('${order.id}')" 
+                                        class="delivered-btn">
+                                    <i data-lucide="truck" size="14" class="inline mr-2"></i>
+                                    Mark as Delivered
+                                </button>
+                            ` : `
+                                <div class="text-center p-2 bg-zinc-900/50 rounded-xl">
+                                    <span class="status-badge status-delivered">✓ DELIVERED</span>
+                                </div>
+                            `}
+                        </div>
+                    ` : ''}
+
+                    ${currentStatus === 'rejected' ? `
+                        <div class="text-center p-2 bg-zinc-900/50 rounded-xl">
+                            <p class="text-[9px] font-black uppercase text-red-500">Order declined</p>
+                        </div>
+                    ` : ''}
                 </div>`;
             }).join('');
             lucide.createIcons();
@@ -203,6 +260,45 @@
                 .update({ status, status_message: message, updated_at: new Date().toISOString() })
                 .eq('id', id)
                 .eq('vendor_id', currentUser.id);
+
+            loadOrders(); 
+        };
+
+        window.markAsDelivered = async (id) => {
+            if (!currentUser) return;
+            
+            const confirmed = confirm('Mark this order as delivered?');
+            if (!confirmed) return;
+
+            await supabase
+                .from('orders')
+                .update({ 
+                    status: 'delivered',
+                    delivered_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    status_message: 'Order delivered successfully'
+                })
+                .eq('id', id)
+                .eq('vendor_id', currentUser.id);
+
+            // Notify customer
+            const { data: order } = await supabase
+                .from('orders')
+                .select('user_id, order_code')
+                .eq('id', id)
+                .single();
+
+            if (order) {
+                await supabase
+                    .from('messages')
+                    .insert([{
+                        recipient_id: order.user_id,
+                        content: `✅ Your order ${order.order_code} has been delivered!`,
+                        type: 'team',
+                        sender_id: currentUser.id,
+                        created_at: new Date().toISOString()
+                    }]);
+            }
 
             loadOrders(); 
         };
