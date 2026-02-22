@@ -178,39 +178,32 @@
             document.getElementById('custom-modal').style.display = 'none';
         };
 
-        // Load delivery settings from app_config
+        // Load delivery settings from app_settings (matches admin file)
         async function loadDeliverySettings() {
-            // Get delivery type
-            const { data: typeData, error: typeError } = await supabase
-                .from('app_config')
-                .select('price')
-                .eq('id', 'delivery_type')
-                .maybeSingle();
+            const { data: settings, error } = await supabase
+                .from('app_settings')
+                .select('delivery_type, delivery_value')
+                .eq('id', 1)
+                .single();
             
-            // Get delivery value
-            const { data: valueData, error: valueError } = await supabase
-                .from('app_config')
-                .select('price')
-                .eq('id', 'delivery_value')
-                .maybeSingle();
-            
-            // Set values (with defaults)
-            deliveryType = typeData?.price === 1 ? 'flat' : typeData?.price === 2 ? 'percentage' : 'free';
-            deliveryValue = valueData?.price || 0;
-            
-            // Calculate delivery fee based on type
-            const subtotal = checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0);
-            
-            if (deliveryType === 'free') {
-                deliveryFee = 0;
-            } else if (deliveryType === 'flat') {
-                deliveryFee = deliveryValue;
-            } else if (deliveryType === 'percentage') {
-                deliveryFee = (subtotal * deliveryValue) / 100;
+            if (!error && settings) {
+                deliveryType = settings.delivery_type;
+                deliveryValue = settings.delivery_value || 0;
+                
+                // Calculate delivery fee based on type
+                const subtotal = checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0);
+                
+                if (deliveryType === 'free') {
+                    deliveryFee = 0;
+                } else if (deliveryType === 'flat') {
+                    deliveryFee = deliveryValue;
+                } else if (deliveryType === 'percentage') {
+                    deliveryFee = (subtotal * deliveryValue) / 100;
+                }
+                
+                document.getElementById('delivery-fee-display').innerText = `₦${deliveryFee.toLocaleString()}`;
+                updateTotal();
             }
-            
-            document.getElementById('delivery-fee-display').innerText = `₦${deliveryFee.toLocaleString()}`;
-            updateTotal();
         }
 
         // Update total with delivery fee
@@ -413,7 +406,7 @@
                 // Redirect after delay
                 setTimeout(() => { 
                     window.location.href = 'dashboard.html'; 
-                }, 8000);
+                }, 5000);
 
             } catch (err) {
                 console.error('Order Error:', err);
