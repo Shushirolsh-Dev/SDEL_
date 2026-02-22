@@ -60,9 +60,9 @@
                 <div class="text-xs text-zinc-600 mt-1">from accepted orders</div>
             </div>
 
-            <!-- Platform fee (10% shown separately) -->
+            <!-- Platform fee (dynamic %) -->
             <div class="card-dark p-6">
-                <div class="stat-label mb-2">Platform fee (10%)</div>
+                <div class="stat-label mb-2">Platform fee (<span id="feePercentage">10</span>%)</div>
                 <div class="stat-value text-zinc-300" id="feeAmount">₦0</div>
                 <div class="text-xs text-zinc-600 mt-1">deducted from gross</div>
             </div>
@@ -133,6 +133,7 @@
         let allOrders = [];
         let showAcceptedFull = false;
         let showPendingFull = false;
+        let platformFeePercent = 10; // Default
 
         // Toggle show more/less
         window.toggleList = (type) => {
@@ -146,6 +147,24 @@
                 document.getElementById('togglePending').innerText = showPendingFull ? 'Show less' : 'Show more';
             }
         };
+
+        // NEW: Load platform fee from app_config
+        async function loadPlatformFee() {
+            const { data, error } = await supabase
+                .from('app_config')
+                .select('price')
+                .eq('id', 'site_fee_percent')
+                .maybeSingle();
+            
+            if (!error && data) {
+                platformFeePercent = data.price || 10;
+            } else {
+                platformFeePercent = 10; // Default fallback
+            }
+            
+            // Update the percentage display
+            document.getElementById('feePercentage').innerText = platformFeePercent;
+        }
 
         // Get vendor identity (same working pattern)
         async function getVendorIdentity() {
@@ -170,6 +189,8 @@
                 document.getElementById('vendorStatus').innerText = 'Live data streaming';
             }
 
+            // Load platform fee first, then vendor data
+            await loadPlatformFee();
             loadVendorData();
         }
 
@@ -199,14 +220,14 @@
             renderPendingList();
         }
 
-        // Calculate and display financials
+        // Calculate and display financials - NOW USING DYNAMIC FEE
         function updateAnalytics() {
             const accepted = allOrders.filter(o => o.status === 'accepted');
             const pending = allOrders.filter(o => o.status === 'pending');
 
-            // Calculate totals
+            // Calculate totals with dynamic fee percentage
             const gross = accepted.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-            const fee = gross * 0.10;
+            const fee = gross * (platformFeePercent / 100);
             const net = gross - fee;
             const pendingRev = pending.reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
 
@@ -293,6 +314,7 @@
 
         // Hard refresh
         window.hardRefresh = async () => {
+            await loadPlatformFee();
             await loadVendorData();
         };
 
@@ -315,8 +337,11 @@
 
         // Auto-refresh every 15 seconds
         setInterval(() => {
-            if (currentUser) loadVendorData();
+            if (currentUser) {
+                loadPlatformFee();
+                loadVendorData();
+            }
         }, 15000);
     </script>
 </body>
-</html>
+    </html>
