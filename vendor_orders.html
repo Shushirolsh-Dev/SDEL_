@@ -17,14 +17,137 @@
         .delivery-badge { background: rgba(255, 102, 0, 0.1); border: 1px dashed rgba(255, 102, 0, 0.3); border-radius: 16px; padding: 12px; }
         .delivered-btn { background: #10b981; color: white; padding: 12px; border-radius: 20px; font-weight: 700; font-size: 11px; text-transform: uppercase; width: 100%; }
         .delivered-btn:hover { background: #059669; }
-        .delivered-btn:disabled { background: #065f46; opacity: 0.5; cursor: not-allowed; }
         .accept-btn { background: white; color: black; padding: 12px; border-radius: 20px; font-weight: 700; font-size: 11px; text-transform: uppercase; width: 100%; }
         .decline-btn { background: #1a1a1a; color: #ef4444; border: 1px solid #ef444433; padding: 12px; border-radius: 20px; font-weight: 700; font-size: 11px; text-transform: uppercase; width: 100%; }
         .status-badge { display: inline-block; padding: 4px 12px; border-radius: 100px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
         .status-delivered { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b98133; }
+        
+        /* Custom Alert Styles */
+        #custom-alert {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            background: #0a0a0a;
+            border: 2px solid #FF6600;
+            border-radius: 32px;
+            padding: 24px;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 320px;
+            width: 90%;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        #custom-alert.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        #custom-alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 9998;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        #custom-alert-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .alert-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 102, 0, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+        .alert-icon.warning {
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .alert-icon.warning i {
+            color: #ef4444;
+        }
+        .alert-title {
+            font-size: 18px;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .alert-message {
+            font-size: 13px;
+            color: #a1a1aa;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .alert-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        .alert-btn {
+            flex: 1;
+            padding: 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .alert-btn.confirm {
+            background: #FF6600;
+            color: black;
+        }
+        .alert-btn.confirm:hover {
+            background: #ff8533;
+        }
+        .alert-btn.cancel {
+            background: #1a1a1a;
+            color: #ef4444;
+            border: 1px solid #ef444433;
+        }
+        .alert-btn.cancel:hover {
+            background: #2a2a2a;
+        }
+        .alert-btn.danger {
+            background: #ef4444;
+            color: white;
+        }
+        .alert-btn.danger:hover {
+            background: #dc2626;
+        }
     </style>
 </head>
-<body class="pb-20">
+<body>
+    <!-- Custom Alert -->
+    <div id="custom-alert-overlay"></div>
+    <div id="custom-alert">
+        <div class="alert-icon" id="alertIcon">
+            <i data-lucide="alert-triangle" size="24" class="text-sdel"></i>
+        </div>
+        <div class="alert-title" id="alertTitle">Warning</div>
+        <div class="alert-message" id="alertMessage">This action cannot be undone</div>
+        <div class="alert-buttons">
+            <button class="alert-btn cancel" id="alertCancel">Cancel</button>
+            <button class="alert-btn confirm" id="alertConfirm">Confirm</button>
+        </div>
+    </div>
+
     <nav class="p-6 flex items-center justify-between border-b border-white/5 sticky top-0 bg-black/80 backdrop-blur-xl z-50">
         <div class="flex flex-col">
             <h1 class="text-xl font-black uppercase tracking-tighter italic" id="businessName">Order <span class="text-sdel">Command</span></h1>
@@ -83,6 +206,65 @@
         let currentStatus = 'pending';
         let currentUser = null;
         let vendorBusinessName = '';
+        let pendingAction = null;
+
+        // Custom Alert Function
+        window.showAlert = (options) => {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('custom-alert-overlay');
+                const alert = document.getElementById('custom-alert');
+                const icon = document.getElementById('alertIcon');
+                const title = document.getElementById('alertTitle');
+                const message = document.getElementById('alertMessage');
+                const cancelBtn = document.getElementById('alertCancel');
+                const confirmBtn = document.getElementById('alertConfirm');
+
+                // Set content
+                title.innerText = options.title || 'Warning';
+                message.innerText = options.message || 'This action cannot be undone';
+                
+                // Set icon
+                icon.innerHTML = '';
+                if (options.type === 'danger') {
+                    icon.innerHTML = '<i data-lucide="alert-octagon" size="24" class="text-red-500"></i>';
+                    icon.className = 'alert-icon warning';
+                    confirmBtn.className = 'alert-btn danger';
+                } else {
+                    icon.innerHTML = '<i data-lucide="alert-triangle" size="24" class="text-sdel"></i>';
+                    icon.className = 'alert-icon';
+                    confirmBtn.className = 'alert-btn confirm';
+                }
+                
+                confirmBtn.innerText = options.confirmText || 'Confirm';
+                cancelBtn.innerText = options.cancelText || 'Cancel';
+
+                // Show alert
+                overlay.classList.add('show');
+                alert.classList.add('show');
+                lucide.createIcons();
+
+                // Handle buttons
+                const handleConfirm = () => {
+                    cleanup();
+                    resolve(true);
+                };
+
+                const handleCancel = () => {
+                    cleanup();
+                    resolve(false);
+                };
+
+                const cleanup = () => {
+                    overlay.classList.remove('show');
+                    alert.classList.remove('show');
+                    confirmBtn.removeEventListener('click', handleConfirm);
+                    cancelBtn.removeEventListener('click', handleCancel);
+                };
+
+                confirmBtn.addEventListener('click', handleConfirm);
+                cancelBtn.addEventListener('click', handleCancel);
+            });
+        };
 
         async function getVendorIdentity() {
             const { data: { user } } = await supabase.auth.getUser();
@@ -99,7 +281,6 @@
 
             currentUser = user;
 
-            // Get vendor business name for display
             const { data: vendor } = await supabase
                 .from('vendors')
                 .select('business_name')
@@ -113,7 +294,6 @@
 
             loadOrders();
 
-            // Real-time subscription
             supabase
                 .channel('vendor-orders')
                 .on('postgres_changes', { 
@@ -151,7 +331,6 @@
                 return;
             }
 
-            // Update stats
             document.getElementById('pending-count').innerText = orders.length;
             const totalVal = orders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
             document.getElementById('total-pending-val').innerText = `₦${totalVal.toLocaleString()}`;
@@ -173,7 +352,6 @@
                 
                 return `
                 <div class="card-zinc p-7 rounded-[2.8rem] space-y-6">
-                    <!-- Header -->
                     <div class="flex justify-between items-start">
                         <div>
                             <span class="bg-zinc-900 text-zinc-500 text-[9px] font-black px-3 py-1 rounded-full">${order.order_code || 'NEW'}</span>
@@ -185,7 +363,6 @@
                         </div>
                     </div>
 
-                    <!-- Delivery Info -->
                     <div class="delivery-badge">
                         <div class="space-y-2 text-[11px] font-bold text-zinc-300">
                             <div class="flex items-center gap-2"><i data-lucide="phone" size="14"></i> ${delivery.phone || 'No Phone'}</div>
@@ -193,7 +370,6 @@
                         </div>
                     </div>
 
-                    <!-- Items -->
                     <div class="bg-black/40 p-5 rounded-[1.8rem]">
                         ${items.map(i => `
                             <div class="flex justify-between text-[11px] font-bold">
@@ -203,7 +379,6 @@
                         `).join('')}
                     </div>
 
-                    <!-- Status Badge for Delivered -->
                     ${currentStatus === 'delivered' ? `
                         <div class="text-center p-4 bg-zinc-900/50 rounded-xl border border-white/5">
                             <span class="status-badge status-delivered">
@@ -213,7 +388,6 @@
                         </div>
                     ` : ''}
 
-                    <!-- Action Buttons -->
                     ${currentStatus === 'pending' ? `
                         <div class="grid grid-cols-2 gap-4">
                             <button onclick="updateOrder('${order.id}', 'accepted', 'Your order has been verified!')" 
@@ -255,6 +429,18 @@
         window.updateOrder = async (id, status, message) => {
             if (!currentUser) return;
             
+            const confirmed = await showAlert({
+                title: status === 'accepted' ? 'Accept Order?' : 'Decline Order?',
+                message: status === 'accepted' 
+                    ? 'This will confirm the order and notify the customer. This action cannot be undone.'
+                    : 'Are you sure you want to decline this order? The customer will be notified and this cannot be undone.',
+                type: status === 'rejected' ? 'danger' : 'warning',
+                confirmText: status === 'accepted' ? 'Yes, Accept' : 'Yes, Decline',
+                cancelText: 'Cancel'
+            });
+
+            if (!confirmed) return;
+            
             await supabase
                 .from('orders')
                 .update({ status, status_message: message, updated_at: new Date().toISOString() })
@@ -267,7 +453,14 @@
         window.markAsDelivered = async (id) => {
             if (!currentUser) return;
             
-            const confirmed = confirm('Mark this order as delivered?');
+            const confirmed = await showAlert({
+                title: 'Confirm Delivery',
+                message: 'Mark this order as delivered? This action is irreversible and the customer will be notified immediately.',
+                type: 'warning',
+                confirmText: 'Yes, Mark Delivered',
+                cancelText: 'Cancel'
+            });
+
             if (!confirmed) return;
 
             await supabase
@@ -281,7 +474,6 @@
                 .eq('id', id)
                 .eq('vendor_id', currentUser.id);
 
-            // Notify customer
             const { data: order } = await supabase
                 .from('orders')
                 .select('user_id, order_code')
