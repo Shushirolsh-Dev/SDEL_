@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Vendor Settings</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: #000; color: white; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-dark { background: #0a0a0a; border: 1px solid #1a1a1a; border-radius: 24px; }
+        .input-field { background: #111; border: 1px solid #222; border-radius: 16px; padding: 14px 16px; width: 100%; color: white; font-size: 14px; }
+        .input-field:focus { outline: none; border-color: #FF6600; }
+        .checkbox { width: 20px; height: 20px; accent-color: #FF6600; }
+        .fee-badge { background: rgba(255, 102, 0, 0.1); border: 1px solid #FF6600; border-radius: 100px; padding: 4px 12px; font-size: 12px; font-weight: 600; color: #FF6600; }
+        .save-btn { background: #FF6600; color: black; font-weight: 700; padding: 16px; border-radius: 20px; width: 100%; font-size: 14px; text-transform: uppercase; }
+        .save-btn:hover { background: #ff8533; }
+        .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .terms-box { background: #111; border: 1px solid #222; border-radius: 20px; padding: 20px; max-height: 300px; overflow-y: auto; font-size: 13px; color: #a1a1aa; }
+        .terms-box::-webkit-scrollbar { width: 4px; background: #1a1a1a; }
+        .terms-box::-webkit-scrollbar-thumb { background: #FF6600; border-radius: 4px; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #1a1a1a; border: 1px solid #FF6600; padding: 12px 24px; border-radius: 40px; font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; transition: 0.3s; }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body class="p-5 max-w-2xl mx-auto pb-24">
+
+    <div id="toast" class="toast">✓ Settings saved</div>
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight" id="businessName">Payment <span class="text-sdel">Settings</span></h1>
+            <p class="text-xs text-zinc-500 mt-1">Manage your payout information</p>
+        </div>
+        <button onclick="goBack()" class="bg-zinc-900 p-3 rounded-2xl border border-zinc-800">
+            <i data-lucide="arrow-left" size="18" class="text-zinc-400"></i>
+        </button>
+    </div>
+
+    <!-- Platform Fee Display (from app_config) -->
+    <div class="card-dark p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <p class="text-sm font-bold text-zinc-400">Platform Fee per Order</p>
+                <p class="text-3xl font-bold text-sdel mt-1" id="feeAmount">₦0</p>
+            </div>
+            <div class="fee-badge">
+                <i data-lucide="settings" size="14" class="inline mr-1"></i> Set by Admin
+            </div>
+        </div>
+        <p class="text-xs text-zinc-600">This fee is deducted from every completed order before payout.</p>
+    </div>
+
+    <!-- Payment Settings Form -->
+    <div class="card-dark p-6 mb-6">
+        <h2 class="font-bold text-lg mb-4">Bank Account Details</h2>
+        
+        <form id="paymentForm" class="space-y-4">
+            <div>
+                <label class="text-xs font-bold text-zinc-400 uppercase tracking-wide mb-2 block">Bank Name</label>
+                <input type="text" id="bankName" class="input-field" placeholder="e.g., Access Bank, GTBank" required>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-zinc-400 uppercase tracking-wide mb-2 block">Account Number</label>
+                <input type="text" id="accountNumber" class="input-field" placeholder="10-digit account number" maxlength="10" required>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-zinc-400 uppercase tracking-wide mb-2 block">Account Name</label>
+                <input type="text" id="accountName" class="input-field" placeholder="Full name on account" required>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-zinc-400 uppercase tracking-wide mb-2 block">Bank Code (optional)</label>
+                <input type="text" id="bankCode" class="input-field" placeholder="For faster transfers">
+            </div>
+
+            <div id="savedInfo" class="hidden mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-500 text-xs font-bold">
+                ✓ Payment information saved
+            </div>
+        </form>
+    </div>
+
+    <!-- Terms & Agreement -->
+    <div class="card-dark p-6 mb-6">
+        <h2 class="font-bold text-lg mb-4">Terms & Agreement</h2>
+        
+        <div class="terms-box mb-6">
+            <p class="font-bold text-white mb-3">Vendor Payment Terms</p>
+            
+            <p class="mb-3"><span class="text-sdel font-bold">1. Platform Fee:</span> A fixed fee of <span id="termsFee">₦200</span> will be deducted from every completed order. This fee covers marketplace maintenance and support.</p>
+            
+            <p class="mb-3"><span class="text-sdel font-bold">2. Payout Schedule:</span> Payments are processed every Monday for all orders accepted before Friday 11:59 PM. Minimum payout is ₦1,000.</p>
+            
+            <p class="mb-3"><span class="text-sdel font-bold">3. Payment Method:</span> All payouts are made via bank transfer to the account details provided above.</p>
+            
+            <p class="mb-3"><span class="text-sdel font-bold">4. Reversals:</span> In case of refunds, the platform fee is non-refundable.</p>
+            
+            <p class="mb-3"><span class="text-sdel font-bold">5. Tax Compliance:</span> You are responsible for reporting your earnings.</p>
+            
+            <p class="mt-4 text-zinc-600 text-xs">Last updated: February 2026</p>
+        </div>
+
+        <div class="flex items-start gap-3 mb-6">
+            <input type="checkbox" id="agreeTerms" class="checkbox mt-1">
+            <label for="agreeTerms" class="text-sm text-zinc-300">
+                I have read and agree to the <span class="text-sdel">Vendor Payment Terms</span> and understand that a fixed fee of <span id="termsFeeInline">₦200</span> will be deducted per order.
+            </label>
+        </div>
+
+        <button onclick="saveSettings()" id="saveBtn" class="save-btn" disabled>
+            <i data-lucide="check-circle" size="18" class="inline mr-2"></i>
+            Save & Agree
+        </button>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        
+        const supabase = createClient(
+            'https://lgfyrlfjoazedwymjpfc.supabase.co', 
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
+        );
+
+        let currentUser = null;
+        let vendorId = null;
+        let platformFee = 200; // Default
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        window.goBack = () => {
+            window.location.href = 'command.html';
+        };
+
+        // Load platform fee from app_config
+        async function loadPlatformFee() {
+            const { data, error } = await supabase
+                .from('app_config')
+                .select('price')
+                .eq('id', 'vendor_fee')
+                .single();
+
+            if (!error && data) {
+                platformFee = data.price || 200;
+                
+                // Update UI
+                document.getElementById('feeAmount').innerText = `₦${platformFee.toLocaleString()}`;
+                document.getElementById('termsFee').innerText = `₦${platformFee.toLocaleString()}`;
+                document.getElementById('termsFeeInline').innerText = `₦${platformFee.toLocaleString()}`;
+            }
+        }
+
+        // Load vendor data
+        async function init() {
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+                window.location.href = '/login.html';
+                return;
+            }
+
+            currentUser = user;
+
+            const { data: vendor } = await supabase
+                .from('vendors')
+                .select('id, business_name')
+                .eq('user_id', user.id)
+                .single();
+
+            if (vendor) {
+                vendorId = vendor.id;
+                document.getElementById('businessName').innerHTML = `${vendor.business_name} <span class="text-sdel">Settings</span>`;
+                loadPaymentInfo();
+            }
+
+            await loadPlatformFee();
+
+            document.getElementById('agreeTerms').addEventListener('change', (e) => {
+                document.getElementById('saveBtn').disabled = !e.target.checked;
+            });
+        }
+
+        // Load existing payment info
+        async function loadPaymentInfo() {
+            const { data, error } = await supabase
+                .from('vendor_payments')
+                .select('*')
+                .eq('vendor_id', vendorId)
+                .maybeSingle();
+
+            if (data) {
+                document.getElementById('bankName').value = data.bank_name || '';
+                document.getElementById('accountNumber').value = data.account_number || '';
+                document.getElementById('accountName').value = data.account_name || '';
+                document.getElementById('bankCode').value = data.bank_code || '';
+                
+                document.getElementById('savedInfo').classList.remove('hidden');
+            }
+        }
+
+        // Save settings
+        window.saveSettings = async () => {
+            const bankName = document.getElementById('bankName').value.trim();
+            const accountNumber = document.getElementById('accountNumber').value.trim();
+            const accountName = document.getElementById('accountName').value.trim();
+            const bankCode = document.getElementById('bankCode').value.trim();
+            const agreed = document.getElementById('agreeTerms').checked;
+
+            if (!bankName || !accountNumber || !accountName) {
+                showToast('Please fill all required fields');
+                return;
+            }
+
+            if (accountNumber.length !== 10 || !/^\d+$/.test(accountNumber)) {
+                showToast('Account number must be 10 digits');
+                return;
+            }
+
+            if (!agreed) {
+                showToast('You must agree to the terms');
+                return;
+            }
+
+            const { error: paymentError } = await supabase
+                .from('vendor_payments')
+                .upsert({
+                    vendor_id: vendorId,
+                    bank_name: bankName,
+                    account_number: accountNumber,
+                    account_name: accountName,
+                    bank_code: bankCode || null,
+                    updated_at: new Date().toISOString()
+                });
+
+            if (paymentError) {
+                showToast('Error saving payment info');
+                return;
+            }
+
+            await supabase
+                .from('vendor_agreements')
+                .insert([{
+                    vendor_id: vendorId,
+                    accepted_at: new Date().toISOString(),
+                    user_agent: navigator.userAgent
+                }]);
+
+            showToast('Settings saved successfully!');
+            document.getElementById('savedInfo').classList.remove('hidden');
+        };
+
+        init();
+        lucide.createIcons();
+    </script>
+</body>
+              </html>
