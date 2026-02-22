@@ -42,18 +42,18 @@
         </button>
     </div>
 
-    <!-- Platform Fee Display (from app_config) -->
+    <!-- Platform Fee Display (Dynamic %) -->
     <div class="card-dark p-6 mb-6">
         <div class="flex items-center justify-between mb-4">
             <div>
-                <p class="text-sm font-bold text-zinc-400">Platform Fee per Order</p>
-                <p class="text-3xl font-bold text-sdel mt-1" id="feeAmount">₦0</p>
+                <p class="text-sm font-bold text-zinc-400">Platform Fee</p>
+                <p class="text-3xl font-bold text-sdel mt-1" id="feePercentage">10%</p>
             </div>
             <div class="fee-badge">
-                <i data-lucide="settings" size="14" class="inline mr-1"></i> Set by Admin
+                <i data-lucide="settings" size="14" class="inline mr-1"></i> Dynamic %
             </div>
         </div>
-        <p class="text-xs text-zinc-600">This fee is deducted from every completed order before payout.</p>
+        <p class="text-xs text-zinc-600">This percentage is deducted from every completed order before payout. Updated by platform admin.</p>
     </div>
 
     <!-- Payment Settings Form -->
@@ -94,15 +94,17 @@
         <div class="terms-box mb-6">
             <p class="font-bold text-white mb-3">Vendor Payment Terms</p>
             
-            <p class="mb-3"><span class="text-sdel font-bold">1. Platform Fee:</span> A fixed fee of <span id="termsFee">₦200</span> will be deducted from every completed order. This fee covers marketplace maintenance and support.</p>
+            <p class="mb-3"><span class="text-sdel font-bold">1. Platform Fee:</span> A dynamic fee of <span id="termsFee">10%</span> will be deducted from every completed order. This fee covers marketplace maintenance, support, and payment processing.</p>
             
-            <p class="mb-3"><span class="text-sdel font-bold">2. Payout Schedule:</span> Payments are processed every Monday for all orders accepted before Friday 11:59 PM. Minimum payout is ₦1,000.</p>
+            <p class="mb-3"><span class="text-sdel font-bold">2. Fee Changes:</span> The platform may adjust this percentage with 14 days notice. You will be notified of any changes before they take effect.</p>
             
-            <p class="mb-3"><span class="text-sdel font-bold">3. Payment Method:</span> All payouts are made via bank transfer to the account details provided above.</p>
+            <p class="mb-3"><span class="text-sdel font-bold">3. Payout Schedule:</span> Payments are processed every Monday for all orders accepted before Friday 11:59 PM WAT. Minimum payout is ₦1,000.</p>
             
-            <p class="mb-3"><span class="text-sdel font-bold">4. Reversals:</span> In case of refunds, the platform fee is non-refundable.</p>
+            <p class="mb-3"><span class="text-sdel font-bold">4. Payment Method:</span> All payouts are made via bank transfer to the account details provided above.</p>
             
-            <p class="mb-3"><span class="text-sdel font-bold">5. Tax Compliance:</span> You are responsible for reporting your earnings.</p>
+            <p class="mb-3"><span class="text-sdel font-bold">5. Reversals:</span> In case of refunds or chargebacks, the platform fee is non-refundable and will be deducted from future payouts if necessary.</p>
+            
+            <p class="mb-3"><span class="text-sdel font-bold">6. Tax Compliance:</span> You are responsible for reporting your earnings and paying any applicable taxes.</p>
             
             <p class="mt-4 text-zinc-600 text-xs">Last updated: February 2026</p>
         </div>
@@ -110,7 +112,7 @@
         <div class="flex items-start gap-3 mb-6">
             <input type="checkbox" id="agreeTerms" class="checkbox mt-1">
             <label for="agreeTerms" class="text-sm text-zinc-300">
-                I have read and agree to the <span class="text-sdel">Vendor Payment Terms</span> and understand that a fixed fee of <span id="termsFeeInline">₦200</span> will be deducted per order.
+                I have read and agree to the <span class="text-sdel">Vendor Payment Terms</span> and understand that a dynamic fee of <span id="termsFeeInline">10%</span> will be deducted from each completed order. I acknowledge this fee may change with notice.
             </label>
         </div>
 
@@ -130,7 +132,7 @@
 
         let currentUser = null;
         let vendorId = null;
-        let platformFee = 200; // Default
+        let platformFee = 10; // Default percentage
 
         function showToast(msg) {
             const toast = document.getElementById('toast');
@@ -145,20 +147,26 @@
 
         // Load platform fee from app_config
         async function loadPlatformFee() {
-            const { data, error } = await supabase
-                .from('app_config')
-                .select('price')
-                .eq('id', 'vendor_fee')
-                .single();
+            // Try different possible IDs for percentage fee
+            const possibleIds = ['platform_percentage', 'platform_fee', 'commission', 'vendor_fee'];
+            
+            for (const id of possibleIds) {
+                const { data, error } = await supabase
+                    .from('app_config')
+                    .select('price')
+                    .eq('id', id)
+                    .maybeSingle();
 
-            if (!error && data) {
-                platformFee = data.price || 200;
-                
-                // Update UI
-                document.getElementById('feeAmount').innerText = `₦${platformFee.toLocaleString()}`;
-                document.getElementById('termsFee').innerText = `₦${platformFee.toLocaleString()}`;
-                document.getElementById('termsFeeInline').innerText = `₦${platformFee.toLocaleString()}`;
+                if (!error && data) {
+                    platformFee = data.price || 10;
+                    break;
+                }
             }
+            
+            // Update UI
+            document.getElementById('feePercentage').innerText = `${platformFee}%`;
+            document.getElementById('termsFee').innerText = `${platformFee}%`;
+            document.getElementById('termsFeeInline').innerText = `${platformFee}%`;
         }
 
         // Load vendor data
@@ -264,4 +272,4 @@
         lucide.createIcons();
     </script>
 </body>
-              </html>
+</html>
