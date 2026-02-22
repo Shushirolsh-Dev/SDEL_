@@ -21,6 +21,11 @@
         .remove-img { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 50%; color: white; cursor: pointer; z-index: 10; }
 
         #inventory-list:empty::after { content: "YOUR SHOP IS EMPTY"; display: block; text-align: center; padding: 40px; font-size: 10px; font-weight: 900; color: #262626; letter-spacing: 0.2em; }
+        
+        /* Stock badge */
+        .stock-badge { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 30px; }
+        .stock-high { background: rgba(34,197,94,0.1); color: #22c55e; }
+        .stock-low { background: rgba(239,68,68,0.1); color: #ef4444; }
     </style>
 </head>
 <body class="p-6 pb-24">
@@ -47,6 +52,14 @@
             <div class="grid grid-cols-2 gap-4">
                 <input type="number" id="p-price" placeholder="Price (₦)" class="input-box">
                 <select id="p-category" class="input-box text-zinc-400"><option value="">Loading Categories...</option></select>
+            </div>
+            <!-- STOCK FIELD ADDED HERE -->
+            <div class="grid grid-cols-2 gap-4">
+                <input type="number" id="p-stock" placeholder="Stock Quantity" value="0" min="0" class="input-box">
+                <div class="flex items-center gap-2 text-[10px] text-zinc-500 font-bold">
+                    <i data-lucide="info" size="14"></i>
+                    <span>Available units</span>
+                </div>
             </div>
             <textarea id="p-desc" placeholder="Product details..." class="input-box h-20"></textarea>
             
@@ -147,10 +160,12 @@
             const price = document.getElementById('p-price').value;
             const category = document.getElementById('p-category').value;
             const desc = document.getElementById('p-desc').value;
+            const stock = parseInt(document.getElementById('p-stock').value) || 0; // GET STOCK VALUE
             const file = document.getElementById('p-image').files[0];
             const editId = document.getElementById('edit-id').value;
 
             if(!name || !price || !category) return alert("Fill Name, Price & Category!");
+            if(stock < 0) return alert("Stock cannot be negative!");
 
             const btn = document.getElementById('save-btn');
             btn.disabled = true; 
@@ -174,6 +189,7 @@
                 price: parseFloat(price), 
                 category, 
                 description: desc,
+                stock: stock, // ADD STOCK TO PAYLOAD
                 vendor_id: currentUserId 
             };
 
@@ -211,20 +227,27 @@
             const { data } = await supabase.from('products').select('*').eq('vendor_id', currentUserId).order('created_at', { ascending: false });
             inventoryData = data || [];
             const list = document.getElementById('inventory-list');
-            list.innerHTML = inventoryData.map(p => `
+            list.innerHTML = inventoryData.map(p => {
+                const stock = p.stock || 0;
+                const stockClass = stock > 0 ? 'stock-high' : 'stock-low';
+                const stockText = stock > 0 ? `${stock} in stock` : 'Out of stock';
+                
+                return `
                 <div class="card-zinc p-4 rounded-2xl flex items-center justify-between border-white/5">
                     <div class="flex items-center gap-3">
                         <img src="${p.image_url}" class="w-12 h-12 object-cover rounded-xl border border-white/10">
                         <div>
                             <h4 class="text-[11px] font-black uppercase italic text-white">${p.name}</h4>
                             <p class="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">₦${p.price.toLocaleString()}</p>
+                            <!-- STOCK DISPLAY ADDED HERE -->
+                            <span class="stock-badge ${stockClass} mt-1 inline-block">${stockText}</span>
                         </div>
                     </div>
                     <div class="flex gap-2">
                         <button onclick="editProduct('${p.id}')" class="text-zinc-600 hover:text-sdel transition p-2"><i data-lucide="edit-3" size="16"></i></button>
                         <button onclick="deleteItem('${p.id}', '${p.image_path}')" class="text-zinc-600 hover:text-red-500 transition p-2"><i data-lucide="trash-2" size="16"></i></button>
                     </div>
-                </div>`).join('');
+                </div>`}).join('');
             lucide.createIcons();
         };
 
@@ -236,6 +259,7 @@
             document.getElementById('p-price').value = p.price;
             document.getElementById('p-category').value = p.category;
             document.getElementById('p-desc').value = p.description;
+            document.getElementById('p-stock').value = p.stock || 0; // SET STOCK VALUE FOR EDIT
             if(p.image_url) {
                 document.getElementById('image-preview').src = p.image_url;
                 document.getElementById('image-preview-container').style.display = 'block';
