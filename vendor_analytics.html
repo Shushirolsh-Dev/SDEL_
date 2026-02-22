@@ -81,7 +81,12 @@
     <!-- Date Range -->
     <div class="glass-card p-4 mb-6 flex justify-between items-center">
         <span class="text-xs font-black" id="dateRange">Last 30 Days</span>
-        <i data-lucide="calendar" size="16" class="text-[var(--dim)]"></i>
+        <select id="dateRangeSelect" onchange="changeDateRange(this.value)" class="bg-transparent text-[10px] font-black border border-[var(--border)] rounded-xl px-3 py-2">
+            <option value="7">Last 7 Days</option>
+            <option value="30" selected>Last 30 Days</option>
+            <option value="90">Last 90 Days</option>
+            <option value="365">This Year</option>
+        </select>
     </div>
 
     <!-- Key Metrics -->
@@ -89,7 +94,7 @@
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Gross Revenue</p>
             <p class="text-2xl font-black" id="totalRevenue">₦0</p>
-            <p class="text-[10px] text-green-500 font-bold mt-1" id="revenueChange">↑ 0%</p>
+            <p class="text-[10px] font-bold mt-1" id="revenueChange">⟳ 0%</p>
         </div>
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Platform Fee</p>
@@ -104,7 +109,7 @@
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Orders</p>
             <p class="text-2xl font-black" id="totalOrderCount">0</p>
-            <p class="text-[10px] text-green-500 font-bold mt-1" id="orderChange">↑ 0%</p>
+            <p class="text-[10px] font-bold mt-1" id="orderChange">⟳ 0%</p>
         </div>
         <div class="stat-card">
             <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Conversion</p>
@@ -171,6 +176,8 @@
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
         const PLATFORM_FEE_PERCENTAGE = 10;
+        let currentDateRange = 30;
+        let previousPeriodData = null;
 
         async function loadAnalytics() {
             try {
@@ -189,16 +196,20 @@
                     return;
                 }
 
-                // FIXED: Use the current user's ID as the vendor_id (based on your first file)
                 const vendorId = session.user.id;
 
-                // Date range
+                // Date ranges
                 const endDate = new Date();
                 const startDate = new Date();
-                startDate.setDate(startDate.getDate() - 30);
+                startDate.setDate(startDate.getDate() - currentDateRange);
+                
+                // Previous period for comparison
+                const prevEndDate = new Date(startDate);
+                const prevStartDate = new Date(startDate);
+                prevStartDate.setDate(prevStartDate.getDate() - currentDateRange);
 
-                // FIXED: Directly query orders with the user ID as vendor_id
-                const { data: orders, error: ordersError } = await supabase
+                // Fetch current period orders
+                const { data: orders } = await supabase
                     .from('orders')
                     .select('*')
                     .eq('vendor_id', vendorId)
@@ -206,33 +217,51 @@
                     .gte('created_at', startDate.toISOString())
                     .lte('created_at', endDate.toISOString());
 
-                if (ordersError) {
-                    console.error('Orders error:', ordersError);
-                }
+                // Fetch previous period orders for comparison
+                const { data: prevOrders } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('vendor_id', vendorId)
+                    .eq('status', 'accepted')
+                    .gte('created_at', prevStartDate.toISOString())
+                    .lte('created_at', prevEndDate.toISOString());
 
-                // Fetch views - you might need to adjust this based on your actual views table structure
-                const { data: views, error: viewsError } = await supabase
+                // Fetch views - NOW PROPERLY COUNTING FROM YOUR PRODUCT CARDS
+                const { data: views } = await supabase
                     .from('product_views')
                     .select('*')
                     .eq('vendor_id', vendorId)
                     .gte('viewed_at', startDate.toISOString())
                     .lte('viewed_at', endDate.toISOString());
 
-                if (viewsError) {
-                    console.error('Views error:', viewsError);
-                }
+                // Fetch previous period views
+                const { data: prevViews } = await supabase
+                    .from('product_views')
+                    .select('*')
+                    .eq('vendor_id', vendorId)
+                    .gte('viewed_at', prevStartDate.toISOString())
+                    .lte('viewed_at', prevEndDate.toISOString());
 
-                // Calculate metrics
+                // Calculate current metrics
                 const totalRevenue = orders?.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0) || 0;
                 const totalOrders = orders?.length || 0;
                 const totalViews = views?.length || 0;
+                
+                // Calculate previous period metrics
+                const prevRevenue = prevOrders?.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0) || 0;
+                const prevOrdersCount = prevOrders?.length || 0;
+                const prevViews = prevViews?.length || 0;
+
+                // Calculate percentage changes
+                const revenueChange = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue * 100).toFixed(1) : (totalRevenue > 0 ? 100 : 0);
+                const ordersChange = prevOrdersCount > 0 ? ((totalOrders - prevOrdersCount) / prevOrdersCount * 100).toFixed(1) : (totalOrders > 0 ? 100 : 0);
                 
                 const platformFee = (totalRevenue * PLATFORM_FEE_PERCENTAGE) / 100;
                 const vendorEarnings = totalRevenue - platformFee;
                 const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
                 const conversionRate = totalViews > 0 ? ((totalOrders / totalViews) * 100).toFixed(1) : '0.0';
 
-                // Update UI
+                // Update UI with changes
                 document.getElementById('totalRevenue').innerText = '₦' + totalRevenue.toLocaleString();
                 document.getElementById('platformFee').innerText = '₦' + platformFee.toLocaleString();
                 document.getElementById('vendorEarnings').innerText = '₦' + vendorEarnings.toLocaleString();
@@ -241,14 +270,37 @@
                 document.getElementById('totalViews').innerText = totalViews.toLocaleString();
                 document.getElementById('avgOrderValue').innerText = '₦' + avgOrderValue.toLocaleString();
 
-                // Calculate product stats
+                // Update revenue change with color
+                const revenueChangeEl = document.getElementById('revenueChange');
+                revenueChangeEl.innerHTML = (revenueChange >= 0 ? '↑' : '↓') + ' ' + Math.abs(revenueChange) + '%';
+                revenueChangeEl.className = `text-[10px] font-bold mt-1 ${revenueChange >= 0 ? 'text-green-500' : 'text-red-500'}`;
+
+                // Update orders change with color
+                const orderChangeEl = document.getElementById('orderChange');
+                orderChangeEl.innerHTML = (ordersChange >= 0 ? '↑' : '↓') + ' ' + Math.abs(ordersChange) + '%';
+                orderChangeEl.className = `text-[10px] font-bold mt-1 ${ordersChange >= 0 ? 'text-green-500' : 'text-red-500'}`;
+
+                // Calculate product stats with views
                 const productStats = {};
                 
-                // Process orders to get product stats
+                // First, initialize with view counts
+                views?.forEach(view => {
+                    const productId = view.product_id || view.product_name || 'unknown';
+                    if (!productStats[productId]) {
+                        productStats[productId] = {
+                            name: view.product_name || 'Unknown Product',
+                            quantity: 0,
+                            revenue: 0,
+                            views: 0
+                        };
+                    }
+                    productStats[productId].views += 1;
+                });
+
+                // Then add order data
                 orders?.forEach(order => {
                     let items = order.items;
                     
-                    // Handle items if they're stored as JSON string
                     if (items && typeof items === 'string') {
                         try {
                             items = JSON.parse(items);
@@ -260,42 +312,19 @@
                     
                     if (Array.isArray(items)) {
                         items.forEach(item => {
-                            // Use item name as key since we might not have product ID
-                            const productKey = item.name || 'Unknown Product';
-                            if (!productStats[productKey]) {
-                                productStats[productKey] = {
-                                    name: productKey,
+                            const productId = item.id || item.name || 'unknown';
+                            if (!productStats[productId]) {
+                                productStats[productId] = {
+                                    name: item.name || 'Unknown Product',
                                     quantity: 0,
                                     revenue: 0,
                                     views: 0
                                 };
                             }
                             const quantity = item.quantity || 1;
-                            productStats[productKey].quantity += quantity;
-                            productStats[productKey].revenue += (Number(item.price) * quantity) || 0;
+                            productStats[productId].quantity += quantity;
+                            productStats[productId].revenue += (Number(item.price) * quantity) || 0;
                         });
-                    } else if (order.item_name) {
-                        // Fallback for older order format
-                        const productKey = order.item_name;
-                        if (!productStats[productKey]) {
-                            productStats[productKey] = {
-                                name: productKey,
-                                quantity: 0,
-                                revenue: 0,
-                                views: 0
-                            };
-                        }
-                        productStats[productKey].quantity += 1;
-                        productStats[productKey].revenue += Number(order.total_amount) || 0;
-                    }
-                });
-
-                // Add view counts if we have product_views table
-                views?.forEach(view => {
-                    // This assumes your product_views table has a product_name field
-                    // Adjust based on your actual schema
-                    if (view.product_name && productStats[view.product_name]) {
-                        productStats[view.product_name].views += 1;
                     }
                 });
 
@@ -306,7 +335,7 @@
                     perfList.innerHTML = `
                         <div class="text-center py-8 text-[var(--dim)]">
                             <i data-lucide="package-x" size="40" class="mx-auto mb-3"></i>
-                            <p class="text-sm">No sales yet in the last 30 days</p>
+                            <p class="text-sm">No activity yet in the last ${currentDateRange} days</p>
                         </div>
                     `;
                 } else {
@@ -316,14 +345,16 @@
                     
                     perfList.innerHTML = topProducts.map(p => {
                         const conversion = p.views > 0 ? ((p.quantity / p.views) * 100).toFixed(1) : '0.0';
+                        const conversionColor = conversion > 5 ? 'text-green-500' : (conversion > 2 ? 'text-sdel' : 'text-red-500');
+                        
                         return `
                             <div class="flex items-center justify-between p-3 bg-zinc-900/20 rounded-xl">
                                 <div class="flex-1">
                                     <p class="font-black text-xs">${p.name}</p>
                                     <div class="flex gap-3 mt-1">
-                                        <p class="text-[8px] text-[var(--dim)]">${p.quantity} sold</p>
-                                        <p class="text-[8px] text-[var(--dim)]">${p.views} views</p>
-                                        <p class="text-[8px] text-sdel">${conversion}% conv.</p>
+                                        <p class="text-[8px] text-[var(--dim)]">📦 ${p.quantity} sold</p>
+                                        <p class="text-[8px] text-[var(--dim)]">👁️ ${p.views} views</p>
+                                        <p class="text-[8px] ${conversionColor} font-bold">${conversion}% conv.</p>
                                     </div>
                                 </div>
                                 <p class="font-black text-sdel text-sm">₦${p.revenue.toLocaleString()}</p>
@@ -332,16 +363,16 @@
                     }).join('');
                 }
 
-                // Add debug info to console
-                console.log('Analytics loaded:', {
-                    vendorId,
-                    ordersCount: orders?.length,
-                    viewsCount: views?.length,
-                    totalRevenue,
-                    productStats
+                // Debug log
+                console.log('Analytics Live Update:', {
+                    period: `${currentDateRange} days`,
+                    revenue: { current: totalRevenue, previous: prevRevenue, change: revenueChange + '%' },
+                    orders: { current: totalOrders, previous: prevOrdersCount, change: ordersChange + '%' },
+                    views: totalViews,
+                    conversion: conversionRate + '%',
+                    products: productStats
                 });
 
-                // Refresh icons
                 lucide.createIcons();
 
             } catch (error) {
@@ -356,6 +387,16 @@
                 lucide.createIcons();
             }
         }
+
+         // Date range changer
+        window.changeDateRange = (days) => {
+            currentDateRange = parseInt(days);
+            document.getElementById('dateRange').innerText = 
+                days == 7 ? 'Last 7 Days' : 
+                days == 30 ? 'Last 30 Days' : 
+                days == 90 ? 'Last 90 Days' : 'This Year';
+            loadAnalytics();
+        };
 
         // Calculator functions
         window.showFeeCalculator = function() {
@@ -378,11 +419,28 @@
             document.getElementById('calculatedEarnings').innerText = '₦' + earnings.toLocaleString();
         };
 
-        // Load immediately
+        // Load immediately and refresh every 15 seconds for live updates
         loadAnalytics();
+        setInterval(loadAnalytics, 15000);
 
-        // Optional: Auto-refresh every 30 seconds
-        setInterval(loadAnalytics, 30000);
+        // Also listen for real-time changes
+        supabase
+            .channel('analytics-changes')
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'orders' 
+            }, () => {
+                loadAnalytics();
+            })
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'product_views' 
+            }, () => {
+                loadAnalytics();
+            })
+            .subscribe();
 
     </script>
 </body>
