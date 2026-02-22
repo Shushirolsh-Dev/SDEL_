@@ -273,7 +273,7 @@
             window.renderProducts(allProducts);
         }
 
-        // NEW: Function to track product views
+        // Function to track product views
         async function trackProductView(productId, vendorId) {
             try {
                 // Don't track if no vendor ID
@@ -391,12 +391,26 @@
             
             list.innerHTML = items.map(item => {
                 const inCart = userCart[item.id];
+                const stock = item.stock || 0;
+                
                 return `
                 <div class="card-zinc rounded-3xl overflow-hidden flex flex-col">
                     <div class="h-56 bg-zinc-900 flex items-center justify-center relative">
                         <img src="${item.image_url}" class="object-cover h-full w-full" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Preview'">
                         <div class="absolute top-3 left-3 bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg border border-white/10">
                              <p class="text-[8px] text-sdel font-black uppercase tracking-widest">${item.category}</p>
+                        </div>
+                        <!-- Stock Badge -->
+                        <div class="absolute top-3 right-16">
+                            ${stock > 0 ? `
+                                <span class="bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg border ${stock < 5 ? 'border-red-500/30' : 'border-green-500/30'}">
+                                    <span class="text-[8px] ${stock < 5 ? 'text-red-500' : 'text-green-500'} font-black">${stock < 5 ? '🔥 ' + stock + ' left' : '✅ ' + stock + ' left'}</span>
+                                </span>
+                            ` : `
+                                <span class="bg-black/50 backdrop-blur-md px-2 py-1 rounded-lg border border-red-500/30">
+                                    <span class="text-[8px] text-red-500 font-black">❌ Out of Stock</span>
+                                </span>
+                            `}
                         </div>
                         <!-- Share button with image support -->
                         <div class="absolute top-3 right-3">
@@ -421,7 +435,11 @@
                                 </div>
                                 <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition">View Cart</button>
                             ` : `
-                                <button onclick="addToCart('${item.id}')" class="w-full bg-white text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition">Add to Cart</button>
+                                ${stock > 0 ? `
+                                    <button onclick="addToCart('${item.id}')" class="w-full bg-white text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest active:scale-95 transition">Add to Cart</button>
+                                ` : `
+                                    <button disabled class="w-full bg-zinc-800 text-zinc-500 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest cursor-not-allowed">Out of Stock</button>
+                                `}
                             `}
                         </div>
                     </div>
