@@ -145,6 +145,7 @@
         // Get checkout items from localStorage
         let checkoutItems = JSON.parse(localStorage.getItem('checkout_items')) || [];
         let selectedMethod = 'pod';
+        let userFirstName = '';
 
         // Modal functions
         window.showAlert = (title, desc, type = 'error', orderCode = null) => {
@@ -189,6 +190,20 @@
                 return;
             }
             
+            // Get user's first name from profile table
+            const { data: profile } = await supabase
+                .from('profiles')
+                .select('first_name')
+                .eq('id', user.id)
+                .single();
+            
+            userFirstName = profile?.first_name || 'Customer';
+            
+            // Pre-fill name if available
+            if (userFirstName !== 'Customer') {
+                document.getElementById('cust-name').value = userFirstName;
+            }
+            
             renderSummary();
             createStars();
             lucide.createIcons();
@@ -221,6 +236,46 @@
             document.querySelectorAll('.method-card').forEach(c => c.classList.remove('active'));
             document.getElementById(`method-${m}`).classList.add('active');
         };
+
+        // Function to check and deduct stock
+        async function checkAndDeductStock(items) {
+            // First check if all items have sufficient stock
+            for (const item of items) {
+                const { data: product, error } = await supabase
+                    .from('products')
+                    .select('stock, name')
+                    .eq('id', item.id)
+                    .single();
+                
+                if (error || !product) {
+                    throw new Error(`Product ${item.name} not found`);
+                }
+                
+                if (product.stock < item.quantity) {
+                    throw new Error(`Only ${product.stock} ${product.name} left in stock`);
+                }
+            }
+            
+            // If all checks pass, deduct stock
+            for (const item of items) {
+                const { data: product } = await supabase
+                    .from('products')
+                    .select('stock')
+                    .eq('id', item.id)
+                    .single();
+                
+                const newStock = product.stock - item.quantity;
+                
+                const { error } = await supabase
+                    .from('products')
+                    .update({ stock: newStock })
+                    .eq('id', item.id);
+                
+                if (error) {
+                    throw new Error(`Failed to update stock for ${item.name}`);
+                }
+            }
+        }
 
         // Confirm order function
         window.confirmOrder = async () => {
@@ -268,11 +323,14 @@
                 // Calculate total
                 const totalAmount = checkoutItems.reduce((sum, i) => sum + (i.products.price * i.quantity), 0);
 
+                // CHECK AND DEDUCT STOCK BEFORE CREATING ORDER
+                await checkAndDeductStock(orderItems);
+
                 // Insert order
                 const { data, error } = await supabase
                     .from('orders')
                     .insert([{
-                        user_id: user.id,  // Use the authenticated user's ID
+                        user_id: user.id,
                         total_amount: totalAmount,
                         delivery_fee: 0,
                         items: orderItems,
@@ -299,14 +357,16 @@
                 // Clear localStorage
                 localStorage.removeItem('checkout_items');
                 
-                // Show success message
+                // Professional thank you message with first name
                 const generatedCode = data[0]?.order_code || 'N/A';
-                showAlert("Order Placed!", "Your order has been confirmed", "success", generatedCode);
+                const thankYouMessage = `Thank you ${userFirstName}! Your order has been received and is being processed. We'll notify you once it's confirmed. We appreciate your business and look forward to serving you again! 🧡`;
+                
+                showAlert("Order Confirmed!", thankYouMessage, "success", generatedCode);
                 
                 // Redirect after delay
                 setTimeout(() => { 
                     window.location.href = 'dashboard.html'; 
-                }, 4000);
+                }, 5000);
 
             } catch (err) {
                 console.error('Order Error:', err);
