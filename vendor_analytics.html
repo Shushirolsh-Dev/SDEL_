@@ -1,445 +1,342 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-        (function() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'sunlight') document.documentElement.classList.add('sunlight-mode');
-        })();
-    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel | Analytics</title>
+    <title>Sdel | Analytics + Command</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        :root { --bg: #000; --surface: #0a0a0a; --card: #121212; --border: rgba(255,255,255,0.08); --text: #fff; --dim: #71717a; }
-        .sunlight-mode { --bg: #fff; --surface: #f4f4f5; --card: #ffffff; --border: #e4e4e7; --text: #09090b; --dim: #71717a; }
-        
-        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; }
-        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 2rem; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
         .text-sdel { color: #FF6600; }
-        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 1.5rem; padding: 1.5rem; }
-        
-        .tooltip {
-            position: relative;
-            display: inline-block;
-            cursor: help;
+        .bg-sdel { background-color: #FF6600; }
+        .card-zinc { background: rgba(12, 12, 12, 0.8); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(12px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-in { animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .tab-active { background: #FF6600 !important; color: black !important; }
+        .dynamic-text { word-break: break-all; overflow-wrap: break-word; line-height: 1; }
+        .delivery-badge { background: rgba(255, 102, 0, 0.1); border: 1px dashed rgba(255, 102, 0, 0.3); border-radius: 16px; padding: 12px; }
+        #sdel-toast {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            background: #121212; border: 1px solid #FF6600; padding: 16px 24px;
+            border-radius: 20px; z-index: 9999; transition: 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            display: flex; align-items: center; gap: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.8);
         }
-
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 200px;
-            background-color: var(--card);
-            color: var(--text);
-            text-align: center;
-            padding: 8px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -100px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 12px;
-        }
-
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-        
-        .live-badge {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background-color: #22c55e;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-            margin-right: 6px;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.3; }
-            100% { opacity: 1; }
-        }
+        #sdel-toast.active { top: 30px; }
+        .stat-tile { @apply bg-zinc-900/60 p-5 rounded-2xl border border-white/5; }
     </style>
 </head>
-<body class="p-6">
+<body class="pb-20">
+    <div id="sdel-toast">
+        <div class="p-2 bg-sdel/10 rounded-lg text-sdel" id="toast-icon-box"><i data-lucide="bell" size="18"></i></div>
+        <p id="toast-msg" class="text-[10px] font-black uppercase tracking-[0.2em] text-white"></p>
+    </div>
 
-    <nav class="flex items-center justify-between mb-8">
-        <button onclick="window.location.href='vendor_dashboard.html'" class="p-3 bg-zinc-900/10 rounded-2xl border border-[var(--border)]">
-            <i data-lucide="arrow-left" size="20"></i>
-        </button>
-        <div class="flex items-center gap-2">
-            <span class="live-badge"></span>
-            <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">LIVE ANALYTICS</h1>
+    <nav class="p-6 flex items-center justify-between border-b border-white/5 sticky top-0 bg-black/80 backdrop-blur-xl z-50">
+        <div class="flex flex-col">
+            <h1 class="text-xl font-black uppercase tracking-tighter italic">Analytics <span class="text-sdel">+ Command</span></h1>
+            <div class="flex items-center space-x-2">
+                <span class="flex h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                <span class="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Vendor intelligence</span>
+            </div>
         </div>
-        <div class="w-10"></div>
+        <button onclick="loadFullAnalytics()" class="p-3 bg-zinc-900 border border-white/10 rounded-2xl text-sdel active:rotate-180 transition-all duration-500">
+            <i data-lucide="refresh-cw" size="18"></i>
+        </button>
     </nav>
 
-    <!-- Date Range Selector -->
-    <div class="glass-card p-4 mb-6 flex justify-between items-center">
-        <select id="dateRangeSelect" onchange="changeDateRange(this.value)" class="bg-transparent text-xs font-black border border-[var(--border)] rounded-xl px-4 py-2">
-            <option value="7">Last 7 Days</option>
-            <option value="30" selected>Last 30 Days</option>
-            <option value="90">Last 90 Days</option>
-            <option value="365">This Year</option>
-            <option value="all">All Time</option>
-        </select>
-        <i data-lucide="calendar" size="16" class="text-[var(--dim)]"></i>
-    </div>
+    <main class="p-5 max-w-6xl mx-auto space-y-8">
+        <!-- ========== ANALYTICS SECTION (STANDARD, WITH 10% FEE) ========== -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <!-- GROSS REVENUE (accepted orders) -->
+            <div class="stat-tile flex flex-col relative overflow-hidden">
+                <div class="flex items-center gap-2 text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
+                    <i data-lucide="trending-up" size="16" class="text-sdel"></i> Gross revenue
+                </div>
+                <div class="text-3xl font-black italic text-white mt-2 dynamic-text" id="gross-revenue">₦0</div>
+                <p class="text-[9px] text-zinc-600 font-bold uppercase tracking-wide">from accepted orders</p>
+                <i data-lucide="circle-dollar-sign" class="absolute -right-4 -bottom-4 text-white/5 rotate-12" size="70"></i>
+            </div>
 
-    <!-- Key Metrics -->
-    <div class="grid grid-cols-2 gap-3 mb-6">
-        <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Gross Revenue</p>
-            <p class="text-2xl font-black" id="totalRevenue">₦0</p>
-            <p class="text-[10px] font-bold mt-1" id="revenueChange">Total before fees</p>
-        </div>
-        <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Platform Fee (10%)</p>
-            <p class="text-2xl font-black text-sdel" id="platformFee">₦0</p>
-            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Deducted</p>
-        </div>
-        <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Your Earnings</p>
-            <p class="text-2xl font-black text-green-500" id="vendorEarnings">₦0</p>
-            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">After fees</p>
-        </div>
-        <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Orders</p>
-            <p class="text-2xl font-black" id="totalOrderCount">0</p>
-            <p class="text-[10px] font-bold mt-1" id="orderChange">Total orders</p>
-        </div>
-        <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Product Views</p>
-            <p class="text-2xl font-black" id="totalViews">0</p>
-            <p class="text-[10px] text-[var(--dim)] font-bold mt-1">Total impressions</p>
-        </div>
-        <div class="stat-card">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)] mb-2">Conversion</p>
-            <p class="text-2xl font-black" id="conversionRate">0%</p>
-            <p class="text-[10px] font-bold mt-1" id="conversionChange">Orders/Views</p>
-        </div>
-    </div>
+            <!-- PENDING REVENUE (not accepted) -->
+            <div class="stat-tile flex flex-col relative overflow-hidden border-sdel/20">
+                <div class="flex items-center gap-2 text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
+                    <i data-lucide="clock" size="16" class="text-sdel"></i> Pending revenue
+                </div>
+                <div class="text-3xl font-black italic text-white mt-2 dynamic-text" id="pending-revenue">₦0</div>
+                <p class="text-[9px] text-zinc-600 font-bold uppercase tracking-wide">total orders not accepted</p>
+                <i data-lucide="hourglass" class="absolute -right-4 -bottom-4 text-white/5 rotate-12" size="70"></i>
+            </div>
 
-    <!-- Status Breakdown -->
-    <div class="grid grid-cols-3 gap-2 mb-6">
-        <div class="glass-card p-4 text-center">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)]">Pending</p>
-            <p class="text-xl font-black text-sdel" id="pendingOrders">0</p>
+            <!-- AFTER 10% DEDUCTION (NET) -->
+            <div class="stat-tile flex flex-col bg-gradient-to-br from-zinc-900 to-black border-sdel/30">
+                <div class="flex items-center gap-2 text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
+                    <i data-lucide="badge-percent" size="16" class="text-sdel"></i> Net revenue <span class="bg-sdel/20 text-sdel px-2 py-0.5 rounded-full text-[8px] ml-2">-10% fee</span>
+                </div>
+                <div class="text-3xl font-black italic text-sdel mt-2 dynamic-text" id="net-revenue">₦0</div>
+                <p class="text-[9px] text-zinc-600 font-bold uppercase tracking-wide">after platform fee</p>
+                <i data-lucide="credit-card" class="absolute -right-4 -bottom-4 text-white/5" size="70"></i>
+            </div>
         </div>
-        <div class="glass-card p-4 text-center">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)]">Accepted</p>
-            <p class="text-xl font-black text-green-500" id="acceptedOrders">0</p>
-        </div>
-        <div class="glass-card p-4 text-center">
-            <p class="text-[8px] font-black uppercase text-[var(--dim)]">Declined</p>
-            <p class="text-xl font-black text-red-500" id="rejectedOrders">0</p>
-        </div>
-    </div>
 
-    <!-- Product Performance -->
-    <div class="glass-card p-6 mb-6">
-        <h2 class="font-black text-xs uppercase tracking-wider mb-4">📊 Product Performance</h2>
-        <div class="space-y-3" id="productPerformance">
-            <!-- Content loads here -->
+        <!-- summary cards + queue (unchanged from original, but enriched) -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="card-zinc p-6 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-center min-h-[120px]">
+                <p class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Queue Size</p>
+                <div class="flex items-baseline space-x-2">
+                    <span id="pending-count" class="text-3xl font-black italic dynamic-text">0</span>
+                    <span class="text-[10px] font-bold text-sdel uppercase">Orders</span>
+                </div>
+                <i data-lucide="package" class="absolute -right-4 -bottom-4 text-white/5 rotate-12" size="80"></i>
+            </div>
+            <div class="card-zinc p-6 rounded-[2.5rem] border-sdel/10 bg-gradient-to-br from-zinc-900/50 to-black flex flex-col justify-center min-h-[120px]">
+                <p class="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Accepted revenue</p>
+                <div class="dynamic-text text-2xl md:text-3xl font-black italic text-sdel" id="total-accepted-val">₦0</div>
+                <span class="text-[8px] text-zinc-600 font-bold uppercase tracking-wide">gross (before fee)</span>
+            </div>
         </div>
-    </div>
 
-    <!-- Recent Orders -->
-    <div class="glass-card p-6 mb-6">
-        <h2 class="font-black text-xs uppercase tracking-wider mb-4">📦 Recent Orders</h2>
-        <div class="space-y-2" id="recentOrders">
-            <!-- Content loads here -->
+        <!-- Tabs: pending / accepted / rejected -->
+        <div class="flex p-1.5 bg-zinc-900/50 rounded-2xl border border-white/5 max-w-md mx-auto">
+            <button onclick="changeView('pending')" id="btn-pending" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all tab-active">Pending</button>
+            <button onclick="changeView('accepted')" id="btn-accepted" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-zinc-500">Accepted</button>
+            <button onclick="changeView('rejected')" id="btn-rejected" class="flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all text-zinc-500">History</button>
         </div>
-    </div>
+
+        <!-- orders feed -->
+        <section class="space-y-6">
+            <div id="admin-orders-feed" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- dynamic orders injected -->
+            </div>
+        </section>
+    </main>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        const PLATFORM_FEE_PERCENTAGE = 10;
-        let currentDateRange = 30;
+        let currentStatus = 'pending';
         let currentUserId = null;
 
-        async function loadAnalytics() {
-            try {
-                console.log('🔄 Loading analytics at', new Date().toLocaleTimeString());
-                
-                // Get current user
-                const { data: { session } } = await supabase.auth.getSession();
-                
-                if (!session) {
-                    window.location.href = 'login.html';
-                    return;
-                }
+        // key rotator (for safety, kept from original)
+        let keyIndex = 0;
+        const apiKeys = [
+            { user: '351772232', secret: 'XpUucJxcrXRGGGWWpM7Akh6jAi8vAwKZ' },
+            { user: '473381982', secret: 'gdgay9zWBWd4jFjifPoyLXoMrtVL26fG' }
+        ];
 
-                currentUserId = session.user.id;
-                console.log('Current User ID:', currentUserId);
+        window.showSdelAlert = (msg, type = 'success') => {
+            const toast = document.getElementById('sdel-toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const iconBox = document.getElementById('toast-icon-box');
+            toastMsg.innerText = msg;
+            toast.style.borderColor = type === 'error' ? '#ef4444' : '#FF6600';
+            iconBox.style.color = type === 'error' ? '#ef4444' : '#FF6600';
+            toast.classList.add('active');
+            setTimeout(() => toast.classList.remove('active'), 3000);
+        };
 
-                // Date ranges
-                const endDate = new Date();
-                const startDate = new Date();
-                if (currentDateRange !== 'all') {
-                    startDate.setDate(startDate.getDate() - currentDateRange);
-                } else {
-                    startDate.setFullYear(2000);
-                }
+        // ========== ANALYTICS ENGINE: compute per vendor (currentUserId) ==========
+        async function computeRevenueAnalytics() {
+            if (!currentUserId) return;
 
-                // FETCH ALL ORDERS
-                const { data: allOrders, error } = await supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('vendor_id', currentUserId)
-                    .order('created_at', { ascending: false });
+            // fetch ALL vendor orders (to split accepted vs pending)
+            const { data: allOrders, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('vendor_id', currentUserId);
 
-                if (error) {
-                    console.error('Orders error:', error);
-                    return;
-                }
-
-                console.log('Total orders in database:', allOrders?.length || 0);
-
-                // Filter by date range
-                const filteredOrders = allOrders?.filter(order => {
-                    const orderDate = new Date(order.created_at);
-                    return orderDate >= startDate && orderDate <= endDate;
-                }) || [];
-
-                console.log('Orders in date range:', filteredOrders.length);
-
-                // Count by status
-                const pendingOrders = filteredOrders.filter(o => o.status === 'pending') || [];
-                const acceptedOrders = filteredOrders.filter(o => o.status === 'accepted') || [];
-                const rejectedOrders = filteredOrders.filter(o => o.status === 'rejected') || [];
-
-                // Update status counts
-                document.getElementById('pendingOrders').innerText = pendingOrders.length;
-                document.getElementById('acceptedOrders').innerText = acceptedOrders.length;
-                document.getElementById('rejectedOrders').innerText = rejectedOrders.length;
-
-                // GROSS REVENUE: Sum of ALL orders (pending + accepted)
-                const grossRevenue = filteredOrders.reduce((sum, order) => sum + (parseFloat(order.total_amount) || 0), 0);
-                
-                // PLATFORM FEE: 10% of gross revenue
-                const platformFee = (grossRevenue * PLATFORM_FEE_PERCENTAGE) / 100;
-                
-                // YOUR EARNINGS: Gross revenue minus platform fee
-                const vendorEarnings = grossRevenue - platformFee;
-                
-                const avgOrderValue = filteredOrders.length > 0 ? grossRevenue / filteredOrders.length : 0;
-
-                console.log('Revenue calculations:', {
-                    grossRevenue,
-                    platformFee,
-                    vendorEarnings,
-                    avgOrderValue
-                });
-
-                // Update main metrics
-                document.getElementById('totalRevenue').innerText = '₦' + grossRevenue.toLocaleString();
-                document.getElementById('platformFee').innerText = '₦' + platformFee.toLocaleString();
-                document.getElementById('vendorEarnings').innerText = '₦' + vendorEarnings.toLocaleString();
-                document.getElementById('totalOrderCount').innerText = filteredOrders.length;
-                document.getElementById('avgOrderValue').innerText = '₦' + avgOrderValue.toLocaleString();
-
-                // Update indicators
-                document.getElementById('revenueChange').innerHTML = `${filteredOrders.length} orders total`;
-                document.getElementById('orderChange').innerHTML = `${acceptedOrders.length} completed`;
-
-                // FETCH PRODUCT VIEWS
-                const { data: views } = await supabase
-                    .from('product_views')
-                    .select('*')
-                    .eq('vendor_id', currentUserId)
-                    .gte('viewed_at', startDate.toISOString())
-                    .lte('viewed_at', endDate.toISOString())
-                    .order('viewed_at', { ascending: false });
-
-                const totalViews = views?.length || 0;
-                const conversionRate = totalViews > 0 
-                    ? ((acceptedOrders.length / totalViews) * 100).toFixed(1) 
-                    : '0.0';
-
-                document.getElementById('totalViews').innerText = totalViews.toLocaleString();
-                document.getElementById('conversionRate').innerText = conversionRate + '%';
-
-                // Get product names
-                const { data: products } = await supabase
-                    .from('products')
-                    .select('id, name')
-                    .eq('vendor_id', currentUserId);
-                
-                const productNameMap = {};
-                products?.forEach(p => {
-                    productNameMap[p.id] = p.name;
-                });
-
-                // Calculate product performance
-                const productStats = {};
-                
-                // Add view counts
-                views?.forEach(view => {
-                    const productId = view.product_id;
-                    if (!productId) return;
-                    
-                    if (!productStats[productId]) {
-                        productStats[productId] = {
-                            id: productId,
-                            name: productNameMap[productId] || `Product ${productId.slice(0, 8)}...`,
-                            views: 0,
-                            orders: 0,
-                            revenue: 0
-                        };
-                    }
-                    productStats[productId].views += 1;
-                });
-
-                // Add order data from ALL orders
-                filteredOrders.forEach(order => {
-                    let items = order.items;
-                    if (items && typeof items === 'string') {
-                        try {
-                            items = JSON.parse(items);
-                        } catch (e) {
-                            items = [];
-                        }
-                    }
-                    
-                    if (Array.isArray(items)) {
-                        items.forEach(item => {
-                            const productId = item.id;
-                            if (!productId) return;
-                            
-                            if (!productStats[productId]) {
-                                productStats[productId] = {
-                                    id: productId,
-                                    name: productNameMap[productId] || item.name || 'Unknown',
-                                    views: 0,
-                                    orders: 0,
-                                    revenue: 0
-                                };
-                            }
-                            productStats[productId].orders += item.quantity || 1;
-                            productStats[productId].revenue += (Number(item.price) * (item.quantity || 1)) || 0;
-                        });
-                    }
-                });
-
-                // Display product performance
-                const perfList = document.getElementById('productPerformance');
-                
-                if (Object.keys(productStats).length === 0) {
-                    perfList.innerHTML = `
-                        <div class="text-center py-8 text-[var(--dim)]">
-                            <i data-lucide="package-x" size="40" class="mx-auto mb-3"></i>
-                            <p class="text-sm">No product activity in this period</p>
-                        </div>
-                    `;
-                } else {
-                    const topProducts = Object.values(productStats)
-                        .sort((a, b) => b.revenue - a.revenue)
-                        .slice(0, 5);
-                    
-                    perfList.innerHTML = topProducts.map(p => {
-                        const conversion = p.views > 0 ? ((p.orders / p.views) * 100).toFixed(1) : '0.0';
-                        return `
-                            <div class="flex items-center justify-between p-3 bg-zinc-900/20 rounded-xl">
-                                <div class="flex-1">
-                                    <p class="font-black text-xs">${p.name}</p>
-                                    <div class="flex gap-4 mt-1">
-                                        <p class="text-[8px] text-[var(--dim)]">📦 ${p.orders} sold</p>
-                                        <p class="text-[8px] text-[var(--dim)]">👁️ ${p.views} views</p>
-                                        <p class="text-[8px] text-sdel">${conversion}% conv.</p>
-                                    </div>
-                                </div>
-                                <p class="font-black text-sdel text-sm">₦${p.revenue.toLocaleString()}</p>
-                            </div>
-                        `;
-                    }).join('');
-                }
-
-                // Display recent orders
-                const recentList = document.getElementById('recentOrders');
-                
-                if (filteredOrders.length === 0) {
-                    recentList.innerHTML = `
-                        <div class="text-center py-4 text-[var(--dim)]">
-                            <p class="text-xs">No orders yet</p>
-                        </div>
-                    `;
-                } else {
-                    recentList.innerHTML = filteredOrders.slice(0, 5).map(order => {
-                        const delivery = order.delivery_info || {};
-                        const date = new Date(order.created_at).toLocaleDateString();
-                        const statusColor = order.status === 'accepted' ? 'text-green-500' : 
-                                          order.status === 'rejected' ? 'text-red-500' : 'text-sdel';
-                        return `
-                            <div class="flex items-center justify-between p-2 bg-zinc-900/10 rounded-lg">
-                                <div>
-                                    <p class="text-xs font-bold">${order.order_code || 'No Code'}</p>
-                                    <p class="text-[8px] text-[var(--dim)]">${delivery.name || 'Customer'} • ${date}</p>
-                                    <p class="text-[8px] ${statusColor} uppercase font-black">${order.status}</p>
-                                </div>
-                                <p class="font-black text-sdel text-sm">₦${(parseFloat(order.total_amount) || 0).toLocaleString()}</p>
-                            </div>
-                        `;
-                    }).join('');
-                }
-
-                console.log('✅ Analytics updated at', new Date().toLocaleTimeString());
-                lucide.createIcons();
-
-            } catch (error) {
-                console.error('Error:', error);
+            if (error) {
+                console.error('analytics error', error);
+                return;
             }
+
+            // pending revenue: status = 'pending' (not accepted)
+            const pendingOrders = allOrders.filter(o => o.status === 'pending');
+            const pendingRevenue = pendingOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+
+            // gross revenue: status = 'accepted' (those are final)
+            const acceptedOrders = allOrders.filter(o => o.status === 'accepted');
+            const grossRevenue = acceptedOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+
+            // apply 10% deduction on gross revenue (net revenue)
+            const fee = grossRevenue * 0.10;
+            const netRevenue = grossRevenue - fee;
+
+            // update DOM
+            document.getElementById('gross-revenue').innerText = `₦${grossRevenue.toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0})}`;
+            document.getElementById('pending-revenue').innerText = `₦${pendingRevenue.toLocaleString()}`;
+            document.getElementById('net-revenue').innerText = `₦${netRevenue.toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0})}`;
+            document.getElementById('total-accepted-val').innerText = `₦${grossRevenue.toLocaleString()}`;
+            
+            // update queue size (pending count) as a bonus
+            document.getElementById('pending-count').innerText = pendingOrders.length;
         }
 
-        // Date range changer
-        window.changeDateRange = (days) => {
-            currentDateRange = days === 'all' ? 'all' : parseInt(days);
-            loadAnalytics();
+        // extend loadOrders to also refresh analytics
+        async function loadOrders() {
+            if (!currentUserId) return;
+            
+            const feed = document.getElementById('admin-orders-feed');
+            
+            const { data: orders, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('status', currentStatus)
+                .eq('vendor_id', currentUserId)
+                .order('created_at', { ascending: false });
+
+            if (error) { console.error(error); return; }
+
+            // show queue count (pending) already in separate element, but we update anyway
+            // analytics update will also set pending count. But we call compute after anyway.
+            
+            if (orders.length === 0) {
+                feed.innerHTML = `
+                    <div class="col-span-full card-zinc p-16 rounded-[3rem] text-center space-y-3">
+                        <i data-lucide="archive" class="mx-auto text-zinc-800" size="40"></i>
+                        <p class="font-black uppercase text-[11px] text-zinc-600 tracking-widest">No ${currentStatus} orders</p>
+                    </div>`;
+                lucide.createIcons();
+                // still compute analytics (counts may be zero)
+                await computeRevenueAnalytics();
+                return;
+            }
+
+            feed.innerHTML = orders.map(order => {
+                const delivery = order.delivery_info || {};
+                const phone = delivery.phone || 'No phone';
+                
+                return `
+                <div class="card-zinc p-7 rounded-[2.8rem] space-y-6 animate-in">
+                    <div class="flex justify-between items-start">
+                        <div class="space-y-1">
+                            <span class="bg-zinc-900 text-zinc-500 text-[9px] font-black px-3 py-1 rounded-full border border-white/5 uppercase font-mono tracking-tighter">${order.order_code || 'NO-CODE'}</span>
+                            <h3 class="text-lg font-black uppercase italic leading-tight pt-2 truncate max-w-[150px]">${delivery.name || 'Customer'}</h3>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xl font-black italic text-sdel dynamic-text">₦${(parseFloat(order.total_amount) || 0).toLocaleString()}</p>
+                            <p class="text-[9px] font-bold text-zinc-500 uppercase">${order.payment_method === 'pod' ? 'PAY ON DELIVERY' : 'CASH'}</p>
+                        </div>
+                    </div>
+
+                    <!-- DELIVERY INFO -->
+                    <div class="delivery-badge space-y-3">
+                        <div class="flex items-center gap-2 text-sdel">
+                            <i data-lucide="map-pin" size="16"></i>
+                            <span class="text-[9px] font-black uppercase tracking-widest">Delivery Details</span>
+                        </div>
+                        <div class="space-y-2 text-[11px]">
+                            <div class="flex items-start gap-2"><i data-lucide="user" size="14" class="text-zinc-500 mt-0.5"></i><span class="font-bold text-zinc-300">${delivery.name || 'N/A'}</span></div>
+                            <div class="flex items-start gap-2"><i data-lucide="phone" size="14" class="text-zinc-500 mt-0.5"></i><span class="font-bold text-zinc-300">${phone}</span></div>
+                            <div class="flex items-start gap-2"><i data-lucide="home" size="14" class="text-zinc-500 mt-0.5"></i><span class="font-bold text-zinc-300">${delivery.address || 'N/A'}</span></div>
+                            ${delivery.room ? `<div class="flex items-start gap-2"><i data-lucide="door" size="14" class="text-zinc-500 mt-0.5"></i><span class="font-bold text-zinc-300">${delivery.room}</span></div>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="bg-black/40 p-5 rounded-[1.8rem] border border-white/5">
+                        <div class="flex items-center gap-2 mb-3"><i data-lucide="shopping-bag" size="14" class="text-sdel"></i><span class="text-[9px] font-black uppercase tracking-widest text-zinc-500">Order Items</span></div>
+                        <div class="space-y-2">
+                            ${Array.isArray(order.items) && order.items.length > 0 ? 
+                                order.items.map(i => `<div class="flex justify-between text-[11px] font-bold"><span class="text-zinc-400 uppercase truncate pr-4">${i.name}</span><span class="text-white font-black">×${i.quantity || 1}</span></div>`).join('') : 
+                                `<div class="flex justify-between text-[11px] font-bold"><span class="text-zinc-400 uppercase truncate pr-4">${order.item_name || 'Generic Item'}</span><span class="text-white font-black">×1</span></div>`
+                            }
+                        </div>
+                    </div>
+
+                    ${currentStatus === 'pending' ? `
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="updateOrder('${order.id}', 'accepted', 'Confirmed')" class="bg-white text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:scale-[1.02] active:scale-95 transition-all">Accept</button>
+                        <button onclick="updateOrder('${order.id}', 'rejected', 'Declined')" class="bg-zinc-900 text-red-500 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest border border-red-500/10 hover:bg-red-500/5 transition-all">Decline</button>
+                    </div>` : `
+                    <div class="text-center p-2 bg-zinc-900/50 rounded-xl border border-white/5">
+                        <p class="text-[9px] font-black uppercase tracking-widest ${currentStatus === 'accepted' ? 'text-green-500' : 'text-red-500'}">Order ${currentStatus}</p>
+                        <p class="text-[8px] text-zinc-500 font-bold uppercase mt-1">${order.status_message || ''}</p>
+                    </div>`}
+                </div>`;
+            }).join('');
+            
+            lucide.createIcons();
+            await computeRevenueAnalytics(); // refresh analytics after orders load
+        }
+
+        // called after updates
+        window.loadFullAnalytics = async () => {
+            await loadOrders(); // this triggers compute + refresh
+            showSdelAlert('Analytics updated');
         };
 
-        // Manual refresh
-        window.forceRefresh = () => {
-            loadAnalytics();
+        async function checkUser() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUserId = session.user.id;
+            loadFullAnalytics(); // initial load with analytics
+
+            supabase
+                .channel('orders-channel')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'orders',
+                    filter: `vendor_id=eq.${currentUserId}`
+                }, () => {
+                    loadFullAnalytics();
+                })
+                .subscribe();
+        }
+
+        window.changeView = (status) => {
+            currentStatus = status;
+            document.querySelectorAll('[id^="btn-"]').forEach(btn => btn.classList.remove('tab-active', 'text-zinc-500'));
+            document.getElementById(`btn-${status}`).classList.add('tab-active');
+            loadOrders(); // status filtered, analytics remain full
         };
 
-        // Load immediately
-        loadAnalytics();
-        
-        // Refresh every 10 seconds
-        setInterval(loadAnalytics, 10000);
+        window.updateOrder = async (id, status, message) => {
+            const { data: orderData } = await supabase.from('orders').select('user_id, order_code, delivery_info').eq('id', id).single();
+            if (!orderData) return;
 
-        // Real-time subscription
-        supabase
-            .channel('analytics-channel')
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'orders'
-            }, () => {
-                console.log('📦 Orders changed - updating');
-                loadAnalytics();
-            })
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'product_views'
-            }, () => {
-                console.log('👁️ Views changed - updating');
-                loadAnalytics();
-            })
-            .subscribe();
+            const { error } = await supabase.from('orders').update({ 
+                status: status, 
+                status_message: message, 
+                updated_at: new Date().toISOString() 
+            }).eq('id', id).eq('vendor_id', currentUserId);
 
+            if(!error) {
+                showSdelAlert(`Order ${status.toUpperCase()}`);
+                
+                await supabase.from('messages').insert([{
+                    recipient_id: orderData.user_id,
+                    content: `${status === 'accepted' ? '✅ ORDER ACCEPTED' : '❌ ORDER DECLINED'}\n\nCode: ${orderData.order_code}${status === 'accepted' ? '\nYour order is being prepared for delivery!' : '\nPlease contact support.'}`,
+                    type: 'team',
+                    sender_id: currentUserId,
+                    created_at: new Date().toISOString()
+                }]);
+                
+                loadFullAnalytics(); // refresh with analytics
+            } else {
+                showSdelAlert("Operation Failed", "error");
+            }
+        };
+
+        // Attach to window
+        window.loadOrders = loadOrders;
+        window.computeRevenueAnalytics = computeRevenueAnalytics;
+
+        // start
+        checkUser();
+    </script>
+    <script>
+        // ensure icons load after any dynamic change (legacy from lucide)
+        window.addEventListener('load', function() {
+            if (lucide) lucide.createIcons();
+        });
     </script>
 </body>
-    </html>
+</html>
