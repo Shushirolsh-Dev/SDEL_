@@ -37,7 +37,6 @@
         .mention-item { padding: 14px 18px; border-bottom: 1px solid #1a1a1a; font-size: 12px; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.2s; color: white; }
         .mention-item:hover { background: #FF6600; color: black; }
 
-        /* Sunlight Mode Overrides */
         .sunlight-mode body { background-color: #ffffff; color: #121212; }
         .sunlight-mode nav, .sunlight-mode .sticky { background-color: rgba(255,255,255,0.95) !important; border-color: #f0f0f0 !important; }
         .sunlight-mode .fixed.bottom-0 { background-color: rgba(255,255,255,0.9) !important; border-color: #e4e4e7 !important; }
@@ -66,7 +65,7 @@
         .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
 
         .inline-link { color: #FF6600; font-weight: 600; cursor: pointer; display: inline; background: none; border: none; padding: 0; margin: 0; font-size: inherit; text-decoration: none; }
-        .inline-link:hover { text-decoration: underline; }
+        .inline-link:hover { text-decoration: none; }
         
         .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #222; border-radius: 24px 24px 0 0; padding: 20px; z-index: 3000; transform: translateY(100%); transition: transform 0.3s ease; }
         .action-sheet.open { transform: translateY(0); }
@@ -78,8 +77,7 @@
 
         #search-results { position: absolute; top: 100%; left: 0; right: 0; background: #000; z-index: 90; max-height: 300px; overflow-y: auto; display: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .sunlight-mode #search-results { background: #fff; border-color: #eee; }
-
-        .link-warning { color: #FF6600; font-size: 11px; font-weight: 800; margin-top: 4px; }
+                .link-warning { color: #FF6600; font-size: 11px; font-weight: 800; margin-top: 4px; }
 
         #post-modal { display: none; }
         .post-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(20px); }
@@ -159,7 +157,6 @@
             padding-bottom: 80px;
         }
 
-        /* Fixed text handling */
         .post-content {
             font-size: 15px;
             line-height: 1.5;
@@ -179,20 +176,28 @@
             fill: #FF6600;
         }
 
-        /* Ensure post button is visible */
         #composer-actions {
             display: flex;
         }
         #composer-actions.hidden {
             display: none;
         }
+        
+        .mention-link {
+            color: #FF6600;
+            font-weight: 800;
+            text-decoration: none !important;
+        }
+        .mention-link:hover {
+            text-decoration: none !important;
+        }
     </style>
-    </head>
-    <body class="flex flex-col" ontouchstart="closeActionSheetOnTouch(event)">
+</head>
+<body class="flex flex-col">
+
     <div id="toast">Gist Published!</div>
     <div id="mention-list"></div>
 
-    <!-- FULLSCREEN POST MODAL -->
     <div id="post-modal" class="post-modal-overlay" onclick="closePostModal()">
         <div class="post-modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
@@ -209,22 +214,21 @@
         </div>
     </div>
 
-    <div id="security-modal" class="modal-overlay">
+    <div id="security-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content border-red-900/50">
             <i data-lucide="shield-alert" class="text-red-600 mx-auto mb-4" size="48"></i>
             <h3 class="text-red-500 font-black uppercase mb-2">Security Warning</h3>
             <p id="security-msg" class="text-xs text-zinc-400 font-bold leading-relaxed mb-6 uppercase">Unauthorized script detected. Your account status has been updated.</p>
-            <button onclick="document.getElementById('security-modal').style.display='none'" class="w-full py-4 bg-zinc-900 rounded-2xl font-black text-xs uppercase">I Understand</button>
+            <button onclick="closeSecurityModal()" class="w-full py-4 bg-zinc-900 rounded-2xl font-black text-xs uppercase">I Understand</button>
         </div>
     </div>
 
-    <div id="action-sheet" class="action-sheet">
+    <div id="action-sheet" class="action-sheet" onclick="event.stopPropagation()">
         <div class="w-12 h-1.5 bg-zinc-800 rounded-full mx-auto mb-6"></div>
         <div id="action-options" class="space-y-3"></div>
         <button onclick="closeActions()" class="w-full mt-4 py-4 text-zinc-500 font-black uppercase text-xs">Cancel</button>
     </div>
-
-    <div id="redirect-modal" class="modal-overlay">
+        <div id="redirect-modal" class="modal-overlay">
         <div class="modal-content">
             <h3 class="text-lg font-black uppercase mb-2">⚠️ Leaving Sdel</h3>
             <div id="raw-link-display" class="bg-black p-4 rounded-xl border border-zinc-800 text-sdel text-[10px] break-all mb-4 font-bold"></div>
@@ -237,7 +241,6 @@
         </div>
     </div>
 
-    <!-- TOP NAVIGATION -->
     <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-[100] border-b border-white/5 pt-env(safe-area-inset-top)">
         <div class="p-6 pb-2 flex items-center justify-between">
             <h1 class="text-2xl font-black tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
@@ -260,91 +263,86 @@
             <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn px-6 py-4">Universe</button>
         </div>
     </nav>
-    <!-- MAIN CONTENT AREA -->
-<div class="main-content">
-    <!-- Composer - Post button is visible -->
-    <div id="composer-card" class="m-4 p-4 border border-white/5 flex flex-col relative transition-all">
-        <div class="flex space-x-3">
-            <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase text-sdel">H</div>
-            <div class="flex-1">
-                <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
-                <div id="composer-actions" class="mt-3 flex justify-between items-center">
-                    <span class="text-[10px] text-zinc-600 font-bold uppercase">Public Gist</span>
-                    <button onclick="openPostModal()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase">Post</button>
+
+    <div class="main-content">
+        <div id="composer-card" class="m-4 p-4 border border-white/5 flex flex-col relative transition-all">
+            <div class="flex space-x-3">
+                <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase text-sdel">H</div>
+                <div class="flex-1">
+                    <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
+                    <div id="composer-actions" class="mt-3 flex justify-between items-center">
+                        <span class="text-[10px] text-zinc-600 font-bold uppercase">Public Gist</span>
+                        <button onclick="openPostModal()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase">Post</button>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <main id="feed-container">
+            <div class="skeleton-card">
+                <div class="flex space-x-3">
+                    <div class="skeleton-avatar"></div>
+                    <div class="flex-1">
+                        <div class="skeleton-line short"></div>
+                        <div class="skeleton-line medium mt-2"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-actions">
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="flex space-x-3">
+                    <div class="skeleton-avatar"></div>
+                    <div class="flex-1">
+                        <div class="skeleton-line short"></div>
+                        <div class="skeleton-line medium mt-2"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-actions">
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="flex space-x-3">
+                    <div class="skeleton-avatar"></div>
+                    <div class="flex-1">
+                        <div class="skeleton-line short"></div>
+                        <div class="skeleton-line medium mt-2"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-actions">
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div id="scroll-sentry"></div>
     </div>
 
-    <!-- FEED CONTAINER -->
-    <main id="feed-container">
-        <!-- Loading Skeletons -->
-        <div class="skeleton-card">
-            <div class="flex space-x-3">
-                <div class="skeleton-avatar"></div>
-                <div class="flex-1">
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line medium mt-2"></div>
-                    <div class="skeleton-line long"></div>
-                    <div class="skeleton-actions">
-                        <div class="skeleton-action"></div>
-                        <div class="skeleton-action"></div>
-                        <div class="skeleton-action"></div>
-                    </div>
-                </div>
-            </div>
+    <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
+        <i data-lucide="home" class="text-sdel" size="28" onclick="location.href='dashboard.html'"></i>
+        <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
+        <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="openPostModal()">
+            <i data-lucide="plus" class="text-black" size="28" stroke-width="3"></i>
         </div>
-        <div class="skeleton-card">
-            <div class="flex space-x-3">
-                <div class="skeleton-avatar"></div>
-                <div class="flex-1">
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line medium mt-2"></div>
-                    <div class="skeleton-line long"></div>
-                    <div class="skeleton-actions">
-                        <div class="skeleton-action"></div>
-                        <div class="skeleton-action"></div>
-                        <div class="skeleton-action"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="skeleton-card">
-            <div class="flex space-x-3">
-                <div class="skeleton-avatar"></div>
-                <div class="flex-1">
-                    <div class="skeleton-line short"></div>
-                    <div class="skeleton-line medium mt-2"></div>
-                    <div class="skeleton-line long"></div>
-                    <div class="skeleton-actions">
-                        <div class="skeleton-action"></div>
-                        <div class="skeleton-action"></div>
-                        <div class="skeleton-action"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Scroll Sentry for Infinite Scroll -->
-    <div id="scroll-sentry"></div>
-</div>
-
-<!-- BOTTOM NAV - PLUS BUTTON OPENS MODAL -->
-<nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
-    <i data-lucide="home" class="text-sdel" size="28" onclick="location.href='dashboard.html'"></i>
-    <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
-    <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="openPostModal()">
-        <i data-lucide="plus" class="text-black" size="28" stroke-width="3"></i>
-    </div>
-    <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
-    <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
-</nav>
+        <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
+        <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
+    </nav>
+    
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-// ========== VARIABLES ==========
 let userProfile = null;
 let currentMode = 'campus';
 let securityViolationCount = 0;
@@ -354,7 +352,6 @@ let currentEditPostId = null;
 let repostedPosts = new Set();
 let mentionTimeout = null;
 
-// Pagination
 let currentPage = 0;
 let loading = false;
 let hasMore = true;
@@ -363,12 +360,9 @@ let myLikes = [];
 let observer = null;
 let initTimer = null;
 
-// OFFLINE SUPPORT
 let offlineQueue = JSON.parse(localStorage.getItem('offlinePosts') || '[]');
 let isOnline = navigator.onLine;
-
-// ========== UTILITIES ==========
-function formatNum(num) {
+    function formatNum(num) {
     if (!num) return 0;
     if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
     if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
@@ -382,6 +376,24 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
+function getSafeContent(post) {
+    if (!post || !post.content) return '';
+    
+    let content = post.content;
+    
+    if (content.trim().startsWith('{') || content.includes('"id":"') || content.includes('"user_id":"')) {
+        console.log('Found malformed post content');
+        return '';
+    }
+    
+    content = content.replace(/{"id":".*?"}/g, '');
+    content = content.replace(/onmousedown=".*?"/g, '');
+    content = content.replace(/ontouchstart=".*?"/g, '');
+    content = content.replace(/onmouseup=".*?"/g, '');
+    
+    return escapeHTML(content);
+}
+
 function showToast(msg) {
     const t = document.getElementById('toast');
     t.innerText = msg;
@@ -389,7 +401,25 @@ function showToast(msg) {
     setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ========== INITIALIZATION ==========
+function showSecurityError() {
+    const modal = document.getElementById('security-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            if (modal.style.display === 'flex') {
+                closeSecurityModal();
+            }
+        }, 5000);
+    }
+}
+
+function closeSecurityModal() {
+    const modal = document.getElementById('security-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 async function init() {
     if (initTimer) clearTimeout(initTimer);
     
@@ -409,7 +439,6 @@ async function init() {
     
     document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
     
-    // Load interactions
     const { data: myReposts } = await supabase.from('interactions')
         .select('post_id')
         .eq('user_id', userProfile.id)
@@ -425,18 +454,15 @@ async function init() {
         .eq('interaction_type', 'like');
     myLikes = likes || [];
     
-    // Reset pagination
     currentPage = 0;
     allPosts = [];
     hasMore = true;
     
-    // Load offline posts first
     if (offlineQueue.length > 0) {
         allPosts = [...offlineQueue.map(p => ({...p, offline: true})), ...allPosts];
         renderFeed();
     }
     
-    // Timeout for empty feed
     initTimer = setTimeout(() => {
         const container = document.getElementById('feed-container');
         if (container.querySelector('.skeleton-card')) {
@@ -447,12 +473,10 @@ async function init() {
     await loadMorePosts();
     setupInfiniteScroll();
     
-    // Online/Offline listeners
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', () => { isOnline = false; });
 }
 
-// ========== OFFLINE SYNC ==========
 async function handleOnline() {
     isOnline = true;
     if (offlineQueue.length > 0) {
@@ -502,13 +526,11 @@ function savePostOffline(postData) {
     offlineQueue.push(offlinePost);
     localStorage.setItem('offlinePosts', JSON.stringify(offlineQueue));
     
-    // Show in feed immediately
     allPosts = [offlinePost, ...allPosts];
     renderFeed();
     showToast('Saved offline - will post when online');
 }
 
-// ========== INFINITE SCROLL ==========
 function setupInfiniteScroll() {
     const sentry = document.getElementById('scroll-sentry');
     observer = new IntersectionObserver((entries) => {
@@ -521,7 +543,7 @@ function setupInfiniteScroll() {
     
     if (sentry) observer.observe(sentry);
 }
-    // ========== LOAD POSTS (FIXED - Shows ALL posts) ==========
+
 async function loadMorePosts() {
     if (loading || !hasMore) return;
     
@@ -560,7 +582,6 @@ async function loadMorePosts() {
             return;
         }
         
-        // Filter by search if needed
         let newPosts = posts;
         if (searchQuery) {
             newPosts = posts.filter(post => 
@@ -569,7 +590,6 @@ async function loadMorePosts() {
             );
         }
         
-        // Format content for new posts
         const processedPosts = await Promise.all(newPosts.map(async (post) => {
             const formattedContent = await formatContent(post.content, post.id);
             return { ...post, formattedContent };
@@ -583,10 +603,8 @@ async function loadMorePosts() {
     }
     
     loading = false;
-}
-
-// ========== RENDER FEED (FIXED - Proper JSON escaping) ==========
-function renderFeed() {
+        }
+    function renderFeed() {
     const container = document.getElementById('feed-container');
     
     if (allPosts.length === 0) {
@@ -605,8 +623,8 @@ function renderFeed() {
                 ? '<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
                 : '');
         
-        // FIXED: Proper JSON string escaping
         const postDataStr = JSON.stringify(post).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const safeContent = post.formattedContent || getSafeContent(post);
         
         return `
         <div class="post-card p-4" data-post-id="${post.id}" data-post='${postDataStr}' onmousedown="startPress(event, '${postDataStr}')" onmouseup="endPress()" ontouchstart="startPress(event, '${postDataStr}')" ontouchend="endPress()">
@@ -618,7 +636,7 @@ function renderFeed() {
                         ${badge}
                         ${currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name || '')}</span>` : ''}
                     </div>
-                    <div class="post-content text-zinc-200 mb-3">${post.formattedContent || escapeHTML(post.content)}</div>
+                    <div class="post-content text-zinc-200 mb-3">${safeContent}</div>
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
                         <button onclick="handleLike('${post.id}')" class="like-button flex items-center gap-2" data-post-id="${post.id}" data-liked="${isLiked}" data-count="${post.likes_count || 0}">
                             <i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}" class="like-icon"></i>
@@ -640,7 +658,6 @@ function renderFeed() {
     lucide.createIcons();
 }
 
-// ========== LIKE HANDLER (Optimistic + Orange) ==========
 async function handleLike(postId) {
     const button = document.querySelector(`.like-button[data-post-id="${postId}"]`);
     if (!button) return;
@@ -650,13 +667,11 @@ async function handleLike(postId) {
     const currentCount = parseInt(countSpan.textContent.replace(/[^0-9]/g, '')) || 0;
     const isLiked = button.dataset.liked === 'true';
     
-    // Optimistic update
     if (isLiked) {
         icon.setAttribute('fill', 'none');
         countSpan.textContent = formatNum(currentCount - 1);
         button.dataset.liked = 'false';
         
-        // Background sync
         const { data: existing } = await supabase.from('interactions')
             .select('*')
             .eq('user_id', userProfile.id)
@@ -686,7 +701,6 @@ async function handleLike(postId) {
     }
 }
 
-// ========== REPOST HANDLER ==========
 async function handleRepost(originalPostId, originalAuthor, originalContent) {
     if (originalAuthor === userProfile.username) {
         showToast("Cannot repost your own gist!");
@@ -741,10 +755,9 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         allPosts = [newPost, ...allPosts];
         renderFeed();
     }
-    }
-    // ========== POST MODAL FUNCTIONS (CRITICAL FIX) ==========
+}
+
 function openPostModal() {
-    console.log('Opening post modal'); // Debug
     const modal = document.getElementById('post-modal');
     const input = document.getElementById('modal-post-input');
     const title = document.getElementById('post-modal-title');
@@ -768,34 +781,37 @@ function closePostModal() {
     currentEditPostId = null;
 }
 
-// ========== SUBMIT POST (FIXED - Works with Supabase) ==========
 async function submitPostFromModal() {
     let content = document.getElementById('modal-post-input').value.trim();
     if (!content) return;
     
-    // Security check
     if (/<[^>]*>|javascript:|onerror|onload|eval|alert|document\.|window\.|fetch|XMLHttpRequest|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeypress|onkeyup/i.test(content)) {
         document.getElementById('modal-post-input').value = '';
         securityViolationCount++;
+        
         if (securityViolationCount >= 3) {
-            await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userProfile.id);
+            supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userProfile.id);
             location.replace('banned.html');
         } else { 
             closePostModal();
-            document.getElementById('security-modal').style.display = 'flex';
+            showSecurityError();
+            
+            const msgEl = document.getElementById('security-msg');
+            if (msgEl) {
+                msgEl.innerText = `Security Warning (${securityViolationCount}/3): Suspicious content detected.`;
+            }
+            
             setTimeout(() => location.reload(), 3000);
         }
         return;
     }
     
     if (currentEditPostId) {
-        // EDIT - NO TOAST, INSTANT UPDATE
         const { error } = await supabase.from('posts')
             .update({ content })
             .eq('id', currentEditPostId);
             
         if (!error) {
-            // Update in feed immediately
             const postIndex = allPosts.findIndex(p => p.id === currentEditPostId);
             if (postIndex !== -1) {
                 allPosts[postIndex].content = content;
@@ -805,7 +821,6 @@ async function submitPostFromModal() {
             closePostModal();
         }
     } else {
-        // NEW POST
         const postData = {
             user_id: userProfile.id,
             content: content,
@@ -818,13 +833,11 @@ async function submitPostFromModal() {
         };
         
         if (!isOnline) {
-            // Save offline
             savePostOffline(postData);
             document.getElementById('post-input').value = '';
             toggleActions(document.getElementById('post-input'));
             closePostModal();
         } else {
-            // Post online
             const { data: newPost, error } = await supabase.from('posts').insert(postData)
                 .select('*, profile:user_id(username, is_official, is_verified)').single();
             
@@ -843,11 +856,15 @@ async function submitPostFromModal() {
             }
         }
     }
-}
-
-// ========== FORMAT CONTENT ==========
-async function formatContent(text, postId) {
+    }
+    async function formatContent(text, postId) {
     if (!text) return '';
+    
+    if (text.trim().startsWith('{') || text.includes('"id":"') || text.includes('"user_id":"')) {
+        console.log('Skipping JSON content in formatContent');
+        return '';
+    }
+    
     let safe = text;
     safe = escapeHTML(safe);
     
@@ -855,17 +872,15 @@ async function formatContent(text, postId) {
         safe = `<span id="short-${postId}">${safe.substring(0, 250)}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
     }
     
-    // Handle reposts
     const repostMatches = [...safe.matchAll(/Reposted from @(\w+):/g)];
     for (const match of repostMatches) {
         const username = match[1];
         const { data: user } = await supabase.from('profile').select('username').eq('username', username).maybeSingle();
         if (user) {
-            safe = safe.replace(`Reposted from @${username}:`, `Reposted from <a href="profile.html?u=${username}" class="text-sdel font-bold no-underline hover:underline">@${username}</a>:`);
+            safe = safe.replace(`Reposted from @${username}:`, `Reposted from <a href="profile.html?u=${username}" class="mention-link">@${username}</a>:`);
         }
     }
     
-    // Handle mentions
     const mentionMatches = [...safe.matchAll(/@(\w+)/g)];
     for (const match of mentionMatches) {
         const username = match[1];
@@ -873,11 +888,10 @@ async function formatContent(text, postId) {
         
         const { data: user } = await supabase.from('profile').select('username').eq('username', username).maybeSingle();
         if (user) {
-            safe = safe.replace(new RegExp(`@${username}\\b`), `<a href="profile.html?u=${username}" class="text-sdel font-bold no-underline hover:underline">@${username}</a>`);
+            safe = safe.replace(new RegExp(`@${username}\\b`), `<a href="profile.html?u=${username}" class="mention-link">@${username}</a>`);
         }
     }
     
-    // Handle URLs
     const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     
     safe = safe.replace(urlRegex, (url) => {
@@ -905,7 +919,34 @@ async function formatContent(text, postId) {
     return safe;
 }
 
-// ========== ACTION SHEET ==========
+function closeActions() { 
+    const sheet = document.getElementById('action-sheet');
+    if (sheet) {
+        sheet.classList.remove('open');
+    }
+}
+
+document.addEventListener('click', function(event) {
+    const sheet = document.getElementById('action-sheet');
+    const isSheetOpen = sheet?.classList.contains('open');
+    const clickedInsideSheet = sheet?.contains(event.target);
+    
+    if (isSheetOpen && !clickedInsideSheet) {
+        closeActions();
+    }
+});
+
+let scrollTimeout;
+document.addEventListener('scroll', function() {
+    const sheet = document.getElementById('action-sheet');
+    if (sheet?.classList.contains('open')) {
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            closeActions();
+        }, 100);
+    }
+}, { passive: true });
+
 function showActionSheet(post) {
     const sheet = document.getElementById('action-sheet');
     const options = document.getElementById('action-options');
@@ -960,7 +1001,6 @@ function editGist(id, content) {
     closeActions();
 }
 
-// ========== SEARCH FUNCTIONS ==========
 async function handleSearch(val) {
     searchQuery = val.toLowerCase();
     const resultsDiv = document.getElementById('search-results');
@@ -1016,7 +1056,6 @@ function toggleSearch() {
     lucide.createIcons();
 }
 
-// ========== PRESS & HOLD ==========
 function startPress(e, postData) {
     try {
         const post = typeof postData === 'string' ? JSON.parse(postData.replace(/&quot;/g, '"')) : postData;
@@ -1030,7 +1069,6 @@ function endPress() {
     clearTimeout(pressTimer); 
 }
 
-// ========== MENTIONS ==========
 async function handleMentions(input) {
     const text = input.value;
     const cursor = input.selectionStart;
@@ -1089,18 +1127,6 @@ function selectMention(name, start, end) {
     document.getElementById('mention-list').style.display = 'none';
     input.focus();
     input.dispatchEvent(new Event('input'));
-}
-
-// ========== UTILITY FUNCTIONS ==========
-function closeActions() { 
-    document.getElementById('action-sheet').classList.remove('open'); 
-}
-
-function closeActionSheetOnTouch(event) {
-    const sheet = document.getElementById('action-sheet');
-    if (sheet.classList.contains('open') && !event.target.closest('.action-sheet')) {
-        closeActions();
-    }
 }
 
 function switchTab(mode) { 
@@ -1162,7 +1188,6 @@ function closeRedirect() {
     document.getElementById('redirect-modal').style.display = 'none'; 
 }
 
-// ========== MAKE ALL FUNCTIONS GLOBAL ==========
 window.openPostModal = openPostModal;
 window.closePostModal = closePostModal;
 window.submitPostFromModal = submitPostFromModal;
@@ -1179,14 +1204,14 @@ window.burnGist = burnGist;
 window.banUser = banUser;
 window.unbanUser = unbanUser;
 window.closeActions = closeActions;
-window.closeActionSheetOnTouch = closeActionSheetOnTouch;
 window.selectMention = selectMention;
 window.toggleActions = toggleActions;
 window.toggleReadMore = toggleReadMore;
 window.safeRedirect = safeRedirect;
 window.closeRedirect = closeRedirect;
+window.showSecurityError = showSecurityError;
+window.closeSecurityModal = closeSecurityModal;
 
-// ========== INITIALIZE ==========
 init();
 
 </script>
