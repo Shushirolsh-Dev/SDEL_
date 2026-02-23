@@ -187,8 +187,8 @@
             display: none;
         }
     </style>
-</head>
-<body class="flex flex-col" ontouchstart="closeActionSheetOnTouch(event)">
+    </head>
+    <body class="flex flex-col" ontouchstart="closeActionSheetOnTouch(event)">
     <div id="toast">Gist Published!</div>
     <div id="mention-list"></div>
 
@@ -259,8 +259,8 @@
             <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active px-6 py-4">The Campus</button>
             <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn px-6 py-4">Universe</button>
         </div>
-                    </nav>
-                    <!-- MAIN CONTENT AREA -->
+            </nav>
+            <!-- MAIN CONTENT AREA -->
 <div class="main-content">
     <!-- Composer - Post button is visible -->
     <div id="composer-card" class="m-4 p-4 border border-white/5 flex flex-col relative transition-all">
@@ -339,8 +339,8 @@
     </div>
     <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
     <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
-    </nav>
-    <script type="module">
+                        </nav>
+                        <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
@@ -521,7 +521,7 @@ function setupInfiniteScroll() {
     
     if (sentry) observer.observe(sentry);
 }
-        // ========== LOAD POSTS (FIXED - Shows ALL posts) ==========
+                            // ========== LOAD POSTS ==========
 async function loadMorePosts() {
     if (loading || !hasMore) return;
     
@@ -585,7 +585,7 @@ async function loadMorePosts() {
     loading = false;
 }
 
-// ========== RENDER FEED (FIXED - Proper JSON escaping) ==========
+// ========== RENDER FEED (FIXED - NO MORE UGLY TEXT) ==========
 function renderFeed() {
     const container = document.getElementById('feed-container');
     
@@ -605,11 +605,9 @@ function renderFeed() {
                 ? '<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
                 : '');
         
-        // FIXED: Proper JSON string escaping
-        const postDataStr = JSON.stringify(post).replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        
+        // FIXED: NO data-post attribute - only use data-post-id
         return `
-        <div class="post-card p-4" data-post-id="${post.id}" data-post='${postDataStr}' onmousedown="startPress(event, '${postDataStr}')" onmouseup="endPress()" ontouchstart="startPress(event, '${postDataStr}')" ontouchend="endPress()">
+        <div class="post-card p-4" data-post-id="${post.id}" onmousedown="startPress(event)" onmouseup="endPress()" ontouchstart="startPress(event)" ontouchend="endPress()">
             <div class="flex space-x-3">
                 <div onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
                 <div class="flex-1">
@@ -741,10 +739,10 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         allPosts = [newPost, ...allPosts];
         renderFeed();
     }
-        }
-        // ========== POST MODAL FUNCTIONS (CRITICAL FIX) ==========
+                            }
+                            // ========== POST MODAL FUNCTIONS ==========
 function openPostModal() {
-    console.log('Opening post modal'); // Debug
+    console.log('Opening post modal');
     const modal = document.getElementById('post-modal');
     const input = document.getElementById('modal-post-input');
     const title = document.getElementById('post-modal-title');
@@ -768,7 +766,7 @@ function closePostModal() {
     currentEditPostId = null;
 }
 
-// ========== SUBMIT POST (FIXED - Works with Supabase) ==========
+// ========== SUBMIT POST ==========
 async function submitPostFromModal() {
     let content = document.getElementById('modal-post-input').value.trim();
     if (!content) return;
@@ -1016,13 +1014,25 @@ function toggleSearch() {
     lucide.createIcons();
 }
 
-// ========== PRESS & HOLD ==========
-function startPress(e, postData) {
+// ========== PRESS & HOLD (FIXED - No more ugly text) ==========
+function startPress(e) {
     try {
-        const post = typeof postData === 'string' ? JSON.parse(postData.replace(/&quot;/g, '"')) : postData;
-        pressTimer = setTimeout(() => { showActionSheet(post); }, 800);
+        // Stop event from bubbling
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Get the post card and its ID
+        const postCard = e.currentTarget;
+        const postId = postCard.dataset.postId;
+        
+        // Find the post in allPosts array
+        const post = allPosts.find(p => p.id === postId);
+        
+        if (post) {
+            pressTimer = setTimeout(() => { showActionSheet(post); }, 800);
+        }
     } catch (error) {
-        console.error("Error parsing post data:", error);
+        console.error("Error in press handler:", error);
     }
 }
 
