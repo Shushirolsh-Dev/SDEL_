@@ -18,111 +18,532 @@
     <script src="nav.js"></script>
 
     <style>
-        html, body { user-select: none; -webkit-user-select: none; height: 100%; margin: 0; padding: 0; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; overflow-x: hidden; overflow-y: auto; transition: background-color 0.3s; display: flex; flex-direction: column; }
+        /* RESET */
+        html, body { 
+            user-select: none; 
+            -webkit-user-select: none; 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden;
+        }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            font-family: 'Poppins', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+        }
+        body { 
+            background-color: #000; 
+            color: white; 
+            transition: background-color 0.3s; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Colors */
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; width: 100%; }
-        .post-card:active { background: rgba(255, 102, 0, 0.05); }
+        /* Post Cards */
+        .post-card { 
+            background: rgba(15, 15, 15, 0.4); 
+            border-bottom: 1px solid rgba(255,255,255,0.08); 
+            transition: background 0.2s; 
+            width: 100%; 
+        }
+        .post-card:active { 
+            background: rgba(255, 102, 0, 0.05); 
+        }
         
-        .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; font-weight: 900; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; cursor: pointer; }
-        .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
+        /* Tabs */
+        .tab-btn { 
+            transition: all 0.3s ease; 
+            border-bottom: 3px solid transparent; 
+            opacity: 0.5; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            font-size: 10px; 
+            letter-spacing: 0.1em; 
+            cursor: pointer; 
+        }
+        .tab-active { 
+            color: #FF6600; 
+            border-bottom: 3px solid #FF6600; 
+            opacity: 1; 
+        }
         
-        #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; transition: min-height 0.2s; }
-        .composer-expanded { background: rgba(255,102,0,0.05) !important; border: 1px solid rgba(255,102,0,0.2) !important; border-radius: 16px; padding: 16px !important; }
+        /* Composer */
+        #post-input { 
+            resize: none; 
+            background: transparent; 
+            border: none; 
+            outline: none; 
+            width: 100%; 
+            color: white; 
+            font-size: 15px; 
+            transition: min-height 0.2s; 
+        }
+        .composer-expanded { 
+            background: rgba(255,102,0,0.05) !important; 
+            border: 1px solid rgba(255,102,0,0.2) !important; 
+            border-radius: 16px; 
+            padding: 16px !important; 
+        }
 
-        #mention-list { position: absolute; background: #0a0a0a; border: 1px solid #222; border-radius: 16px; width: 220px; z-index: 5000; display: none; box-shadow: 0 15px 40px rgba(0,0,0,0.6); overflow: hidden; }
-        .mention-item { padding: 14px 18px; border-bottom: 1px solid #1a1a1a; font-size: 12px; font-weight: 800; text-transform: uppercase; cursor: pointer; transition: 0.2s; color: white; }
-        .mention-item:hover { background: #FF6600; color: black; }
+        /* Mention List */
+        #mention-list { 
+            position: absolute; 
+            background: #0a0a0a; 
+            border: 1px solid #222; 
+            border-radius: 16px; 
+            width: 220px; 
+            z-index: 5000; 
+            display: none; 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6); 
+            overflow: hidden; 
+        }
+        .mention-item { 
+            padding: 14px 18px; 
+            border-bottom: 1px solid #1a1a1a; 
+            font-size: 12px; 
+            font-weight: 800; 
+            text-transform: uppercase; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            color: white; 
+        }
+        .mention-item:hover { 
+            background: #FF6600; 
+            color: black; 
+        }
 
-        /* Sunlight Mode Overrides */
-        .sunlight-mode body { background-color: #ffffff; color: #121212; }
-        .sunlight-mode nav, .sunlight-mode .sticky { background-color: rgba(255,255,255,0.95) !important; border-color: #f0f0f0 !important; }
-        .sunlight-mode .fixed.bottom-0 { background-color: rgba(255,255,255,0.9) !important; border-color: #e4e4e7 !important; }
-        .sunlight-mode .post-card { background: #ffffff; border-color: #f0f0f0; }
-        .sunlight-mode .post-card:active { background: #f9f9f9; }
-        .sunlight-mode #post-input { color: #121212; }
-        .sunlight-mode .text-zinc-200 { color: #27272a !important; }
-        .sunlight-mode .text-zinc-500 { color: #71717a !important; }
-        .sunlight-mode #mention-list { background: #ffffff; border-color: #eee; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .sunlight-mode .mention-item { color: #121212; border-color: #f5f5f5; }
-        .sunlight-mode .composer-expanded { background: #fff7f2 !important; border-color: #ffd6ba !important; }
-        .sunlight-mode .modal-content { background: #ffffff; border-color: #eee; color: #121212; }
-        .sunlight-mode .bg-zinc-900 { background-color: #f4f4f5; }
-        .sunlight-mode .action-sheet { background: white; border-color: #eee; }
-        .sunlight-mode .search-container { background: #f4f4f5; border-color: #e4e4e7; }
-        .sunlight-mode .search-container input { color: #121212; background: #f4f4f5; }
-        .sunlight-mode .search-container input::placeholder { color: #71717a; }
-        .sunlight-mode .text-white { color: #121212; }
-        .sunlight-mode .text-white\/60 { color: #71717a; }
-        .sunlight-mode .text-sdel { color: #FF6600; }
+        /* Sunlight Mode */
+        .sunlight-mode body { 
+            background-color: #ffffff; 
+            color: #121212; 
+        }
+        .sunlight-mode nav, .sunlight-mode .sticky { 
+            background-color: rgba(255,255,255,0.95) !important; 
+            border-color: #f0f0f0 !important; 
+        }
+        .sunlight-mode .fixed.bottom-0 { 
+            background-color: rgba(255,255,255,0.9) !important; 
+            border-color: #e4e4e7 !important; 
+        }
+        .sunlight-mode .post-card { 
+            background: #ffffff; 
+            border-color: #f0f0f0; 
+        }
+        .sunlight-mode .post-card:active { 
+            background: #f9f9f9; 
+        }
+        .sunlight-mode #post-input { 
+            color: #121212; 
+        }
+        .sunlight-mode .text-zinc-200 { 
+            color: #27272a !important; 
+        }
+        .sunlight-mode .text-zinc-500 { 
+            color: #71717a !important; 
+        }
+        .sunlight-mode #mention-list { 
+            background: #ffffff; 
+            border-color: #eee; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+        }
+        .sunlight-mode .mention-item { 
+            color: #121212; 
+            border-color: #f5f5f5; 
+        }
+        .sunlight-mode .composer-expanded { 
+            background: #fff7f2 !important; 
+            border-color: #ffd6ba !important; 
+        }
+        .sunlight-mode .modal-content { 
+            background: #ffffff; 
+            border-color: #eee; 
+            color: #121212; 
+        }
+        .sunlight-mode .bg-zinc-900 { 
+            background-color: #f4f4f5; 
+        }
+        .sunlight-mode .action-sheet { 
+            background: white; 
+            border-color: #eee; 
+        }
+        .sunlight-mode .search-container { 
+            background: #f4f4f5; 
+            border-color: #e4e4e7; 
+        }
+        .sunlight-mode .search-container input { 
+            color: #121212; 
+            background: #f4f4f5; 
+        }
+        .sunlight-mode .search-container input::placeholder { 
+            color: #71717a; 
+        }
+        .sunlight-mode .text-white { 
+            color: #121212; 
+        }
+        .sunlight-mode .text-white\/60 { 
+            color: #71717a; 
+        }
+        .sunlight-mode .text-sdel { 
+            color: #FF6600; 
+        }
 
-        #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 12px; text-transform: uppercase; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 9999; }
-        #toast.show { transform: translateX(-50%) translateY(0); }
+        /* Toast */
+        #toast { 
+            position: fixed; 
+            top: 20px; 
+            left: 50%; 
+            transform: translateX(-50%) translateY(-100px); 
+            background: #FF6600; 
+            color: black; 
+            padding: 12px 24px; 
+            border-radius: 12px; 
+            font-weight: 900; 
+            font-size: 12px; 
+            text-transform: uppercase; 
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            z-index: 9999; 
+        }
+        #toast.show { 
+            transform: translateX(-50%) translateY(0); 
+        }
         
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(12px); padding: 20px; }
-        .modal-content { background: #111; width: 100%; max-width: 400px; border-radius: 28px; padding: 30px; border: 1px solid #222; text-align: center; }
+        /* Modals */
+        .modal-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0,0,0,0.9); 
+            z-index: 2000; 
+            display: none; 
+            align-items: center; 
+            justify-content: center; 
+            backdrop-filter: blur(12px); 
+            padding: 20px; 
+        }
+        .modal-content { 
+            background: #111; 
+            width: 100%; 
+            max-width: 400px; 
+            border-radius: 28px; 
+            padding: 30px; 
+            border: 1px solid #222; 
+            text-align: center; 
+        }
 
-        .inline-link { color: #FF6600; font-weight: 600; cursor: pointer; display: inline; background: none; border: none; padding: 0; margin: 0; font-size: inherit; text-decoration: none; }
-        .inline-link:hover { text-decoration: underline; }
+        .inline-link { 
+            color: #FF6600; 
+            font-weight: 600; 
+            cursor: pointer; 
+            display: inline; 
+            background: none; 
+            border: none; 
+            padding: 0; 
+            margin: 0; 
+            font-size: inherit; 
+            text-decoration: none; 
+        }
+        .inline-link:hover { 
+            text-decoration: underline; 
+        }
         
-        .action-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 1px solid #222; border-radius: 24px 24px 0 0; padding: 20px; z-index: 3000; transform: translateY(100%); transition: transform 0.3s ease; }
-        .action-sheet.open { transform: translateY(0); }
+        /* Action Sheet */
+        .action-sheet { 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            background: #0a0a0a; 
+            border-top: 1px solid #222; 
+            border-radius: 24px 24px 0 0; 
+            padding: 20px; 
+            z-index: 3000; 
+            transform: translateY(100%); 
+            transition: transform 0.3s ease; 
+        }
+        .action-sheet.open { 
+            transform: translateY(0); 
+        }
 
-        .search-container { margin: 8px 16px; padding: 8px 12px; background: #111; border: 1px solid #222; border-radius: 12px; display: none; align-items: center; gap: 8px; }
-        .search-container input { flex: 1; background: transparent; border: none; outline: none; color: white; font-size: 13px; font-weight: 500; }
-        .search-container input::placeholder { color: #555; font-weight: 400; }
-        .search-container .close-search { color: #FF6600; cursor: pointer; }
+        /* Search */
+        .search-container { 
+            margin: 8px 16px; 
+            padding: 8px 12px; 
+            background: #111; 
+            border: 1px solid #222; 
+            border-radius: 12px; 
+            display: none; 
+            align-items: center; 
+            gap: 8px; 
+        }
+        .search-container input { 
+            flex: 1; 
+            background: transparent; 
+            border: none; 
+            outline: none; 
+            color: white; 
+            font-size: 13px; 
+            font-weight: 500; 
+        }
+        .search-container input::placeholder { 
+            color: #555; 
+            font-weight: 400; 
+        }
+        .search-container .close-search { 
+            color: #FF6600; 
+            cursor: pointer; 
+        }
 
-        #search-results { position: absolute; top: 100%; left: 0; right: 0; background: #000; z-index: 90; max-height: 300px; overflow-y: auto; display: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .sunlight-mode #search-results { background: #fff; border-color: #eee; }
+        #search-results { 
+            position: absolute; 
+            top: 100%; 
+            left: 0; 
+            right: 0; 
+            background: #000; 
+            z-index: 90; 
+            max-height: 300px; 
+            overflow-y: auto; 
+            display: none; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+        }
+        .sunlight-mode #search-results { 
+            background: #fff; 
+            border-color: #eee; 
+        }
 
-        #post-modal { display: none; }
-        .post-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(20px); }
-        .post-modal-content { background: #111; width: 100%; max-width: 600px; border-radius: 32px 32px 0 0; padding: 24px; border: 1px solid #222; border-bottom: none; animation: slideUp 0.3s ease; }
-        .sunlight-mode .post-modal-content { background: white; border-color: #eee; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        #modal-post-input { width: 100%; background: #000; border: 1px solid #333; border-radius: 20px; color: white; padding: 20px; font-size: 18px; margin: 20px 0; resize: none; outline: none; min-height: 200px; }
-        .sunlight-mode #modal-post-input { background: #f4f4f5; color: #121212; border-color: #e4e4e7; }
-        .post-modal-footer { position: sticky; bottom: 0; background: #111; padding: 16px 0 0; border-top: 1px solid #222; margin-top: 16px; }
-        .sunlight-mode .post-modal-footer { background: white; border-color: #eee; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .modal-close { font-size: 28px; cursor: pointer; color: #FF6600; }
+        /* Post Modal */
+        #post-modal { 
+            display: none; 
+        }
+        .post-modal-overlay { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(0,0,0,0.95); 
+            z-index: 2000; 
+            display: none; 
+            align-items: flex-end; 
+            justify-content: center; 
+            backdrop-filter: blur(20px); 
+        }
+        .post-modal-content { 
+            background: #111; 
+            width: 100%; 
+            max-width: 600px; 
+            border-radius: 32px 32px 0 0; 
+            padding: 24px; 
+            border: 1px solid #222; 
+            border-bottom: none; 
+            animation: slideUp 0.3s ease; 
+        }
+        .sunlight-mode .post-modal-content { 
+            background: white; 
+            border-color: #eee; 
+        }
+        @keyframes slideUp { 
+            from { transform: translateY(100%); } 
+            to { transform: translateY(0); } 
+        }
+        #modal-post-input { 
+            width: 100%; 
+            background: #000; 
+            border: 1px solid #333; 
+            border-radius: 20px; 
+            color: white; 
+            padding: 20px; 
+            font-size: 18px; 
+            margin: 20px 0; 
+            resize: none; 
+            outline: none; 
+            min-height: 200px; 
+        }
+        .sunlight-mode #modal-post-input { 
+            background: #f4f4f5; 
+            color: #121212; 
+            border-color: #e4e4e7; 
+        }
+        .post-modal-footer { 
+            position: sticky; 
+            bottom: 0; 
+            background: #111; 
+            padding: 16px 0 0; 
+            border-top: 1px solid #222; 
+            margin-top: 16px; 
+        }
+        .sunlight-mode .post-modal-footer { 
+            background: white; 
+            border-color: #eee; 
+        }
+        .modal-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 10px; 
+        }
+        .modal-close { 
+            font-size: 28px; 
+            cursor: pointer; 
+            color: #FF6600; 
+        }
 
+        /* Skeletons */
         .skeleton-card {
             background: rgba(15, 15, 15, 0.4);
             border-bottom: 1px solid rgba(255,255,255,0.08);
             padding: 16px;
             animation: pulse 1.5s ease-in-out infinite;
         }
-        .sunlight-mode .skeleton-card { background: #f0f0f0; border-color: #e0e0e0; }
-        .skeleton-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.1); }
-        .sunlight-mode .skeleton-avatar { background: #ddd; }
-        .skeleton-line { height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 8px; }
-        .sunlight-mode .skeleton-line { background: #ddd; }
+        .sunlight-mode .skeleton-card {
+            background: #f0f0f0;
+            border-color: #e0e0e0;
+        }
+        .skeleton-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+        }
+        .sunlight-mode .skeleton-avatar {
+            background: #ddd;
+        }
+        .skeleton-line {
+            height: 16px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .sunlight-mode .skeleton-line {
+            background: #ddd;
+        }
         .skeleton-line.short { width: 60%; }
         .skeleton-line.medium { width: 80%; }
         .skeleton-line.long { width: 100%; }
-        .skeleton-actions { display: flex; gap: 24px; margin-top: 16px; }
-        .skeleton-action { width: 24px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 4px; }
-        .sunlight-mode .skeleton-action { background: #ddd; }
-        @keyframes pulse { 0%,100%{opacity:.7}50%{opacity:.4} }
+        .skeleton-actions {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+        }
+        .skeleton-action {
+            width: 24px;
+            height: 24px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+        .sunlight-mode .skeleton-action {
+            background: #ddd;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 0.4; }
+        }
 
-        nav, .fixed.bottom-0 { visibility: visible !important; }
-        #scroll-sentry { height: 20px; width: 100%; margin: 10px 0; }
-        .main-content { flex: 1; overflow-y: auto; padding-bottom: 80px; -webkit-overflow-scrolling: touch; }
-
-        .post-content { font-size: 15px; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; padding-right: 8px; }
-        .username-text { font-size: 15px; font-weight: 800; cursor: pointer; }
-        .like-button[data-liked="true"] i { color: #FF6600; fill: #FF6600; }
-        #composer-actions { display: flex; }
-        #composer-actions.hidden { display: none; }
-        button { cursor: pointer; }
+        /* ========== CRITICAL FIXES ========== */
+        
+        /* Main content - SCROLLING FIX */
+        .main-content {
+            flex: 1;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch;
+            height: 0;
+            min-height: 0;
+            padding-bottom: 80px;
+            position: relative;
+        }
+        
+        /* Pull to Refresh */
+        .ptr-container {
+            position: relative;
+            width: 100%;
+        }
+        
+        .ptr-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 60px;
+            width: 100%;
+            color: #FF6600;
+            transform: translateY(-60px);
+            transition: transform 0.2s;
+        }
+        
+        .ptr-spinner.refreshing {
+            transform: translateY(0);
+        }
+        
+        .ptr-spinner i {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Feed container */
+        #feed-container {
+            width: 100%;
+        }
+        
+        /* Post content */
+        .post-content { 
+            font-size: 15px; 
+            line-height: 1.5; 
+            word-wrap: break-word; 
+            overflow-wrap: break-word; 
+            max-width: 100%; 
+            padding-right: 8px; 
+        }
+        
+        .username-text { 
+            font-size: 15px; 
+            font-weight: 800; 
+            cursor: pointer; 
+        }
+        
+        .username-text:hover {
+            text-decoration: underline;
+        }
+        
+        /* Like button */
+        .like-button[data-liked="true"] i { 
+            color: #FF6600; 
+            fill: #FF6600; 
+        }
+        
+        /* Composer actions */
+        #composer-actions { 
+            display: flex; 
+        }
+        #composer-actions.hidden { 
+            display: none; 
+        }
+        
+        /* All buttons need cursor pointer */
+        button, [onclick] {
+            cursor: pointer;
+        }
+        
+        /* Scroll sentry */
+        #scroll-sentry { 
+            height: 20px; 
+            width: 100%; 
+            margin: 10px 0; 
+        }
+        
+        /* Nav visibility */
+        nav, .fixed.bottom-0 { 
+            visibility: visible !important; 
+        }
     </style>
 </head>
-<body class="flex flex-col" ontouchstart="closeActionSheetOnTouch(event)">
+<body class="flex flex-col" style="height: 100vh; overflow: hidden;" ontouchstart="closeActionSheetOnTouch(event)">
     <div id="toast">Gist Published!</div>
     <div id="mention-list"></div>
 
@@ -177,8 +598,8 @@
             <h1 class="text-2xl font-black tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
             <div class="flex items-center space-x-5">
                 <i data-lucide="search" size="22" onclick="toggleSearch()" style="cursor: pointer;"></i>
-                <i data-lucide="bell" size="22" onclick="location.href='messages.html'" style="cursor: pointer;"></i>
-                <i data-lucide="message-square" size="22" onclick="location.href='homies.html'" style="cursor: pointer;"></i>
+                <i data-lucide="bell" size="22" onclick="window.location.href='messages.html'" style="cursor: pointer;"></i>
+                <i data-lucide="message-square" size="22" onclick="window.location.href='homies.html'" style="cursor: pointer;"></i>
             </div>
         </div>
         
@@ -193,9 +614,15 @@
             <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active px-6 py-4">The Campus</button>
             <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn px-6 py-4">Universe</button>
         </div>
-                    </nav>
-                    <!-- MAIN CONTENT AREA - THIS SCROLLS NOW -->
+    </nav>
+    <!-- MAIN CONTENT AREA - WITH PULL TO REFRESH -->
 <div class="main-content" id="main-content">
+    <!-- Pull to Refresh Spinner -->
+    <div id="ptr-spinner" class="ptr-spinner">
+        <i data-lucide="loader" size="24"></i>
+        <span class="text-xs font-bold uppercase ml-2">Refreshing...</span>
+    </div>
+    
     <!-- Composer -->
     <div id="composer-card" class="m-4 p-4 border border-white/5 flex flex-col relative transition-all">
         <div class="flex space-x-3">
@@ -266,19 +693,24 @@
 
 <!-- BOTTOM NAV - FIXED -->
 <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
-    <i data-lucide="home" class="text-sdel" size="28" onclick="location.href='dashboard.html'" style="cursor: pointer;"></i>
-    <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'" style="cursor: pointer;"></i>
+    <i data-lucide="home" class="text-sdel" size="28" onclick="window.location.href='dashboard.html'" style="cursor: pointer;"></i>
+    <i data-lucide="compass" class="text-white" size="28" onclick="window.location.href='explore.html'" style="cursor: pointer;"></i>
     <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="openPostModal()" style="cursor: pointer;">
         <i data-lucide="plus" class="text-black" size="28" stroke-width="3"></i>
     </div>
-    <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'" style="cursor: pointer;"></i>
-    <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'" style="cursor: pointer;"></i>
-    </nav>
-    <script type="module">
+    <i data-lucide="shopping-cart" class="text-white" size="28" onclick="window.location.href='market.html'" style="cursor: pointer;"></i>
+    <i data-lucide="user" class="text-white" size="28" onclick="window.location.href='profile.html'" style="cursor: pointer;"></i>
+</nav>
+<script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-// ========== VARIABLES ==========
+// ========== SUPABASE CLIENT ==========
+const supabase = createClient(
+    'https://lgfyrlfjoazedwymjpfc.supabase.co', 
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
+);
+
+// ========== GLOBAL VARIABLES ==========
 let userProfile = null;
 let currentMode = 'campus';
 let securityViolationCount = 0;
@@ -287,8 +719,6 @@ let searchQuery = '';
 let currentEditPostId = null;
 let repostedPosts = new Set();
 let mentionTimeout = null;
-
-// Pagination
 let currentPage = 0;
 let loading = false;
 let hasMore = true;
@@ -296,156 +726,179 @@ let allPosts = [];
 let myLikes = [];
 let observer = null;
 let initTimer = null;
-
-// OFFLINE SUPPORT
 let offlineQueue = JSON.parse(localStorage.getItem('offlinePosts') || '[]');
 let isOnline = navigator.onLine;
 
-// ========== UTILITIES ==========
+// Pull to Refresh variables
+let touchStartY = 0;
+let isPulling = false;
+let ptrSpinner = null;
+
+// ========== UTILITY FUNCTIONS ==========
 function formatNum(num) {
-    if (!num) return 0;
-    if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
-    if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
-    if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-    return num;
+    if (!num) return '0';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
 }
 
 function escapeHTML(str) {
+    if (!str) return '';
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
 }
 
 function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.innerText = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3000);
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// ========== INITIALIZATION ==========
-async function init() {
-    if (initTimer) clearTimeout(initTimer);
+// ========== PULL TO REFRESH ==========
+function setupPullToRefresh() {
+    const mainContent = document.getElementById('main-content');
+    ptrSpinner = document.getElementById('ptr-spinner');
     
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-        window.location.replace('login.html');
-        return;
-    }
+    if (!mainContent || !ptrSpinner) return;
     
-    const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
-    userProfile = profile;
+    mainContent.addEventListener('touchstart', (e) => {
+        if (mainContent.scrollTop === 0) {
+            touchStartY = e.touches[0].clientY;
+            isPulling = true;
+        }
+    }, { passive: true });
     
-    if (userProfile?.is_banned || userProfile?.banned) {
-        location.replace('banned.html');
-        return;
-    }
+    mainContent.addEventListener('touchmove', (e) => {
+        if (!isPulling) return;
+        
+        const touchY = e.touches[0].clientY;
+        const pullDistance = touchY - touchStartY;
+        
+        if (pullDistance > 0 && mainContent.scrollTop === 0) {
+            e.preventDefault();
+            
+            if (pullDistance > 60) {
+                ptrSpinner.classList.add('refreshing');
+            }
+        }
+    }, { passive: false });
     
-    document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
-    
-    // Load interactions
-    const { data: myReposts } = await supabase.from('interactions')
-        .select('post_id')
-        .eq('user_id', userProfile.id)
-        .eq('interaction_type', 'repost');
-    
-    if (myReposts) {
-        repostedPosts = new Set(myReposts.map(r => r.post_id));
-    }
-    
-    const { data: likes } = await supabase.from('interactions')
-        .select('post_id')
-        .eq('user_id', userProfile.id)
-        .eq('interaction_type', 'like');
-    myLikes = likes || [];
+    mainContent.addEventListener('touchend', (e) => {
+        if (!isPulling) return;
+        
+        isPulling = false;
+        
+        if (ptrSpinner.classList.contains('refreshing')) {
+            handleRefresh();
+        }
+        
+        ptrSpinner.classList.remove('refreshing');
+    }, { passive: true });
+}
+
+async function handleRefresh() {
+    showToast('Refreshing feed...');
     
     // Reset pagination
     currentPage = 0;
     allPosts = [];
     hasMore = true;
     
-    // Load offline posts first
-    if (offlineQueue.length > 0) {
-        allPosts = [...offlineQueue.map(p => ({...p, offline: true})), ...allPosts];
-        renderFeed();
-    }
-    
-    // Timeout for empty feed
-    initTimer = setTimeout(() => {
-        const container = document.getElementById('feed-container');
-        if (container.querySelector('.skeleton-card')) {
-            container.innerHTML = '<div class="text-center py-20 text-zinc-500 font-bold uppercase">No posts yet</div>';
-        }
-    }, 5000);
+    // Show skeletons
+    document.getElementById('feed-container').innerHTML = `
+        <div class="skeleton-card"><div class="flex space-x-3"><div class="skeleton-avatar"></div><div class="flex-1"><div class="skeleton-line short"></div><div class="skeleton-line medium mt-2"></div><div class="skeleton-line long"></div><div class="skeleton-actions"><div class="skeleton-action"></div><div class="skeleton-action"></div><div class="skeleton-action"></div></div></div></div></div>
+        <div class="skeleton-card"><div class="flex space-x-3"><div class="skeleton-avatar"></div><div class="flex-1"><div class="skeleton-line short"></div><div class="skeleton-line medium mt-2"></div><div class="skeleton-line long"></div><div class="skeleton-actions"><div class="skeleton-action"></div><div class="skeleton-action"></div><div class="skeleton-action"></div></div></div></div></div>
+        <div class="skeleton-card"><div class="flex space-x-3"><div class="skeleton-avatar"></div><div class="flex-1"><div class="skeleton-line short"></div><div class="skeleton-line medium mt-2"></div><div class="skeleton-line long"></div><div class="skeleton-actions"><div class="skeleton-action"></div><div class="skeleton-action"></div><div class="skeleton-action"></div></div></div></div></div>
+    `;
     
     await loadMorePosts();
-    setupInfiniteScroll();
-    
-    // Online/Offline listeners
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', () => { isOnline = false; });
 }
 
-// ========== OFFLINE SYNC ==========
-async function handleOnline() {
-    isOnline = true;
-    if (offlineQueue.length > 0) {
-        showToast(`Syncing ${offlineQueue.length} posts...`);
-        
-        for (const offlinePost of offlineQueue) {
-            const { error } = await supabase.from('posts').insert({
-                user_id: offlinePost.user_id,
-                content: offlinePost.content,
-                school_name: offlinePost.school_name,
-                post_type: 'post',
-                likes_count: 0,
-                comments_count: 0,
-                reposts_count: 0,
-                shares_count: 0
-            });
-            
-            if (!error) {
-                offlineQueue = offlineQueue.filter(p => p.tempId !== offlinePost.tempId);
-                localStorage.setItem('offlinePosts', JSON.stringify(offlineQueue));
-            }
+// ========== INITIALIZATION ==========
+async function init() {
+    if (initTimer) clearTimeout(initTimer);
+    
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            window.location.replace('login.html');
+            return;
         }
         
-        showToast('Sync complete!');
+        const { data: profile } = await supabase
+            .from('profile')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+            
+        userProfile = profile;
+        
+        if (userProfile?.is_banned || userProfile?.banned) {
+            location.replace('banned.html');
+            return;
+        }
+        
+        document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
+        
+        // Load interactions
+        const { data: myReposts } = await supabase
+            .from('interactions')
+            .select('post_id')
+            .eq('user_id', userProfile.id)
+            .eq('interaction_type', 'repost');
+        
+        if (myReposts) {
+            repostedPosts = new Set(myReposts.map(r => r.post_id));
+        }
+        
+        const { data: likes } = await supabase
+            .from('interactions')
+            .select('post_id')
+            .eq('user_id', userProfile.id)
+            .eq('interaction_type', 'like');
+            
+        myLikes = likes || [];
+        
+        // Reset pagination
         currentPage = 0;
         allPosts = [];
         hasMore = true;
+        
+        // Load offline posts
+        if (offlineQueue.length > 0) {
+            allPosts = [...offlineQueue.map(p => ({...p, offline: true})), ...allPosts];
+            renderFeed();
+        }
+        
+        // Timeout for empty feed
+        initTimer = setTimeout(() => {
+            const container = document.getElementById('feed-container');
+            if (container.querySelector('.skeleton-card')) {
+                container.innerHTML = '<div class="text-center py-20 text-zinc-500 font-bold uppercase">No posts yet</div>';
+            }
+        }, 5000);
+        
         await loadMorePosts();
+        setupInfiniteScroll();
+        setupPullToRefresh(); // Initialize pull to refresh
+        
+        // Online/Offline listeners
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', () => { isOnline = false; });
+        
+    } catch (error) {
+        console.error('Init error:', error);
     }
-}
-
-function savePostOffline(postData) {
-    const tempId = 'offline_' + Date.now();
-    const offlinePost = {
-        ...postData,
-        id: tempId,
-        created_at: new Date().toISOString(),
-        profile: {
-            username: userProfile.username,
-            is_official: userProfile.is_official,
-            is_verified: userProfile.is_verified
-        },
-        offline: true,
-        tempId: tempId
-    };
-    
-    offlineQueue.push(offlinePost);
-    localStorage.setItem('offlinePosts', JSON.stringify(offlineQueue));
-    
-    // Show in feed immediately
-    allPosts = [offlinePost, ...allPosts];
-    renderFeed();
-    showToast('Saved offline - will post when online');
 }
 
 // ========== INFINITE SCROLL ==========
 function setupInfiniteScroll() {
     const sentry = document.getElementById('scroll-sentry');
     if (!sentry) return;
+    
+    if (observer) observer.disconnect();
     
     observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -457,7 +910,7 @@ function setupInfiniteScroll() {
     
     observer.observe(sentry);
 }
-        // ========== LOAD POSTS ==========
+    // ========== LOAD POSTS ==========
 async function loadMorePosts() {
     if (loading || !hasMore) return;
     
@@ -496,7 +949,7 @@ async function loadMorePosts() {
             return;
         }
         
-        // Filter by search if needed
+        // Filter by search
         let newPosts = posts;
         if (searchQuery) {
             newPosts = posts.filter(post => 
@@ -505,7 +958,7 @@ async function loadMorePosts() {
             );
         }
         
-        // Format content for new posts
+        // Format content
         const processedPosts = await Promise.all(newPosts.map(async (post) => {
             const formattedContent = await formatContent(post.content, post.id);
             return { ...post, formattedContent };
@@ -521,7 +974,7 @@ async function loadMorePosts() {
     loading = false;
 }
 
-// ========== RENDER FEED - ALL BUTTONS WORK NOW ==========
+// ========== RENDER FEED ==========
 function renderFeed() {
     const container = document.getElementById('feed-container');
     
@@ -541,9 +994,8 @@ function renderFeed() {
                 ? '<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
                 : '');
         
-        // ALL BUTTONS HAVE PROPER ONCLICK HANDLERS
         return `
-        <div class="post-card p-4" data-post-id="${post.id}" onmousedown="startPress(event)" onmouseup="endPress()" ontouchstart="startPress(event)" ontouchend="endPress()">
+        <div class="post-card p-4" data-post-id="${post.id}" onmousedown="window.startPress(event)" onmouseup="window.endPress()" ontouchstart="window.startPress(event)" ontouchend="window.endPress()">
             <div class="flex space-x-3">
                 <div onclick="window.location.href='profile.html?u=${encodeURIComponent(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
                 <div class="flex-1">
@@ -554,7 +1006,7 @@ function renderFeed() {
                     </div>
                     <div class="post-content text-zinc-200 mb-3">${post.formattedContent || escapeHTML(post.content)}</div>
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
-                        <button onclick="handleLike('${post.id}')" class="like-button flex items-center gap-2" data-post-id="${post.id}" data-liked="${isLiked}" data-count="${post.likes_count || 0}">
+                        <button onclick="window.handleLike('${post.id}')" class="like-button flex items-center gap-2" data-post-id="${post.id}" data-liked="${isLiked}" data-count="${post.likes_count || 0}">
                             <i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}" class="like-icon"></i>
                             <span class="text-xs font-bold like-count">${formatNum(post.likes_count || 0)}</span>
                         </button>
@@ -562,12 +1014,12 @@ function renderFeed() {
                             <i data-lucide="message-circle" size="18"></i>
                             <span class="text-xs font-bold">${formatNum(post.comments_count || 0)}</span>
                         </button>
-                        <button onclick="handleRepost('${post.id}', '${escapeHTML(username)}', \`${escapeHTML(post.content)}\`)" 
+                        <button onclick="window.handleRepost('${post.id}', '${escapeHTML(username)}', \`${escapeHTML(post.content)}\`)" 
                                 class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}">
                             <i data-lucide="repeat" size="18"></i>
                             <span class="text-xs font-bold">${formatNum(post.reposts_count || 0)}</span>
                         </button>
-                        <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)">
+                        <button onclick="window.handleShare('${post.id}', \`${escapeHTML(post.content)}\`)">
                             <i data-lucide="upload" size="18"></i>
                         </button>
                     </div>
@@ -576,13 +1028,12 @@ function renderFeed() {
         </div>`;
     }).join('');
     
-    // Re-initialize lucide icons
     if (window.lucide) {
         lucide.createIcons();
     }
 }
 
-// ========== LIKE HANDLER - WORKS ==========
+// ========== LIKE HANDLER ==========
 async function handleLike(postId) {
     const button = document.querySelector(`.like-button[data-post-id="${postId}"]`);
     if (!button) return;
@@ -592,14 +1043,13 @@ async function handleLike(postId) {
     const currentCount = parseInt(countSpan.textContent.replace(/[^0-9]/g, '')) || 0;
     const isLiked = button.dataset.liked === 'true';
     
-    // Optimistic update
     if (isLiked) {
         icon.setAttribute('fill', 'none');
         countSpan.textContent = formatNum(currentCount - 1);
         button.dataset.liked = 'false';
         
-        // Background sync
-        const { data: existing } = await supabase.from('interactions')
+        const { data: existing } = await supabase
+            .from('interactions')
             .select('*')
             .eq('user_id', userProfile.id)
             .eq('post_id', postId)
@@ -628,7 +1078,7 @@ async function handleLike(postId) {
     }
 }
 
-// ========== REPOST HANDLER - WORKS ==========
+// ========== REPOST HANDLER ==========
 async function handleRepost(originalPostId, originalAuthor, originalContent) {
     if (originalAuthor === userProfile.username) {
         showToast("Cannot repost your own gist!");
@@ -640,7 +1090,12 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         return;
     }
 
-    const { data: user } = await supabase.from('profile').select('username').eq('username', originalAuthor).maybeSingle();
+    const { data: user } = await supabase
+        .from('profile')
+        .select('username')
+        .eq('username', originalAuthor)
+        .maybeSingle();
+        
     if (!user) {
         showToast("User not found!");
         return;
@@ -656,16 +1111,20 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
     
     const newContent = `Reposted from @${originalAuthor}: ${contentToRepost}`;
     
-    const { data: newPost, error } = await supabase.from('posts').insert({ 
-        user_id: userProfile.id, 
-        content: newContent, 
-        school_name: userProfile.school_name || 'Global',
-        post_type: 'repost',
-        likes_count: 0,
-        comments_count: 0,
-        reposts_count: 0,
-        shares_count: 0
-    }).select('*, profile:user_id(username, is_official, is_verified)').single();
+    const { data: newPost, error } = await supabase
+        .from('posts')
+        .insert({ 
+            user_id: userProfile.id, 
+            content: newContent, 
+            school_name: userProfile.school_name || 'Global',
+            post_type: 'repost',
+            likes_count: 0,
+            comments_count: 0,
+            reposts_count: 0,
+            shares_count: 0
+        })
+        .select('*, profile:user_id(username, is_official, is_verified)')
+        .single();
     
     if (!error && newPost) { 
         await supabase.from('interactions').insert({ 
@@ -683,11 +1142,20 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         allPosts = [newPost, ...allPosts];
         renderFeed();
         showToast('Reposted!');
-    } else {
-        showToast('Failed to repost');
     }
-        }
-        // ========== POST MODAL FUNCTIONS ==========
+}
+
+// ========== SHARE HANDLER ==========
+async function handleShare(postId, content) {
+    const url = `${window.location.origin}/gist.html?id=${postId}`;
+    if (navigator.share) {
+        navigator.share({ title: 'Sdel', text: content, url });
+    } else { 
+        navigator.clipboard.writeText(url); 
+        showToast("Link copied!"); 
+    }
+    }
+    // ========== POST MODAL ==========
 function openPostModal() {
     const modal = document.getElementById('post-modal');
     const input = document.getElementById('modal-post-input');
@@ -717,24 +1185,9 @@ async function submitPostFromModal() {
     let content = document.getElementById('modal-post-input').value.trim();
     if (!content) return;
     
-    // Security check
-    if (/<[^>]*>|javascript:|onerror|onload|eval|alert|document\.|window\.|fetch|XMLHttpRequest|onclick|onmouseover|onfocus|onblur|onchange|onsubmit|onreset|onselect|onkeydown|onkeypress|onkeyup/i.test(content)) {
-        document.getElementById('modal-post-input').value = '';
-        securityViolationCount++;
-        if (securityViolationCount >= 3) {
-            await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userProfile.id);
-            location.replace('banned.html');
-        } else { 
-            closePostModal();
-            document.getElementById('security-modal').style.display = 'flex';
-            setTimeout(() => location.reload(), 3000);
-        }
-        return;
-    }
-    
     if (currentEditPostId) {
-        // EDIT - NO TOAST, INSTANT UPDATE
-        const { error } = await supabase.from('posts')
+        const { error } = await supabase
+            .from('posts')
             .update({ content })
             .eq('id', currentEditPostId);
             
@@ -748,7 +1201,6 @@ async function submitPostFromModal() {
             closePostModal();
         }
     } else {
-        // NEW POST
         const postData = {
             user_id: userProfile.id,
             content: content,
@@ -761,13 +1213,31 @@ async function submitPostFromModal() {
         };
         
         if (!isOnline) {
-            savePostOffline(postData);
-            document.getElementById('post-input').value = '';
-            toggleActions(document.getElementById('post-input'));
-            closePostModal();
+            const tempId = 'offline_' + Date.now();
+            const offlinePost = {
+                ...postData,
+                id: tempId,
+                created_at: new Date().toISOString(),
+                profile: {
+                    username: userProfile.username,
+                    is_official: userProfile.is_official,
+                    is_verified: userProfile.is_verified
+                },
+                offline: true,
+                tempId: tempId
+            };
+            
+            offlineQueue.push(offlinePost);
+            localStorage.setItem('offlinePosts', JSON.stringify(offlineQueue));
+            allPosts = [offlinePost, ...allPosts];
+            renderFeed();
+            showToast('Saved offline');
         } else {
-            const { data: newPost, error } = await supabase.from('posts').insert(postData)
-                .select('*, profile:user_id(username, is_official, is_verified)').single();
+            const { data: newPost, error } = await supabase
+                .from('posts')
+                .insert(postData)
+                .select('*, profile:user_id(username, is_official, is_verified)')
+                .single();
             
             if (!error && newPost) {
                 document.getElementById('post-input').value = '';
@@ -778,9 +1248,6 @@ async function submitPostFromModal() {
                 newPost.formattedContent = formattedContent;
                 allPosts = [newPost, ...allPosts];
                 renderFeed();
-            } else {
-                console.error('Post error:', error);
-                showToast('Failed to post');
             }
         }
     }
@@ -789,8 +1256,7 @@ async function submitPostFromModal() {
 // ========== FORMAT CONTENT ==========
 async function formatContent(text, postId) {
     if (!text) return '';
-    let safe = text;
-    safe = escapeHTML(safe);
+    let safe = escapeHTML(text);
     
     if (safe.length > 280) {
         safe = `<span id="short-${postId}">${safe.substring(0, 250)}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
@@ -818,7 +1284,7 @@ async function formatContent(text, postId) {
         }
     }
     
-    // Handle URLs
+    // URL regex
     const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)|([a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}[^\s<>"']*)/gi;
     
     safe = safe.replace(urlRegex, (url) => {
@@ -828,19 +1294,19 @@ async function formatContent(text, postId) {
         if (!fullUrl.startsWith('http')) {
             fullUrl = 'https://' + fullUrl;
         }
-        const escapedUrl = escapeHTML(fullUrl);
+        
         const displayUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
         
         if (fullUrl.includes('profile.html') || fullUrl.includes('messages.html') || fullUrl.includes('homies.html') || 
             fullUrl.includes('gist.html') || fullUrl.includes('dashboard.html') || fullUrl.includes('market.html') || fullUrl.includes('explore.html')) {
-            return `<a href="${escapedUrl.replace(/'/g, "\\'")}" class="inline-link">${displayUrl}</a>`;
+            return `<a href="${fullUrl}" class="inline-link">${displayUrl}</a>`;
         }
         
         if (fullUrl.includes('tiktok.com') || fullUrl.includes('whatsapp.com') || fullUrl.includes('wa.me') || fullUrl.includes('thesdel.com')) {
-            return `<a href="${escapedUrl.replace(/'/g, "\\'")}" target="_blank" class="inline-link">${displayUrl}</a>`;
+            return `<a href="${fullUrl}" target="_blank" class="inline-link">${displayUrl}</a>`;
         }
         
-        return `<a href="#" onclick="event.stopPropagation(); safeRedirect('${escapedUrl.replace(/'/g, "\\'")}'); return false;" class="inline-link">${displayUrl}</a>`;
+        return `<a href="#" onclick="event.stopPropagation(); safeRedirect('${fullUrl}'); return false;" class="inline-link">${displayUrl}</a>`;
     });
     
     return safe;
@@ -871,6 +1337,26 @@ function showActionSheet(post) {
     lucide.createIcons();
 }
 
+function closeActions() { 
+    document.getElementById('action-sheet').classList.remove('open'); 
+}
+
+function closeActionSheetOnTouch(event) {
+    const sheet = document.getElementById('action-sheet');
+    if (sheet.classList.contains('open') && !event.target.closest('.action-sheet')) {
+        closeActions();
+    }
+}
+
+async function burnGist(id) {
+    const { error } = await supabase.from('posts').delete().eq('id', id);
+    if (!error) { 
+        allPosts = allPosts.filter(p => p.id !== id);
+        renderFeed();
+        closeActions(); 
+    }
+}
+
 async function banUser(userId) {
     await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userId);
     showToast("User Banned!");
@@ -883,15 +1369,6 @@ async function unbanUser(userId) {
     closeActions();
 }
 
-async function burnGist(id) {
-    const { error } = await supabase.from('posts').delete().eq('id', id);
-    if (!error) { 
-        allPosts = allPosts.filter(p => p.id !== id);
-        renderFeed();
-        closeActions(); 
-    }
-}
-
 function editGist(id, content) {
     currentEditPostId = id;
     document.getElementById('post-modal-title').innerText = 'Edit Gist';
@@ -901,7 +1378,7 @@ function editGist(id, content) {
     closeActions();
 }
 
-// ========== SEARCH FUNCTIONS ==========
+// ========== SEARCH ==========
 async function handleSearch(val) {
     searchQuery = val.toLowerCase();
     const resultsDiv = document.getElementById('search-results');
@@ -976,7 +1453,7 @@ function startPress(e) {
 }
 
 function endPress() { 
-    clearTimeout(pressTimer); 
+    if (pressTimer) clearTimeout(pressTimer); 
 }
 
 // ========== MENTIONS ==========
@@ -1040,18 +1517,7 @@ function selectMention(name, start, end) {
     input.dispatchEvent(new Event('input'));
 }
 
-// ========== UTILITY FUNCTIONS ==========
-function closeActions() { 
-    document.getElementById('action-sheet').classList.remove('open'); 
-}
-
-function closeActionSheetOnTouch(event) {
-    const sheet = document.getElementById('action-sheet');
-    if (sheet.classList.contains('open') && !event.target.closest('.action-sheet')) {
-        closeActions();
-    }
-}
-
+// ========== TAB SWITCH ==========
 function switchTab(mode) { 
     currentMode = mode; 
     document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus'); 
@@ -1070,6 +1536,7 @@ function switchTab(mode) {
     loadMorePosts();
 }
 
+// ========== TOGGLE ACTIONS ==========
 function toggleActions(el) { 
     const card = document.getElementById('composer-card');
     el.style.height = 'auto'; 
@@ -1085,16 +1552,7 @@ function toggleReadMore(id) {
     document.getElementById(`full-${id}`).classList.remove('hidden'); 
 }
 
-async function handleShare(postId, content) {
-    const url = `${window.location.origin}/gist.html?id=${postId}`;
-    if (navigator.share) {
-        navigator.share({ title: 'Sdel', text: content, url });
-    } else { 
-        navigator.clipboard.writeText(url); 
-        showToast("Link copied!"); 
-    }
-}
-
+// ========== REDIRECT ==========
 function safeRedirect(url) { 
     if (url.includes('profile.html') || url.includes('messages.html') || url.includes('homies.html') || 
         url.includes('gist.html') || url.includes('dashboard.html') || url.includes('market.html') || url.includes('explore.html')) {
@@ -1111,13 +1569,48 @@ function closeRedirect() {
     document.getElementById('redirect-modal').style.display = 'none'; 
 }
 
-// ========== MAKE ALL FUNCTIONS GLOBAL ==========
-window.openPostModal = openPostModal;
-window.closePostModal = closePostModal;
-window.submitPostFromModal = submitPostFromModal;
+// ========== ONLINE/OFFLINE ==========
+async function handleOnline() {
+    isOnline = true;
+    if (offlineQueue.length > 0) {
+        showToast(`Syncing ${offlineQueue.length} posts...`);
+        
+        for (const offlinePost of offlineQueue) {
+            const { error } = await supabase.from('posts').insert({
+                user_id: offlinePost.user_id,
+                content: offlinePost.content,
+                school_name: offlinePost.school_name,
+                post_type: 'post',
+                likes_count: 0,
+                comments_count: 0,
+                reposts_count: 0,
+                shares_count: 0
+            });
+            
+            if (!error) {
+                offlineQueue = offlineQueue.filter(p => p.tempId !== offlinePost.tempId);
+                localStorage.setItem('offlinePosts', JSON.stringify(offlineQueue));
+            }
+        }
+        
+        showToast('Sync complete!');
+        currentPage = 0;
+        allPosts = [];
+        hasMore = true;
+        await loadMorePosts();
+    }
+}
+
+// ========== EXPOSE ALL FUNCTIONS TO WINDOW ==========
+window.formatNum = formatNum;
+window.escapeHTML = escapeHTML;
+window.showToast = showToast;
 window.handleLike = handleLike;
 window.handleRepost = handleRepost;
 window.handleShare = handleShare;
+window.openPostModal = openPostModal;
+window.closePostModal = closePostModal;
+window.submitPostFromModal = submitPostFromModal;
 window.toggleSearch = toggleSearch;
 window.handleSearch = handleSearch;
 window.switchTab = switchTab;
@@ -1135,7 +1628,7 @@ window.toggleReadMore = toggleReadMore;
 window.safeRedirect = safeRedirect;
 window.closeRedirect = closeRedirect;
 
-// ========== INITIALIZE ==========
+// ========== START ==========
 init();
 
 </script>
