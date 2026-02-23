@@ -159,7 +159,7 @@
             padding-bottom: 80px;
         }
 
-        /* FIXED: Better text handling */
+        /* Fixed text handling */
         .post-content {
             font-size: 15px;
             line-height: 1.5;
@@ -177,6 +177,14 @@
         .like-button[data-liked="true"] i {
             color: #FF6600;
             fill: #FF6600;
+        }
+
+        /* Ensure post button is visible */
+        #composer-actions {
+            display: flex;
+        }
+        #composer-actions.hidden {
+            display: none;
         }
     </style>
 </head>
@@ -251,16 +259,16 @@
             <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active px-6 py-4">The Campus</button>
             <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn px-6 py-4">Universe</button>
         </div>
-    </nav>
-    <!-- MAIN CONTENT AREA -->
+                    </nav>
+                    <!-- MAIN CONTENT AREA -->
 <div class="main-content">
-    <!-- Composer -->
+    <!-- Composer - Post button is visible -->
     <div id="composer-card" class="m-4 p-4 border border-white/5 flex flex-col relative transition-all">
         <div class="flex space-x-3">
             <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase text-sdel">H</div>
             <div class="flex-1">
                 <textarea id="post-input" placeholder="What's happening, homie?" rows="1" oninput="toggleActions(this)"></textarea>
-                <div id="composer-actions" class="mt-3 flex justify-between items-center hidden">
+                <div id="composer-actions" class="mt-3 flex justify-between items-center">
                     <span class="text-[10px] text-zinc-600 font-bold uppercase">Public Gist</span>
                     <button onclick="openPostModal()" class="bg-sdel text-black px-4 py-1.5 rounded-full text-[11px] font-black uppercase">Post</button>
                 </div>
@@ -322,7 +330,7 @@
     <div id="scroll-sentry"></div>
 </div>
 
-<!-- BOTTOM NAV - FIXED, NEVER RELOADS -->
+<!-- BOTTOM NAV - PLUS BUTTON OPENS MODAL -->
 <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
     <i data-lucide="home" class="text-sdel" size="28" onclick="location.href='dashboard.html'"></i>
     <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
@@ -331,8 +339,8 @@
     </div>
     <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
     <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
-</nav>
-<script type="module">
+    </nav>
+    <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
@@ -386,12 +394,19 @@ async function init() {
     if (initTimer) clearTimeout(initTimer);
     
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return window.location.replace('login.html');
+    if (!session) {
+        window.location.replace('login.html');
+        return;
+    }
     
     const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
     userProfile = profile;
     
-    if (userProfile?.is_banned || userProfile?.banned) location.replace('banned.html');
+    if (userProfile?.is_banned || userProfile?.banned) {
+        location.replace('banned.html');
+        return;
+    }
+    
     document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
     
     // Load interactions
@@ -444,16 +459,28 @@ async function handleOnline() {
         showToast(`Syncing ${offlineQueue.length} posts...`);
         
         for (const offlinePost of offlineQueue) {
-            const { error } = await supabase.from('posts').insert(offlinePost);
+            const { error } = await supabase.from('posts').insert({
+                user_id: offlinePost.user_id,
+                content: offlinePost.content,
+                school_name: offlinePost.school_name,
+                post_type: 'post',
+                likes_count: 0,
+                comments_count: 0,
+                reposts_count: 0,
+                shares_count: 0
+            });
+            
             if (!error) {
-                // Remove from queue
                 offlineQueue = offlineQueue.filter(p => p.tempId !== offlinePost.tempId);
                 localStorage.setItem('offlinePosts', JSON.stringify(offlineQueue));
             }
         }
         
         showToast('Sync complete!');
-        loadMorePosts(); // Refresh feed
+        currentPage = 0;
+        allPosts = [];
+        hasMore = true;
+        await loadMorePosts();
     }
 }
 
@@ -468,7 +495,8 @@ function savePostOffline(postData) {
             is_official: userProfile.is_official,
             is_verified: userProfile.is_verified
         },
-        offline: true
+        offline: true,
+        tempId: tempId
     };
     
     offlineQueue.push(offlinePost);
@@ -493,58 +521,71 @@ function setupInfiniteScroll() {
     
     if (sentry) observer.observe(sentry);
 }
-    // ========== LOAD POSTS ==========
+        // ========== LOAD POSTS (FIXED - Shows ALL posts) ==========
 async function loadMorePosts() {
     if (loading || !hasMore) return;
     
     loading = true;
     currentPage++;
     
-    let query = supabase
-        .from('posts')
-        .select('*, profile:user_id(username, is_official, is_verified)')
-        .eq('post_type', 'post')
-        .order('created_at', { ascending: false })
-        .range((currentPage - 1) * 10, currentPage * 10 - 1);
-        
-    if (currentMode === 'campus') {
-        query = query.eq('school_name', userProfile?.school_name || 'Global');
-    }
-    
-    const { data: posts } = await query;
-    
-    if (initTimer) clearTimeout(initTimer);
-    
-    if (!posts || posts.length === 0) {
-        hasMore = false;
-        loading = false;
-        
-        if (currentPage === 1 && offlineQueue.length === 0) {
-            document.getElementById('feed-container').innerHTML = '<div class="text-center py-20 text-zinc-500 font-bold uppercase">No posts yet</div>';
+    try {
+        let query = supabase
+            .from('posts')
+            .select('*, profile:user_id(username, is_official, is_verified, is_banned)')
+            .eq('post_type', 'post')
+            .order('created_at', { ascending: false })
+            .range((currentPage - 1) * 10, currentPage * 10 - 1);
+            
+        if (currentMode === 'campus' && userProfile?.school_name) {
+            query = query.eq('school_name', userProfile.school_name);
         }
-        return;
+        
+        const { data: posts, error } = await query;
+        
+        if (initTimer) clearTimeout(initTimer);
+        
+        if (error) {
+            console.error('Error loading posts:', error);
+            loading = false;
+            return;
+        }
+        
+        if (!posts || posts.length === 0) {
+            hasMore = false;
+            loading = false;
+            
+            if (currentPage === 1 && offlineQueue.length === 0 && allPosts.length === 0) {
+                document.getElementById('feed-container').innerHTML = '<div class="text-center py-20 text-zinc-500 font-bold uppercase">No posts yet</div>';
+            }
+            return;
+        }
+        
+        // Filter by search if needed
+        let newPosts = posts;
+        if (searchQuery) {
+            newPosts = posts.filter(post => 
+                post.content.toLowerCase().includes(searchQuery) || 
+                post.profile?.username?.toLowerCase().includes(searchQuery)
+            );
+        }
+        
+        // Format content for new posts
+        const processedPosts = await Promise.all(newPosts.map(async (post) => {
+            const formattedContent = await formatContent(post.content, post.id);
+            return { ...post, formattedContent };
+        }));
+        
+        allPosts = [...allPosts, ...processedPosts];
+        renderFeed();
+        
+    } catch (error) {
+        console.error('Error in loadMorePosts:', error);
     }
-    
-    let newPosts = posts;
-    if (searchQuery) {
-        newPosts = posts.filter(post => 
-            post.content.toLowerCase().includes(searchQuery) || 
-            post.profile?.username?.toLowerCase().includes(searchQuery)
-        );
-    }
-    
-    const processedPosts = await Promise.all(newPosts.map(async (post) => {
-        const formattedContent = await formatContent(post.content, post.id);
-        return { ...post, formattedContent };
-    }));
-    
-    allPosts = [...allPosts, ...processedPosts];
-    renderFeed();
     
     loading = false;
 }
 
-// ========== RENDER FEED ==========
+// ========== RENDER FEED (FIXED - Proper JSON escaping) ==========
 function renderFeed() {
     const container = document.getElementById('feed-container');
     
@@ -564,11 +605,11 @@ function renderFeed() {
                 ? '<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
                 : '');
         
-        // FIXED: Proper JSON escaping for data-post attribute
-        const postDataAttr = JSON.stringify(post).replace(/"/g, '&quot;').replace(/'/g, "\\'");
+        // FIXED: Proper JSON string escaping
+        const postDataStr = JSON.stringify(post).replace(/'/g, "\\'").replace(/"/g, '&quot;');
         
         return `
-        <div class="post-card p-4" data-post-id="${post.id}" data-post='${postDataAttr}' onmousedown="startPress(event, '${postDataAttr}')" onmouseup="endPress()" ontouchstart="startPress(event, '${postDataAttr}')" ontouchend="endPress()">
+        <div class="post-card p-4" data-post-id="${post.id}" data-post='${postDataStr}' onmousedown="startPress(event, '${postDataStr}')" onmouseup="endPress()" ontouchstart="startPress(event, '${postDataStr}')" ontouchend="endPress()">
             <div class="flex space-x-3">
                 <div onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
                 <div class="flex-1">
@@ -577,7 +618,7 @@ function renderFeed() {
                         ${badge}
                         ${currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name || '')}</span>` : ''}
                     </div>
-                    <div class="post-content text-zinc-200 mb-3">${post.formattedContent}</div>
+                    <div class="post-content text-zinc-200 mb-3">${post.formattedContent || escapeHTML(post.content)}</div>
                     <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
                         <button onclick="handleLike('${post.id}')" class="like-button flex items-center gap-2" data-post-id="${post.id}" data-liked="${isLiked}" data-count="${post.likes_count || 0}">
                             <i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}" class="like-icon"></i>
@@ -621,7 +662,7 @@ async function handleLike(postId) {
             .eq('user_id', userProfile.id)
             .eq('post_id', postId)
             .eq('interaction_type', 'like')
-            .single();
+            .maybeSingle();
             
         if (existing) {
             await supabase.from('interactions').delete().eq('id', existing.id);
@@ -700,71 +741,26 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         allPosts = [newPost, ...allPosts];
         renderFeed();
     }
-    }
-    // ========== ACTION SHEET ==========
-function showActionSheet(post) {
-    const sheet = document.getElementById('action-sheet');
-    const options = document.getElementById('action-options');
-    const isOwner = post.user_id === userProfile.id;
-    const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
-    
-    let html = '';
-    if (isOwner) {
-        html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
-        if (canEdit) html += `<button onclick="editGist('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
-    }
-    if (userProfile?.is_official && !isOwner) {
-        const isBanned = post.profile?.is_banned || false;
-        if (isBanned) {
-            html += `<button onclick="unbanUser('${post.user_id}')" class="w-full py-4 bg-green-600 text-black rounded-2xl font-black uppercase text-xs">Unban User</button>`;
-        } else {
-            html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
         }
-    }
-    options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
-    sheet.classList.add('open');
-    lucide.createIcons();
-}
-
-async function banUser(userId) {
-    await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userId);
-    showToast("User Banned!");
-    closeActions();
-}
-
-async function unbanUser(userId) {
-    await supabase.from('profile').update({ is_banned: false, banned: false }).eq('id', userId);
-    showToast("User Unbanned!");
-    closeActions();
-}
-
-async function burnGist(id) {
-    const { error } = await supabase.from('posts').delete().eq('id', id);
-    if (!error) { 
-        allPosts = allPosts.filter(p => p.id !== id);
-        renderFeed();
-        closeActions(); 
-    }
-}
-
-function editGist(id, content) {
-    currentEditPostId = id;
-    document.getElementById('post-modal-title').innerText = 'Edit Gist';
-    document.getElementById('modal-post-input').value = content;
-    document.getElementById('modal-post-btn').innerText = 'Update';
-    openPostModal();
-    closeActions();
-}
-
-// ========== POST MODAL ==========
+        // ========== POST MODAL FUNCTIONS (CRITICAL FIX) ==========
 function openPostModal() {
+    console.log('Opening post modal'); // Debug
+    const modal = document.getElementById('post-modal');
+    const input = document.getElementById('modal-post-input');
+    const title = document.getElementById('post-modal-title');
+    const btn = document.getElementById('modal-post-btn');
+    
     if (!currentEditPostId) {
-        document.getElementById('post-modal-title').innerText = 'Create Gist';
-        document.getElementById('modal-post-input').value = document.getElementById('post-input').value;
-        document.getElementById('modal-post-btn').innerText = 'Post';
+        title.innerText = 'Create Gist';
+        input.value = document.getElementById('post-input').value;
+        btn.innerText = 'Post';
+    } else {
+        title.innerText = 'Edit Gist';
+        btn.innerText = 'Update';
     }
-    document.getElementById('post-modal').style.display = 'flex';
-    document.getElementById('modal-post-input').focus();
+    
+    modal.style.display = 'flex';
+    input.focus();
 }
 
 function closePostModal() {
@@ -772,7 +768,7 @@ function closePostModal() {
     currentEditPostId = null;
 }
 
-// ========== SUBMIT POST (with offline support) ==========
+// ========== SUBMIT POST (FIXED - Works with Supabase) ==========
 async function submitPostFromModal() {
     let content = document.getElementById('modal-post-input').value.trim();
     if (!content) return;
@@ -812,14 +808,13 @@ async function submitPostFromModal() {
         // NEW POST
         const postData = {
             user_id: userProfile.id,
-            content,
+            content: content,
             school_name: userProfile.school_name || 'Global',
             post_type: 'post',
             likes_count: 0,
             comments_count: 0,
             reposts_count: 0,
-            shares_count: 0,
-            created_at: new Date().toISOString()
+            shares_count: 0
         };
         
         if (!isOnline) {
@@ -842,6 +837,9 @@ async function submitPostFromModal() {
                 newPost.formattedContent = formattedContent;
                 allPosts = [newPost, ...allPosts];
                 renderFeed();
+            } else {
+                console.error('Post error:', error);
+                showToast('Failed to post');
             }
         }
     }
@@ -849,6 +847,7 @@ async function submitPostFromModal() {
 
 // ========== FORMAT CONTENT ==========
 async function formatContent(text, postId) {
+    if (!text) return '';
     let safe = text;
     safe = escapeHTML(safe);
     
@@ -904,6 +903,61 @@ async function formatContent(text, postId) {
     });
     
     return safe;
+}
+
+// ========== ACTION SHEET ==========
+function showActionSheet(post) {
+    const sheet = document.getElementById('action-sheet');
+    const options = document.getElementById('action-options');
+    const isOwner = post.user_id === userProfile.id;
+    const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
+    
+    let html = '';
+    if (isOwner) {
+        html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
+        if (canEdit) html += `<button onclick="editGist('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
+    }
+    if (userProfile?.is_official && !isOwner) {
+        const isBanned = post.profile?.is_banned || false;
+        if (isBanned) {
+            html += `<button onclick="unbanUser('${post.user_id}')" class="w-full py-4 bg-green-600 text-black rounded-2xl font-black uppercase text-xs">Unban User</button>`;
+        } else {
+            html += `<button onclick="banUser('${post.user_id}')" class="w-full py-4 bg-red-600 text-black rounded-2xl font-black uppercase text-xs">Ban User</button>`;
+        }
+    }
+    options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
+    sheet.classList.add('open');
+    lucide.createIcons();
+}
+
+async function banUser(userId) {
+    await supabase.from('profile').update({ is_banned: true, banned: true }).eq('id', userId);
+    showToast("User Banned!");
+    closeActions();
+}
+
+async function unbanUser(userId) {
+    await supabase.from('profile').update({ is_banned: false, banned: false }).eq('id', userId);
+    showToast("User Unbanned!");
+    closeActions();
+}
+
+async function burnGist(id) {
+    const { error } = await supabase.from('posts').delete().eq('id', id);
+    if (!error) { 
+        allPosts = allPosts.filter(p => p.id !== id);
+        renderFeed();
+        closeActions(); 
+    }
+}
+
+function editGist(id, content) {
+    currentEditPostId = id;
+    document.getElementById('post-modal-title').innerText = 'Edit Gist';
+    document.getElementById('modal-post-input').value = content;
+    document.getElementById('modal-post-btn').innerText = 'Update';
+    openPostModal();
+    closeActions();
 }
 
 // ========== SEARCH FUNCTIONS ==========
@@ -1072,7 +1126,7 @@ function toggleActions(el) {
     el.style.height = 'auto'; 
     el.style.height = el.scrollHeight + 'px';
     card.classList.toggle('composer-expanded', el.value.length > 50);
-    document.getElementById('composer-actions').classList.toggle('hidden', el.value.length === 0);
+    document.getElementById('composer-actions').classList.remove('hidden');
     handleMentions(el);
     setTimeout(() => { el.scrollTop = el.scrollHeight; }, 10);
 }
@@ -1108,16 +1162,32 @@ function closeRedirect() {
     document.getElementById('redirect-modal').style.display = 'none'; 
 }
 
+// ========== MAKE ALL FUNCTIONS GLOBAL ==========
+window.openPostModal = openPostModal;
+window.closePostModal = closePostModal;
+window.submitPostFromModal = submitPostFromModal;
+window.handleLike = handleLike;
+window.handleRepost = handleRepost;
+window.handleShare = handleShare;
+window.toggleSearch = toggleSearch;
+window.handleSearch = handleSearch;
+window.switchTab = switchTab;
+window.startPress = startPress;
+window.endPress = endPress;
+window.editGist = editGist;
+window.burnGist = burnGist;
+window.banUser = banUser;
+window.unbanUser = unbanUser;
+window.closeActions = closeActions;
+window.closeActionSheetOnTouch = closeActionSheetOnTouch;
+window.selectMention = selectMention;
+window.toggleActions = toggleActions;
+window.toggleReadMore = toggleReadMore;
+window.safeRedirect = safeRedirect;
+window.closeRedirect = closeRedirect;
+
 // ========== INITIALIZE ==========
 init();
-
-// Make functions global
-Object.assign(window, { 
-    publishPost, switchTab, safeRedirect, closeRedirect, handleLike, toggleActions, 
-    toggleReadMore, handleShare, handleRepost, closeActions, burnGist, banUser, unbanUser,
-    selectMention, toggleSearch, handleSearch, startPress, endPress, editGist, 
-    openPostModal, closePostModal, submitPostFromModal, closeActionSheetOnTouch 
-});
 
 </script>
 </body>
