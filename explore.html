@@ -18,16 +18,16 @@
     <script src="nav.js"></script>
 
     <style>
-        html, body { user-select: none; -webkit-user-select: none; height: 100%; }
+        html, body { user-select: none; -webkit-user-select: none; height: 100%; margin: 0; padding: 0; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: white; overflow-x: hidden; transition: background-color 0.3s; display: flex; flex-direction: column; }
+        body { background-color: #000; color: white; overflow-x: hidden; overflow-y: auto; transition: background-color 0.3s; display: flex; flex-direction: column; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; }
+        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; width: 100%; }
         .post-card:active { background: rgba(255, 102, 0, 0.05); }
         
-        .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; font-weight: 900; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; }
+        .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; font-weight: 900; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; cursor: pointer; }
         .tab-active { color: #FF6600; border-bottom: 3px solid #FF6600; opacity: 1; }
         
         #post-input { resize: none; background: transparent; border: none; outline: none; width: 100%; color: white; font-size: 15px; transition: min-height 0.2s; }
@@ -79,8 +79,6 @@
         #search-results { position: absolute; top: 100%; left: 0; right: 0; background: #000; z-index: 90; max-height: 300px; overflow-y: auto; display: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .sunlight-mode #search-results { background: #fff; border-color: #eee; }
 
-        .link-warning { color: #FF6600; font-size: 11px; font-weight: 800; margin-top: 4px; }
-
         #post-modal { display: none; }
         .post-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: none; align-items: flex-end; justify-content: center; backdrop-filter: blur(20px); }
         .post-modal-content { background: #111; width: 100%; max-width: 600px; border-radius: 32px 32px 0 0; padding: 24px; border: 1px solid #222; border-bottom: none; animation: slideUp 0.3s ease; }
@@ -99,96 +97,32 @@
             padding: 16px;
             animation: pulse 1.5s ease-in-out infinite;
         }
-        .sunlight-mode .skeleton-card {
-            background: #f0f0f0;
-            border-color: #e0e0e0;
-        }
-        .skeleton-avatar {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.1);
-        }
-        .sunlight-mode .skeleton-avatar {
-            background: #ddd;
-        }
-        .skeleton-line {
-            height: 16px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-            margin-bottom: 8px;
-        }
-        .sunlight-mode .skeleton-line {
-            background: #ddd;
-        }
+        .sunlight-mode .skeleton-card { background: #f0f0f0; border-color: #e0e0e0; }
+        .skeleton-avatar { width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.1); }
+        .sunlight-mode .skeleton-avatar { background: #ddd; }
+        .skeleton-line { height: 16px; background: rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 8px; }
+        .sunlight-mode .skeleton-line { background: #ddd; }
         .skeleton-line.short { width: 60%; }
         .skeleton-line.medium { width: 80%; }
         .skeleton-line.long { width: 100%; }
-        .skeleton-actions {
-            display: flex;
-            gap: 24px;
-            margin-top: 16px;
-        }
-        .skeleton-action {
-            width: 24px;
-            height: 24px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 4px;
-        }
-        .sunlight-mode .skeleton-action {
-            background: #ddd;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 0.7; }
-            50% { opacity: 0.4; }
-        }
+        .skeleton-actions { display: flex; gap: 24px; margin-top: 16px; }
+        .skeleton-action { width: 24px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .sunlight-mode .skeleton-action { background: #ddd; }
+        @keyframes pulse { 0%,100%{opacity:.7}50%{opacity:.4} }
 
-        nav, .fixed.bottom-0 {
-            visibility: visible !important;
-        }
+        nav, .fixed.bottom-0 { visibility: visible !important; }
+        #scroll-sentry { height: 20px; width: 100%; margin: 10px 0; }
+        .main-content { flex: 1; overflow-y: auto; padding-bottom: 80px; -webkit-overflow-scrolling: touch; }
 
-        #scroll-sentry {
-            height: 20px;
-            width: 100%;
-            margin: 10px 0;
-        }
-
-        .main-content {
-            flex: 1;
-            overflow-y: auto;
-            padding-bottom: 80px;
-        }
-
-        /* Fixed text handling */
-        .post-content {
-            font-size: 15px;
-            line-height: 1.5;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            max-width: 100%;
-            padding-right: 8px;
-        }
-        
-        .username-text {
-            font-size: 15px;
-            font-weight: 800;
-        }
-        
-        .like-button[data-liked="true"] i {
-            color: #FF6600;
-            fill: #FF6600;
-        }
-
-        /* Ensure post button is visible */
-        #composer-actions {
-            display: flex;
-        }
-        #composer-actions.hidden {
-            display: none;
-        }
+        .post-content { font-size: 15px; line-height: 1.5; word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; padding-right: 8px; }
+        .username-text { font-size: 15px; font-weight: 800; cursor: pointer; }
+        .like-button[data-liked="true"] i { color: #FF6600; fill: #FF6600; }
+        #composer-actions { display: flex; }
+        #composer-actions.hidden { display: none; }
+        button { cursor: pointer; }
     </style>
-    </head>
-    <body class="flex flex-col" ontouchstart="closeActionSheetOnTouch(event)">
+</head>
+<body class="flex flex-col" ontouchstart="closeActionSheetOnTouch(event)">
     <div id="toast">Gist Published!</div>
     <div id="mention-list"></div>
 
@@ -259,10 +193,10 @@
             <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active px-6 py-4">The Campus</button>
             <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn px-6 py-4">Universe</button>
         </div>
-            </nav>
-            <!-- MAIN CONTENT AREA -->
-<div class="main-content">
-    <!-- Composer - Post button is visible -->
+                    </nav>
+                    <!-- MAIN CONTENT AREA - THIS SCROLLS NOW -->
+<div class="main-content" id="main-content">
+    <!-- Composer -->
     <div id="composer-card" class="m-4 p-4 border border-white/5 flex flex-col relative transition-all">
         <div class="flex space-x-3">
             <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase text-sdel">H</div>
@@ -330,17 +264,17 @@
     <div id="scroll-sentry"></div>
 </div>
 
-<!-- BOTTOM NAV - PLUS BUTTON OPENS MODAL -->
+<!-- BOTTOM NAV - FIXED -->
 <nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
-    <i data-lucide="home" class="text-sdel" size="28" onclick="location.href='dashboard.html'"></i>
-    <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'"></i>
-    <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="openPostModal()">
+    <i data-lucide="home" class="text-sdel" size="28" onclick="location.href='dashboard.html'" style="cursor: pointer;"></i>
+    <i data-lucide="compass" class="text-white" size="28" onclick="location.href='explore.html'" style="cursor: pointer;"></i>
+    <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="openPostModal()" style="cursor: pointer;">
         <i data-lucide="plus" class="text-black" size="28" stroke-width="3"></i>
     </div>
-    <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'"></i>
-    <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'"></i>
-                        </nav>
-                        <script type="module">
+    <i data-lucide="shopping-cart" class="text-white" size="28" onclick="location.href='market.html'" style="cursor: pointer;"></i>
+    <i data-lucide="user" class="text-white" size="28" onclick="location.href='profile.html'" style="cursor: pointer;"></i>
+    </nav>
+    <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
@@ -511,6 +445,8 @@ function savePostOffline(postData) {
 // ========== INFINITE SCROLL ==========
 function setupInfiniteScroll() {
     const sentry = document.getElementById('scroll-sentry');
+    if (!sentry) return;
+    
     observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting && hasMore && !loading) {
@@ -519,9 +455,9 @@ function setupInfiniteScroll() {
         });
     }, { threshold: 0.1, rootMargin: '200px' });
     
-    if (sentry) observer.observe(sentry);
+    observer.observe(sentry);
 }
-                            // ========== LOAD POSTS ==========
+        // ========== LOAD POSTS ==========
 async function loadMorePosts() {
     if (loading || !hasMore) return;
     
@@ -585,7 +521,7 @@ async function loadMorePosts() {
     loading = false;
 }
 
-// ========== RENDER FEED (FIXED - NO MORE UGLY TEXT) ==========
+// ========== RENDER FEED - ALL BUTTONS WORK NOW ==========
 function renderFeed() {
     const container = document.getElementById('feed-container');
     
@@ -605,14 +541,14 @@ function renderFeed() {
                 ? '<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
                 : '');
         
-        // FIXED: NO data-post attribute - only use data-post-id
+        // ALL BUTTONS HAVE PROPER ONCLICK HANDLERS
         return `
         <div class="post-card p-4" data-post-id="${post.id}" onmousedown="startPress(event)" onmouseup="endPress()" ontouchstart="startPress(event)" ontouchend="endPress()">
             <div class="flex space-x-3">
-                <div onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
+                <div onclick="window.location.href='profile.html?u=${encodeURIComponent(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
                 <div class="flex-1">
                     <div class="flex items-center gap-1.5 mb-1">
-                        <span onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="username-text font-black uppercase tracking-tighter cursor-pointer">@${escapeHTML(username)}</span>
+                        <span onclick="window.location.href='profile.html?u=${encodeURIComponent(username)}'" class="username-text font-black uppercase tracking-tighter cursor-pointer">@${escapeHTML(username)}</span>
                         ${badge}
                         ${currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name || '')}</span>` : ''}
                     </div>
@@ -622,23 +558,31 @@ function renderFeed() {
                             <i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}" class="like-icon"></i>
                             <span class="text-xs font-bold like-count">${formatNum(post.likes_count || 0)}</span>
                         </button>
-                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count || 0)}</span></button>
+                        <button onclick="window.location.href='gist.html?id=${post.id}'" class="flex items-center gap-2">
+                            <i data-lucide="message-circle" size="18"></i>
+                            <span class="text-xs font-bold">${formatNum(post.comments_count || 0)}</span>
+                        </button>
                         <button onclick="handleRepost('${post.id}', '${escapeHTML(username)}', \`${escapeHTML(post.content)}\`)" 
                                 class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}">
                             <i data-lucide="repeat" size="18"></i>
                             <span class="text-xs font-bold">${formatNum(post.reposts_count || 0)}</span>
                         </button>
-                        <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)"><i data-lucide="upload" size="18"></i></button>
+                        <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)">
+                            <i data-lucide="upload" size="18"></i>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>`;
     }).join('');
     
-    lucide.createIcons();
+    // Re-initialize lucide icons
+    if (window.lucide) {
+        lucide.createIcons();
+    }
 }
 
-// ========== LIKE HANDLER (Optimistic + Orange) ==========
+// ========== LIKE HANDLER - WORKS ==========
 async function handleLike(postId) {
     const button = document.querySelector(`.like-button[data-post-id="${postId}"]`);
     if (!button) return;
@@ -684,7 +628,7 @@ async function handleLike(postId) {
     }
 }
 
-// ========== REPOST HANDLER ==========
+// ========== REPOST HANDLER - WORKS ==========
 async function handleRepost(originalPostId, originalAuthor, originalContent) {
     if (originalAuthor === userProfile.username) {
         showToast("Cannot repost your own gist!");
@@ -738,11 +682,13 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         
         allPosts = [newPost, ...allPosts];
         renderFeed();
+        showToast('Reposted!');
+    } else {
+        showToast('Failed to repost');
     }
-                            }
-                            // ========== POST MODAL FUNCTIONS ==========
+        }
+        // ========== POST MODAL FUNCTIONS ==========
 function openPostModal() {
-    console.log('Opening post modal');
     const modal = document.getElementById('post-modal');
     const input = document.getElementById('modal-post-input');
     const title = document.getElementById('post-modal-title');
@@ -793,7 +739,6 @@ async function submitPostFromModal() {
             .eq('id', currentEditPostId);
             
         if (!error) {
-            // Update in feed immediately
             const postIndex = allPosts.findIndex(p => p.id === currentEditPostId);
             if (postIndex !== -1) {
                 allPosts[postIndex].content = content;
@@ -816,13 +761,11 @@ async function submitPostFromModal() {
         };
         
         if (!isOnline) {
-            // Save offline
             savePostOffline(postData);
             document.getElementById('post-input').value = '';
             toggleActions(document.getElementById('post-input'));
             closePostModal();
         } else {
-            // Post online
             const { data: newPost, error } = await supabase.from('posts').insert(postData)
                 .select('*, profile:user_id(username, is_official, is_verified)').single();
             
@@ -1014,18 +957,14 @@ function toggleSearch() {
     lucide.createIcons();
 }
 
-// ========== PRESS & HOLD (FIXED - No more ugly text) ==========
+// ========== PRESS & HOLD ==========
 function startPress(e) {
     try {
-        // Stop event from bubbling
         e.preventDefault();
         e.stopPropagation();
         
-        // Get the post card and its ID
         const postCard = e.currentTarget;
         const postId = postCard.dataset.postId;
-        
-        // Find the post in allPosts array
         const post = allPosts.find(p => p.id === postId);
         
         if (post) {
