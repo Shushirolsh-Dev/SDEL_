@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') document.documentElement.classList.add('sunlight-mode');
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Thesdel | Create Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        :root {
+            --bg: #000000;
+            --surface: #0a0a0a;
+            --card: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-dim: #71717a;
+            --nav-bg: rgba(0, 0, 0, 0.8);
+        }
+
+        .sunlight-mode {
+            --bg: #ffffff;
+            --surface: #f4f4f5;
+            --card: #ffffff;
+            --border: #e4e4e7;
+            --text-main: #09090b;
+            --text-dim: #71717a;
+            --nav-bg: rgba(255, 255, 255, 0.8);
+        }
+
+        body { 
+            background-color: var(--bg); 
+            color: var(--text-main); 
+            transition: background-color 0.3s; 
+            overflow-x: hidden;
+            padding-bottom: 90px;
+        }
+        
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .border-sdel { border-color: #FF6600; }
+        
+        .card { 
+            background: var(--card); 
+            border: 1px solid var(--border); 
+            backdrop-filter: blur(10px); 
+            border-radius: 1.5rem;
+        }
+        
+        .btn-primary {
+            background: #FF6600;
+            color: black;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 11px;
+            padding: 16px 24px;
+            border-radius: 16px;
+            box-shadow: 0 10px 20px rgba(255, 102, 0, 0.2);
+            transition: all 0.2s;
+            display: inline-block;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.95);
+        }
+        
+        .btn-secondary {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 11px;
+            padding: 16px 24px;
+            border-radius: 16px;
+            transition: all 0.2s;
+            display: inline-block;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .input-field {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 16px 20px;
+            font-size: 14px;
+            color: var(--text-main);
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #FF6600;
+        }
+        
+        .question-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 1.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        #toast { 
+            position: fixed; 
+            top: 20px; 
+            left: 50%; 
+            transform: translateX(-50%) translateY(-100px); 
+            background: #FF6600; 
+            color: black; 
+            padding: 12px 24px; 
+            border-radius: 12px; 
+            font-weight: 900; 
+            font-size: 11px; 
+            text-transform: uppercase; 
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            z-index: 9999; 
+        }
+        
+        #toast.show { 
+            transform: translateX(-50%) translateY(0); 
+        }
+    </style>
+</head>
+<body>
+    <!-- TOP NAV -->
+    <nav class="sticky top-0 bg-[var(--nav-bg)] backdrop-blur-xl z-[100] border-b border-[var(--border)] p-5 flex items-center justify-between">
+        <i data-lucide="chevron-left" onclick="history.back()" class="cursor-pointer"></i>
+        <h2 class="text-[10px] font-black uppercase tracking-[0.2em]">CREATE TEST</h2>
+        <div class="flex items-center gap-4">
+            <i data-lucide="sun" id="theme-toggle" class="cursor-pointer text-sdel"></i>
+            <i data-lucide="help-circle" id="help-btn" class="cursor-pointer opacity-70"></i>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="p-6" id="create-content">
+        <div class="text-center py-20" id="loading-state">
+            <i data-lucide="loader" size="32" class="mx-auto mb-3 animate-spin text-sdel"></i>
+            <p class="text-[9px] font-black uppercase tracking-widest text-[var(--text-dim)]">PREPARING TEST CREATOR...</p>
+        </div>
+    </main>
+
+    <!-- CBT BOTTOM NAV -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-[var(--nav-bg)] backdrop-blur-xl border-t border-[var(--border)] py-2 px-4 z-[100]">
+        <div class="flex justify-around items-end">
+            <a href="cbt-index.html" class="flex flex-col items-center gap-0.5 group w-16">
+                <div class="w-1 h-1 rounded-full bg-transparent"></div>
+                <i data-lucide="layout-dashboard" size="20" class="text-[var(--text-dim)]"></i>
+                <span class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">HOME</span>
+            </a>
+            <a href="cbt-create.html" class="flex flex-col items-center gap-0.5 group -mt-8">
+                <div class="w-14 h-14 rounded-2xl bg-sdel flex items-center justify-center shadow-xl shadow-sdel/40 border-4 border-[var(--bg)]">
+                    <i data-lucide="plus" class="text-black" size="28" stroke-width="3"></i>
+                </div>
+                <span class="text-[7px] font-black uppercase tracking-widest text-sdel">CREATE</span>
+            </a>
+            <a href="cbt-join.html" class="flex flex-col items-center gap-0.5 group w-16">
+                <div class="w-1 h-1 rounded-full bg-transparent"></div>
+                <i data-lucide="log-in" size="20" class="text-[var(--text-dim)]"></i>
+                <span class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">JOIN</span>
+            </a>
+            <a href="cbt-creator.html" class="flex flex-col items-center gap-0.5 group w-16">
+                <div class="w-1 h-1 rounded-full bg-transparent"></div>
+                <i data-lucide="bar-chart-2" size="20" class="text-[var(--text-dim)]"></i>
+                <span class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">MY TESTS</span>
+            </a>
+            <a href="cbt-leaderboard.html" class="flex flex-col items-center gap-0.5 group w-16">
+                <div class="w-1 h-1 rounded-full bg-transparent"></div>
+                <i data-lucide="trophy" size="20" class="text-[var(--text-dim)]"></i>
+                <span class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">RANKS</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <script>
+        const supabase = createClient(
+            'https://lgfyrlfjoazedwymjpfc.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
+        );
+
+        let currentUser = null;
+        let questions = [
+            { question: '', options: ['', '', '', ''], correct: 0, explanation: '' }
+        ];
+
+        document.getElementById('theme-toggle').onclick = () => {
+            const isLight = document.documentElement.classList.toggle('sunlight-mode');
+            localStorage.setItem('theme', isLight ? 'sunlight' : 'midnight');
+            lucide.createIcons();
+        };
+
+        window.showToast = (msg, isError = false) => {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isError ? '#ef4444' : '#FF6600';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        };
+
+        function generateJoinCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code = '';
+            for (let i = 0; i < 4; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return `TEST-${code}`;
+        }
+
+        async function init() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    location.href = 'cbt-login.html?redirect=cbt-create.html';
+                    return;
+                }
+                currentUser = session.user;
+                renderForm();
+            } catch (error) {
+                console.error('Init error:', error);
+                showToast('Error loading creator', true);
+            }
+        }
+
+        function renderForm(successCode = null) {
+            const container = document.getElementById('create-content');
+            
+            if (successCode) {
+                container.innerHTML = `
+                    <div class="text-center py-10">
+                        <div class="w-24 h-24 mx-auto mb-6 bg-green-500/20 rounded-[2rem] flex items-center justify-center">
+                            <i data-lucide="check" size="48" class="text-green-500" stroke-width="3"></i>
+                        </div>
+                        <h2 class="text-2xl font-black uppercase tracking-tighter mb-2">TEST CREATED!</h2>
+                        <p class="text-[9px] text-[var(--text-dim)] font-black uppercase tracking-widest mb-8">SHARE THIS CODE</p>
+                        
+                        <div class="card p-8 mb-6">
+                            <div class="text-4xl font-black text-sdel mb-2 tracking-wider">${successCode}</div>
+                            <p class="text-[8px] text-[var(--text-dim)] font-black uppercase">JOIN CODE</p>
+                        </div>
+                        
+                        <div class="flex gap-3">
+                            <button onclick="copyCode('${successCode}')" class="flex-1 btn-secondary flex items-center justify-center gap-2">
+                                <i data-lucide="copy" size="14"></i>
+                                COPY CODE
+                            </button>
+                            <a href="cbt-creator.html" class="flex-1 btn-primary">VIEW TESTS</a>
+                        </div>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+            
+            container.innerHTML = `
+                <form id="testForm" onsubmit="createTest(event)">
+                    <!-- Basic Info -->
+                    <div class="card p-5 mb-6">
+                        <h3 class="text-[11px] font-black uppercase tracking-widest text-sdel mb-4">BASIC INFO</h3>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-[8px] font-black uppercase tracking-widest text-[var(--text-dim)] block mb-2">TEST TITLE</label>
+                                <input type="text" id="title" placeholder="e.g., MATHEMATICS 101" class="input-field" required>
+                            </div>
+                            
+                            <div>
+                                <label class="text-[8px] font-black uppercase tracking-widest text-[var(--text-dim)] block mb-2">DESCRIPTION</label>
+                                <textarea id="description" rows="3" placeholder="Brief description..." class="input-field"></textarea>
+                            </div>
+                            
+                            <div>
+                                <label class="text-[8px] font-black uppercase tracking-widest text-[var(--text-dim)] block mb-2">SUBJECT</label>
+                                <input type="text" id="subject" placeholder="e.g., MATHEMATICS" class="input-field">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Settings -->
+                    <div class="card p-5 mb-6">
+                        <h3 class="text-[11px] font-black uppercase tracking-widest text-sdel mb-4">SETTINGS</h3>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="text-[8px] font-black uppercase tracking-widest text-[var(--text-dim)] block mb-2">DURATION (MIN)</label>
+                                <input type="number" id="duration" value="30" min="1" max="480" class="input-field" required>
+                            </div>
+                            
+                            <div>
+                                <label class="text-[8px] font-black uppercase tracking-widest text-[var(--text-dim)] block mb-2">PASS SCORE (%)</label>
+                                <input type="number" id="passScore" value="50" min="0" max="100" class="input-field" required>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="text-[8px] font-black uppercase tracking-widest text-[var(--text-dim)] block mb-2">MAX PARTICIPANTS</label>
+                                <input type="number" id="maxParticipants" value="100" min="1" max="1000" class="input-field">
+                            </div>
+                            
+                            <div>
+                                <label class="text-[8px] font-black uppercase tracking-widest text-[var(--text-dim)] block mb-2">ACCESS CODE</label>
+                                <input type="text" id="accessCode" placeholder="Optional password" class="input-field">
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-[9px] font-black uppercase">PRACTICE MODE</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="isPractice" checked class="sr-only peer">
+                                <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sdel"></div>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <span class="text-[9px] font-black uppercase">SHOW RESULTS IMMEDIATELY</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="showResults" checked class="sr-only peer">
+                                <div class="w-11 h-6 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sdel"></div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Questions -->
+                    <div class="card p-5 mb-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-[11px] font-black uppercase tracking-widest text-sdel">QUESTIONS</h3>
+                            <button type="button" onclick="addQuestion()" class="text-[8px] font-black uppercase text-sdel bg-sdel/10 px-4 py-2 rounded-full">
+                                + ADD
+                            </button>
+                        </div>
+                        
+                        <div id="questions-container">
+                            ${questions.map((q, index) => renderQuestion(index)).join('')}
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary mb-10">GENERATE JOIN CODE</button>
+                </form>
+            `;
+            
+            lucide.createIcons();
+        }
+
+        function renderQuestion(index) {
+            return `
+                <div class="question-card" data-index="${index}">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[9px] font-black text-sdel">QUESTION ${index + 1}</span>
+                        ${index > 0 ? `<button type="button" onclick="removeQuestion(${index})" class="text-[8px] text-red-500">REMOVE</button>` : ''}
+                    </div>
+                    
+                    <textarea 
+                        id="q_${index}" 
+                        placeholder="Enter your question..." 
+                        rows="2" 
+                        class="input-field mb-4"
+                        onchange="updateQuestion(${index}, 'question', this.value)"
+                    >${q.question}</textarea>
+                    
+                    <div class="space-y-3 mb-4">
+                        ${q.options.map((opt, optIndex) => `
+                            <div class="flex items-center gap-3">
+                                <input 
+                                    type="radio" 
+                                    name="correct_${index}" 
+                                    value="${optIndex}"
+                                    ${q.correct === optIndex ? 'checked' : ''}
+                                    onchange="updateCorrect(${index}, ${optIndex})"
+                                    class="w-4 h-4 accent-sdel"
+                                >
+                                <input 
+                                    type="text" 
+                                    id="q_${index}_opt_${optIndex}"
+                                    value="${opt}"
+                                    placeholder="Option ${String.fromCharCode(65 + optIndex)}" 
+                                    class="input-field flex-1"
+                                    onchange="updateOption(${index}, ${optIndex}, this.value)"
+                                >
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <textarea 
+                        id="q_${index}_exp"
+                        placeholder="Explanation (optional)" 
+                        rows="2" 
+                        class="input-field resize-none text-[12px]"
+                        onchange="updateExplanation(${index}, this.value)"
+                    >${q.explanation || ''}</textarea>
+                </div>
+            `;
+        }
+
+        window.addQuestion = () => {
+            questions.push({ question: '', options: ['', '', '', ''], correct: 0, explanation: '' });
+            renderForm();
+        };
+
+        window.removeQuestion = (index) => {
+            if (questions.length > 1) {
+                questions.splice(index, 1);
+                renderForm();
+            }
+        };
+
+        window.updateQuestion = (index, value) => {
+            questions[index].question = value;
+        };
+
+        window.updateOption = (index, optIndex, value) => {
+            questions[index].options[optIndex] = value;
+        };
+
+        window.updateCorrect = (index, optIndex) => {
+            questions[index].correct = optIndex;
+        };
+
+        window.updateExplanation = (index, value) => {
+            questions[index].explanation = value;
+        };
+
+        window.copyCode = (code) => {
+            navigator.clipboard.writeText(code);
+            showToast('Join code copied!');
+        };
+
+        window.createTest = async (e) => {
+            e.preventDefault();
+            
+            // Validate
+            for (let i = 0; i < questions.length; i++) {
+                const q = questions[i];
+                if (!q.question.trim()) {
+                    showToast(`Question ${i + 1} is empty`, true);
+                    return;
+                }
+                for (let j = 0; j < q.options.length; j++) {
+                    if (!q.options[j].trim()) {
+                        showToast(`Option ${String.fromCharCode(65 + j)} in question ${i + 1} is empty`, true);
+                        return;
+                    }
+                }
+            }
+            
+            const joinCode = generateJoinCode();
+            
+            try {
+                // Create exam
+                const { data: exam, error: examError } = await supabase
+                    .from('exams')
+                    .insert({
+                        title: document.getElementById('title').value,
+                        description: document.getElementById('description').value,
+                        subject: document.getElementById('subject').value,
+                        duration_minutes: parseInt(document.getElementById('duration').value),
+                        total_questions: questions.length,
+                        pass_score: parseInt(document.getElementById('passScore').value),
+                        is_practice_mode: document.getElementById('isPractice').checked,
+                        created_by: currentUser.id,
+                        exam_type: 'custom',
+                        join_code: joinCode,
+                        is_active: true
+                    })
+                    .select()
+                    .single();
+                
+                if (examError) throw examError;
+                
+                // Create question bank
+                const { error: qbError } = await supabase
+                    .from('question_banks')
+                    .insert({
+                        exam_id: exam.id,
+                        questions: questions,
+                        answers_hash: 'temp_hash'
+                    });
+                
+                if (qbError) throw qbError;
+                
+                // Create custom test
+                const { error: ctError } = await supabase
+                    .from('custom_tests')
+                    .insert({
+                        exam_id: exam.id,
+                        creator_id: currentUser.id,
+                        title: document.getElementById('title').value,
+                        description: document.getElementById('description').value,
+                        join_code: joinCode,
+                        access_code: document.getElementById('accessCode').value || null,
+                        max_participants: parseInt(document.getElementById('maxParticipants').value),
+                        show_results_immediately: document.getElementById('showResults').checked
+                    });
+                
+                if (ctError) throw ctError;
+                
+                renderForm(joinCode);
+                showToast('Test created successfully!');
+                
+            } catch (error) {
+                console.error('Create error:', error);
+                showToast('Failed to create test', true);
+            }
+        };
+
+        init();
+        lucide.createIcons();
+    </script>
+</body>
+</html>
