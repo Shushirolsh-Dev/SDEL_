@@ -376,17 +376,48 @@ function escapeHTML(str) {
     return div.innerHTML;
 }
 
+function isJSONContent(text) {
+    if (!text || typeof text !== 'string') return false;
+    
+    const trimmed = text.trim();
+    
+    if (!trimmed.startsWith('{')) return false;
+    
+    const hasJsonStructure = 
+        (trimmed.includes('"id":"') || trimmed.includes("'id':'")) &&
+        (trimmed.includes('"user_id":"') || trimmed.includes("'user_id':'")) &&
+        (trimmed.includes('"content":"') || trimmed.includes("'content':'"));
+    
+    if (!hasJsonStructure) return false;
+    
+    const jsonPatterns = [
+        /"created_at":"\d{4}-\d{2}-\d{2}/,
+        /"updated_at":"\d{4}-\d{2}-\d{2}/,
+        /"likes_count":\d+/,
+        /"comments_count":\d+/,
+        /"parent_id":(null|"[^"]*")/,
+        /onmousedown="startPress/,
+        /ontouchstart="startPress/
+    ];
+    
+    let matchCount = 0;
+    for (const pattern of jsonPatterns) {
+        if (pattern.test(text)) matchCount++;
+    }
+    
+    return matchCount >= 2;
+}
+
 function getSafeContent(post) {
     if (!post || !post.content) return '';
     
     let content = post.content;
     
-    if (content.trim().startsWith('{') || content.includes('"id":"') || content.includes('"user_id":"')) {
-        console.log('Found malformed post content');
+    if (isJSONContent(content)) {
+        console.log('Blocked JSON content');
         return '';
     }
     
-    content = content.replace(/{"id":".*?"}/g, '');
     content = content.replace(/onmousedown=".*?"/g, '');
     content = content.replace(/ontouchstart=".*?"/g, '');
     content = content.replace(/onmouseup=".*?"/g, '');
@@ -603,16 +634,21 @@ async function loadMorePosts() {
     }
     
     loading = false;
-        }
+    }
     function renderFeed() {
     const container = document.getElementById('feed-container');
     
-    if (allPosts.length === 0) {
+    const filteredPosts = allPosts.filter(post => {
+        if (!post || !post.content) return true;
+        return !isJSONContent(post.content);
+    });
+    
+    if (filteredPosts.length === 0) {
         container.innerHTML = '<div class="text-center py-20 text-zinc-500 font-bold uppercase">No posts yet</div>';
         return;
     }
     
-    container.innerHTML = allPosts.map(post => {
+    container.innerHTML = filteredPosts.map(post => {
         const username = post.profile?.username || 'homie';
         const isLiked = myLikes?.some(l => l.post_id === post.id);
         const hasReposted = repostedPosts.has(post.id);
@@ -856,11 +892,11 @@ async function submitPostFromModal() {
             }
         }
     }
-    }
+}
     async function formatContent(text, postId) {
     if (!text) return '';
     
-    if (text.trim().startsWith('{') || text.includes('"id":"') || text.includes('"user_id":"')) {
+    if (isJSONContent(text)) {
         console.log('Skipping JSON content in formatContent');
         return '';
     }
