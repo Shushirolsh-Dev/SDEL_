@@ -204,7 +204,7 @@
                 <h3 id="post-modal-title" class="text-xl font-black uppercase text-sdel">Create Gist</h3>
                 <span class="modal-close" onclick="closePostModal()">✕</span>
             </div>
-            <textarea id="modal-post-input" placeholder="What's happening, homie?" rows="6" maxlength="500"></textarea>
+            <textarea id="modal-post-input" placeholder="What's happening, homie?" rows="6" maxlength="2000"></textarea>
             <div class="post-modal-footer">
                 <div class="flex gap-3">
                     <button onclick="closePostModal()" class="flex-1 py-4 bg-zinc-900 rounded-2xl font-bold uppercase text-sm">Cancel</button>
@@ -650,7 +650,7 @@ async function loadMorePosts() {
                             <span class="text-xs font-bold like-count">${formatNum(post.likes_count || 0)}</span>
                         </button>
                         <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count || 0)}</span></button>
-                        <button onclick="handleRepost('${post.id}', '${escapeHTML(username)}', \`${escapeHTML(post.content)}\`)" 
+                        <button onclick="handleRepost('${post.id}', '${escapeHTML(username)}', '${escapeAttribute(post.content)}')" 
                                 class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}">
                             <i data-lucide="repeat" size="18"></i>
                             <span class="text-xs font-bold">${formatNum(post.reposts_count || 0)}</span>
@@ -870,8 +870,12 @@ async function submitPostFromModal() {
     let safe = text;
     safe = escapeHTML(safe);
     
-    if (safe.length > 280) {
-        safe = `<span id="short-${postId}">${safe.substring(0, 250)}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read More</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
+    if (safe.length > 300) {
+        const shortText = safe.substring(0, 300);
+        const remainingText = safe.substring(300);
+        const lines = remainingText.split('\n').length;
+        const lineText = lines > 1 ? `${lines} more lines` : 'more';
+        safe = `<span id="short-${postId}">${shortText}... <button onclick="toggleReadMore('${postId}')" class="text-sdel font-bold uppercase text-[10px]">Read ${lineText}</button></span><span id="full-${postId}" class="hidden">${safe}</span>`;
     }
     
     const repostMatches = [...safe.matchAll(/Reposted from @(\w+):/g)];
