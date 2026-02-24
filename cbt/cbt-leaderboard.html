@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') document.documentElement.classList.add('sunlight-mode');
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Thesdel | Leaderboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        :root {
+            --bg: #000000;
+            --surface: #0a0a0a;
+            --card: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-dim: #71717a;
+            --nav-bg: rgba(0, 0, 0, 0.8);
+        }
+
+        .sunlight-mode {
+            --bg: #ffffff;
+            --surface: #f4f4f5;
+            --card: #ffffff;
+            --border: #e4e4e7;
+            --text-main: #09090b;
+            --text-dim: #71717a;
+            --nav-bg: rgba(255, 255, 255, 0.8);
+        }
+
+        body { 
+            background-color: var(--bg); 
+            color: var(--text-main); 
+            transition: background-color 0.3s; 
+            overflow-x: hidden;
+            padding-bottom: 90px;
+        }
+        
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .border-sdel { border-color: #FF6600; }
+        
+        .card { 
+            background: var(--card); 
+            border: 1px solid var(--border); 
+            backdrop-filter: blur(10px); 
+            border-radius: 1.5rem;
+        }
+        
+        .rank-1 { background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%); }
+        .rank-2 { background: linear-gradient(135deg, #C0C0C0 0%, #808080 100%); }
+        .rank-3 { background: linear-gradient(135deg, #CD7F32 0%, #8B4513 100%); }
+        
+        .leaderboard-item {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        #toast { 
+            position: fixed; 
+            top: 20px; 
+            left: 50%; 
+            transform: translateX(-50%) translateY(-100px); 
+            background: #FF6600; 
+            color: black; 
+            padding: 12px 24px; 
+            border-radius: 12px; 
+            font-weight: 900; 
+            font-size: 11px; 
+            text-transform: uppercase; 
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+            z-index: 9999; 
+        }
+        
+        #toast.show { 
+            transform: translateX(-50%) translateY(0); 
+        }
+    </style>
+</head>
+<body>
+    <!-- TOP NAV -->
+    <nav class="sticky top-0 bg-[var(--nav-bg)] backdrop-blur-xl z-[100] border-b border-[var(--border)] p-5 flex items-center justify-between">
+        <i data-lucide="chevron-left" onclick="history.back()" class="cursor-pointer"></i>
+        <h2 class="text-[10px] font-black uppercase tracking-[0.2em]">LEADERBOARD</h2>
+        <div class="flex items-center gap-4">
+            <i data-lucide="sun" id="theme-toggle" class="cursor-pointer text-sdel"></i>
+            <i data-lucide="refresh-cw" id="refresh-btn" class="cursor-pointer opacity-70"></i>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main class="p-6" id="leaderboard-content">
+        <div class="text-center py-20" id="loading-state">
+            <i data-lucide="loader" size="32" class="mx-auto mb-3 animate-spin text-sdel"></i>
+            <p class="text-[9px] font-black uppercase tracking-widest text-[var(--text-dim)]">LOADING RANKINGS...</p>
+        </div>
+    </main>
+
+    <!-- CBT BOTTOM NAV -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-[var(--nav-bg)] backdrop-blur-xl border-t border-[var(--border)] py-2 px-4 z-[100]">
+        <div class="flex justify-around items-end">
+            <a href="cbt-index.html" class="flex flex-col items-center gap-0.5 group w-16">
+                <div class="w-1 h-1 rounded-full bg-transparent"></div>
+                <i data-lucide="layout-dashboard" size="20" class="text-[var(--text-dim)]"></i>
+                <span class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">HOME</span>
+            </a>
+            <a href="cbt-create.html" class="flex flex-col items-center gap-0.5 group -mt-8">
+                <div class="w-14 h-14 rounded-2xl bg-sdel flex items-center justify-center shadow-xl shadow-sdel/40 border-4 border-[var(--bg)]">
+                    <i data-lucide="plus" class="text-black" size="28" stroke-width="3"></i>
+                </div>
+                <span class="text-[7px] font-black uppercase tracking-widest text-sdel">CREATE</span>
+            </a>
+            <a href="cbt-join.html" class="flex flex-col items-center gap-0.5 group w-16">
+                <div class="w-1 h-1 rounded-full bg-transparent"></div>
+                <i data-lucide="log-in" size="20" class="text-[var(--text-dim)]"></i>
+                <span class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">JOIN</span>
+            </a>
+            <a href="cbt-creator.html" class="flex flex-col items-center gap-0.5 group w-16">
+                <div class="w-1 h-1 rounded-full bg-transparent"></div>
+                <i data-lucide="bar-chart-2" size="20" class="text-[var(--text-dim)]"></i>
+                <span class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">MY TESTS</span>
+            </a>
+            <a href="cbt-leaderboard.html" class="flex flex-col items-center gap-0.5 group w-16">
+                <div class="w-1 h-1 rounded-full bg-sdel"></div>
+                <i data-lucide="trophy" size="20" class="text-sdel"></i>
+                <span class="text-[7px] font-black uppercase tracking-widest text-sdel">RANKS</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <script>
+        const supabase = createClient(
+            'https://lgfyrlfjoazedwymjpfc.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
+        );
+
+        let currentUser = null;
+
+        document.getElementById('theme-toggle').onclick = () => {
+            const isLight = document.documentElement.classList.toggle('sunlight-mode');
+            localStorage.setItem('theme', isLight ? 'sunlight' : 'midnight');
+            lucide.createIcons();
+        };
+
+        document.getElementById('refresh-btn').onclick = () => {
+            loadLeaderboard();
+        };
+
+        window.showToast = (msg, isError = false) => {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.background = isError ? '#ef4444' : '#FF6600';
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        };
+
+        async function init() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    location.href = 'cbt-login.html?redirect=cbt-leaderboard.html';
+                    return;
+                }
+                currentUser = session.user;
+                await loadLeaderboard();
+            } catch (error) {
+                console.error('Init error:', error);
+                showToast('Error loading leaderboard', true);
+            }
+        }
+
+        async function loadLeaderboard() {
+            const container = document.getElementById('leaderboard-content');
+            
+            // Get all profiles with their stats
+            const { data: profiles, error } = await supabase
+                .from('profile')
+                .select(`
+                    id,
+                    username,
+                    avatar_url,
+                    xp,
+                    is_official,
+                    is_verified,
+                    school_name
+                `)
+                .order('xp', { ascending: false })
+                .limit(100);
+            
+            if (error) throw error;
+            
+            // Get exam stats for each user
+            const leaderboard = await Promise.all(
+                profiles.map(async (profile, index) => {
+                    const { data: attempts } = await supabase
+                        .from('exam_attempts')
+                        .select('score')
+                        .eq('user_id', profile.id)
+                        .eq('status', 'completed');
+                    
+                    const examsTaken = attempts?.length || 0;
+                    const avgScore = attempts?.length 
+                        ? Math.round(attempts.reduce((acc, a) => acc + (a.score || 0), 0) / attempts.length)
+                        : 0;
+                    
+                    return {
+                        ...profile,
+                        rank: index + 1,
+                        examsTaken,
+                        avgScore
+                    };
+                })
+            );
+            
+            const currentUserRank = leaderboard.findIndex(u => u.id === currentUser.id) + 1;
+            
+            container.innerHTML = `
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-2xl font-black uppercase tracking-tighter">GLOBAL <span class="text-sdel">RANKS</span></h2>
+                        <p class="text-[8px] text-[var(--text-dim)] font-black uppercase tracking-widest mt-1">TOP SCHOLARS</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[9px] text-[var(--text-dim)]">YOUR RANK</p>
+                        <p class="text-3xl font-black text-sdel">#${currentUserRank || '-'}</p>
+                    </div>
+                </div>
+                
+                <!-- Podium (Top 3) -->
+                <div class="flex items-end justify-center gap-4 mb-8">
+                    ${leaderboard[1] ? `
+                        <div class="text-center">
+                            <div class="w-16 h-16 rounded-2xl bg-zinc-800 mx-auto mb-2 flex items-center justify-center text-2xl font-black border-2 border-[var(--border)]">
+                                ${leaderboard[1].username?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div class="bg-zinc-900 rounded-xl px-3 py-1 inline-block mb-1">
+                                <span class="text-[9px] font-black">#2</span>
+                            </div>
+                            <p class="text-[8px] font-black truncate max-w-[80px]">@${leaderboard[1].username}</p>
+                            <p class="text-[10px] font-black text-sdel">${leaderboard[1].xp} XP</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${leaderboard[0] ? `
+                        <div class="text-center -mt-4">
+                            <div class="w-20 h-20 rounded-2xl bg-sdel mx-auto mb-2 flex items-center justify-center text-3xl font-black text-black border-4 border-sdel">
+                                ${leaderboard[0].username?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div class="bg-sdel rounded-xl px-3 py-1 inline-block mb-1">
+                                <span class="text-[9px] font-black text-black">#1</span>
+                            </div>
+                            <p class="text-[9px] font-black truncate max-w-[90px]">@${leaderboard[0].username}</p>
+                            <p class="text-[12px] font-black text-sdel">${leaderboard[0].xp} XP</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${leaderboard[2] ? `
+                        <div class="text-center">
+                            <div class="w-16 h-16 rounded-2xl bg-zinc-800 mx-auto mb-2 flex items-center justify-center text-2xl font-black border-2 border-[var(--border)]">
+                                ${leaderboard[2].username?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div class="bg-zinc-900 rounded-xl px-3 py-1 inline-block mb-1">
+                                <span class="text-[9px] font-black">#3</span>
+                            </div>
+                            <p class="text-[8px] font-black truncate max-w-[80px]">@${leaderboard[2].username}</p>
+                            <p class="text-[10px] font-black text-sdel">${leaderboard[2].xp} XP</p>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <!-- Leaderboard List -->
+                <div class="space-y-2">
+                    ${leaderboard.slice(0, 50).map((user, index) => `
+                        <div class="leaderboard-item ${user.id === currentUser.id ? 'border-sdel' : ''}">
+                            <div class="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center font-black text-sm">
+                                ${user.username?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-sm font-black">@${user.username}</span>
+                                    ${user.is_official ? '<span class="text-[8px] bg-sdel text-black px-2 py-0.5 rounded-full">OFFICIAL</span>' : ''}
+                                    ${user.is_verified ? '<span class="text-[8px] bg-zinc-700 px-2 py-0.5 rounded-full">VERIFIED</span>' : ''}
+                                </div>
+                                <p class="text-[7px] text-[var(--text-dim)]">${user.school_name || 'Global'}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-black text-sdel">#${index + 1}</p>
+                                <p class="text-[8px] text-[var(--text-dim)]">${user.xp} XP</p>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            lucide.createIcons();
+        }
+
+        init();
+        lucide.createIcons();
+    </script>
+</body>
+                  </html>
