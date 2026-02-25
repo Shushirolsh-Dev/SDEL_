@@ -23,7 +23,7 @@
     <div class="flex justify-between items-start mb-10">
         <div>
             <h1 class="text-3xl font-extrabold tracking-tight">Sup <span class="text-orange-500" id="user-first-name">Homie</span>,</h1>
-            <p class="text-gray-500 text-sm font-medium uppercase tracking-widest" id="dynamic-greeting">Initializing...</p>
+            <p class="text-gray-500 text-sm font-medium uppercase tracking-widest" id="dynamic-greeting">Syncing...</p>
         </div>
         <div class="glass-panel px-4 py-2 rounded-xl text-right">
             <div class="flex items-center gap-2 justify-end">
@@ -36,7 +36,7 @@
 
     <div id="view-home" class="page-view active-view">
         <div class="glass-panel p-6 rounded-3xl mb-8 relative overflow-hidden border-l-4 border-orange-600">
-            <h2 class="text-gray-400 text-[10px] font-bold uppercase mb-2">Current Status</h2>
+            <h2 class="text-gray-400 text-[10px] font-bold uppercase mb-2">Vault Status</h2>
             <h3 class="text-2xl font-extrabold mb-4" id="active-status">Ready for Session</h3>
             <div class="w-full bg-white/5 h-2 rounded-full mb-6">
                 <div class="bg-orange-500 h-2 rounded-full shadow-[0_0_15px_#ff6600]" style="width: 5%"></div>
@@ -75,19 +75,19 @@
         const sb = supabase.createClient("https://lgfyrlfjoazedwymjpfc.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw");
 
         async function sync() {
-            // 1. Set Clock & Greeting
+            // 1. Time Logic
             const h = new Date().getHours();
             document.getElementById('dynamic-greeting').innerText = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
             setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false}); }, 1000);
 
-            // 2. Fetch Your Profile
+            // 2. Profile Sync (first_name, xp)
             const { data: profile } = await sb.from('profile').select('first_name, xp').limit(1).single();
             if (profile) {
                 document.getElementById('user-first-name').innerText = profile.first_name || "Homie";
                 document.getElementById('user-xp').innerText = (profile.xp || 0).toLocaleString();
             }
 
-            // 3. Fetch Your Subjects
+            // 3. Subject Vault Sync
             const { data: subs } = await sb.from('user_subjects').select('*');
             const container = document.getElementById('live-subject-container');
             if(subs && subs.length > 0) {
