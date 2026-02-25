@@ -25,7 +25,7 @@
         <div class="glass-panel p-6 rounded-3xl space-y-4">
             <input type="text" id="join-code-input" placeholder="Thesdel-359Xc3jpA" class="w-full p-4 rounded-2xl text-center font-bold tracking-widest">
             <button onclick="validateAndJoin()" id="btn-join" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-xs tracking-widest">Validate & Start</button>
-            <p id="error-msg" class="text-red-500 text-[10px] font-bold text-center uppercase hidden">Invalid Code or No Questions Found.</p>
+            <p id="error-msg" class="text-red-500 text-[10px] font-bold text-center uppercase hidden"></p>
         </div>
     </div>
 
@@ -69,14 +69,14 @@
         const sb = supabase.createClient(_URL, _KEY);
 
         let questions = [];
-        let userAnswers = {}; // To store A, B, C, D per question index
+        let userAnswers = {};
         let currentIndex = 0;
         let activeBuildId = null;
         let timerInterval;
         let timeLeft = 0;
         let isExamActive = false;
+        const userId = localStorage.getItem('thesdel_user_id');
 
-        // Navigation Guard
         window.onbeforeunload = function() {
             if (isExamActive) return "Exam in progress! Your progress will be lost.";
         };
@@ -89,9 +89,25 @@
             btn.innerText = "VERIFYING...";
             err.classList.add('hidden');
 
+            // 1. Find the exam
             const { data: build } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
 
             if (build) {
+                // 2. CHECK IF USER ALREADY TOOK THIS EXAM
+                const { data: existingResult } = await sb.from('cbt_results')
+                    .select('id')
+                    .eq('user_id', userId)
+                    .eq('build_id', build.id)
+                    .limit(1);
+
+                if (existingResult && existingResult.length > 0) {
+                    btn.innerText = "VALIDATE & START";
+                    err.innerText = "ACCESS DENIED: YOU HAVE ALREADY COMPLETED THIS EXAM.";
+                    err.classList.remove('hidden');
+                    return;
+                }
+
+                // 3. Load questions if clear
                 const { data: qData } = await sb.from('cbt_questions').select('*').eq('build_id', build.id);
                 if (qData && qData.length > 0) {
                     questions = qData;
@@ -100,7 +116,9 @@
                     return;
                 }
             }
+            
             btn.innerText = "VALIDATE & START";
+            err.innerText = "INVALID CODE OR NO QUESTIONS FOUND.";
             err.classList.remove('hidden');
         }
 
@@ -153,7 +171,7 @@
 
         function selectAnswer(choice) {
             userAnswers[currentIndex] = choice;
-            showQuestion(); // Refresh UI to show selection
+            showQuestion();
         }
 
         function nextQuestion() {
@@ -195,7 +213,6 @@
             const xpEarned = finalScore * 10;
             document.getElementById('xp-gain').innerText = `+${xpEarned} XP EARNED`;
 
-            const userId = localStorage.getItem('thesdel_user_id');
             await sb.from('cbt_results').insert([{
                 user_id: userId, build_id: activeBuildId, score: finalScore, total_questions: questions.length
             }]);
@@ -205,5 +222,4 @@
         }
     </script>
 </body>
-    </html>
-    
+</html>
