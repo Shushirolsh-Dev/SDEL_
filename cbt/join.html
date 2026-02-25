@@ -11,9 +11,11 @@
         body { background-color: #000000; color: #FFFFFF; font-family: 'Plus Jakarta Sans', sans-serif; }
         .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .hidden { display: none; }
-        .option-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; }
-        .option-btn:active { background: #ff6600; border-color: #ff6600; }
+        .option-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; outline: none; }
+        .option-btn:active, .option-selected { background: #ff6600 !important; border-color: #ff6600 !important; color: white !important; }
         input { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1); outline: none; }
+        .timer-warning { color: #ff3333; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
     </style>
 </head>
 <body class="p-5 pb-32">
@@ -23,22 +25,33 @@
         <div class="glass-panel p-6 rounded-3xl space-y-4">
             <input type="text" id="join-code-input" placeholder="Thesdel-359Xc3jpA" class="w-full p-4 rounded-2xl text-center font-bold tracking-widest">
             <button onclick="validateAndJoin()" id="btn-join" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-xs tracking-widest">Validate & Start</button>
-            <p id="error-msg" class="text-red-500 text-[10px] font-bold text-center uppercase hidden">Invalid Code. Access Denied.</p>
+            <p id="error-msg" class="text-red-500 text-[10px] font-bold text-center uppercase hidden">Invalid Code or No Questions Found.</p>
         </div>
     </div>
 
     <div id="exam-screen" class="hidden">
-        <div class="flex justify-between items-center mb-6">
-            <h3 id="exam-title" class="text-lg font-black uppercase text-orange-500"></h3>
-            <span id="q-progress" class="text-xs font-bold text-gray-500">Q1/10</span>
+        <div class="flex justify-between items-start mb-6">
+            <div>
+                <h3 id="exam-title" class="text-lg font-black uppercase text-orange-500 leading-tight"></h3>
+                <p id="exam-subject" class="text-[10px] text-gray-500 font-bold uppercase"></p>
+            </div>
+            <div class="text-right">
+                <p id="timer" class="text-xl font-black text-white tabular-nums">00:00</p>
+                <p id="q-progress" class="text-[10px] font-bold text-gray-500 uppercase">Q1/10</p>
+            </div>
         </div>
 
-        <div class="glass-panel p-6 rounded-3xl mb-6">
+        <div class="glass-panel p-6 rounded-3xl mb-6 min-h-[120px] flex items-center">
             <p id="question-text" class="text-lg font-medium leading-relaxed"></p>
         </div>
 
-        <div class="space-y-3" id="options-container">
-            </div>
+        <div class="space-y-3" id="options-container"></div>
+
+        <div class="mt-8 flex gap-3">
+            <button onclick="prevQuestion()" class="flex-1 bg-white/5 py-4 rounded-2xl font-bold text-[10px] uppercase">Previous</button>
+            <button onclick="confirmSubmit()" class="flex-1 bg-orange-600/20 text-orange-500 border border-orange-500/30 py-4 rounded-2xl font-black text-[10px] uppercase">Submit Early</button>
+            <button onclick="nextQuestion()" class="flex-1 bg-white/5 py-4 rounded-2xl font-bold text-[10px] uppercase">Next</button>
+        </div>
     </div>
 
     <div id="result-screen" class="hidden text-center pt-10">
@@ -56,9 +69,17 @@
         const sb = supabase.createClient(_URL, _KEY);
 
         let questions = [];
+        let userAnswers = {}; // To store A, B, C, D per question index
         let currentIndex = 0;
-        let score = 0;
         let activeBuildId = null;
+        let timerInterval;
+        let timeLeft = 0;
+        let isExamActive = false;
+
+        // Navigation Guard
+        window.onbeforeunload = function() {
+            if (isExamActive) return "Exam in progress! Your progress will be lost.";
+        };
 
         async function validateAndJoin() {
             const code = document.getElementById('join-code-input').value.trim();
@@ -68,27 +89,47 @@
             btn.innerText = "VERIFYING...";
             err.classList.add('hidden');
 
-            const { data: build, error } = await sb.from('cbt_builds').select('id, build_name').eq('join_code', code).single();
+            const { data: build } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
 
             if (build) {
-                activeBuildId = build.id;
                 const { data: qData } = await sb.from('cbt_questions').select('*').eq('build_id', build.id);
-                
                 if (qData && qData.length > 0) {
                     questions = qData;
-                    startExam(build.build_name);
+                    activeBuildId = build.id;
+                    startExam(build);
+                    return;
                 }
-            } else {
-                btn.innerText = "VALIDATE & START";
-                err.classList.remove('hidden');
             }
+            btn.innerText = "VALIDATE & START";
+            err.classList.remove('hidden');
         }
 
-        function startExam(title) {
+        function startExam(build) {
+            isExamActive = true;
             document.getElementById('join-screen').classList.add('hidden');
             document.getElementById('exam-screen').classList.remove('hidden');
-            document.getElementById('exam-title').innerText = title;
+            document.getElementById('exam-title').innerText = build.build_name;
+            document.getElementById('exam-subject').innerText = build.subject_name;
+            
+            timeLeft = (build.duration_mins || 30) * 60;
+            startTimer();
             showQuestion();
+        }
+
+        function startTimer() {
+            const display = document.getElementById('timer');
+            timerInterval = setInterval(() => {
+                const mins = Math.floor(timeLeft / 60);
+                const secs = timeLeft % 60;
+                display.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+                
+                if (timeLeft <= 60) display.classList.add('timer-warning');
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    autoSubmit();
+                }
+                timeLeft--;
+            }, 1000);
         }
 
         function showQuestion() {
@@ -100,50 +141,69 @@
             container.innerHTML = '';
 
             ['a', 'b', 'c', 'd'].forEach(opt => {
+                const key = opt.toUpperCase();
                 const text = q[`option_${opt}`];
-                if (text) {
-                    const btn = document.createElement('button');
-                    btn.className = "option-btn w-full p-5 rounded-2xl text-left font-bold text-sm uppercase flex justify-between";
-                    btn.innerHTML = `<span>${text}</span> <span class="text-gray-600">${opt.toUpperCase()}</span>`;
-                    btn.onclick = () => handleAnswer(opt.toUpperCase());
-                    container.appendChild(btn);
-                }
+                const btn = document.createElement('button');
+                btn.className = `option-btn w-full p-5 rounded-2xl text-left font-bold text-sm uppercase flex justify-between ${userAnswers[currentIndex] === key ? 'option-selected' : ''}`;
+                btn.innerHTML = `<span>${text}</span> <span class="opacity-40">${key}</span>`;
+                btn.onclick = () => selectAnswer(key);
+                container.appendChild(btn);
             });
         }
 
-        async function handleAnswer(choice) {
-            if (choice === questions[currentIndex].correct_answer) score++;
+        function selectAnswer(choice) {
+            userAnswers[currentIndex] = choice;
+            showQuestion(); // Refresh UI to show selection
+        }
 
+        function nextQuestion() {
             if (currentIndex < questions.length - 1) {
                 currentIndex++;
                 showQuestion();
-            } else {
-                finishExam();
             }
         }
 
+        function prevQuestion() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                showQuestion();
+            }
+        }
+
+        function confirmSubmit() {
+            if (confirm("Are you sure you want to submit the exam now?")) finishExam();
+        }
+
+        function autoSubmit() {
+            alert("TIME EXPIRED! Your exam is being submitted automatically.");
+            finishExam();
+        }
+
         async function finishExam() {
+            isExamActive = false;
+            clearInterval(timerInterval);
+            
+            let finalScore = 0;
+            questions.forEach((q, index) => {
+                if (userAnswers[index] === q.correct_answer) finalScore++;
+            });
+
             document.getElementById('exam-screen').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
-            document.getElementById('score-text').innerText = `${score}/${questions.length}`;
+            document.getElementById('score-text').innerText = `${finalScore}/${questions.length}`;
             
-            const xpEarned = score * 10;
+            const xpEarned = finalScore * 10;
             document.getElementById('xp-gain').innerText = `+${xpEarned} XP EARNED`;
 
             const userId = localStorage.getItem('thesdel_user_id');
-
-            // Save Result
             await sb.from('cbt_results').insert([{
-                user_id: userId,
-                build_id: activeBuildId,
-                score: score,
-                total_questions: questions.length
+                user_id: userId, build_id: activeBuildId, score: finalScore, total_questions: questions.length
             }]);
 
-            // Update Profile XP
             const { data: profile } = await sb.from('profile').select('xp').eq('id', userId).single();
             await sb.from('profile').update({ xp: (profile.xp || 0) + xpEarned }).eq('id', userId);
         }
     </script>
 </body>
-</html>
+    </html>
+    
