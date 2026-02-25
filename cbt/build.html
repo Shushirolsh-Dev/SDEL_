@@ -13,55 +13,73 @@
         input, textarea, select { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; outline: none; }
         input:focus { border-color: #ff6600; }
         .hidden { display: none; }
-        .nav-link { color: #666; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+        .nav-link { color: #666; font-size: 9px; font-weight: 800; text-transform: uppercase; text-decoration: none;}
         .nav-active { color: #ff6600; }
+        .btn-action { padding: 8px 12px; border-radius: 10px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
     </style>
 </head>
 <body class="p-5 pb-32">
 
-    <div id="step-1" class="animate-fade">
-        <h2 class="text-2xl font-black text-orange-500 uppercase mb-6">Creator Studio</h2>
+    <div class="flex gap-4 mb-8">
+        <button onclick="toggleView('create')" id="tab-create" class="text-orange-500 font-black uppercase text-xs">Create New</button>
+        <button onclick="toggleView('manage')" id="tab-manage" class="text-gray-500 font-black uppercase text-xs">My Exams</button>
+    </div>
+
+    <div id="view-create" class="animate-fade">
+        <h2 class="text-2xl font-black text-orange-500 uppercase mb-6">New Build</h2>
         <div class="glass-panel p-6 rounded-3xl space-y-4 border-t-4 border-orange-600">
             <div>
-                <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Exam Title</label>
-                <input type="text" id="build-name" placeholder="e.g. Physics Final" class="w-full p-4 mt-1">
+                <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Title</label>
+                <input type="text" id="build-name" placeholder="JAMB Chemistry 2026" class="w-full p-4 mt-1">
             </div>
-            <button onclick="initiateBuild()" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl uppercase text-xs tracking-widest">Create & Add Questions</button>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Subject</label>
+                    <input type="text" id="subject-name" placeholder="Physics" class="w-full p-4 mt-1">
+                </div>
+                <div>
+                    <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Mins</label>
+                    <input type="number" id="duration" value="30" class="w-full p-4 mt-1">
+                </div>
+            </div>
+            <button onclick="initiateBuild()" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl uppercase text-xs tracking-widest">Initialize Build</button>
         </div>
     </div>
 
-    <div id="step-2" class="hidden">
+    <div id="step-questions" class="hidden">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-black uppercase text-white" id="display-title"></h2>
             <span class="text-orange-500 font-black text-sm" id="q-counter">Q1</span>
         </div>
-        
         <div class="glass-panel p-6 rounded-3xl space-y-3">
-            <textarea id="q-text" placeholder="Enter Question" class="w-full p-4 h-28 text-sm"></textarea>
-            <div class="grid grid-cols-1 gap-2">
-                <input type="text" id="opt-a" placeholder="Option A" class="p-3 text-sm">
-                <input type="text" id="opt-b" placeholder="Option B" class="p-3 text-sm">
-                <input type="text" id="opt-c" placeholder="Option C" class="p-3 text-sm">
-                <input type="text" id="opt-d" placeholder="Option D" class="p-3 text-sm">
+            <textarea id="q-text" placeholder="Question content..." class="w-full p-4 h-24 text-sm"></textarea>
+            <div class="grid grid-cols-2 gap-2">
+                <input type="text" id="opt-a" placeholder="A" class="p-3 text-sm">
+                <input type="text" id="opt-b" placeholder="B" class="p-3 text-sm">
+                <input type="text" id="opt-c" placeholder="C" class="p-3 text-sm">
+                <input type="text" id="opt-d" placeholder="D" class="p-3 text-sm">
             </div>
             <select id="correct-opt" class="w-full p-4 text-orange-500 font-bold uppercase text-xs">
-                <option value="">Set Correct Answer</option>
+                <option value="">Set Answer</option>
                 <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
             </select>
             <div class="flex gap-2 pt-4">
-                <button onclick="saveQuestion(false)" class="flex-1 bg-white/10 text-white font-bold py-4 rounded-xl text-[10px] uppercase">Next</button>
-                <button onclick="saveQuestion(true)" class="flex-1 bg-orange-600 text-white font-black py-4 rounded-xl text-[10px] uppercase">Finish</button>
+                <button onclick="saveQuestion(false)" class="flex-1 bg-white/10 py-4 rounded-xl text-[10px] font-bold">NEXT QUESTION</button>
+                <button onclick="saveQuestion(true)" class="flex-1 bg-orange-600 py-4 rounded-xl text-[10px] font-black">FINISH BUILD</button>
             </div>
         </div>
     </div>
 
-    <div id="step-3" class="hidden text-center py-10">
-        <div class="glass-panel p-8 rounded-[40px] border-2 border-orange-500/30 inline-block w-full">
-            <p class="text-gray-500 text-[10px] font-black uppercase mb-4 tracking-widest">Your Join Code</p>
-            <h3 class="text-3xl font-black text-white mb-6 select-all tracking-tighter" id="final-code"></h3>
-            <button onclick="copyCode()" class="bg-white text-black px-8 py-3 rounded-full font-black text-[10px] uppercase">Copy Code</button>
-        </div>
-        <button onclick="window.location.href='index.html'" class="mt-10 text-orange-500 font-bold uppercase text-[10px]">Return to Dashboard</button>
+    <div id="view-manage" class="hidden animate-fade">
+        <h2 class="text-2xl font-black text-white uppercase mb-6">Manage Exams</h2>
+        <div id="my-exams-list" class="space-y-4">
+            </div>
+    </div>
+
+    <div id="view-results" class="hidden">
+        <button onclick="toggleView('manage')" class="text-orange-500 font-bold text-xs mb-4 uppercase">← Back to Exams</button>
+        <h2 id="res-title" class="text-2xl font-black uppercase mb-6">Results</h2>
+        <div id="results-table" class="space-y-2"></div>
     </div>
 
     <nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] glass-panel rounded-full p-2 flex justify-between items-center z-50">
@@ -77,43 +95,48 @@
         const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
         const sb = supabase.createClient(_URL, _KEY);
 
-        let activeBuildId = null;
+        let activeId = null;
         let qNum = 1;
+        const userId = localStorage.getItem('thesdel_user_id');
+
+        function toggleView(view) {
+            ['view-create', 'view-manage', 'view-results', 'step-questions'].forEach(v => document.getElementById(v).classList.add('hidden'));
+            document.getElementById('view-' + view).classList.remove('hidden');
+            
+            document.getElementById('tab-create').className = view === 'create' ? 'text-orange-500 font-black uppercase text-xs' : 'text-gray-500 font-black uppercase text-xs';
+            document.getElementById('tab-manage').className = view === 'manage' ? 'text-white font-black uppercase text-xs' : 'text-gray-500 font-black uppercase text-xs';
+            
+            if(view === 'manage') loadMyExams();
+        }
 
         function generateCode() {
-            const brand = "Thesdel-";
-            const num = Math.floor(100 + Math.random() * 900);
             const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-            const u1 = chars.charAt(Math.floor(Math.random() * 26));
-            const l1 = chars.toLowerCase().charAt(Math.floor(Math.random() * 26));
-            const l2 = chars.toLowerCase().charAt(Math.floor(Math.random() * 26));
-            const u2 = chars.charAt(Math.floor(Math.random() * 26));
-            const rand = Math.random().toString(36).substring(2, 5);
-            return `${brand}${num}${u1}${l1}${l2}${u2}${rand}`;
+            const up1 = chars.charAt(Math.floor(Math.random() * 26));
+            const low = chars.toLowerCase().substring(0, 2); // Simplified for prose
+            return `Thesdel-${Math.floor(100+Math.random()*900)}${up1}${Math.random().toString(36).substring(2, 5)}`;
         }
 
         async function initiateBuild() {
-            const name = document.getElementById('build-name').value;
-            if(!name) return alert("Enter Title");
-            const code = generateCode();
-            const userId = localStorage.getItem('thesdel_user_id');
+            const payload = {
+                creator_id: userId,
+                build_name: document.getElementById('build-name').value,
+                subject_name: document.getElementById('subject-name').value || 'General',
+                duration_mins: document.getElementById('duration').value || 30,
+                join_code: generateCode()
+            };
 
-            const { data, error } = await sb.from('cbt_builds').insert([{
-                creator_id: userId, build_name: name, join_code: code
-            }]).select().single();
-
+            const { data, error } = await sb.from('cbt_builds').insert([payload]).select().single();
             if(!error) {
-                activeBuildId = data.id;
-                document.getElementById('display-title').innerText = name;
-                document.getElementById('final-code').innerText = code;
-                document.getElementById('step-1').classList.add('hidden');
-                document.getElementById('step-2').classList.remove('hidden');
+                activeId = data.id;
+                document.getElementById('display-title').innerText = payload.build_name;
+                document.getElementById('view-create').classList.add('hidden');
+                document.getElementById('step-questions').classList.remove('hidden');
             }
         }
 
         async function saveQuestion(isFinal) {
             const payload = {
-                build_id: activeBuildId,
+                build_id: activeId,
                 question_text: document.getElementById('q-text').value,
                 option_a: document.getElementById('opt-a').value,
                 option_b: document.getElementById('opt-b').value,
@@ -122,24 +145,63 @@
                 correct_answer: document.getElementById('correct-opt').value
             };
 
-            if(!payload.question_text || !payload.correct_answer) return alert("Fill everything!");
-
-            const { error } = await sb.from('cbt_questions').insert([payload]);
-            if(!error) {
-                if(isFinal) {
-                    document.getElementById('step-2').classList.add('hidden');
-                    document.getElementById('step-3').classList.remove('hidden');
-                } else {
-                    qNum++;
-                    document.getElementById('q-counter').innerText = `Q${qNum}`;
-                    ['q-text','opt-a','opt-b','opt-c','opt-d','correct-opt'].forEach(id => document.getElementById(id).value = "");
-                }
+            await sb.from('cbt_questions').insert([payload]);
+            if(isFinal) {
+                alert("Build Complete!");
+                toggleView('manage');
+            } else {
+                qNum++;
+                document.getElementById('q-counter').innerText = `Q${qNum}`;
+                ['q-text','opt-a','opt-b','opt-c','opt-d','correct-opt'].forEach(id => document.getElementById(id).value = "");
             }
         }
 
-        function copyCode() {
-            navigator.clipboard.writeText(document.getElementById('final-code').innerText);
-            alert("Copied!");
+        async function loadMyExams() {
+            const { data } = await sb.from('cbt_builds').select('*').eq('creator_id', userId).order('created_at', {ascending: false});
+            const container = document.getElementById('my-exams-list');
+            container.innerHTML = data.map(e => `
+                <div class="glass-panel p-5 rounded-2xl">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <p class="text-orange-500 font-black text-sm uppercase">${e.build_name}</p>
+                            <p class="text-[10px] text-gray-500 font-bold uppercase">${e.subject_name} • ${e.duration_mins} Mins</p>
+                        </div>
+                        <p class="text-[10px] font-mono text-white bg-white/10 px-2 py-1 rounded">${e.join_code}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="viewResults('${e.id}', '${e.build_name}')" class="btn-action bg-white/10 text-white flex-1">Results</button>
+                        <button onclick="changeCode('${e.id}')" class="btn-action bg-white/10 text-orange-500">New Code</button>
+                        <button onclick="deleteExam('${e.id}')" class="btn-action bg-red-900/30 text-red-500">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function viewResults(id, title) {
+            toggleView('results');
+            document.getElementById('res-title').innerText = title;
+            const { data } = await sb.from('cbt_results').select('score, total_questions, completed_at, profile(first_name)').eq('build_id', id);
+            
+            document.getElementById('results-table').innerHTML = data.length ? data.map(r => `
+                <div class="glass-panel p-4 rounded-xl flex justify-between">
+                    <span class="font-bold text-xs uppercase">${r.profile.first_name}</span>
+                    <span class="font-black text-orange-500">${r.score}/${r.total_questions}</span>
+                </div>
+            `).join('') : '<p class="text-center text-gray-500 text-xs py-10 uppercase">No candidates yet</p>';
+        }
+
+        async function changeCode(id) {
+            if(confirm("Change join code? Old code will stop working.")) {
+                await sb.from('cbt_builds').update({ join_code: generateCode() }).eq('id', id);
+                loadMyExams();
+            }
+        }
+
+        async function deleteExam(id) {
+            if(confirm("Delete this exam and all its results?")) {
+                await sb.from('cbt_builds').delete().eq('id', id);
+                loadMyExams();
+            }
         }
     </script>
 </body>
