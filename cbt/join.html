@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Exam - Thesdel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #000000; color: #FFFFFF; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .hidden { display: none; }
+        .option-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; }
+        .option-btn:active { background: #ff6600; border-color: #ff6600; }
+        input { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1); outline: none; }
+    </style>
+</head>
+<body class="p-5 pb-32">
+
+    <div id="join-screen" class="pt-10">
+        <h2 class="text-2xl font-black text-orange-500 uppercase mb-6">Enter Exam Code</h2>
+        <div class="glass-panel p-6 rounded-3xl space-y-4">
+            <input type="text" id="join-code-input" placeholder="Thesdel-359Xc3jpA" class="w-full p-4 rounded-2xl text-center font-bold tracking-widest">
+            <button onclick="validateAndJoin()" id="btn-join" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-xs tracking-widest">Validate & Start</button>
+            <p id="error-msg" class="text-red-500 text-[10px] font-bold text-center uppercase hidden">Invalid Code. Access Denied.</p>
+        </div>
+    </div>
+
+    <div id="exam-screen" class="hidden">
+        <div class="flex justify-between items-center mb-6">
+            <h3 id="exam-title" class="text-lg font-black uppercase text-orange-500"></h3>
+            <span id="q-progress" class="text-xs font-bold text-gray-500">Q1/10</span>
+        </div>
+
+        <div class="glass-panel p-6 rounded-3xl mb-6">
+            <p id="question-text" class="text-lg font-medium leading-relaxed"></p>
+        </div>
+
+        <div class="space-y-3" id="options-container">
+            </div>
+    </div>
+
+    <div id="result-screen" class="hidden text-center pt-10">
+        <div class="glass-panel p-10 rounded-[40px] border-2 border-orange-500/30">
+            <p class="text-gray-500 text-[10px] font-black uppercase mb-2">Final Score</p>
+            <h1 id="score-text" class="text-6xl font-black text-white mb-2">0/0</h1>
+            <p id="xp-gain" class="text-orange-500 font-black text-sm uppercase">+0 XP EARNED</p>
+        </div>
+        <button onclick="window.location.href='index.html'" class="mt-10 bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-xs">Back to Vault</button>
+    </div>
+
+    <script>
+        const _URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+        const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+        const sb = supabase.createClient(_URL, _KEY);
+
+        let questions = [];
+        let currentIndex = 0;
+        let score = 0;
+        let activeBuildId = null;
+
+        async function validateAndJoin() {
+            const code = document.getElementById('join-code-input').value.trim();
+            const btn = document.getElementById('btn-join');
+            const err = document.getElementById('error-msg');
+
+            btn.innerText = "VERIFYING...";
+            err.classList.add('hidden');
+
+            const { data: build, error } = await sb.from('cbt_builds').select('id, build_name').eq('join_code', code).single();
+
+            if (build) {
+                activeBuildId = build.id;
+                const { data: qData } = await sb.from('cbt_questions').select('*').eq('build_id', build.id);
+                
+                if (qData && qData.length > 0) {
+                    questions = qData;
+                    startExam(build.build_name);
+                }
+            } else {
+                btn.innerText = "VALIDATE & START";
+                err.classList.remove('hidden');
+            }
+        }
+
+        function startExam(title) {
+            document.getElementById('join-screen').classList.add('hidden');
+            document.getElementById('exam-screen').classList.remove('hidden');
+            document.getElementById('exam-title').innerText = title;
+            showQuestion();
+        }
+
+        function showQuestion() {
+            const q = questions[currentIndex];
+            document.getElementById('q-progress').innerText = `Q${currentIndex + 1}/${questions.length}`;
+            document.getElementById('question-text').innerText = q.question_text;
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            ['a', 'b', 'c', 'd'].forEach(opt => {
+                const text = q[`option_${opt}`];
+                if (text) {
+                    const btn = document.createElement('button');
+                    btn.className = "option-btn w-full p-5 rounded-2xl text-left font-bold text-sm uppercase flex justify-between";
+                    btn.innerHTML = `<span>${text}</span> <span class="text-gray-600">${opt.toUpperCase()}</span>`;
+                    btn.onclick = () => handleAnswer(opt.toUpperCase());
+                    container.appendChild(btn);
+                }
+            });
+        }
+
+        async function handleAnswer(choice) {
+            if (choice === questions[currentIndex].correct_answer) score++;
+
+            if (currentIndex < questions.length - 1) {
+                currentIndex++;
+                showQuestion();
+            } else {
+                finishExam();
+            }
+        }
+
+        async function finishExam() {
+            document.getElementById('exam-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('score-text').innerText = `${score}/${questions.length}`;
+            
+            const xpEarned = score * 10;
+            document.getElementById('xp-gain').innerText = `+${xpEarned} XP EARNED`;
+
+            const userId = localStorage.getItem('thesdel_user_id');
+
+            // Save Result
+            await sb.from('cbt_results').insert([{
+                user_id: userId,
+                build_id: activeBuildId,
+                score: score,
+                total_questions: questions.length
+            }]);
+
+            // Update Profile XP
+            const { data: profile } = await sb.from('profile').select('xp').eq('id', userId).single();
+            await sb.from('profile').update({ xp: (profile.xp || 0) + xpEarned }).eq('id', userId);
+        }
+    </script>
+</body>
+</html>
