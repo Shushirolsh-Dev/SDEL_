@@ -3,83 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Creator Studio - Thesdel</title>
+    <title>Thesdel Creator Studio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #000000; color: #FFFFFF; font-family: 'Plus Jakarta Sans', sans-serif; }
-        .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        body { background-color: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+        .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.05); }
         input, textarea, select { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; outline: none; }
-        input:focus { border-color: #ff6600; }
         .hidden { display: none; }
-        .nav-link { color: #666; font-size: 9px; font-weight: 800; text-transform: uppercase; text-decoration: none;}
+        .slide-in { animation: slideIn 0.4s ease forwards; }
+        @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .subject-pill { padding: 8px 16px; border-radius: 99px; font-size: 10px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; }
+        .subject-active { background: #ff6600; border-color: #ff6600; }
+        .nav-link { color: #666; font-size: 9px; font-weight: 800; text-transform: uppercase; text-decoration: none; }
         .nav-active { color: #ff6600; }
-        .btn-action { padding: 8px 12px; border-radius: 10px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
     </style>
 </head>
 <body class="p-5 pb-32">
 
-    <div class="flex gap-4 mb-8">
-        <button onclick="toggleView('create')" id="tab-create" class="text-orange-500 font-black uppercase text-xs">Create New</button>
-        <button onclick="toggleView('manage')" id="tab-manage" class="text-gray-500 font-black uppercase text-xs">My Exams</button>
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-xl font-black tracking-tighter uppercase">Thesdel <span class="text-orange-500">Studio</span></h1>
+        <div class="flex gap-3">
+            <button onclick="showSection('create')" class="text-[10px] font-black uppercase text-orange-500" id="btn-create">Create</button>
+            <button onclick="showSection('manage')" class="text-[10px] font-black uppercase text-gray-500" id="btn-manage">Vault</button>
+        </div>
     </div>
 
-    <div id="view-create" class="animate-fade">
-        <h2 class="text-2xl font-black text-orange-500 uppercase mb-6">New Build</h2>
-        <div class="glass-panel p-6 rounded-3xl space-y-4 border-t-4 border-orange-600">
+    <div id="slide-config" class="slide-in">
+        <div class="glass-panel p-6 rounded-[32px] space-y-5">
             <div>
-                <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Title</label>
-                <input type="text" id="build-name" placeholder="JAMB Chemistry 2026" class="w-full p-4 mt-1">
+                <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Exam Title</label>
+                <input type="text" id="exam-title" placeholder="Professional Aptitude Test" class="w-full p-4 mt-1">
             </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Subject</label>
-                    <input type="text" id="subject-name" placeholder="Physics" class="w-full p-4 mt-1">
-                </div>
-                <div>
-                    <label class="text-[10px] font-black text-gray-500 uppercase ml-1">Mins</label>
-                    <input type="number" id="duration" value="30" class="w-full p-4 mt-1">
+            <div>
+                <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Select Subjects (Max 4)</label>
+                <div class="grid grid-cols-2 gap-2 mt-2" id="subject-options">
+                    <div class="subject-pill text-center" onclick="toggleSub(this, 'Mathematics')">Mathematics</div>
+                    <div class="subject-pill text-center" onclick="toggleSub(this, 'English')">English</div>
+                    <div class="subject-pill text-center" onclick="toggleSub(this, 'Physics')">Physics</div>
+                    <div class="subject-pill text-center" onclick="toggleSub(this, 'Chemistry')">Chemistry</div>
+                    <div class="subject-pill text-center" onclick="toggleSub(this, 'Biology')">Biology</div>
+                    <div class="subject-pill text-center" onclick="toggleSub(this, 'Economics')">Economics</div>
                 </div>
             </div>
-            <button onclick="initiateBuild()" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl uppercase text-xs tracking-widest">Initialize Build</button>
+            <div class="flex gap-3">
+                <div class="flex-1">
+                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Duration (Mins)</label>
+                    <input type="number" id="exam-duration" value="30" class="w-full p-4 mt-1">
+                </div>
+                <button onclick="startQuestionEntry()" class="flex-[2] bg-orange-600 text-white font-black rounded-2xl mt-5 uppercase text-[10px]">Initialize Exam</button>
+            </div>
         </div>
     </div>
 
-    <div id="step-questions" class="hidden">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="text-xl font-black uppercase text-white" id="display-title"></h2>
-            <span class="text-orange-500 font-black text-sm" id="q-counter">Q1</span>
-        </div>
-        <div class="glass-panel p-6 rounded-3xl space-y-3">
-            <textarea id="q-text" placeholder="Question content..." class="w-full p-4 h-24 text-sm"></textarea>
-            <div class="grid grid-cols-2 gap-2">
-                <input type="text" id="opt-a" placeholder="A" class="p-3 text-sm">
-                <input type="text" id="opt-b" placeholder="B" class="p-3 text-sm">
-                <input type="text" id="opt-c" placeholder="C" class="p-3 text-sm">
-                <input type="text" id="opt-d" placeholder="D" class="p-3 text-sm">
+    <div id="slide-questions" class="hidden slide-in">
+        <div id="subject-tabs" class="flex gap-2 mb-4 overflow-x-auto pb-2"></div>
+        
+        <div class="glass-panel p-6 rounded-[32px] space-y-4">
+            <div class="flex justify-between items-center">
+                <span id="current-subject-label" class="text-orange-500 font-black text-xs uppercase"></span>
+                <span id="q-count" class="text-gray-500 font-black text-[10px]">Q1</span>
             </div>
-            <select id="correct-opt" class="w-full p-4 text-orange-500 font-bold uppercase text-xs">
-                <option value="">Set Answer</option>
+            <textarea id="q-text" placeholder="Enter Question" class="w-full p-4 h-24 text-sm"></textarea>
+            <div class="grid grid-cols-1 gap-2">
+                <input type="text" id="opt-a" placeholder="Option A" class="p-3 text-sm">
+                <input type="text" id="opt-b" placeholder="Option B" class="p-3 text-sm">
+                <input type="text" id="opt-c" placeholder="Option C" class="p-3 text-sm">
+                <input type="text" id="opt-d" placeholder="Option D" class="p-3 text-sm">
+            </div>
+            <select id="q-correct" class="w-full p-4 text-orange-500 font-bold text-xs uppercase">
+                <option value="">Correct Option</option>
                 <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
             </select>
-            <div class="flex gap-2 pt-4">
-                <button onclick="saveQuestion(false)" class="flex-1 bg-white/10 py-4 rounded-xl text-[10px] font-bold">NEXT QUESTION</button>
-                <button onclick="saveQuestion(true)" class="flex-1 bg-orange-600 py-4 rounded-xl text-[10px] font-black">FINISH BUILD</button>
+            <div class="flex gap-2">
+                <button onclick="saveQuestion(false)" class="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-bold uppercase">Next Q</button>
+                <button onclick="saveQuestion(true)" class="flex-1 bg-orange-600 py-4 rounded-xl text-[10px] font-black uppercase">Finish Build</button>
             </div>
         </div>
     </div>
 
-    <div id="view-manage" class="hidden animate-fade">
-        <h2 class="text-2xl font-black text-white uppercase mb-6">Manage Exams</h2>
-        <div id="my-exams-list" class="space-y-4">
-            </div>
-    </div>
+    <div id="view-vault" class="hidden slide-in space-y-4"></div>
 
-    <div id="view-results" class="hidden">
-        <button onclick="toggleView('manage')" class="text-orange-500 font-bold text-xs mb-4 uppercase">← Back to Exams</button>
-        <h2 id="res-title" class="text-2xl font-black uppercase mb-6">Results</h2>
-        <div id="results-table" class="space-y-2"></div>
+    <div id="view-analytics" class="hidden slide-in">
+        <button onclick="showSection('manage')" class="text-orange-500 font-bold text-[10px] mb-4 uppercase">← Back to Vault</button>
+        <div id="capture-area" class="glass-panel p-6 rounded-[40px] border border-orange-500/20 relative">
+            <h2 id="ana-title" class="text-xl font-black uppercase mb-1"></h2>
+            <p id="ana-stats" class="text-gray-500 text-[10px] font-bold uppercase mb-6"></p>
+            
+            <div class="grid grid-cols-2 gap-3 mb-6">
+                <div class="bg-white/5 p-4 rounded-2xl text-center">
+                    <p class="text-gray-500 text-[8px] font-black uppercase">Average Score</p>
+                    <h3 id="stat-avg" class="text-2xl font-black">0%</h3>
+                </div>
+                <div class="bg-white/5 p-4 rounded-2xl text-center">
+                    <p class="text-gray-500 text-[8px] font-black uppercase">Top Score</p>
+                    <h3 id="stat-high" class="text-2xl font-black">0</h3>
+                </div>
+            </div>
+
+            <div id="ana-results-list" class="space-y-2 mb-8"></div>
+            
+            <div class="mt-4 pt-4 border-t border-white/5 text-center">
+                <p class="text-[8px] font-black text-orange-500 uppercase tracking-widest">Built with Thesdel Studio • Join Today</p>
+            </div>
+        </div>
+        <div class="flex gap-2 mt-4">
+            <button onclick="downloadReport()" class="flex-1 bg-white text-black py-4 rounded-2xl font-black text-[10px] uppercase">Download JPG</button>
+            <button onclick="shareReport()" class="flex-1 bg-orange-600 text-white py-4 rounded-2xl font-black text-[10px] uppercase">Share</button>
+        </div>
     </div>
 
     <nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] glass-panel rounded-full p-2 flex justify-between items-center z-50">
@@ -94,115 +127,144 @@
         const _URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
         const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
         const sb = supabase.createClient(_URL, _KEY);
-
-        let activeId = null;
-        let qNum = 1;
         const userId = localStorage.getItem('thesdel_user_id');
 
-        function toggleView(view) {
-            ['view-create', 'view-manage', 'view-results', 'step-questions'].forEach(v => document.getElementById(v).classList.add('hidden'));
-            document.getElementById('view-' + view).classList.remove('hidden');
-            
-            document.getElementById('tab-create').className = view === 'create' ? 'text-orange-500 font-black uppercase text-xs' : 'text-gray-500 font-black uppercase text-xs';
-            document.getElementById('tab-manage').className = view === 'manage' ? 'text-white font-black uppercase text-xs' : 'text-gray-500 font-black uppercase text-xs';
-            
-            if(view === 'manage') loadMyExams();
-        }
+        let selectedSubs = [];
+        let activeSubject = "";
+        let activeBuildId = null;
+        let qCount = 1;
 
-        function generateCode() {
-            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-            const up1 = chars.charAt(Math.floor(Math.random() * 26));
-            const low = chars.toLowerCase().substring(0, 2); // Simplified for prose
-            return `Thesdel-${Math.floor(100+Math.random()*900)}${up1}${Math.random().toString(36).substring(2, 5)}`;
-        }
-
-        async function initiateBuild() {
-            const payload = {
-                creator_id: userId,
-                build_name: document.getElementById('build-name').value,
-                subject_name: document.getElementById('subject-name').value || 'General',
-                duration_mins: document.getElementById('duration').value || 30,
-                join_code: generateCode()
-            };
-
-            const { data, error } = await sb.from('cbt_builds').insert([payload]).select().single();
-            if(!error) {
-                activeId = data.id;
-                document.getElementById('display-title').innerText = payload.build_name;
-                document.getElementById('view-create').classList.add('hidden');
-                document.getElementById('step-questions').classList.remove('hidden');
+        function toggleSub(el, name) {
+            if (selectedSubs.includes(name)) {
+                selectedSubs = selectedSubs.filter(s => s !== name);
+                el.classList.remove('subject-active');
+            } else if (selectedSubs.length < 4) {
+                selectedSubs.push(name);
+                el.classList.add('subject-active');
             }
+        }
+
+        async function startQuestionEntry() {
+            const title = document.getElementById('exam-title').value;
+            if (!title || selectedSubs.length === 0) return alert("Title and Subject required!");
+            
+            const code = `Thesdel-${Math.floor(100+Math.random()*900)}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+            const { data, error } = await sb.from('cbt_builds').insert([{
+                creator_id: userId, build_name: title, subjects_list: selectedSubs, 
+                duration_mins: document.getElementById('exam-duration').value, join_code: code
+            }]).select().single();
+
+            if (!error) {
+                activeBuildId = data.id;
+                activeSubject = selectedSubs[0];
+                setupTabs();
+                document.getElementById('slide-config').classList.add('hidden');
+                document.getElementById('slide-questions').classList.remove('hidden');
+            }
+        }
+
+        function setupTabs() {
+            const container = document.getElementById('subject-tabs');
+            container.innerHTML = selectedSubs.map(s => `
+                <div onclick="setSubject('${s}')" id="tab-${s}" class="subject-pill whitespace-nowrap ${s === activeSubject ? 'subject-active' : ''}">${s}</div>
+            `).join('');
+            document.getElementById('current-subject-label').innerText = activeSubject;
+        }
+
+        function setSubject(s) {
+            activeSubject = s;
+            qCount = 1;
+            document.getElementById('q-count').innerText = "Q1";
+            setupTabs();
         }
 
         async function saveQuestion(isFinal) {
             const payload = {
-                build_id: activeId,
+                build_id: activeBuildId, subject_tag: activeSubject,
                 question_text: document.getElementById('q-text').value,
                 option_a: document.getElementById('opt-a').value,
                 option_b: document.getElementById('opt-b').value,
                 option_c: document.getElementById('opt-c').value,
                 option_d: document.getElementById('opt-d').value,
-                correct_answer: document.getElementById('correct-opt').value
+                correct_answer: document.getElementById('q-correct').value
             };
-
             await sb.from('cbt_questions').insert([payload]);
-            if(isFinal) {
-                alert("Build Complete!");
-                toggleView('manage');
-            } else {
-                qNum++;
-                document.getElementById('q-counter').innerText = `Q${qNum}`;
-                ['q-text','opt-a','opt-b','opt-c','opt-d','correct-opt'].forEach(id => document.getElementById(id).value = "");
+            if (isFinal) { alert("Exam Published!"); location.reload(); }
+            else { 
+                qCount++; document.getElementById('q-count').innerText = `Q${qCount}`;
+                ['q-text','opt-a','opt-b','opt-c','opt-d','q-correct'].forEach(i => document.getElementById(i).value = "");
             }
         }
 
-        async function loadMyExams() {
+        async function showSection(sec) {
+            ['slide-config','slide-questions','view-vault','view-analytics'].forEach(s => document.getElementById(s).classList.add('hidden'));
+            document.getElementById('btn-create').className = sec === 'create' ? 'text-[10px] font-black uppercase text-orange-500' : 'text-[10px] font-black uppercase text-gray-500';
+            document.getElementById('btn-manage').className = sec === 'manage' ? 'text-[10px] font-black uppercase text-orange-500' : 'text-[10px] font-black uppercase text-gray-500';
+            
+            if (sec === 'create') document.getElementById('slide-config').classList.remove('hidden');
+            if (sec === 'manage') loadVault();
+        }
+
+        async function loadVault() {
+            const container = document.getElementById('view-vault');
+            container.classList.remove('hidden');
             const { data } = await sb.from('cbt_builds').select('*').eq('creator_id', userId).order('created_at', {ascending: false});
-            const container = document.getElementById('my-exams-list');
             container.innerHTML = data.map(e => `
-                <div class="glass-panel p-5 rounded-2xl">
-                    <div class="flex justify-between items-start mb-3">
+                <div class="glass-panel p-5 rounded-3xl">
+                    <div class="flex justify-between items-start mb-4">
                         <div>
-                            <p class="text-orange-500 font-black text-sm uppercase">${e.build_name}</p>
-                            <p class="text-[10px] text-gray-500 font-bold uppercase">${e.subject_name} • ${e.duration_mins} Mins</p>
+                            <p class="text-orange-500 font-black text-xs uppercase">${e.build_name}</p>
+                            <p class="text-[8px] text-gray-500 font-bold uppercase">${e.subjects_list.join(' • ')}</p>
                         </div>
-                        <p class="text-[10px] font-mono text-white bg-white/10 px-2 py-1 rounded">${e.join_code}</p>
+                        <span class="bg-white/10 px-3 py-1 rounded-full text-[9px] font-mono">${e.join_code}</span>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="viewResults('${e.id}', '${e.build_name}')" class="btn-action bg-white/10 text-white flex-1">Results</button>
-                        <button onclick="changeCode('${e.id}')" class="btn-action bg-white/10 text-orange-500">New Code</button>
-                        <button onclick="deleteExam('${e.id}')" class="btn-action bg-red-900/30 text-red-500">Delete</button>
+                        <button onclick="viewAnalytics('${e.id}', '${e.build_name}')" class="flex-1 bg-white/5 py-3 rounded-xl text-[9px] font-bold uppercase">Analytics</button>
+                        <button onclick="deleteExam('${e.id}')" class="bg-red-900/20 text-red-500 px-4 py-3 rounded-xl text-[9px] font-bold uppercase">Delete</button>
                     </div>
                 </div>
             `).join('');
         }
 
-        async function viewResults(id, title) {
-            toggleView('results');
-            document.getElementById('res-title').innerText = title;
-            const { data } = await sb.from('cbt_results').select('score, total_questions, completed_at, profile(first_name)').eq('build_id', id);
+        async function viewAnalytics(id, title) {
+            showSection('none');
+            document.getElementById('view-analytics').classList.remove('hidden');
+            document.getElementById('ana-title').innerText = title;
+
+            const { data: res } = await sb.from('cbt_results').select('score, total_questions, profile(first_name)').eq('build_id', id);
             
-            document.getElementById('results-table').innerHTML = data.length ? data.map(r => `
-                <div class="glass-panel p-4 rounded-xl flex justify-between">
-                    <span class="font-bold text-xs uppercase">${r.profile.first_name}</span>
-                    <span class="font-black text-orange-500">${r.score}/${r.total_questions}</span>
-                </div>
-            `).join('') : '<p class="text-center text-gray-500 text-xs py-10 uppercase">No candidates yet</p>';
+            if (res.length) {
+                const avg = Math.round((res.reduce((a, b) => a + b.score, 0) / res.reduce((a, b) => a + b.total_questions, 0)) * 100);
+                const high = Math.max(...res.map(r => r.score));
+                document.getElementById('stat-avg').innerText = avg + "%";
+                document.getElementById('stat-high').innerText = high;
+                document.getElementById('ana-stats').innerText = `${res.length} Candidates Attempted`;
+                document.getElementById('ana-results-list').innerHTML = res.map(r => `
+                    <div class="flex justify-between items-center text-[10px] font-bold uppercase border-b border-white/5 pb-2">
+                        <span>${r.profile.first_name}</span>
+                        <span class="text-orange-500">${r.score}/${r.total_questions}</span>
+                    </div>
+                `).join('');
+            }
         }
 
-        async function changeCode(id) {
-            if(confirm("Change join code? Old code will stop working.")) {
-                await sb.from('cbt_builds').update({ join_code: generateCode() }).eq('id', id);
-                loadMyExams();
-            }
+        function downloadReport() {
+            html2canvas(document.getElementById('capture-area'), { backgroundColor: '#000' }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Thesdel_Report.jpg';
+                link.href = canvas.toDataURL('image/jpeg');
+                link.click();
+            });
+        }
+
+        function shareReport() {
+            alert("Report Link Copied to Clipboard! (Simulated)");
         }
 
         async function deleteExam(id) {
-            if(confirm("Delete this exam and all its results?")) {
-                await sb.from('cbt_builds').delete().eq('id', id);
-                loadMyExams();
-            }
+            if (confirm("Delete Exam?")) { await sb.from('cbt_builds').delete().eq('id', id); loadVault(); }
         }
     </script>
 </body>
-</html>
+    </html>
+        
