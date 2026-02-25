@@ -10,155 +10,107 @@
     <style>
         body { background-color: #000000; color: #FFFFFF; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .status-pill { background: rgba(255, 102, 0, 0.1); border: 1px solid rgba(255, 102, 0, 0.3); }
-        .stat-card:hover { border-color: #ff6600; transform: translateY(-2px); transition: all 0.3s ease; }
         .nav-active { color: #ff6600 !important; font-weight: 800; }
-        @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .animate-live { animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        
-        /* Navigation View Logic */
         .page-view { display: none; }
         .active-view { display: block; animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .animate-live { animation: pulse 2s infinite; }
     </style>
 </head>
 <body class="p-5 pb-32">
 
     <div class="flex justify-between items-start mb-10">
         <div>
-            <h1 class="text-3xl font-extrabold tracking-tight">Sup, <span class="text-orange-500" id="display-name">Homie</span></h1>
-            <p class="text-gray-500 text-sm font-medium uppercase tracking-widest" id="day-greeting">System Online</p>
+            <h1 class="text-3xl font-extrabold tracking-tight">Sup <span class="text-orange-500" id="user-first-name">Homie</span>,</h1>
+            <p class="text-gray-500 text-sm font-medium uppercase tracking-widest" id="dynamic-greeting">Initializing...</p>
         </div>
         <div class="glass-panel px-4 py-2 rounded-xl text-right">
             <div class="flex items-center gap-2 justify-end">
                 <span class="w-2 h-2 bg-orange-500 rounded-full animate-live"></span>
-                <span class="text-[10px] font-bold text-gray-400 uppercase">Live Sync</span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase">Live</span>
             </div>
-            <p class="text-xl font-black text-white leading-none mt-1" id="live-timer">00:00:00</p>
+            <p class="text-xl font-black text-white mt-1" id="clock">00:00</p>
         </div>
     </div>
 
     <div id="view-home" class="page-view active-view">
-        <div class="glass-panel p-6 rounded-3xl mb-8 relative overflow-hidden">
-            <div class="absolute top-0 right-0 p-4">
-                <span class="status-pill text-[10px] px-3 py-1 rounded-full font-bold text-orange-500">PRO MODE</span>
-            </div>
-            <h2 class="text-gray-400 text-xs font-bold uppercase mb-2">Continue Practicing</h2>
-            <h3 class="text-2xl font-extrabold mb-4" id="active-exam-title">UTME Mock: Physics</h3>
+        <div class="glass-panel p-6 rounded-3xl mb-8 relative overflow-hidden border-l-4 border-orange-600">
+            <h2 class="text-gray-400 text-[10px] font-bold uppercase mb-2">Current Status</h2>
+            <h3 class="text-2xl font-extrabold mb-4" id="active-status">Ready for Session</h3>
             <div class="w-full bg-white/5 h-2 rounded-full mb-6">
-                <div class="bg-orange-500 h-2 rounded-full shadow-[0_0_15px_#ff6600]" style="width: 65%"></div>
+                <div class="bg-orange-500 h-2 rounded-full shadow-[0_0_15px_#ff6600]" style="width: 5%"></div>
             </div>
-            <button class="w-full bg-white text-black font-extrabold py-4 rounded-2xl active:scale-95 transition-all">RESUME TEST</button>
+            <button class="w-full bg-white text-black font-extrabold py-4 rounded-2xl active:scale-95 transition-all uppercase text-xs">Resume Practice</button>
         </div>
 
         <div class="grid grid-cols-2 gap-4 mb-8">
-            <div class="glass-panel p-5 rounded-3xl stat-card border-white/5">
-                <p class="text-gray-500 text-[10px] font-bold uppercase">Global Rank</p>
-                <p class="text-3xl font-black mt-1" id="rank-val">#12</p>
-                <p class="text-[10px] text-green-500 mt-2 font-bold">+4 spots today</p>
+            <div class="glass-panel p-5 rounded-3xl">
+                <p class="text-gray-500 text-[10px] font-bold uppercase">Total XP</p>
+                <p class="text-3xl font-black mt-1" id="user-xp">0</p>
             </div>
-            <div class="glass-panel p-5 rounded-3xl stat-card border-white/5">
-                <p class="text-gray-500 text-[10px] font-bold uppercase">Accuracy</p>
-                <p class="text-3xl font-black mt-1 text-orange-500" id="accuracy-val">94%</p>
-                <p class="text-[10px] text-gray-400 mt-2 font-bold">Top 1% elite</p>
+            <div class="glass-panel p-5 rounded-3xl">
+                <p class="text-gray-500 text-[10px] font-bold uppercase text-orange-500">Global Rank</p>
+                <p class="text-3xl font-black mt-1">#--</p>
             </div>
         </div>
 
-        <div class="mb-5 flex justify-between items-center">
-            <h4 class="text-sm font-bold uppercase tracking-widest text-gray-400">Subject Vault</h4>
-            <span class="text-orange-500 text-xs font-bold">VIEW ALL</span>
-        </div>
-        <div class="space-y-3" id="subject-list">
-            <div class="glass-panel p-4 rounded-2xl flex justify-between items-center border-l-4 border-l-orange-500">
-                <div><p class="font-bold">Mathematics</p><p class="text-[10px] text-gray-500 font-medium">420 Mastered</p></div>
-                <div class="text-right"><p class="text-sm font-black text-orange-500">LEVEL 9</p></div>
+        <div class="mb-5 px-1"><h4 class="text-sm font-bold uppercase tracking-widest text-gray-400">Subject Vault</h4></div>
+        <div class="space-y-3" id="live-subject-container">
             </div>
+    </div>
+
+    <nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] glass-panel rounded-full p-2 border-white/10 flex justify-between items-center z-50 shadow-2xl">
+        <button onclick="switchTab('home')" id="nav-home" class="flex-1 flex flex-col items-center nav-link nav-active"><span class="text-[10px] font-black uppercase">Home</span></button>
+        <button onclick="switchTab('build')" id="nav-build" class="flex-1 flex flex-col items-center nav-link text-gray-500"><span class="text-[10px] font-black uppercase">Build</span></button>
+        <div class="relative -mt-12 cursor-pointer" onclick="switchTab('build')">
+            <div class="absolute inset-0 bg-orange-600 blur-xl opacity-30 rounded-full"></div>
+            <div class="relative bg-orange-600 h-16 w-16 rounded-full flex items-center justify-center border-4 border-black active:scale-90 transition-all"><span class="text-white text-3xl">+</span></div>
         </div>
-    </div>
-
-    <div id="view-build" class="page-view text-center py-20">
-        <h2 class="text-3xl font-black text-orange-500">BUILDER</h2>
-        <p class="text-gray-500 mt-2">Create your custom vaults here.</p>
-    </div>
-
-    <div id="view-tests" class="page-view text-center py-20">
-        <h2 class="text-3xl font-black text-orange-500">MY TESTS</h2>
-        <p class="text-gray-500 mt-2">Your exam history and available mocks.</p>
-    </div>
-
-    <div id="view-ranks" class="page-view text-center py-20">
-        <h2 class="text-3xl font-black text-orange-500">GLOBAL RANKS</h2>
-        <p class="text-gray-500 mt-2">The top 100 students worldwide.</p>
-    </div>
-
-    <nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[90%] glass-panel rounded-full p-2 border-white/10 flex justify-between items-center z-50">
-        <button onclick="switchView('home')" id="nav-home" class="flex-1 flex flex-col items-center nav-link nav-active">
-            <span class="text-[10px] font-black uppercase">Home</span>
-        </button>
-        <button onclick="switchView('build')" id="nav-build" class="flex-1 flex flex-col items-center nav-link text-gray-500">
-            <span class="text-[10px] font-black uppercase">Build</span>
-        </button>
-        
-        <div onclick="switchView('build')" class="bg-orange-600 p-4 rounded-full -mt-2 shadow-[0_10px_30px_rgba(255,102,0,0.4)] active:scale-90 transition cursor-pointer">
-            <div class="w-6 h-6 flex items-center justify-center">
-                <span class="text-white text-2xl font-bold leading-none">+</span>
-            </div>
-        </div>
-
-        <button onclick="switchView('tests')" id="nav-tests" class="flex-1 flex flex-col items-center nav-link text-gray-500">
-            <span class="text-[10px] font-black uppercase">Tests</span>
-        </button>
-        <button onclick="switchView('ranks')" id="nav-ranks" class="flex-1 flex flex-col items-center nav-link text-gray-500">
-            <span class="text-[10px] font-black uppercase">Ranks</span>
-        </button>
+        <button onclick="switchTab('tests')" id="nav-tests" class="flex-1 flex flex-col items-center nav-link text-gray-500"><span class="text-[10px] font-black uppercase">Tests</span></button>
+        <button onclick="switchTab('ranks')" id="nav-ranks" class="flex-1 flex flex-col items-center nav-link text-gray-500"><span class="text-[10px] font-black uppercase">Ranks</span></button>
     </nav>
 
     <script>
-        // SUPABASE CONNECTION
-        const _URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
-        const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
-        const sb = supabase.createClient(_URL, _KEY);
+        const sb = supabase.createClient("https://lgfyrlfjoazedwymjpfc.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw");
 
-        // 1. GREETING & CLOCK LOGIC
-        function initTime() {
-            const now = new Date();
-            const hour = now.getHours();
-            let greet = "Good Evening";
-            if(hour < 12) greet = "Good Morning";
-            else if(hour < 18) greet = "Good Afternoon";
-            document.getElementById('day-greeting').innerText = greet;
+        async function sync() {
+            // 1. Set Clock & Greeting
+            const h = new Date().getHours();
+            document.getElementById('dynamic-greeting').innerText = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+            setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false}); }, 1000);
 
-            setInterval(() => {
-                const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: false});
-                document.getElementById('live-timer').innerText = timeStr;
-            }, 1000);
+            // 2. Fetch Your Profile
+            const { data: profile } = await sb.from('profile').select('first_name, xp').limit(1).single();
+            if (profile) {
+                document.getElementById('user-first-name').innerText = profile.first_name || "Homie";
+                document.getElementById('user-xp').innerText = (profile.xp || 0).toLocaleString();
+            }
+
+            // 3. Fetch Your Subjects
+            const { data: subs } = await sb.from('user_subjects').select('*');
+            const container = document.getElementById('live-subject-container');
+            if(subs && subs.length > 0) {
+                container.innerHTML = subs.map(s => `
+                    <div class="glass-panel p-4 rounded-2xl flex justify-between items-center border-l-4 border-l-orange-500">
+                        <div><p class="font-bold uppercase text-sm">${s.subject_name}</p><p class="text-[10px] text-gray-500 font-bold uppercase">${s.mastered_count} Mastered</p></div>
+                        <div class="text-right"><p class="text-sm font-black text-orange-500 uppercase">LVL ${s.current_level}</p></div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = `<p class="text-gray-600 text-[10px] text-center uppercase tracking-widest py-10">Vault Empty • Take a test to sync</p>`;
+            }
         }
 
-        // 2. FETCH PROFILE DATA
-        async function loadProfile() {
-            const { data, error } = await sb.from('profile').select('first_name').limit(1).single();
-            if (data) document.getElementById('display-name').innerText = data.first_name;
-        }
-
-        // 3. NAVIGATION SWITCHER
-        function switchView(viewName) {
-            // Hide all views
+        function switchTab(id) {
             document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active-view'));
-            // Remove active color from nav
-            document.querySelectorAll('.nav-link').forEach(n => {
-                n.classList.remove('nav-active');
-                n.classList.add('text-gray-500');
-            });
-
-            // Show selected
-            document.getElementById('view-' + viewName).classList.add('active-view');
-            document.getElementById('nav-' + viewName).classList.add('nav-active');
-            document.getElementById('nav-' + viewName).classList.remove('text-gray-500');
+            document.querySelectorAll('.nav-link').forEach(n => { n.classList.remove('nav-active'); n.classList.add('text-gray-500'); });
+            if(document.getElementById('view-'+id)) document.getElementById('view-'+id).classList.add('active-view');
+            document.getElementById('nav-'+id).classList.add('nav-active');
+            document.getElementById('nav-'+id).classList.remove('text-gray-500');
         }
 
-        // START APP
-        initTime();
-        loadProfile();
+        sync();
     </script>
 </body>
 </html>
