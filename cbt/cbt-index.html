@@ -8,298 +8,146 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #000000; color: #FFFFFF; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; padding-bottom: 100px; }
+        body { background-color: #000000; color: #FFFFFF; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
         .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        .status-pill { background: rgba(255, 102, 0, 0.1); border: 1px solid rgba(255, 102, 0, 0.3); }
-        .stat-card:hover { border-color: #ff6600; transform: translateY(-2px); transition: all 0.3s ease; }
         .nav-active { color: #ff6600; font-weight: 800; }
-        @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .animate-live { animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .page-content { display: none; animation: fadeIn 0.4s ease-out; }
+        .page-active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-live { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
     </style>
 </head>
-<body class="p-5">
+<body class="p-5 pb-32">
 
-    <div class="flex justify-between items-start mb-10">
+    <div id="app-header" class="flex justify-between items-start mb-10">
         <div>
-            <h1 class="text-3xl font-extrabold tracking-tight">Sup, <span class="text-orange-500" id="user-name">Homie</span></h1>
-            <p class="text-gray-500 text-sm font-medium uppercase tracking-widest" id="system-status">System Online</p>
+            <h1 class="text-3xl font-extrabold tracking-tight">
+                Sup <span class="text-orange-500" id="user-name">Homie</span>,
+            </h1>
+            <p class="text-gray-500 text-sm font-bold uppercase tracking-widest" id="time-greeting">Syncing...</p>
         </div>
         <div class="glass-panel px-4 py-2 rounded-xl text-right">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 justify-end">
                 <span class="w-2 h-2 bg-orange-500 rounded-full animate-live"></span>
-                <span class="text-xs font-bold text-gray-400 uppercase" id="exam-timer-label">Next Exam</span>
+                <span class="text-[10px] font-bold text-gray-400 uppercase">System Live</span>
             </div>
-            <p class="text-xl font-black text-white leading-none mt-1" id="exam-timer">00:00:00</p>
+            <p class="text-xl font-black text-white leading-none mt-1" id="live-clock">00:00</p>
         </div>
     </div>
 
-    <!-- Resume Test Section - Shows only if there's an ongoing exam -->
-    <div id="resume-section" class="hidden">
-        <div class="glass-panel p-6 rounded-3xl mb-8 relative overflow-hidden">
-            <div class="absolute top-0 right-0 p-4">
-                <span class="status-pill text-[10px] px-3 py-1 rounded-full font-bold text-orange-500">IN PROGRESS</span>
-            </div>
-            <h2 class="text-gray-400 text-xs font-bold uppercase mb-2">Continue Practicing</h2>
-            <h3 class="text-2xl font-extrabold mb-4" id="resume-title">Loading...</h3>
-            
+    <section id="home" class="page-content page-active">
+        <div class="glass-panel p-6 rounded-3xl mb-8 relative overflow-hidden border-l-4 border-orange-600">
+            <h2 class="text-gray-400 text-xs font-bold uppercase mb-1">Active Session</h2>
+            <h3 class="text-2xl font-extrabold mb-4" id="active-test-title">No Active Test</h3>
             <div class="w-full bg-white/5 h-2 rounded-full mb-6">
-                <div class="bg-orange-500 h-2 rounded-full shadow-[0_0_15px_#ff6600]" id="resume-progress" style="width: 0%"></div>
+                <div class="bg-orange-500 h-2 rounded-full" style="width: 0%" id="test-progress"></div>
             </div>
-            
-            <button id="resume-btn" class="w-full bg-white text-black font-extrabold py-4 rounded-2xl hover:bg-orange-500 hover:text-white transition-all active:scale-95">
-                RESUME TEST
+            <button class="w-full bg-white text-black font-extrabold py-4 rounded-2xl active:scale-95 transition-all uppercase text-sm tracking-widest">Resume Vault</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-8" id="live-stats">
+            <div class="glass-panel p-5 rounded-3xl border-white/5">
+                <p class="text-gray-500 text-[10px] font-bold uppercase tracking-tighter">Global Rank</p>
+                <p class="text-3xl font-black mt-1" id="stat-rank">--</p>
+            </div>
+            <div class="glass-panel p-5 rounded-3xl border-white/5">
+                <p class="text-gray-500 text-[10px] font-bold uppercase tracking-tighter">Accuracy</p>
+                <p class="text-3xl font-black mt-1 text-orange-500" id="stat-accuracy">0%</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="build" class="page-content">
+        <h2 class="text-2xl font-black uppercase mb-4 text-orange-500">Builder Studio</h2>
+        <p class="text-gray-400 text-sm mb-6">Create custom question banks or AI-generated mocks.</p>
+        <div class="glass-panel p-10 rounded-3xl border-dashed border-2 border-white/10 text-center">
+            <span class="text-4xl">🛠️</span>
+            <p class="mt-4 font-bold text-gray-500">DRAG FILES HERE TO UPLOAD</p>
+        </div>
+    </section>
+
+    <section id="tests" class="page-content">
+        <h2 class="text-2xl font-black uppercase mb-4 text-orange-500">Available Mocks</h2>
+        <div id="test-list" class="space-y-4">
+            </div>
+    </section>
+
+    <section id="ranks" class="page-content">
+        <h2 class="text-2xl font-black uppercase mb-4 text-orange-500">Leaderboard</h2>
+        <div id="leaderboard-list" class="space-y-2">
+            </div>
+    </section>
+
+    <nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] glass-panel rounded-full p-2 border-white/10 flex justify-between items-center z-50 shadow-2xl">
+        <button onclick="showPage('home')" class="flex-1 flex flex-col items-center nav-link nav-active" id="nav-home">
+            <span class="text-[9px] font-black uppercase">Home</span>
+        </button>
+        <button onclick="showPage('build')" class="flex-1 flex flex-col items-center nav-link text-gray-500" id="nav-build">
+            <span class="text-[9px] font-black uppercase">Build</span>
+        </button>
+        
+        <div class="relative -mt-12">
+            <div class="absolute inset-0 bg-orange-600 blur-xl opacity-30 rounded-full"></div>
+            <button onclick="showPage('build')" class="relative bg-orange-600 h-16 w-16 rounded-full flex items-center justify-center border-4 border-black active:scale-90 transition-all shadow-xl">
+                <span class="text-white text-3xl font-light">+</span>
             </button>
         </div>
-    </div>
 
-    <!-- Stats Grid -->
-    <div class="grid grid-cols-2 gap-4 mb-8">
-        <div class="glass-panel p-5 rounded-3xl stat-card border-white/5">
-            <p class="text-gray-500 text-[10px] font-bold uppercase">Global Rank</p>
-            <p class="text-3xl font-black mt-1" id="global-rank">#--</p>
-            <p class="text-[10px] text-green-500 mt-2 font-bold" id="rank-change">--</p>
-        </div>
-        <div class="glass-panel p-5 rounded-3xl stat-card border-white/5">
-            <p class="text-gray-500 text-[10px] font-bold uppercase">Accuracy</p>
-            <p class="text-3xl font-black mt-1 text-orange-500" id="accuracy">0%</p>
-            <p class="text-[10px] text-gray-400 mt-2 font-bold" id="accuracy-badge">--</p>
-        </div>
-    </div>
-
-    <!-- Subject Vault -->
-    <div class="mb-5 flex justify-between items-center">
-        <h4 class="text-sm font-bold uppercase tracking-widest text-gray-400">Subject Vault</h4>
-        <span class="text-orange-500 text-xs font-bold">VIEW ALL</span>
-    </div>
-    <div class="space-y-3" id="subjects-list">
-        <!-- Subjects loaded dynamically -->
-        <div class="text-center py-4">
-            <p class="text-gray-500">Loading subjects...</p>
-        </div>
-    </div>
-
-    <!-- Static Nav will be injected here -->
-    <script src="cbt-nav.js"></script>
+        <button onclick="showPage('tests')" class="flex-1 flex flex-col items-center nav-link text-gray-500" id="nav-tests">
+            <span class="text-[9px] font-black uppercase">Tests</span>
+        </button>
+        <button onclick="showPage('ranks')" class="flex-1 flex flex-col items-center nav-link text-gray-500" id="nav-ranks">
+            <span class="text-[9px] font-black uppercase">Ranks</span>
+        </button>
+    </nav>
 
     <script>
-        const supabase = createClient(
-            'https://lgfyrlfjoazedwymjpfc.supabase.co',
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
-        );
+        // SUPABASE CONFIG
+        const _URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+        const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // Full key used in background
+        const supabase = supabase.createClient(_URL, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw");
 
-        let currentUser = null;
-        let userProfile = null;
-        let timerInterval = null;
-
-        async function init() {
-            try {
-                // Check session
-                const { data: { session } } = await supabase.auth.getSession();
-                if (!session) {
-                    window.location.href = 'cbt-login.html?redirect=cbt-index.html';
-                    return;
-                }
-                
-                currentUser = session.user;
-                
-                // Get profile - using REAL columns from your table
-                const { data: profile, error } = await supabase
-                    .from('profile')
-                    .select('id, first_name, username, xp, is_verified, is_official')
-                    .eq('id', currentUser.id)
-                    .single();
-                
-                if (error) throw error;
-                userProfile = profile;
-                
-                // Update UI with real data
-                document.getElementById('user-name').innerText = profile.first_name || profile.username || 'Homie';
-                
-                // Load all dashboard data
-                await loadDashboardData();
-                
-            } catch (error) {
-                console.error('Init error:', error);
-                document.getElementById('user-name').innerText = 'Homie';
-            }
-        }
-
-        async function loadDashboardData() {
-            // Get exam attempts
-            const { data: attempts } = await supabase
-                .from('exam_attempts')
-                .select('*, exam:exams(*)')
-                .eq('user_id', currentUser.id);
-            
-            // Check for ongoing exam
-            const ongoing = attempts?.find(a => a.status === 'in-progress');
-            if (ongoing) {
-                document.getElementById('resume-section').classList.remove('hidden');
-                document.getElementById('resume-title').innerText = ongoing.exam?.title || 'Untitled Exam';
-                
-                // Calculate progress
-                const totalQuestions = ongoing.exam?.total_questions || 1;
-                const answered = Object.keys(ongoing.answers || {}).length;
-                const progress = (answered / totalQuestions) * 100;
-                document.getElementById('resume-progress').style.width = progress + '%';
-                
-                // Set resume button
-                document.getElementById('resume-btn').onclick = () => {
-                    window.location.href = `cbt-exam.html?attempt=${ongoing.id}`;
-                };
-            }
-            
-            // Calculate stats from completed exams
-            const completed = attempts?.filter(a => a.status === 'completed') || [];
-            const totalScore = completed.reduce((sum, a) => sum + (a.score || 0), 0);
-            const avgScore = completed.length ? Math.round(totalScore / completed.length) : 0;
-            
-            // Accuracy display
-            document.getElementById('accuracy').innerText = avgScore + '%';
-            
-            // Accuracy badge logic
-            if (avgScore >= 90) {
-                document.getElementById('accuracy-badge').innerText = 'Top 1% Elite';
-            } else if (avgScore >= 75) {
-                document.getElementById('accuracy-badge').innerText = 'Top 10%';
-            } else if (avgScore >= 50) {
-                document.getElementById('accuracy-badge').innerText = 'Above Average';
-            } else {
-                document.getElementById('accuracy-badge').innerText = 'Keep Going';
-            }
-            
-            // Calculate rank from XP
-            const { data: allUsers } = await supabase
-                .from('profile')
-                .select('xp')
-                .order('xp', { ascending: false });
-            
-            const userXp = userProfile.xp || 0;
-            const rank = allUsers.findIndex(u => u.xp <= userXp) + 1;
-            const totalUsers = allUsers.length;
-            
-            document.getElementById('global-rank').innerText = `#${rank || '--'}`;
-            
-            // Calculate rank change (mock for now - would need history table)
-            document.getElementById('rank-change').innerText = '+0 spots today';
-            
-            // Load subjects from actual exams
-            await loadSubjects();
-            
-            // Start timer for next exam
-            startExamTimer();
-        }
-
-        async function loadSubjects() {
-            // Get unique subjects from exams
-            const { data: exams } = await supabase
-                .from('exams')
-                .select('subject, total_questions')
-                .eq('is_active', true);
-            
-            // Group by subject
-            const subjects = {};
-            exams?.forEach(exam => {
-                if (exam.subject) {
-                    if (!subjects[exam.subject]) {
-                        subjects[exam.subject] = { total: 0, count: 0 };
-                    }
-                    subjects[exam.subject].total += exam.total_questions || 0;
-                    subjects[exam.subject].count++;
-                }
+        // UI LOGIC
+        function showPage(pageId) {
+            document.querySelectorAll('.page-content').forEach(p => p.classList.remove('page-active'));
+            document.querySelectorAll('.nav-link').forEach(n => {
+                n.classList.remove('nav-active');
+                n.classList.add('text-gray-500');
             });
             
-            // Get user's completed questions per subject (would need more complex logic)
-            const { data: attempts } = await supabase
-                .from('exam_attempts')
-                .select('exam:exams(subject), answers')
-                .eq('user_id', currentUser.id)
-                .eq('status', 'completed');
-            
-            // Simple subject display for now
-            const subjectList = document.getElementById('subjects-list');
-            
-            if (Object.keys(subjects).length === 0) {
-                subjectList.innerHTML = `
-                    <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-orange-500">
-                        <div>
-                            <p class="font-bold">Mathematics</p>
-                            <p class="text-[10px] text-gray-500 font-medium">Start your first exam</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-sm font-black text-gray-400">LEVEL 1</p>
-                        </div>
-                    </div>
-                `;
-                return;
+            document.getElementById(pageId).classList.add('page-active');
+            document.getElementById('nav-' + pageId).classList.add('nav-active');
+            document.getElementById('nav-' + pageId).classList.remove('text-gray-500');
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('live-clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+
+        async function fetchUserData() {
+            const hour = new Date().getHours();
+            let greeting = "Good Evening";
+            if (hour < 12) greeting = "Good Morning";
+            else if (hour < 17) greeting = "Good Afternoon";
+            document.getElementById('time-greeting').innerText = greeting;
+
+            // Fetch Profile
+            const { data: profile, error } = await supabase.from('profile').select('first_name').limit(1).single();
+            if (profile) document.getElementById('user-name').innerText = profile.first_name;
+
+            // Fetch Stats (Mock logic until your tables are populated)
+            const { data: stats } = await supabase.from('user_stats').select('*').limit(1).single();
+            if (stats) {
+                document.getElementById('stat-rank').innerText = `#${stats.global_rank}`;
+                document.getElementById('stat-accuracy').innerText = `${stats.accuracy_rate}%`;
             }
-            
-            // Show real subjects
-            subjectList.innerHTML = Object.entries(subjects)
-                .sort((a, b) => a[0].localeCompare(b[0]))
-                .map(([subject, data], index) => {
-                    // Mock level based on index for now
-                    const level = index + 1;
-                    const isFirst = index === 0;
-                    return `
-                        <div class="glass-panel p-4 rounded-2xl flex justify-between items-center ${isFirst ? 'border-l-4 border-l-orange-500' : ''}">
-                            <div>
-                                <p class="font-bold">${subject}</p>
-                                <p class="text-[10px] text-gray-500 font-medium">${data.total} Questions Available</p>
-                            </div>
-                            <div class="text-right">
-                                <p class="text-sm font-black ${isFirst ? 'italic text-orange-500' : 'text-gray-400'}">LEVEL ${level}</p>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
         }
 
-        function startExamTimer() {
-            // Check for next scheduled exam
-            supabase
-                .from('custom_tests')
-                .select('starts_at')
-                .eq('is_active', true)
-                .gte('starts_at', new Date().toISOString())
-                .order('starts_at', { ascending: true })
-                .limit(1)
-                .single()
-                .then(({ data }) => {
-                    if (data?.starts_at) {
-                        document.getElementById('exam-timer-label').innerText = 'Exam Starts In';
-                        updateTimer(new Date(data.starts_at));
-                    } else {
-                        document.getElementById('exam-timer-label').innerText = 'System Online';
-                        document.getElementById('exam-timer').innerText = '00:00:00';
-                    }
-                });
-        }
-
-        function updateTimer(targetTime) {
-            if (timerInterval) clearInterval(timerInterval);
-            
-            timerInterval = setInterval(() => {
-                const now = new Date();
-                const diff = targetTime - now;
-                
-                if (diff <= 0) {
-                    document.getElementById('exam-timer').innerText = '00:00:00';
-                    clearInterval(timerInterval);
-                    return;
-                }
-                
-                const hours = Math.floor(diff / (1000 * 60 * 60));
-                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-                
-                document.getElementById('exam-timer').innerText = 
-                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }, 1000);
-        }
-
-        // Start everything
-        init();
+        setInterval(updateClock, 1000);
+        updateClock();
+        fetchUserData();
     </script>
 </body>
-    </html>
+</html>
