@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thesdel Assessment</title>
+    <title>Thesdel Assessment Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
         .hidden { display: none; }
         .option-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; outline: none; }
         .option-selected { background: #ff6600 !important; border-color: #ff6600 !important; color: white !important; }
-        input { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1); outline: none; }
+        input { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid #ff660033; outline: none; }
         .subject-tab { padding: 10px 18px; border-radius: 14px; font-size: 10px; font-weight: 800; text-transform: uppercase; white-space: nowrap; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; }
         .tab-active { background: #ff6600; border-color: #ff6600; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -24,9 +24,12 @@
     <div id="join-screen" class="pt-10">
         <h2 class="text-2xl font-black text-orange-500 uppercase mb-6 tracking-tighter">Enter Exam Code</h2>
         <div class="glass-panel p-6 rounded-[32px] space-y-4">
-            <input type="text" id="join-code-input" placeholder="THESDEL-XXXXXX" class="w-full p-5 rounded-2xl text-center font-bold tracking-widest uppercase text-sm">
+            <input type="text" id="join-code-input" placeholder="THESDEL-XXXXXX" class="w-full p-5 rounded-2xl text-center font-bold tracking-widest uppercase text-sm border-orange-500/20">
+            
             <button onclick="validateAndJoin()" id="btn-join" class="w-full bg-white text-black font-black py-5 rounded-2xl uppercase text-xs tracking-widest active:scale-95 transition">Verify & Start</button>
+            
             <button onclick="window.location.href='scholars.html'" class="w-full bg-orange-600/10 text-orange-500 border border-orange-500/20 font-black py-4 rounded-2xl uppercase text-[10px]">Take Scholars Test</button>
+            
             <p id="error-msg" class="text-red-500 text-[10px] font-bold text-center uppercase mt-2 hidden"></p>
         </div>
     </div>
@@ -51,7 +54,7 @@
     <div id="result-screen" class="hidden text-center pt-10">
         <div class="glass-panel p-12 rounded-[50px] border border-orange-500/20">
             <h1 id="score-text" class="text-7xl font-black text-white mb-2">0/0</h1>
-            <p id="xp-gain" class="text-orange-500 font-black text-sm uppercase"></p>
+            <p id="xp-gain" class="text-orange-500 font-black text-sm uppercase">COMPLETED</p>
         </div>
         <button onclick="window.location.href='index.html'" class="mt-12 bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-xs">Finish</button>
     </div>
@@ -73,33 +76,65 @@
         const userId = localStorage.getItem('thesdel_user_id');
 
         async function validateAndJoin() {
-            const code = document.getElementById('join-code-input').value.trim().toUpperCase();
+            const inputCode = document.getElementById('join-code-input').value.trim();
             const btn = document.getElementById('btn-join');
             const err = document.getElementById('error-msg');
 
-            btn.innerText = "SEARCHING DB...";
+            if(!inputCode) return;
+
+            btn.innerText = "AUTHENTICATING...";
+            btn.disabled = true;
             err.classList.add('hidden');
 
-            const { data: build, error: bErr } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
+            try {
+                // 1. Fetch using a standard select to avoid .single() crashing if multiple/none found
+                const { data: builds, error: bErr } = await sb
+                    .from('cbt_builds')
+                    .select('*')
+                    .eq('join_code', inputCode);
 
-            if (build) {
-                // Fetch ONLY questions for this build
-                const { data: qData } = await sb.from('cbt_questions').select('id, subject_tag, question_text, option_a, option_b, option_c, option_d').eq('build_id', build.id);
-                
-                if (qData && qData.length > 0) {
-                    allQuestions = qData;
-                    // Use the subjects from the DB table you just showed me
-                    subjects = build.subjects_list || ["General"];
-                    activeBuildId = build.id;
-                    startExam(build);
+                if (bErr) throw bErr;
+
+                if (builds && builds.length > 0) {
+                    const build = builds[0];
+
+                    // 2. Double Attempt Check
+                    const { data: check } = await sb.from('cbt_results')
+                        .select('id')
+                        .eq('user_id', userId)
+                        .eq('build_id', build.id);
+
+                    if (check && check.length > 0) {
+                        btn.innerText = "Verify & Start";
+                        btn.disabled = false;
+                        err.innerText = "ACCESS DENIED: EXAM ALREADY TAKEN.";
+                        err.classList.remove('hidden');
+                        return;
+                    }
+
+                    // 3. SECURE QUESTION FETCH (No correct_answer in browser)
+                    const { data: qData, error: qErr } = await sb
+                        .from('cbt_questions')
+                        .select('id, subject_tag, question_text, option_a, option_b, option_c, option_d')
+                        .eq('build_id', build.id);
+
+                    if (qErr) throw qErr;
+
+                    if (qData && qData.length > 0) {
+                        allQuestions = qData;
+                        subjects = build.subjects_list || ["General"];
+                        activeBuildId = build.id;
+                        startExam(build);
+                    } else {
+                        throw new Error("EXAM HAS NO QUESTIONS.");
+                    }
                 } else {
-                    btn.innerText = "Verify & Start";
-                    err.innerText = "EXAM FOUND, BUT IT HAS 0 QUESTIONS.";
-                    err.classList.remove('hidden');
+                    throw new Error("CODE NOT FOUND IN DATABASE.");
                 }
-            } else {
+            } catch (e) {
                 btn.innerText = "Verify & Start";
-                err.innerText = "CODE NOT FOUND IN DATABASE.";
+                btn.disabled = false;
+                err.innerText = e.message;
                 err.classList.remove('hidden');
             }
         }
@@ -117,7 +152,7 @@
 
         function switchSubject(subName) {
             activeSub = subName;
-            // SMART FILTER: Try to match subject_tag, if none match, show all (fallback)
+            // Filter by tag. If no tags found (or if it was a general build), show all
             subQuestions = allQuestions.filter(q => q.subject_tag === subName);
             if (subQuestions.length === 0) subQuestions = allQuestions; 
 
@@ -128,6 +163,7 @@
 
         function renderTabs() {
             const nav = document.getElementById('subject-nav');
+            if(subjects.length <= 1) { nav.innerHTML = ""; return; }
             nav.innerHTML = subjects.map(s => `
                 <div onclick="switchSubject('${s}')" class="subject-tab ${s === activeSub ? 'tab-active' : ''}">${s}</div>
             `).join('');
@@ -142,8 +178,8 @@
             ['a', 'b', 'c', 'd'].forEach(opt => {
                 const key = opt.toUpperCase();
                 const btn = document.createElement('button');
-                btn.className = `option-btn w-full p-6 rounded-2xl text-left font-bold text-sm uppercase flex justify-between ${userAnswers[q.id] === key ? 'option-selected' : ''}`;
-                btn.innerHTML = `<span>${q[`option_${opt}`]}</span> <span>${key}</span>`;
+                btn.className = `option-btn w-full p-6 rounded-2xl text-left font-bold text-sm uppercase flex justify-between items-center ${userAnswers[q.id] === key ? 'option-selected' : ''}`;
+                btn.innerHTML = `<span>${q[`option_${opt}`]}</span> <span class="opacity-30 text-[10px]">${key}</span>`;
                 btn.onclick = () => { userAnswers[q.id] = key; showQuestion(); };
                 container.appendChild(btn);
             });
@@ -153,20 +189,24 @@
         function prevQuestion() { if (currentIdx > 0) { currentIdx--; showQuestion(); } }
 
         function startTimer() {
-            setInterval(() => {
+            const timerDisplay = document.getElementById('timer');
+            const interval = setInterval(() => {
+                if(!isExamActive) { clearInterval(interval); return; }
                 const m = Math.floor(timeLeft / 60);
                 const s = timeLeft % 60;
-                document.getElementById('timer').innerText = `${m}:${s.toString().padStart(2, '0')}`;
-                if (timeLeft <= 0) finishExam();
+                timerDisplay.innerText = `${m}:${s.toString().padStart(2, '0')}`;
+                if (timeLeft <= 0) { clearInterval(interval); finishExam(); }
                 timeLeft--;
             }, 1000);
         }
 
-        function confirmSubmit() { if (confirm("Submit?")) finishExam(); }
+        function confirmSubmit() { if (confirm("Submit Assessment?")) finishExam(); }
 
         async function finishExam() {
             isExamActive = false;
+            // Fetch keys from server at the last second for security
             const { data: keys } = await sb.from('cbt_questions').select('id, correct_answer').eq('build_id', activeBuildId);
+            
             let score = 0;
             keys.forEach(k => { if (userAnswers[k.id] === k.correct_answer) score++; });
 
@@ -174,6 +214,7 @@
             document.getElementById('result-screen').classList.remove('hidden');
             document.getElementById('score-text').innerText = `${score}/${allQuestions.length}`;
             
+            // Log result
             await sb.from('cbt_results').insert([{ user_id: userId, build_id: activeBuildId, score: score, total_questions: allQuestions.length }]);
         }
     </script>
