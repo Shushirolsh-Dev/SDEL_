@@ -264,7 +264,7 @@
         </div>
     </nav>
 
-    <div class="main-content">
+    <div class="main-content" id="main-content">
         <div id="composer-card" class="m-4 p-4 border border-white/5 flex flex-col relative transition-all">
             <div class="flex space-x-3">
                 <div id="my-avatar" class="w-10 h-10 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-bold text-xs border border-white/10 uppercase text-sdel">H</div>
@@ -362,7 +362,46 @@ let initTimer = null;
 
 let offlineQueue = JSON.parse(localStorage.getItem('offlinePosts') || '[]');
 let isOnline = navigator.onLine;
-    function formatNum(num) {
+
+const bannedWebsites = [
+    'porn', 'xxx', 'adult', 'sex', 'nude', 'onlyfans',
+    'drug', 'cocaine', 'weed', 'marijuana', 'cannabis',
+    'weapon', 'gun', 'knife', 'explosive', 'bomb',
+    'casino', 'gambling', 'bet', 'poker',
+    'pharmacy', 'viagra', 'cialis'
+];
+
+const profanityList = [
+    'fuck', 'shit', 'asshole', 'bitch', 'bastard', 'cunt', 'dick', 'pussy',
+    'motherfucker', 'whore', 'slut', 'nigger', 'faggot', 'retard'
+];
+    function filterProfanity(text) {
+    let filtered = text;
+    profanityList.forEach(word => {
+        const regex = new RegExp(word, 'gi');
+        filtered = filtered.replace(regex, match => {
+            if (match.length <= 2) return '*'.repeat(match.length);
+            return match[0] + '*'.repeat(match.length - 2) + match[match.length - 1];
+        });
+    });
+    return filtered;
+}
+
+function filterLinks(text) {
+    const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9][a-zA-Z0-9-]*\.[a-zA-Z]{2,}[^\s]*)/gi;
+    
+    return text.replace(urlRegex, (url) => {
+        const urlLower = url.toLowerCase();
+        for (const banned of bannedWebsites) {
+            if (urlLower.includes(banned)) {
+                return '[link violates our terms]';
+            }
+        }
+        return url;
+    });
+}
+
+function formatNum(num) {
     if (!num) return 0;
     if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
     if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
@@ -608,6 +647,9 @@ async function loadMorePosts() {
         const username = post.profile?.username || 'homie';
         const isLiked = myLikes?.some(l => l.post_id === post.id);
         const hasReposted = repostedPosts.has(post.id);
+        const isRepost = post.content?.startsWith('Reposted from @');
+        
+        if (isRepost && hasReposted) return '';
         
         let badge = post.profile?.is_official 
             ? '<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
@@ -627,11 +669,12 @@ async function loadMorePosts() {
             parent_id: post.parent_id,
             username: post.profile?.username,
             is_official: post.profile?.is_official,
-            is_verified: post.profile?.is_verified
+            is_verified: post.profile?.is_verified,
+            is_banned: post.profile?.is_banned
         };
         
         const postDataStr = escapeAttribute(JSON.stringify(postForAttribute));
-        const safeContent = post.formattedContent || escapeHTML(post.content);
+        const safeContent = post.formattedContent || escapeHTML(filterProfanity(filterLinks(post.content)));
         
         return `
         <div class="post-card p-4" data-post-id="${post.id}" data-post='${postDataStr}' onmousedown="startPress(event, '${postDataStr}')" onmouseup="endPress()" ontouchstart="startPress(event, '${postDataStr}')" ontouchend="endPress()">
@@ -655,7 +698,7 @@ async function loadMorePosts() {
                             <i data-lucide="repeat" size="18"></i>
                             <span class="text-xs font-bold">${formatNum(post.reposts_count || 0)}</span>
                         </button>
-                        <button onclick="handleShare('${post.id}', \`${escapeHTML(post.content)}\`)"><i data-lucide="upload" size="18"></i></button>
+                        <button onclick="handleShare('${post.id}', '${escapeHTML(username)}', '${escapeAttribute(post.content)}')"><i data-lucide="upload" size="18"></i></button>
                     </div>
                 </div>
             </div>
@@ -869,6 +912,8 @@ async function submitPostFromModal() {
     
     let safe = text;
     safe = escapeHTML(safe);
+    safe = filterProfanity(safe);
+    safe = filterLinks(safe);
     
     if (safe.length > 300) {
         const shortText = safe.substring(0, 300);
@@ -907,6 +952,13 @@ async function submitPostFromModal() {
         if (!fullUrl.startsWith('http')) {
             fullUrl = 'https://' + fullUrl;
         }
+        
+        for (const banned of bannedWebsites) {
+            if (fullUrl.toLowerCase().includes(banned)) {
+                return '[link violates our terms]';
+            }
+        }
+        
         const escapedUrl = escapeHTML(fullUrl);
         const displayUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
         
@@ -949,7 +1001,7 @@ document.addEventListener('scroll', function() {
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
             closeActions();
-        }, 100);
+        }, 50);
     }
 }, { passive: true });
 
@@ -958,14 +1010,15 @@ function showActionSheet(post) {
     const options = document.getElementById('action-options');
     const isOwner = post.user_id === userProfile.id;
     const canEdit = isOwner && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
+    const isOfficial = userProfile?.is_official || false;
     
     let html = '';
     if (isOwner) {
         html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
         if (canEdit) html += `<button onclick="editGist('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
     }
-    if (userProfile?.is_official && !isOwner) {
-        const isBanned = post.profile?.is_banned || false;
+    if (isOfficial && !isOwner) {
+        const isBanned = post.is_banned || false;
         if (isBanned) {
             html += `<button onclick="unbanUser('${post.user_id}')" class="w-full py-4 bg-green-600 text-black rounded-2xl font-black uppercase text-xs">Unban User</button>`;
         } else {
@@ -1065,7 +1118,7 @@ function toggleSearch() {
 function startPress(e, postData) {
     try {
         const post = typeof postData === 'string' ? JSON.parse(postData) : postData;
-        pressTimer = setTimeout(() => { showActionSheet(post); }, 800);
+        pressTimer = setTimeout(() => { showActionSheet(post); }, 500);
     } catch (error) {
         console.error("Error parsing post data:", error);
     }
@@ -1168,13 +1221,26 @@ function toggleReadMore(id) {
     document.getElementById(`full-${id}`).classList.remove('hidden'); 
 }
 
-async function handleShare(postId, content) {
+async function handleShare(postId, username, content) {
     const url = `${window.location.origin}/gist.html?id=${postId}`;
+    const shareText = `Check out this gist from @${username} on Sdel:\n\n${content.substring(0, 100)}${content.length > 100 ? '...' : ''}\n\n${url}`;
+    
     if (navigator.share) {
-        navigator.share({ title: 'Sdel', text: content, url });
-    } else { 
-        navigator.clipboard.writeText(url); 
-        showToast("Link copied!"); 
+        try {
+            await navigator.share({
+                title: 'Sdel Gist',
+                text: shareText,
+                url: url
+            });
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                navigator.clipboard.writeText(url);
+                showToast("Link copied to clipboard!");
+            }
+        }
+    } else {
+        navigator.clipboard.writeText(shareText);
+        showToast("Copied to clipboard!");
     }
 }
 
@@ -1183,6 +1249,13 @@ function safeRedirect(url) {
         url.includes('gist.html') || url.includes('dashboard.html') || url.includes('market.html') || url.includes('explore.html')) {
         location.href = url;
         return;
+    }
+    
+    for (const banned of bannedWebsites) {
+        if (url.toLowerCase().includes(banned)) {
+            showToast("This link violates our terms");
+            return;
+        }
     }
     
     document.getElementById('raw-link-display').innerText = url; 
