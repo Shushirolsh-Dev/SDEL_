@@ -70,7 +70,8 @@
             transform: translateY(-2px);
         }
         
-        .nav-bottom {
+        /* BOTTOM NAV - CLEAN ICONS WITH NAMES */
+        .bottom-nav {
             position: fixed;
             bottom: 0;
             left: 0;
@@ -78,8 +79,11 @@
             background: var(--nav-bg);
             backdrop-filter: blur(20px);
             border-top: 1px solid var(--border);
-            padding: 12px 16px;
+            padding: 8px 12px 12px;
             z-index: 100;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
         }
         
         .nav-item {
@@ -94,6 +98,8 @@
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.1em;
+            padding: 8px 0;
+            flex: 1;
         }
         
         .nav-item.active {
@@ -105,9 +111,10 @@
         }
         
         .nav-item i {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             transition: all 0.2s;
+            stroke-width: 2;
         }
         
         .nav-item:hover {
@@ -118,25 +125,7 @@
             color: #FF6600;
         }
         
-        .create-btn {
-            background: #FF6600;
-            color: black;
-            border: none;
-            box-shadow: 0 10px 20px rgba(255, 102, 0, 0.3);
-        }
-        
-        .create-btn i {
-            color: black !important;
-        }
-        
-        .create-btn span {
-            color: black !important;
-        }
-        
-        .create-btn:hover {
-            background: #ff8533;
-            transform: scale(1.05);
-        }
+        /* NO STUPID BOX - just clean icons */
         
         .welcome-banner {
             background: linear-gradient(135deg, rgba(255,102,0,0.15) 0%, rgba(255,102,0,0) 100%);
@@ -195,6 +184,20 @@
             border-radius: 100px;
             transition: width 0.3s ease;
         }
+        
+        .time-greeting {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-dim);
+            letter-spacing: 0.1em;
+        }
+        
+        .metric-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            padding: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -223,34 +226,32 @@
         </div>
     </main>
 
-    <!-- BOTTOM NAV WITH ICONS -->
-    <nav class="nav-bottom">
-        <div class="flex justify-around items-center">
-            <a href="cbt-index.html" class="nav-item active">
-                <i data-lucide="layout-dashboard"></i>
-                <span>HOME</span>
-            </a>
-            
-            <a href="cbt-create.html" class="nav-item create-btn -mt-8 bg-sdel rounded-2xl p-3 shadow-lg">
-                <i data-lucide="plus" size="24"></i>
-                <span class="text-black font-black">CREATE</span>
-            </a>
-            
-            <a href="cbt-join.html" class="nav-item">
-                <i data-lucide="log-in"></i>
-                <span>JOIN</span>
-            </a>
-            
-            <a href="cbt-creator.html" class="nav-item">
-                <i data-lucide="bar-chart-2"></i>
-                <span>MY TESTS</span>
-            </a>
-            
-            <a href="cbt-leaderboard.html" class="nav-item">
-                <i data-lucide="trophy"></i>
-                <span>RANKS</span>
-            </a>
-        </div>
+    <!-- BOTTOM NAV - CLEAN ICONS WITH NAMES (NO STUPID BOX) -->
+    <nav class="bottom-nav">
+        <a href="cbt-index.html" class="nav-item active" id="nav-home">
+            <i data-lucide="home"></i>
+            <span>HOME</span>
+        </a>
+        
+        <a href="cbt-create.html" class="nav-item" id="nav-create">
+            <i data-lucide="plus"></i>
+            <span>CREATE</span>
+        </a>
+        
+        <a href="cbt-join.html" class="nav-item" id="nav-join">
+            <i data-lucide="user-plus"></i>  <!-- JOIN ICON - user plus -->
+            <span>JOIN</span>
+        </a>
+        
+        <a href="cbt-creator.html" class="nav-item" id="nav-tests">
+            <i data-lucide="book-open"></i>  <!-- MY TESTS ICON - book -->
+            <span>MY TESTS</span>
+        </a>
+        
+        <a href="cbt-leaderboard.html" class="nav-item" id="nav-ranks">
+            <i data-lucide="trophy"></i>  <!-- RANKS ICON - trophy -->
+            <span>RANKS</span>
+        </a>
     </nav>
 
     <!-- TOAST -->
@@ -265,6 +266,14 @@
         let currentUser = null;
         let userProfile = null;
 
+        // Set active nav based on current page
+        const path = window.location.pathname;
+        document.getElementById('nav-home').classList.toggle('active', path.includes('cbt-index'));
+        document.getElementById('nav-create').classList.toggle('active', path.includes('cbt-create'));
+        document.getElementById('nav-join').classList.toggle('active', path.includes('cbt-join'));
+        document.getElementById('nav-tests').classList.toggle('active', path.includes('cbt-creator'));
+        document.getElementById('nav-ranks').classList.toggle('active', path.includes('cbt-leaderboard'));
+
         document.getElementById('theme-toggle').onclick = () => {
             const isLight = document.documentElement.classList.toggle('sunlight-mode');
             localStorage.setItem('theme', isLight ? 'sunlight' : 'midnight');
@@ -278,6 +287,15 @@
             t.classList.add('show');
             setTimeout(() => t.classList.remove('show'), 3000);
         };
+
+        // Get greeting based on device time
+        function getTimeGreeting() {
+            const hour = new Date().getHours();
+            if (hour < 12) return 'GOOD MORNING';
+            if (hour < 17) return 'GOOD AFTERNOON';
+            if (hour < 21) return 'GOOD EVENING';
+            return 'GOOD NIGHT';
+        }
 
         async function init() {
             try {
@@ -298,7 +316,7 @@
                 if (error) throw error;
                 userProfile = profile;
                 
-                document.getElementById('avatar-letter').innerText = profile.username?.[0]?.toUpperCase() || '?';
+                document.getElementById('avatar-letter').innerText = profile.first_name?.[0]?.toUpperCase() || profile.username?.[0]?.toUpperCase() || '?';
                 
                 await loadDashboard();
                 
@@ -320,67 +338,49 @@
             const examsTaken = attempts?.filter(a => a.status === 'completed').length || 0;
             const ongoingCount = attempts?.filter(a => a.status === 'in-progress').length || 0;
             
-            // Calculate level
-            const xp = userProfile?.xp || 0;
-            const level = Math.floor(xp / 100) + 1;
+            // Calculate stats
+            const avgScore = attempts?.filter(a => a.status === 'completed').length 
+                ? Math.round(attempts.filter(a => a.status === 'completed').reduce((acc, a) => acc + (a.score || 0), 0) / attempts.filter(a => a.status === 'completed').length)
+                : 0;
+            
+            const totalXp = userProfile?.xp || 0;
+            const level = Math.floor(totalXp / 100) + 1;
             const nextLevelXp = level * 100;
             const prevLevelXp = (level - 1) * 100;
-            const progress = ((xp - prevLevelXp) / (nextLevelXp - prevLevelXp)) * 100;
+            const progress = ((totalXp - prevLevelXp) / (nextLevelXp - prevLevelXp)) * 100;
             
-            // Get recent exams (placeholder until you create real ones)
-            const recentExams = [
-                {
-                    title: 'Mathematics 101',
-                    subject: 'ALGEBRA',
-                    participants: 234,
-                    duration: 30,
-                    questions: 20,
-                    difficulty: 'intermediate'
-                },
-                {
-                    title: 'English Proficiency',
-                    subject: 'GRAMMAR',
-                    participants: 189,
-                    duration: 25,
-                    questions: 15,
-                    difficulty: 'beginner'
-                },
-                {
-                    title: 'Physics Fundamentals',
-                    subject: 'MECHANICS',
-                    participants: 156,
-                    duration: 45,
-                    questions: 25,
-                    difficulty: 'advanced'
-                }
-            ];
+            const greeting = getTimeGreeting();
+            const firstName = userProfile?.first_name || userProfile?.username || 'SCHOLAR';
+            
+            // Get current date
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
             
             container.innerHTML = `
-                <!-- Welcome Banner with USERNAME -->
+                <!-- Welcome Banner with FIRST NAME and DEVICE TIME -->
                 <div class="welcome-banner mb-6">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-start justify-between">
                         <div>
-                            <p class="text-[9px] text-[var(--text-dim)] font-black uppercase tracking-widest mb-1">
-                                WELCOME BACK
-                            </p>
-                            <h2 class="text-2xl font-black uppercase tracking-tighter">
-                                @${userProfile?.username || 'SCHOLAR'}
+                            <p class="time-greeting mb-1">${greeting}</p>
+                            <h2 class="text-3xl font-black uppercase tracking-tighter mb-1">
+                                ${firstName}
                             </h2>
-                            <div class="flex items-center gap-3 mt-2">
+                            <div class="flex items-center gap-3">
                                 <span class="level-badge">LEVEL ${level}</span>
-                                <span class="text-[10px] text-[var(--text-dim)] font-black">${xp} XP</span>
+                                <span class="text-[9px] text-[var(--text-dim)] font-black">${dateStr}</span>
                             </div>
                         </div>
-                        <div class="w-16 h-16 rounded-2xl bg-sdel/20 flex items-center justify-center border-2 border-sdel/30">
-                            <span class="text-3xl font-black text-sdel">${userProfile?.username?.[0]?.toUpperCase() || '?'}</span>
+                        <div class="text-right">
+                            <p class="text-[9px] text-[var(--text-dim)] font-black">SCHOLAR ID</p>
+                            <p class="text-sm font-black text-sdel">#${currentUser.id.slice(0, 8).toUpperCase()}</p>
                         </div>
                     </div>
                     
                     <!-- XP Bar -->
                     <div class="mt-4">
                         <div class="flex justify-between text-[8px] font-black mb-1">
-                            <span class="text-[var(--text-dim)]">LEVEL ${level}</span>
-                            <span class="text-sdel">${xp % 100}/100 XP</span>
+                            <span class="text-[var(--text-dim)]">LEVEL ${level} · ${totalXp} TOTAL XP</span>
+                            <span class="text-sdel">${totalXp % 100}/100 TO LEVEL ${level + 1}</span>
                         </div>
                         <div class="xp-bar">
                             <div class="xp-progress" style="width: ${progress}%"></div>
@@ -388,98 +388,129 @@
                     </div>
                 </div>
                 
-                <!-- Quick Stats -->
-                <div class="grid grid-cols-4 gap-3 mb-8">
-                    <div class="stat-card">
-                        <i data-lucide="scroll" size="20" class="mx-auto mb-2 text-sdel"></i>
-                        <p class="text-xl font-black">${examsTaken}</p>
-                        <p class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">COMPLETED</p>
+                <!-- KEY METRICS - Serious numbers -->
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[8px] font-black uppercase tracking-widest text-[var(--text-dim)]">PRECISION</span>
+                            <i data-lucide="target" size="16" class="text-sdel"></i>
+                        </div>
+                        <p class="text-3xl font-black">${avgScore}%</p>
+                        <p class="text-[8px] text-[var(--text-dim)] mt-1">ACCURACY RATE</p>
                     </div>
-                    <div class="stat-card">
-                        <i data-lucide="play-circle" size="20" class="mx-auto mb-2 text-sdel"></i>
-                        <p class="text-xl font-black">${ongoingCount}</p>
-                        <p class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">IN PROGRESS</p>
-                    </div>
-                    <div class="stat-card">
-                        <i data-lucide="award" size="20" class="mx-auto mb-2 text-sdel"></i>
-                        <p class="text-xl font-black">0</p>
-                        <p class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">BADGES</p>
-                    </div>
-                    <div class="stat-card">
-                        <i data-lucide="trending-up" size="20" class="mx-auto mb-2 text-sdel"></i>
-                        <p class="text-xl font-black">7</p>
-                        <p class="text-[7px] font-black uppercase tracking-widest text-[var(--text-dim)]">STREAK</p>
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[8px] font-black uppercase tracking-widest text-[var(--text-dim)]">MASTERY</span>
+                            <i data-lucide="award" size="16" class="text-sdel"></i>
+                        </div>
+                        <p class="text-3xl font-black">${examsTaken}</p>
+                        <p class="text-[8px] text-[var(--text-dim)] mt-1">EXAMS COMPLETED</p>
                     </div>
                 </div>
                 
-                <!-- Featured Section -->
-                <div class="featured-exam mb-6">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-black uppercase tracking-tighter">🔥 FEATURED CHALLENGE</h3>
-                        <span class="text-[8px] font-black bg-black/20 px-3 py-1 rounded-full">LIMITED</span>
+                <!-- FEATURED EXAM - Premium content -->
+                <div class="featured-exam mb-8">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-base font-black uppercase tracking-tighter">🏆 CHAMPIONSHIP SERIES</h3>
+                        <span class="text-[8px] font-black bg-black/20 px-3 py-1 rounded-full">LIVE NOW</span>
                     </div>
-                    <p class="text-xl font-black mb-2">WEEKLY CHAMPIONSHIP</p>
+                    <p class="text-2xl font-black mb-3">WEEKLY ELITE CHALLENGE</p>
                     <div class="flex items-center gap-4 mb-4">
                         <div class="flex items-center gap-1">
-                            <i data-lucide="clock" size="12" class="text-black/70"></i>
-                            <span class="text-[9px] font-black">60 MIN</span>
+                            <i data-lucide="clock" size="14" class="text-black/70"></i>
+                            <span class="text-[10px] font-black">90 MIN</span>
                         </div>
                         <div class="flex items-center gap-1">
-                            <i data-lucide="help-circle" size="12" class="text-black/70"></i>
-                            <span class="text-[9px] font-black">50 Q</span>
+                            <i data-lucide="help-circle" size="14" class="text-black/70"></i>
+                            <span class="text-[10px] font-black">75 QUESTIONS</span>
                         </div>
                         <div class="flex items-center gap-1">
-                            <i data-lucide="trophy" size="12" class="text-black/70"></i>
-                            <span class="text-[9px] font-black">500 XP</span>
+                            <i data-lucide="users" size="14" class="text-black/70"></i>
+                            <span class="text-[10px] font-black">1,284 ENROLLED</span>
                         </div>
                     </div>
-                    <button class="w-full bg-black text-white font-black uppercase text-[10px] py-3 rounded-xl">
-                        ENTER NOW
+                    <button class="w-full bg-black text-white font-black uppercase text-[11px] py-4 rounded-xl hover:bg-gray-900 transition-all">
+                        ENTER ARENA → 250 XP REWARD
                     </button>
                 </div>
                 
-                <!-- Recent Exams Section -->
-                <div class="mb-6">
+                <!-- ACTIVE TESTS SECTION -->
+                <div class="mb-8">
                     <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-xs font-black uppercase tracking-widest">POPULAR EXAMS</h3>
-                        <a href="#" class="text-[8px] text-sdel font-black uppercase">VIEW ALL →</a>
+                        <h3 class="text-sm font-black uppercase tracking-wider">📋 YOUR ACTIVE TESTS</h3>
+                        <a href="cbt-creator.html" class="text-[8px] text-sdel font-black uppercase">VIEW ALL</a>
                     </div>
                     
-                    <div class="space-y-3">
-                        ${recentExams.map(exam => `
-                            <div class="glass-card p-4 flex items-center justify-between">
-                                <div>
-                                    <h4 class="text-sm font-black">${exam.title}</h4>
-                                    <p class="text-[7px] text-[var(--text-dim)] font-black uppercase tracking-widest mt-1">
-                                        ${exam.subject} • ${exam.participants} PARTICIPANTS
-                                    </p>
-                                    <div class="flex items-center gap-3 mt-2">
-                                        <span class="text-[8px] font-black flex items-center gap-1">
-                                            <i data-lucide="clock" size="10"></i> ${exam.duration} MIN
-                                        </span>
-                                        <span class="text-[8px] font-black flex items-center gap-1">
-                                            <i data-lucide="help-circle" size="10"></i> ${exam.questions} Q
-                                        </span>
+                    ${ongoingCount > 0 ? `
+                        <div class="space-y-3">
+                            <div class="glass-card p-4">
+                                <div class="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h4 class="text-base font-black">Mathematics 101</h4>
+                                        <p class="text-[7px] text-[var(--text-dim)] font-black uppercase">PROGRESS: 12/20 QUESTIONS</p>
                                     </div>
+                                    <span class="text-[9px] font-black text-sdel bg-sdel/10 px-3 py-1 rounded-full">23 MIN LEFT</span>
                                 </div>
-                                <button class="bg-sdel text-black w-10 h-10 rounded-xl flex items-center justify-center">
-                                    <i data-lucide="arrow-right" size="18"></i>
-                                </button>
+                                <div class="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                    <div class="h-full bg-sdel" style="width: 60%"></div>
+                                </div>
+                                <button class="w-full mt-3 bg-sdel text-black text-[9px] font-black py-3 rounded-xl">CONTINUE</button>
                             </div>
-                        `).join('')}
-                    </div>
+                        </div>
+                    ` : `
+                        <div class="glass-card p-8 text-center">
+                            <i data-lucide="play-circle" size="32" class="mx-auto mb-3 text-[var(--text-dim)]"></i>
+                            <p class="text-[10px] font-black uppercase tracking-widest text-[var(--text-dim)]">NO ACTIVE TESTS</p>
+                            <p class="text-[8px] text-[var(--text-dim)] mt-1">Join or create a test to begin</p>
+                        </div>
+                    `}
                 </div>
                 
-                 <!-- Quick Actions -->
-                <div class="grid grid-cols-2 gap-3">
-                    <a href="cbt-create.html" class="glass-card p-4 text-center hover:border-sdel transition-all">
-                        <i data-lucide="plus-circle" size="24" class="mx-auto mb-2 text-sdel"></i>
-                        <p class="text-[9px] font-black uppercase">CREATE TEST</p>
-                    </a>
-                    <a href="cbt-join.html" class="glass-card p-4 text-center hover:border-sdel transition-all">
-                        <i data-lucide="log-in" size="24" class="mx-auto mb-2 text-sdel"></i>
-                        <p class="text-[9px] font-black uppercase">JOIN TEST</p>
-                    </a>
+                !-- POPULAR EXAMS GRID -->
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-black uppercase tracking-wider">🔥 TRENDING EXAMS</h3>
+                        <a href="#" class="text-[8px] text-sdel font-black uppercase">EXPLORE ALL</a>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="glass-card p-4">
+                            <i data-lucide="flask" size="20" class="text-sdel mb-2"></i>
+                            <h4 class="text-sm font-black">Physics</h4>
+                            <p class="text-[7px] text-[var(--text-dim)] mb-2">ADVANCED</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-[8px] font-black">342 learners</span>
+                                <span class="text-[8px] font-black text-sdel">45 MIN</span>
+                            </div>
+                        </div>
+                        <div class="glass-card p-4">
+                            <i data-lucide="book" size="20" class="text-sdel mb-2"></i>
+                            <h4 class="text-sm font-black">Literature</h4>
+                            <p class="text-[7px] text-[var(--text-dim)] mb-2">INTERMEDIATE</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-[8px] font-black">256 learners</span>
+                                <span class="text-[8px] font-black text-sdel">30 MIN</span>
+                            </div>
+                        </div>
+                        <div class="glass-card p-4">
+                            <i data-lucide="code" size="20" class="text-sdel mb-2"></i>
+                            <h4 class="text-sm font-black">Programming</h4>
+                            <p class="text-[7px] text-[var(--text-dim)] mb-2">BEGINNER</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-[8px] font-black">189 learners</span>
+                                <span class="text-[8px] font-black text-sdel">60 MIN</span>
+                            </div>
+                        </div>
+                        <div class="glass-card p-4">
+                            <i data-lucide="globe" size="20" class="text-sdel mb-2"></i>
+                            <h4 class="text-sm font-black">Geography</h4>
+                            <p class="text-[7px] text-[var(--text-dim)] mb-2">ALL LEVELS</p>
+                            <div class="flex items-center justify-between">
+                                <span class="text-[8px] font-black">412 learners</span>
+                                <span class="text-[8px] font-black text-sdel">25 MIN</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             `;
             
