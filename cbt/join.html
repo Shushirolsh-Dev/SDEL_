@@ -3,65 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Exam Engine - Thesdel</title>
+    <title>Assessment Engine - Thesdel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #000000; color: #FFFFFF; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; }
         .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .hidden { display: none; }
         .option-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; outline: none; }
-        .option-selected { background: #ff6600 !important; border-color: #ff6600 !important; color: white !important; }
+        .option-selected { background: #ff6600 !important; border-color: #ff6600 !important; color: white !important; box-shadow: 0 0 20px rgba(255, 102, 0, 0.2); }
         input { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1); outline: none; }
-        .timer-warning { color: #ff3333; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-        .subject-tab { padding: 8px 16px; border-radius: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; white-space: nowrap; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); }
+        .subject-tab { padding: 10px 18px; border-radius: 14px; font-size: 10px; font-weight: 800; text-transform: uppercase; white-space: nowrap; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); transition: 0.3s; }
         .tab-active { background: #ff6600; border-color: #ff6600; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body class="p-5 pb-32">
 
-    <div id="join-screen" class="pt-10">
-        <h2 class="text-2xl font-black text-orange-500 uppercase mb-6 tracking-tighter">Enter Exam Code</h2>
-        <div class="glass-panel p-6 rounded-3xl space-y-4">
-            <input type="text" id="join-code-input" placeholder="Thesdel-742A..." class="w-full p-4 rounded-2xl text-center font-bold tracking-widest uppercase">
-            <button onclick="validateAndJoin()" id="btn-join" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-xs tracking-widest">Start Assessment</button>
+    <div id="join-screen" class="pt-10 slide-in">
+        <h2 class="text-2xl font-black text-orange-500 uppercase mb-6 tracking-tighter">Secure Entry</h2>
+        <div class="glass-panel p-6 rounded-[32px] space-y-4">
+            <input type="text" id="join-code-input" placeholder="ENTER EXAM CODE" class="w-full p-5 rounded-2xl text-center font-bold tracking-widest uppercase text-sm">
+            <button onclick="validateAndJoin()" id="btn-join" class="w-full bg-white text-black font-black py-5 rounded-2xl uppercase text-xs tracking-widest active:scale-95 transition">Verify & Start</button>
+            
+            <div class="relative py-2">
+                <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/5"></div></div>
+                <div class="relative flex justify-center text-[8px] uppercase font-black text-gray-600"><span class="bg-black px-2">OR</span></div>
+            </div>
+
+            <button onclick="window.location.href='scholars.html'" class="w-full bg-orange-600/10 text-orange-500 border border-orange-500/20 font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest">Take Scholars Test</button>
+            
             <p id="error-msg" class="text-red-500 text-[10px] font-bold text-center uppercase hidden"></p>
         </div>
     </div>
 
     <div id="exam-screen" class="hidden">
-        <div class="flex justify-between items-center mb-4">
-            <h3 id="exam-title" class="text-sm font-black uppercase text-orange-500 truncate mr-4"></h3>
+        <div class="flex justify-between items-center mb-6">
+            <h3 id="exam-title" class="text-xs font-black uppercase text-orange-500 truncate mr-6"></h3>
             <div class="text-right">
-                <p id="timer" class="text-xl font-black text-white tabular-nums">00:00</p>
-                <p class="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Remaining</p>
+                <p id="timer" class="text-2xl font-black text-white tabular-nums">00:00</p>
+                <p class="text-[7px] text-gray-500 font-black uppercase tracking-[0.2em]">Live Timer</p>
             </div>
         </div>
 
-        <div id="subject-nav" class="flex gap-2 overflow-x-auto pb-4 no-scrollbar"></div>
+        <div id="subject-nav" class="flex gap-2 overflow-x-auto pb-6 no-scrollbar"></div>
 
-        <div class="glass-panel p-6 rounded-3xl mb-4 min-h-[140px] flex items-center">
-            <p id="question-text" class="text-lg font-medium leading-relaxed"></p>
+        <div id="question-area" class="space-y-6">
+            <div class="glass-panel p-7 rounded-[35px] min-h-[160px] flex items-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-1 h-full bg-orange-600"></div>
+                <p id="question-text" class="text-lg font-bold leading-snug"></p>
+            </div>
+
+            <div class="space-y-3" id="options-container"></div>
         </div>
 
-        <div class="space-y-3" id="options-container"></div>
-
-        <div class="mt-8 grid grid-cols-3 gap-3">
-            <button onclick="prevQuestion()" class="bg-white/5 py-4 rounded-2xl font-bold text-[10px] uppercase">Back</button>
-            <button onclick="confirmSubmit()" class="bg-orange-600/10 text-orange-500 border border-orange-500/20 py-4 rounded-2xl font-black text-[10px] uppercase">Submit</button>
-            <button onclick="nextQuestion()" class="bg-white/5 py-4 rounded-2xl font-bold text-[10px] uppercase">Next</button>
+        <div class="fixed bottom-10 left-5 right-5 grid grid-cols-3 gap-3">
+            <button onclick="prevQuestion()" class="glass-panel py-5 rounded-2xl font-black text-[10px] uppercase border-white/10">Prev</button>
+            <button onclick="confirmSubmit()" class="bg-orange-600 text-white py-5 rounded-2xl font-black text-[10px] uppercase shadow-lg shadow-orange-600/20">Submit</button>
+            <button onclick="nextQuestion()" class="glass-panel py-5 rounded-2xl font-black text-[10px] uppercase border-white/10">Next</button>
         </div>
     </div>
 
     <div id="result-screen" class="hidden text-center pt-10">
-        <div class="glass-panel p-10 rounded-[40px] border-2 border-orange-500/30">
-            <p class="text-gray-500 text-[10px] font-black uppercase mb-2">Final Performance</p>
-            <h1 id="score-text" class="text-6xl font-black text-white mb-2">0/0</h1>
-            <p id="xp-gain" class="text-orange-500 font-black text-sm uppercase">+0 XP EARNED</p>
+        <div class="glass-panel p-12 rounded-[50px] border border-orange-500/20">
+            <div class="w-16 h-16 bg-orange-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-orange-600/40">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="4" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <p class="text-gray-500 text-[10px] font-black uppercase mb-2">Final Score</p>
+            <h1 id="score-text" class="text-7xl font-black text-white mb-2">0/0</h1>
+            <p id="xp-gain" class="text-orange-500 font-black text-sm uppercase tracking-widest"></p>
         </div>
-        <button onclick="window.location.href='index.html'" class="mt-10 bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-xs">Return to Vault</button>
+        <button onclick="window.location.href='index.html'" class="mt-12 bg-white text-black px-12 py-5 rounded-2xl font-black uppercase text-xs tracking-widest active:scale-95 transition">Back to Vault</button>
     </div>
 
     <script>
@@ -69,46 +82,44 @@
         const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
         const sb = supabase.createClient(_URL, _KEY);
 
-        let allQuestions = []; // Full list from DB
-        let subjects = []; // List of subject names
-        let activeSub = ""; // Currently viewed subject
-        let subQuestions = []; // Filtered questions for current sub
-        
-        let userAnswers = {}; // { questionID: choice }
-        let currentSubIndex = 0; // Question index within the sub
-        
+        let allQuestions = []; 
+        let subjects = []; 
+        let activeSub = ""; 
+        let subQuestions = []; 
+        let userAnswers = {}; 
+        let currentIdx = 0; 
         let activeBuildId = null;
         let timerInterval;
         let timeLeft = 0;
         let isExamActive = false;
         const userId = localStorage.getItem('thesdel_user_id');
 
-        window.onbeforeunload = function() {
-            if (isExamActive) return "Leave? Your progress will not be saved!";
-        };
+        window.onbeforeunload = () => isExamActive ? "Warning: Progress will be lost!" : null;
 
         async function validateAndJoin() {
             const code = document.getElementById('join-code-input').value.trim().toUpperCase();
             const btn = document.getElementById('btn-join');
             const err = document.getElementById('error-msg');
 
-            btn.innerText = "VERIFYING...";
+            btn.innerText = "AUTH...";
             err.classList.add('hidden');
 
             const { data: build } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
 
             if (build) {
-                // Check for double attempt
+                // Double attempt security
                 const { data: check } = await sb.from('cbt_results').select('id').eq('user_id', userId).eq('build_id', build.id);
-                if (check && check.length > 0) {
-                    btn.innerText = "Start Assessment";
-                    err.innerText = "ACCESS DENIED: EXAM ALREADY COMPLETED.";
+                if (check?.length > 0) {
+                    btn.innerText = "Verify & Start";
+                    err.innerText = "ERROR: ALREADY COMPLETED THIS EXAM.";
                     err.classList.remove('hidden');
                     return;
                 }
 
-                const { data: qData } = await sb.from('cbt_questions').select('*').eq('build_id', build.id);
-                if (qData && qData.length > 0) {
+                // SECURE FETCH: We pull everything EXCEPT the correct_answer column
+                const { data: qData } = await sb.from('cbt_questions').select('id, build_id, subject_tag, question_text, option_a, option_b, option_c, option_d').eq('build_id', build.id);
+                
+                if (qData?.length > 0) {
                     allQuestions = qData;
                     subjects = build.subjects_list;
                     activeBuildId = build.id;
@@ -116,8 +127,8 @@
                     return;
                 }
             }
-            btn.innerText = "Start Assessment";
-            err.innerText = "INVALID CODE OR EMPTY EXAM.";
+            btn.innerText = "Verify & Start";
+            err.innerText = "INVALID ACCESS CODE.";
             err.classList.remove('hidden');
         }
 
@@ -126,8 +137,8 @@
             document.getElementById('join-screen').classList.add('hidden');
             document.getElementById('exam-screen').classList.remove('hidden');
             document.getElementById('exam-title').innerText = build.build_name;
-            
             timeLeft = (build.duration_mins || 30) * 60;
+            
             startTimer();
             switchSubject(subjects[0]);
         }
@@ -135,7 +146,7 @@
         function switchSubject(subName) {
             activeSub = subName;
             subQuestions = allQuestions.filter(q => q.subject_tag === subName);
-            currentSubIndex = 0;
+            currentIdx = 0;
             renderTabs();
             showQuestion();
         }
@@ -146,6 +157,27 @@
                 <div onclick="switchSubject('${s}')" class="subject-tab ${s === activeSub ? 'tab-active' : ''}">${s}</div>
             `).join('');
         }
+
+        function showQuestion() {
+            const q = subQuestions[currentIdx];
+            if(!q) return;
+
+            document.getElementById('question-text').innerText = q.question_text;
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            ['a', 'b', 'c', 'd'].forEach(opt => {
+                const key = opt.toUpperCase();
+                const btn = document.createElement('button');
+                btn.className = `option-btn w-full p-6 rounded-2xl text-left font-bold text-sm uppercase flex justify-between items-center ${userAnswers[q.id] === key ? 'option-selected' : ''}`;
+                btn.innerHTML = `<span>${q[`option_${opt}`]}</span> <div class="w-6 h-6 rounded-full border border-white/10 flex items-center justify-center text-[10px] opacity-40">${key}</div>`;
+                btn.onclick = () => { userAnswers[q.id] = key; showQuestion(); };
+                container.appendChild(btn);
+            });
+        }
+
+        function nextQuestion() { if (currentIdx < subQuestions.length - 1) { currentIdx++; showQuestion(); } }
+        function prevQuestion() { if (currentIdx > 0) { currentIdx--; showQuestion(); } }
 
         function startTimer() {
             const display = document.getElementById('timer');
@@ -159,55 +191,19 @@
             }, 1000);
         }
 
-        function showQuestion() {
-            const q = subQuestions[currentSubIndex];
-            if(!q) return;
-
-            document.getElementById('question-text').innerText = q.question_text;
-            const container = document.getElementById('options-container');
-            container.innerHTML = '';
-
-            ['a', 'b', 'c', 'd'].forEach(opt => {
-                const key = opt.toUpperCase();
-                const btn = document.createElement('button');
-                btn.className = `option-btn w-full p-5 rounded-2xl text-left font-bold text-sm uppercase flex justify-between ${userAnswers[q.id] === key ? 'option-selected' : ''}`;
-                btn.innerHTML = `<span>${q[`option_${opt}`]}</span> <span class="opacity-30">${key}</span>`;
-                btn.onclick = () => { userAnswers[q.id] = key; showQuestion(); };
-                container.appendChild(btn);
-            });
-        }
-
-        function nextQuestion() {
-            if (currentSubIndex < subQuestions.length - 1) {
-                currentSubIndex++;
-                showQuestion();
-            }
-        }
-
-        function prevQuestion() {
-            if (currentSubIndex > 0) {
-                currentSubIndex--;
-                showQuestion();
-            }
-        }
-
-        function confirmSubmit() {
-            if (confirm("Submit your answers across all subjects?")) finishExam();
-        }
-
-        function autoSubmit() {
-            clearInterval(timerInterval);
-            alert("TIME EXPIRED!");
-            finishExam();
-        }
+        function confirmSubmit() { if (confirm("Ready to submit your final answers?")) finishExam(); }
+        function autoSubmit() { clearInterval(timerInterval); finishExam(); }
 
         async function finishExam() {
             isExamActive = false;
             clearInterval(timerInterval);
             
+            // SECURITY: The browser now fetches the keys ONLY at the end to grade
+            const { data: keys } = await sb.from('cbt_questions').select('id, correct_answer').eq('build_id', activeBuildId);
+            
             let finalScore = 0;
-            allQuestions.forEach(q => {
-                if (userAnswers[q.id] === q.correct_answer) finalScore++;
+            keys.forEach(k => {
+                if (userAnswers[k.id] === k.correct_answer) finalScore++;
             });
 
             document.getElementById('exam-screen').classList.add('hidden');
@@ -217,10 +213,8 @@
             const xpEarned = finalScore * 10;
             document.getElementById('xp-gain').innerText = `+${xpEarned} XP EARNED`;
 
-            await sb.from('cbt_results').insert([{
-                user_id: userId, build_id: activeBuildId, score: finalScore, total_questions: allQuestions.length
-            }]);
-
+            // Log result and update XP
+            await sb.from('cbt_results').insert([{ user_id: userId, build_id: activeBuildId, score: finalScore, total_questions: allQuestions.length }]);
             const { data: profile } = await sb.from('profile').select('xp').eq('id', userId).single();
             await sb.from('profile').update({ xp: (profile.xp || 0) + xpEarned }).eq('id', userId);
         }
