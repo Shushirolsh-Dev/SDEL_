@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join Exam - Thesdel</title>
+    <title>Exam Engine - Thesdel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
@@ -12,55 +12,56 @@
         .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .hidden { display: none; }
         .option-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); transition: 0.2s; outline: none; }
-        .option-btn:active, .option-selected { background: #ff6600 !important; border-color: #ff6600 !important; color: white !important; }
+        .option-selected { background: #ff6600 !important; border-color: #ff6600 !important; color: white !important; }
         input { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1); outline: none; }
         .timer-warning { color: #ff3333; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .subject-tab { padding: 8px 16px; border-radius: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; white-space: nowrap; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); }
+        .tab-active { background: #ff6600; border-color: #ff6600; }
     </style>
 </head>
 <body class="p-5 pb-32">
 
     <div id="join-screen" class="pt-10">
-        <h2 class="text-2xl font-black text-orange-500 uppercase mb-6">Enter Exam Code</h2>
+        <h2 class="text-2xl font-black text-orange-500 uppercase mb-6 tracking-tighter">Enter Exam Code</h2>
         <div class="glass-panel p-6 rounded-3xl space-y-4">
-            <input type="text" id="join-code-input" placeholder="Thesdel-359Xc3jpA" class="w-full p-4 rounded-2xl text-center font-bold tracking-widest">
-            <button onclick="validateAndJoin()" id="btn-join" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-xs tracking-widest">Validate & Start</button>
+            <input type="text" id="join-code-input" placeholder="Thesdel-742A..." class="w-full p-4 rounded-2xl text-center font-bold tracking-widest uppercase">
+            <button onclick="validateAndJoin()" id="btn-join" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-xs tracking-widest">Start Assessment</button>
             <p id="error-msg" class="text-red-500 text-[10px] font-bold text-center uppercase hidden"></p>
         </div>
     </div>
 
     <div id="exam-screen" class="hidden">
-        <div class="flex justify-between items-start mb-6">
-            <div>
-                <h3 id="exam-title" class="text-lg font-black uppercase text-orange-500 leading-tight"></h3>
-                <p id="exam-subject" class="text-[10px] text-gray-500 font-bold uppercase"></p>
-            </div>
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="exam-title" class="text-sm font-black uppercase text-orange-500 truncate mr-4"></h3>
             <div class="text-right">
                 <p id="timer" class="text-xl font-black text-white tabular-nums">00:00</p>
-                <p id="q-progress" class="text-[10px] font-bold text-gray-500 uppercase">Q1/10</p>
+                <p class="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Remaining</p>
             </div>
         </div>
 
-        <div class="glass-panel p-6 rounded-3xl mb-6 min-h-[120px] flex items-center">
+        <div id="subject-nav" class="flex gap-2 overflow-x-auto pb-4 no-scrollbar"></div>
+
+        <div class="glass-panel p-6 rounded-3xl mb-4 min-h-[140px] flex items-center">
             <p id="question-text" class="text-lg font-medium leading-relaxed"></p>
         </div>
 
         <div class="space-y-3" id="options-container"></div>
 
-        <div class="mt-8 flex gap-3">
-            <button onclick="prevQuestion()" class="flex-1 bg-white/5 py-4 rounded-2xl font-bold text-[10px] uppercase">Previous</button>
-            <button onclick="confirmSubmit()" class="flex-1 bg-orange-600/20 text-orange-500 border border-orange-500/30 py-4 rounded-2xl font-black text-[10px] uppercase">Submit Early</button>
-            <button onclick="nextQuestion()" class="flex-1 bg-white/5 py-4 rounded-2xl font-bold text-[10px] uppercase">Next</button>
+        <div class="mt-8 grid grid-cols-3 gap-3">
+            <button onclick="prevQuestion()" class="bg-white/5 py-4 rounded-2xl font-bold text-[10px] uppercase">Back</button>
+            <button onclick="confirmSubmit()" class="bg-orange-600/10 text-orange-500 border border-orange-500/20 py-4 rounded-2xl font-black text-[10px] uppercase">Submit</button>
+            <button onclick="nextQuestion()" class="bg-white/5 py-4 rounded-2xl font-bold text-[10px] uppercase">Next</button>
         </div>
     </div>
 
     <div id="result-screen" class="hidden text-center pt-10">
         <div class="glass-panel p-10 rounded-[40px] border-2 border-orange-500/30">
-            <p class="text-gray-500 text-[10px] font-black uppercase mb-2">Final Score</p>
+            <p class="text-gray-500 text-[10px] font-black uppercase mb-2">Final Performance</p>
             <h1 id="score-text" class="text-6xl font-black text-white mb-2">0/0</h1>
             <p id="xp-gain" class="text-orange-500 font-black text-sm uppercase">+0 XP EARNED</p>
         </div>
-        <button onclick="window.location.href='index.html'" class="mt-10 bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-xs">Back to Vault</button>
+        <button onclick="window.location.href='index.html'" class="mt-10 bg-white text-black px-10 py-4 rounded-2xl font-black uppercase text-xs">Return to Vault</button>
     </div>
 
     <script>
@@ -68,9 +69,14 @@
         const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
         const sb = supabase.createClient(_URL, _KEY);
 
-        let questions = [];
-        let userAnswers = {};
-        let currentIndex = 0;
+        let allQuestions = []; // Full list from DB
+        let subjects = []; // List of subject names
+        let activeSub = ""; // Currently viewed subject
+        let subQuestions = []; // Filtered questions for current sub
+        
+        let userAnswers = {}; // { questionID: choice }
+        let currentSubIndex = 0; // Question index within the sub
+        
         let activeBuildId = null;
         let timerInterval;
         let timeLeft = 0;
@@ -78,47 +84,40 @@
         const userId = localStorage.getItem('thesdel_user_id');
 
         window.onbeforeunload = function() {
-            if (isExamActive) return "Exam in progress! Your progress will be lost.";
+            if (isExamActive) return "Leave? Your progress will not be saved!";
         };
 
         async function validateAndJoin() {
-            const code = document.getElementById('join-code-input').value.trim();
+            const code = document.getElementById('join-code-input').value.trim().toUpperCase();
             const btn = document.getElementById('btn-join');
             const err = document.getElementById('error-msg');
 
             btn.innerText = "VERIFYING...";
             err.classList.add('hidden');
 
-            // 1. Find the exam
             const { data: build } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
 
             if (build) {
-                // 2. CHECK IF USER ALREADY TOOK THIS EXAM
-                const { data: existingResult } = await sb.from('cbt_results')
-                    .select('id')
-                    .eq('user_id', userId)
-                    .eq('build_id', build.id)
-                    .limit(1);
-
-                if (existingResult && existingResult.length > 0) {
-                    btn.innerText = "VALIDATE & START";
-                    err.innerText = "ACCESS DENIED: YOU HAVE ALREADY COMPLETED THIS EXAM.";
+                // Check for double attempt
+                const { data: check } = await sb.from('cbt_results').select('id').eq('user_id', userId).eq('build_id', build.id);
+                if (check && check.length > 0) {
+                    btn.innerText = "Start Assessment";
+                    err.innerText = "ACCESS DENIED: EXAM ALREADY COMPLETED.";
                     err.classList.remove('hidden');
                     return;
                 }
 
-                // 3. Load questions if clear
                 const { data: qData } = await sb.from('cbt_questions').select('*').eq('build_id', build.id);
                 if (qData && qData.length > 0) {
-                    questions = qData;
+                    allQuestions = qData;
+                    subjects = build.subjects_list;
                     activeBuildId = build.id;
                     startExam(build);
                     return;
                 }
             }
-            
-            btn.innerText = "VALIDATE & START";
-            err.innerText = "INVALID CODE OR NO QUESTIONS FOUND.";
+            btn.innerText = "Start Assessment";
+            err.innerText = "INVALID CODE OR EMPTY EXAM.";
             err.classList.remove('hidden');
         }
 
@@ -127,73 +126,78 @@
             document.getElementById('join-screen').classList.add('hidden');
             document.getElementById('exam-screen').classList.remove('hidden');
             document.getElementById('exam-title').innerText = build.build_name;
-            document.getElementById('exam-subject').innerText = build.subject_name;
             
             timeLeft = (build.duration_mins || 30) * 60;
             startTimer();
+            switchSubject(subjects[0]);
+        }
+
+        function switchSubject(subName) {
+            activeSub = subName;
+            subQuestions = allQuestions.filter(q => q.subject_tag === subName);
+            currentSubIndex = 0;
+            renderTabs();
             showQuestion();
+        }
+
+        function renderTabs() {
+            const nav = document.getElementById('subject-nav');
+            nav.innerHTML = subjects.map(s => `
+                <div onclick="switchSubject('${s}')" class="subject-tab ${s === activeSub ? 'tab-active' : ''}">${s}</div>
+            `).join('');
         }
 
         function startTimer() {
             const display = document.getElementById('timer');
             timerInterval = setInterval(() => {
-                const mins = Math.floor(timeLeft / 60);
-                const secs = timeLeft % 60;
-                display.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                
+                const m = Math.floor(timeLeft / 60);
+                const s = timeLeft % 60;
+                display.innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
                 if (timeLeft <= 60) display.classList.add('timer-warning');
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    autoSubmit();
-                }
+                if (timeLeft <= 0) autoSubmit();
                 timeLeft--;
             }, 1000);
         }
 
         function showQuestion() {
-            const q = questions[currentIndex];
-            document.getElementById('q-progress').innerText = `Q${currentIndex + 1}/${questions.length}`;
-            document.getElementById('question-text').innerText = q.question_text;
+            const q = subQuestions[currentSubIndex];
+            if(!q) return;
 
+            document.getElementById('question-text').innerText = q.question_text;
             const container = document.getElementById('options-container');
             container.innerHTML = '';
 
             ['a', 'b', 'c', 'd'].forEach(opt => {
                 const key = opt.toUpperCase();
-                const text = q[`option_${opt}`];
                 const btn = document.createElement('button');
-                btn.className = `option-btn w-full p-5 rounded-2xl text-left font-bold text-sm uppercase flex justify-between ${userAnswers[currentIndex] === key ? 'option-selected' : ''}`;
-                btn.innerHTML = `<span>${text}</span> <span class="opacity-40">${key}</span>`;
-                btn.onclick = () => selectAnswer(key);
+                btn.className = `option-btn w-full p-5 rounded-2xl text-left font-bold text-sm uppercase flex justify-between ${userAnswers[q.id] === key ? 'option-selected' : ''}`;
+                btn.innerHTML = `<span>${q[`option_${opt}`]}</span> <span class="opacity-30">${key}</span>`;
+                btn.onclick = () => { userAnswers[q.id] = key; showQuestion(); };
                 container.appendChild(btn);
             });
         }
 
-        function selectAnswer(choice) {
-            userAnswers[currentIndex] = choice;
-            showQuestion();
-        }
-
         function nextQuestion() {
-            if (currentIndex < questions.length - 1) {
-                currentIndex++;
+            if (currentSubIndex < subQuestions.length - 1) {
+                currentSubIndex++;
                 showQuestion();
             }
         }
 
         function prevQuestion() {
-            if (currentIndex > 0) {
-                currentIndex--;
+            if (currentSubIndex > 0) {
+                currentSubIndex--;
                 showQuestion();
             }
         }
 
         function confirmSubmit() {
-            if (confirm("Are you sure you want to submit the exam now?")) finishExam();
+            if (confirm("Submit your answers across all subjects?")) finishExam();
         }
 
         function autoSubmit() {
-            alert("TIME EXPIRED! Your exam is being submitted automatically.");
+            clearInterval(timerInterval);
+            alert("TIME EXPIRED!");
             finishExam();
         }
 
@@ -202,19 +206,19 @@
             clearInterval(timerInterval);
             
             let finalScore = 0;
-            questions.forEach((q, index) => {
-                if (userAnswers[index] === q.correct_answer) finalScore++;
+            allQuestions.forEach(q => {
+                if (userAnswers[q.id] === q.correct_answer) finalScore++;
             });
 
             document.getElementById('exam-screen').classList.add('hidden');
             document.getElementById('result-screen').classList.remove('hidden');
-            document.getElementById('score-text').innerText = `${finalScore}/${questions.length}`;
+            document.getElementById('score-text').innerText = `${finalScore}/${allQuestions.length}`;
             
             const xpEarned = finalScore * 10;
             document.getElementById('xp-gain').innerText = `+${xpEarned} XP EARNED`;
 
             await sb.from('cbt_results').insert([{
-                user_id: userId, build_id: activeBuildId, score: finalScore, total_questions: questions.length
+                user_id: userId, build_id: activeBuildId, score: finalScore, total_questions: allQuestions.length
             }]);
 
             const { data: profile } = await sb.from('profile').select('xp').eq('id', userId).single();
