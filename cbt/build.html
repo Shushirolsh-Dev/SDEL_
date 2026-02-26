@@ -189,7 +189,31 @@
             const title = document.getElementById('exam-title').value;
             if(!title || selectedSubs.length === 0) return notify("Incomplete Details!");
 
-            const code = `Thesdel-${Math.floor(100+Math.random()*900)}${Math.random().toString(36).substr(2,4).toUpperCase()}`;
+            // Generate unique code - won't repeat
+            let code = "";
+            let isUnique = false;
+            let attempts = 0;
+            const maxAttempts = 10;
+
+            while (!isUnique && attempts < maxAttempts) {
+                code = `Thesdel-${Math.floor(100+Math.random()*900)}${Math.random().toString(36).substr(2,6).toUpperCase()}`;
+                
+                const { data: existing } = await sb
+                    .from('cbt_builds')
+                    .select('join_code')
+                    .eq('join_code', code)
+                    .maybeSingle();
+                
+                if (!existing) {
+                    isUnique = true;
+                }
+                attempts++;
+            }
+
+            if (!isUnique) {
+                return notify("Error generating unique code. Please try again.");
+            }
+
             const { data, error } = await sb.from('cbt_builds').insert([{
                 creator_id: userId, build_name: title, subjects_list: selectedSubs,
                 duration_mins: parseInt(document.getElementById('exam-duration').value) || 30,
