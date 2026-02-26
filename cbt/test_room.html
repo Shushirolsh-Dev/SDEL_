@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Thesdel Secure Room</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -23,6 +26,7 @@
 <body class="p-6">
 
     <script>
+        // BLOCK BACK BUTTON
         history.pushState(null, null, location.href);
         window.onpopstate = function () { history.go(1); };
     </script>
@@ -30,9 +34,9 @@
     <div id="submit-confirm-modal" class="fixed inset-0 z-[500] bg-black/95 hidden items-center justify-center p-6 backdrop-blur-xl">
         <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm text-center border-orange-500/30">
             <h2 class="text-xl font-black uppercase tracking-tighter">End Battle?</h2>
-            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2 leading-relaxed">Mistakes result in -10 XP penalty from your profile.</p>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2 leading-relaxed">Submitting will finalize your score. No retakes allowed.</p>
             <div class="mt-8 flex flex-col gap-3">
-                <button onclick="finishExam()" class="w-full bg-orange-600 text-white font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest active:scale-95 transition">Submit Now</button>
+                <button id="final-sub-btn" onclick="finishExam()" class="w-full bg-orange-600 text-white font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest active:scale-95 transition">Submit Now</button>
                 <button onclick="closeSubmitModal()" class="w-full bg-white/5 text-gray-400 font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest">Reject</button>
             </div>
         </div>
@@ -43,9 +47,7 @@
             <p id="timer" class="text-xl font-mono font-bold">00:00</p>
             <button onclick="openSubmitModal()" class="bg-red-600/10 text-red-500 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest">End Exam</button>
         </div>
-
         <div id="subject-tabs" class="flex gap-2 overflow-x-auto no-scrollbar pb-4"></div>
-
         <div class="flex-1 overflow-y-auto no-scrollbar space-y-6 pt-4">
             <span id="display-q-num" class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Question 1</span>
             <p id="question-text" class="text-lg font-bold leading-relaxed"></p>
@@ -68,7 +70,6 @@
                 </div>
             </div>
         </div>
-
         <div class="py-8 flex gap-3">
             <button id="btn-prev" onclick="prevQuestion()" class="flex-1 glass-panel py-5 rounded-[24px] text-[10px] font-black uppercase">Prev</button>
             <button id="btn-next" onclick="nextQuestion()" class="flex-[2] bg-white text-black py-5 rounded-[24px] font-black uppercase text-[10px] tracking-widest">Next</button>
@@ -80,17 +81,16 @@
             <h2 class="text-4xl font-black uppercase tracking-tighter mb-8">Scorecard</h2>
             <div class="grid grid-cols-2 gap-4 mb-10">
                 <div class="glass-panel p-6 rounded-[32px] text-center">
-                    <p class="text-[8px] text-gray-500 font-black mb-1">ACCURACY</p>
+                    <p class="text-[8px] text-gray-500 font-black mb-1 uppercase">Accuracy</p>
                     <p id="res-score" class="text-2xl font-black text-orange-500"></p>
                 </div>
                 <div class="glass-panel p-6 rounded-[32px] text-center">
-                    <p class="text-[8px] text-gray-500 font-black mb-1">XP EARNED</p>
+                    <p class="text-[8px] text-gray-500 font-black mb-1 uppercase">XP Shift</p>
                     <p id="res-xp" class="text-2xl font-black"></p>
                 </div>
             </div>
-
             <div id="review-list" class="space-y-4 text-left mb-10"></div>
-            <button onclick="location.href='join.html'" class="w-full bg-white text-black py-6 rounded-3xl font-black text-[10px] uppercase">Close Arena</button>
+            <button onclick="window.location.replace('join.html')" class="w-full bg-white text-black py-6 rounded-3xl font-black text-[10px] uppercase tracking-widest">Exit Arena</button>
         </div>
     </div>
 
@@ -102,21 +102,40 @@
         const examId = localStorage.getItem('active_exam_id');
         let allQuestions = [], filteredQuestions = [], activeSub = "", currentIndex = 0, selectedAnswers = {}, timeLeft = 0, timerInterval;
 
-        async function initRoom() {
+        // THE NUCLEAR LOCK - RUNS IMMEDIATELY
+        async function checkLock() {
             const { data: { user } } = await sb.auth.getUser();
-            if (!user || !examId) return window.location.href = 'join.html';
+            if (!user || !examId) return window.location.replace('join.html');
 
-            // 1. Fetch Profile and check for Bans/Status
-            const { data: profile, error: pErr } = await sb.from('profile').select('*').eq('id', user.id).single();
-            if (pErr || profile.is_banned || profile.account_status !== 'active') {
-                document.body.innerHTML = `<div class="h-screen flex items-center justify-center bg-black text-center p-10"><div class="glass-panel p-10 rounded-[40px] border-red-500/20"><h2 class="text-red-500 font-black uppercase">Account Restricted</h2><p class="text-xs text-gray-500 mt-4 uppercase font-bold">Your profile is not eligible for this battle.</p></div></div>`;
+            const { data: existing } = await sb.from('cbt_results')
+                .select('id')
+                .eq('build_id', examId)
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            if (existing) {
+                document.body.innerHTML = `
+                <div class="h-screen flex items-center justify-center bg-black text-center p-8">
+                    <div class="glass-panel p-10 rounded-[40px] border-red-500/30 max-w-sm">
+                        <div class="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m0 0v2m0-2h2m-2 0H10m11-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <h2 class="text-red-500 font-black uppercase text-xl tracking-tighter">Access Blocked</h2>
+                        <p class="text-[10px] text-gray-500 mt-4 uppercase font-bold leading-relaxed tracking-widest">Battle records indicate you have already completed this session. Retakes are strictly prohibited.</p>
+                        <button onclick="window.location.replace('join.html')" class="mt-8 w-full bg-white text-black py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest">Return to Base</button>
+                    </div>
+                </div>`;
                 return;
             }
+            initRoom();
+        }
 
-            // 2. Check for Previous Attempt
-            const { data: existing } = await sb.from('cbt_results').select('id').eq('build_id', examId).eq('user_id', user.id).single();
-            if (existing) {
-                document.body.innerHTML = `<div class="h-screen flex items-center justify-center bg-black text-center p-10"><div class="glass-panel p-10 rounded-[40px] border-orange-500/20"><h2 class="text-orange-500 font-black uppercase">Battle Fought</h2><p class="text-xs text-gray-500 mt-4 uppercase font-bold">You cannot retake this exam, Homie.</p></div></div>`;
+        async function initRoom() {
+            const { data: { user } } = await sb.auth.getUser();
+            const { data: profile } = await sb.from('profile').select('*').eq('id', user.id).single();
+            
+            if (!profile || profile.is_banned || profile.account_status !== 'active') {
+                window.location.replace('join.html');
                 return;
             }
 
@@ -182,6 +201,10 @@
         function closeSubmitModal() { document.getElementById('submit-confirm-modal').classList.replace('flex', 'hidden'); }
 
         async function finishExam() {
+            const btn = document.getElementById('final-sub-btn');
+            btn.disabled = true;
+            btn.innerText = "RECORDING...";
+
             clearInterval(timerInterval);
             const { data: { user } } = await sb.auth.getUser();
             let correct = 0, missed = 0, reviewHtml = "";
@@ -199,13 +222,26 @@
                 </div>`;
             });
 
-            // XP Logic
             const netXpChange = (correct * 10) - (missed * 10);
+            
+            // 1. SAVE RESULT FIRST (THE LOCK)
+            await sb.from('cbt_results').insert([{ 
+                build_id: examId, 
+                user_id: user.id, 
+                username: localStorage.getItem('student_name'), 
+                score: correct, 
+                total_questions: allQuestions.length 
+            }]);
+
+            // 2. UPDATE XP
             const { data: p } = await sb.from('profile').select('xp').eq('id', user.id).single();
             await sb.from('profile').update({ xp: Math.max(0, (p?.xp || 0) + netXpChange) }).eq('id', user.id);
-            await sb.from('cbt_results').insert([{ build_id: examId, user_id: user.id, username: localStorage.getItem('student_name'), score: correct, total_questions: allQuestions.length }]);
 
-            // UI
+            // 3. CLEANUP LOCAL SESSION
+            localStorage.removeItem(`start_${examId}_${user.id}`);
+            localStorage.removeItem('active_exam_id');
+
+            // 4. SHOW RESULTS
             document.getElementById('exam-ui').classList.add('hidden');
             document.getElementById('res-score').innerText = `${correct}/${allQuestions.length}`;
             const xpDisplay = document.getElementById('res-xp');
@@ -213,11 +249,10 @@
             xpDisplay.className = `text-2xl font-black ${netXpChange >= 0 ? 'text-green-500' : 'text-red-500'}`;
             document.getElementById('review-list').innerHTML = reviewHtml;
             document.getElementById('result-modal').classList.replace('hidden', 'flex');
-            localStorage.removeItem(`start_${examId}_${user.id}`);
             closeSubmitModal();
         }
 
-        initRoom();
+        checkLock();
     </script>
 </body>
 </html>
