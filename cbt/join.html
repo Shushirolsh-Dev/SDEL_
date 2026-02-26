@@ -19,6 +19,10 @@
         .btn-primary { background: white; color: black; font-weight: 800; border-radius: 20px; transition: 0.3s; }
         .btn-primary:active { scale: 0.95; }
         .btn-secondary { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; font-weight: 800; border-radius: 20px; }
+        
+        /* Loading Spinner */
+        .loader { width: 14px; height: 14px; border: 2px solid #000; border-top: 2px solid transparent; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-6">
@@ -32,14 +36,15 @@
     <div class="w-full max-w-sm space-y-8 text-center">
         <div>
             <h1 class="text-3xl font-black tracking-tighter uppercase mb-2">Ready for <span class="text-orange-500">Battle?</span></h1>
-            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Enter your credentials to begin</p>
+            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Enter code to join secure room</p>
         </div>
 
         <div class="glass-panel p-8 rounded-[40px] space-y-4">
-            <input type="text" id="student-name" placeholder="YOUR NAME (E.G. HOMIE)" class="w-full p-5 text-xs font-black uppercase tracking-widest">
-            <input type="text" id="exam-code" placeholder="THESDEL-000XXXX" class="w-full p-5 text-xs font-mono font-bold">
+            <input type="text" id="exam-code" placeholder="THESDEL-000XXXX" class="w-full p-5 text-xs font-mono font-bold uppercase tracking-widest">
             
-            <button onclick="validateAndJoin()" class="w-full btn-primary py-5 text-[10px] uppercase tracking-widest mt-2">Enter Exam Room</button>
+            <button id="join-btn" onclick="validateAndJoin()" class="w-full btn-primary py-5 text-[10px] uppercase tracking-widest mt-2 flex items-center justify-center">
+                <span>Enter Exam Room</span>
+            </button>
         </div>
 
         <div class="pt-4">
@@ -63,48 +68,72 @@
         }
 
         async function validateAndJoin() {
-            const name = document.getElementById('student-name').value.trim();
             const code = document.getElementById('exam-code').value.trim();
-
-            if (!name) return notify("What's your name, homie?");
+            const btn = document.getElementById('join-btn');
+            
             if (!code) return notify("The code field is empty!");
 
-            // 1. Check if exam exists
-            const { data: exam, error } = await sb
-                .from('cbt_builds')
-                .select('*')
-                .eq('join_code', code)
-                .single();
+            // UI Loading State
+            btn.disabled = true;
+            btn.innerHTML = `<div class="loader"></div> Processing...`;
 
-            if (error || !exam) {
-                return notify("Invalid Code. Double check it!");
-            }
-
-            // 2. Check Timing Logic
-            const now = new Date();
-            if (exam.start_time) {
-                const start = new Date(exam.start_time);
-                const end = new Date(start.getTime() + (exam.duration_mins * 60000));
-
-                if (now < start) {
-                    const timeStr = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    return notify(`Too early! This starts at ${timeStr}`);
+            try {
+                // 1. Check Auth Session
+                const { data: { user } } = await sb.auth.getUser();
+                if (!user) {
+                    notify("Login required to join.");
+                    return resetBtn();
                 }
+
+                // 2. Check Profile Status (Banned/Active)
+                const { data: profile } = await sb.from('profile').select('is_banned, account_status, username').eq('id', user.id).single();
+                if (!profile || profile.is_banned || profile.account_status !== 'active') {
+                    notify("Account restricted or banned.");
+                    return resetBtn();
+                }
+
+                // 3. Find Exam
+                const { data: exam, error: eErr } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
+                if (eErr || !exam) {
+                    notify("Invalid Code. Double check it!");
+                    return resetBtn();
+                }
+
+                // 4. Check if already submitted (Prevent Retake)
+                const { data: existing } = await sb.from('cbt_results').select('id').eq('build_id', exam.id).eq('user_id', user.id).single();
+                if (existing) {
+                    notify("Battle concluded. You cannot retake!");
+                    return resetBtn();
+                }
+
+                // 5. Timing Check
+                const now = new Date();
+                if (exam.start_time) {
+                    const start = new Date(exam.start_time);
+                    if (now < start) {
+                        notify(`Too early! Starts at ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`);
+                        return resetBtn();
+                    }
+                }
+
+                // SUCCESS: Store and move
+                localStorage.setItem('active_exam_id', exam.id);
+                localStorage.setItem('student_name', profile.username || "Homie");
+                localStorage.setItem('exam_duration', exam.duration_mins);
                 
-                if (now > end) {
-                    return notify("This exam has already expired!");
-                }
-            }
+                notify("Identity Verified. Entering...");
+                setTimeout(() => window.location.href = 'test_room.html', 1500);
 
-            // 3. If all good, store session and move to test
-            localStorage.setItem('active_exam_id', exam.id);
-            localStorage.setItem('student_name', name);
-            localStorage.setItem('exam_duration', exam.duration_mins);
-            
-            notify("Identity Verified. Entering...");
-            setTimeout(() => {
-                window.location.href = 'test_room.html'; // We'll build the actual test environment next
-            }, 1500);
+            } catch (err) {
+                notify("Connection Error. Try again.");
+                resetBtn();
+            }
+        }
+
+        function resetBtn() {
+            const btn = document.getElementById('join-btn');
+            btn.disabled = false;
+            btn.innerHTML = "Enter Exam Room";
         }
     </script>
 </body>
