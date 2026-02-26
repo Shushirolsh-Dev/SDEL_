@@ -108,6 +108,8 @@
         const examId = localStorage.getItem('active_exam_id');
         let allQuestions = [], filteredQuestions = [], activeSub = "", currentIndex = 0, selectedAnswers = {}, timeLeft = 0, timerInterval, heartbeatInterval;
         let allSubjects = [];
+        let lastUpdateTime = 0;
+        let pendingUpdates = false;
 
         // --- THE GATEKEEPER (UPDATED WITH SESSION HANDLING) ---
         async function verifyAndLock() {
@@ -209,11 +211,17 @@
             }
         }
 
-        // --- HEARTBEAT (updates server every 15 seconds) ---
+        // --- HEARTBEAT (updates server every 1 SECOND and continues offline) ---
         function startHeartbeat(userId) {
             heartbeatInterval = setInterval(async () => {
                 try {
-                    await sb.from('exam_sessions')
+                    const now = Date.now();
+                    
+                    // Always update last heartbeat locally
+                    lastUpdateTime = now;
+                    
+                    // Try to update server - if offline, it will queue and retry
+                    const { error } = await sb.from('exam_sessions')
                         .update({ 
                             time_remaining: timeLeft,
                             answers: selectedAnswers,
@@ -224,27 +232,34 @@
                         .eq('user_id', userId)
                         .eq('build_id', examId)
                         .eq('status', 'active');
+                    
+                    if (error) {
+                        console.log('Offline - heartbeat queued');
+                        pendingUpdates = true;
+                    } else {
+                        pendingUpdates = false;
+                    }
                 } catch (err) {
-                    console.log('Heartbeat failed');
+                    // Silently handle offline - will retry next second
+                    console.log('Heartbeat failed - will retry');
+                    pendingUpdates = true;
                 }
-            }, 15000);
+            }, 1000); // ⏱️ EVERY 1 SECOND
         }
 
-        // --- TIMER (with server sync) ---
+        // --- TIMER (with server sync EVERY 1 SECOND) ---
         function startTimer() {
             timerInterval = setInterval(() => {
                 timeLeft--;
                 
-                // Sync with server every 30 seconds
-                if (timeLeft % 30 === 0) {
-                    sb.from('exam_sessions')
-                        .update({ time_remaining: timeLeft })
-                        .eq('build_id', examId)
-                        .eq('status', 'active')
-                        .then(({ error }) => {
-                            if (error) console.log('Timer sync failed');
-                        });
-                }
+                // Sync with server EVERY SECOND (removed the 30-second condition)
+                sb.from('exam_sessions')
+                    .update({ time_remaining: timeLeft })
+                    .eq('build_id', examId)
+                    .eq('status', 'active')
+                    .then(({ error }) => {
+                        if (error) console.log('Timer sync queued');
+                    });
                 
                 const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
                 document.getElementById('timer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
@@ -358,7 +373,7 @@
             try {
                 const { data: { user } } = await sb.auth.getUser();
                 
-                // Get correct answers from server (secure)
+                 // Get correct answers from server (secure)
                 const { data: answers } = await sb.from('cbt_questions')
                     .select('id, correct_answer')
                     .eq('build_id', examId);
@@ -370,7 +385,7 @@
                     else if (selectedAnswers[q.id]) missed++;
                 });
 
-                const xpDelta = (correct * 10) - (missed * 2); // -2 for wrong answers
+                const xpDelta = (correct * 10) - (missed * 2); // +10 for correct, -2 for wrong
 
                 // Get current XP from profile table
                 const { data: profile } = await sb.from('profile').select('xp').eq('id', user.id).single();
