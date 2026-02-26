@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Thesdel CBT Stats</title>
+<title>Thesdel CBT Live Stats</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -34,6 +34,11 @@
     font-size: 16px;
     line-height: 1.8;
   }
+
+  .loading {
+    font-style: italic;
+    color: #555;
+  }
 </style>
 </head>
 
@@ -41,7 +46,7 @@
 
 <div class="card">
   <h2>Live CBT Stats</h2>
-  <div class="stats" id="stats">Loading...</div>
+  <div class="stats" id="stats"><span class="loading">Loading stats...</span></div>
 </div>
 
 <script>
@@ -56,24 +61,34 @@
   const statsEl = document.getElementById("stats");
 
   async function loadStats() {
-    const { data, error } = await supabase
-      .from("cbt_rating_stats")
-      .select("*")
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from("cbt_rating_stats")
+        .select("*")
+        .maybeSingle(); // safer if view is empty
 
-    if (error || !data) {
-      statsEl.innerHTML = "Unable to load statistics.";
-      console.error(error);
-      return;
+      if (error) {
+        console.error("Supabase error:", error);
+        statsEl.innerHTML = "Unable to load statistics.";
+        return;
+      }
+
+      if (!data) {
+        statsEl.innerHTML = "No votes yet.";
+        return;
+      }
+
+      statsEl.innerHTML = `
+        Total Votes: ${data.total_votes}<br/>
+        Good: ${data.good_votes} (${data.good_percentage || 0}%)<br/>
+        Bad: ${data.bad_votes}<br/>
+        Yes: ${data.yes_votes} (${data.yes_percentage || 0}%)<br/>
+        No: ${data.no_votes}
+      `;
+    } catch (err) {
+      console.error("JS error:", err);
+      statsEl.innerHTML = "Error loading statistics.";
     }
-
-    statsEl.innerHTML = `
-      Total Votes: ${data.total_votes}<br/>
-      Good: ${data.good_votes} (${data.good_percentage || 0}%)<br/>
-      Bad: ${data.bad_votes}<br/>
-      Yes: ${data.yes_votes} (${data.yes_percentage || 0}%)<br/>
-      No: ${data.no_votes}
-    `;
   }
 
   // Load stats immediately
