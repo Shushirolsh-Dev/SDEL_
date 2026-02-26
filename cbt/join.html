@@ -3,117 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thesdel Secure Exam</title>
+    <title>Thesdel Join</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { background: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 35px; }
-        .hidden { display: none; }
-        .option-btn { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); padding: 22px; border-radius: 20px; width: 100%; text-align: left; font-weight: 700; transition: 0.2s; display: flex; justify-content: space-between; }
-        .opt-selected { background: #ff6600 !important; border-color: #ff6600 !important; color: white !important; box-shadow: 0 10px 30px rgba(255,102,0,0.3); }
-        .subject-tab { padding: 12px 20px; border-radius: 16px; font-size: 10px; font-weight: 800; text-transform: uppercase; border: 1px solid rgba(255,255,255,0.1); white-space: nowrap; cursor: pointer; }
-        .tab-active { background: #ff6600; border-color: #ff6600; }
-        .xp-bar { height: 8px; width: 100%; background: rgba(255,255,255,0.1); border-radius: 99px; overflow: hidden; }
-        .xp-fill { height: 100%; background: #ff6600; width: 0%; transition: 1.5s ease-out; }
+        body { background-color: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; }
+        .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        input { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; outline: none; transition: 0.3s; text-align: center; }
+        input:focus { border-color: #ff6600; box-shadow: 0 0 20px rgba(255, 102, 0, 0.2); }
+        
+        #toast { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(150%); }
+        #toast.active { transform: translateY(0); }
+
+        .btn-primary { background: white; color: black; font-weight: 800; border-radius: 20px; transition: 0.3s; }
+        .btn-primary:active { scale: 0.95; }
+        .btn-secondary { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; font-weight: 800; border-radius: 20px; }
     </style>
 </head>
-<body class="p-6">
+<body class="flex flex-col items-center justify-center min-h-screen p-6">
 
-    <div id="screen-join" class="pt-20 max-w-md mx-auto">
-        <h2 class="text-3xl font-black uppercase tracking-tighter mb-8">Ready to <span class="text-orange-500">Test?</span></h2>
-        <div class="glass p-8 space-y-5">
-            <input type="text" id="join-code" placeholder="ENTER CODE" class="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-center font-black tracking-widest uppercase">
-            <button onclick="validateJoin()" id="btn-v" class="w-full bg-white text-black font-black py-5 rounded-2xl uppercase text-[11px] tracking-widest transition active:scale-95">Validate Entry</button>
-            <p id="err" class="text-red-500 text-[10px] font-black text-center hidden"></p>
+    <div id="toast" class="fixed bottom-10 left-5 right-5 z-[200] flex justify-center pointer-events-none">
+        <div class="glass-panel px-6 py-4 rounded-2xl border-orange-500/50 border shadow-2xl">
+            <p id="toast-msg" class="text-xs font-black uppercase tracking-widest text-center text-orange-500"></p>
         </div>
     </div>
 
-    <div id="screen-engine" class="hidden">
-        <div class="flex justify-between items-start mb-6">
-            <div id="sub-nav" class="flex gap-2 overflow-x-auto no-scrollbar max-w-[70%]"></div>
-            <div class="text-right">
-                <p id="timer" class="text-2xl font-black tabular-nums">00:00</p>
-                <p class="text-[7px] font-black uppercase text-gray-500">Time Left</p>
-            </div>
+    <div class="w-full max-w-sm space-y-8 text-center">
+        <div>
+            <h1 class="text-3xl font-black tracking-tighter uppercase mb-2">Ready for <span class="text-orange-500">Battle?</span></h1>
+            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Enter your credentials to begin</p>
         </div>
 
-        <div class="glass p-8 min-h-[180px] flex items-center mb-8 relative">
-            <div class="absolute top-0 left-0 w-full h-1 bg-orange-600/20"></div>
-            <p id="q-text" class="text-xl font-bold leading-tight"></p>
+        <div class="glass-panel p-8 rounded-[40px] space-y-4">
+            <input type="text" id="student-name" placeholder="YOUR NAME (E.G. HOMIE)" class="w-full p-5 text-xs font-black uppercase tracking-widest">
+            <input type="text" id="exam-code" placeholder="THESDEL-000XXXX" class="w-full p-5 text-xs font-mono font-bold">
+            
+            <button onclick="validateAndJoin()" class="w-full btn-primary py-5 text-[10px] uppercase tracking-widest mt-2">Enter Exam Room</button>
         </div>
 
-        <div id="opt-container" class="space-y-3"></div>
-
-        <div class="fixed bottom-10 left-6 right-6 grid grid-cols-3 gap-3">
-            <button onclick="prevQ()" class="glass py-5 font-black text-[10px] uppercase">Prev</button>
-            <button onclick="finishExam()" class="bg-orange-600 text-white py-5 rounded-2xl font-black text-[10px] uppercase">Submit</button>
-            <button onclick="nextQ()" class="glass py-5 font-black text-[10px] uppercase">Next</button>
+        <div class="pt-4">
+            <p class="text-[9px] text-gray-600 font-black uppercase tracking-[0.2em] mb-4">Or explore public tests</p>
+            <button onclick="location.href='scholar.html'" class="w-full btn-secondary py-5 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
+                <span class="text-orange-500">◈</span> Thesdel Arena
+            </button>
         </div>
-    </div>
-
-    <div id="screen-results" class="hidden pt-10 animate-in fade-in duration-1000">
-        <div class="text-center mb-10">
-            <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Performance Analysis</p>
-            <h1 id="res-score" class="text-8xl font-black text-white mt-2">00</h1>
-            <p id="res-total" class="text-sm font-bold text-gray-500 mt-1 uppercase">Out of 00 Questions</p>
-        </div>
-
-        <div class="grid grid-cols-2 gap-4 mb-8">
-            <div class="glass p-6">
-                <p class="text-[8px] font-black text-gray-500 uppercase">Efficiency</p>
-                <h4 id="res-time" class="text-xl font-black text-orange-500">0m 0s</h4>
-            </div>
-            <div class="glass p-6">
-                <p class="text-[8px] font-black text-gray-500 uppercase">XP Earned</p>
-                <h4 id="res-xp" class="text-xl font-black">+0 XP</h4>
-            </div>
-        </div>
-
-        <div class="glass p-8 mb-8">
-            <div class="flex justify-between text-[10px] font-black uppercase mb-3">
-                <span>XP Progress</span>
-                <span id="xp-label">0% to Level Up</span>
-            </div>
-            <div class="xp-bar"><div id="xp-fill" class="xp-fill"></div></div>
-        </div>
-
-        <button onclick="location.href='index.html'" class="w-full bg-white text-black py-5 rounded-2xl font-black uppercase text-xs tracking-widest">Done</button>
     </div>
 
     <script>
-    function switchSubject(subName) {
-        activeSub = subName;
-        // STRICT FILTERING
-        subQuestions = allQuestions.filter(q => q.subject_tag === subName);
-        currentIdx = 0;
-        renderTabs();
-        showQuestion();
-    }
+        const _URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+        const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+        const sb = supabase.createClient(_URL, _KEY);
 
-    async function finishExam() {
-        const timeSpent = Math.floor((Date.now() - startTimestamp) / 1000);
-        const { data: keys } = await sb.from('cbt_questions').select('id, correct_answer').eq('build_id', activeBuildId);
-        
-        let score = 0;
-        keys.forEach(k => { if(userAnswers[k.id] === k.correct_answer) score++; });
+        function notify(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            t.classList.add('active');
+            setTimeout(() => t.classList.remove('active'), 3000);
+        }
 
-        document.getElementById('exam-screen').classList.add('hidden');
-        document.getElementById('result-screen').classList.remove('hidden');
-        
-        // Billion Dollar Results UI
-        document.getElementById('score-display').innerText = `${score}/${allQuestions.length}`;
-        document.getElementById('time-display').innerText = `${Math.floor(timeSpent/60)}m ${timeSpent%60}s`;
-        document.getElementById('xp-display').innerText = `+${score * 10} XP`;
-        
-        // Log to DB
-        await sb.from('cbt_results').insert([{ 
-            user_id: userId, build_id: activeBuildId, 
-            score: score, total_questions: allQuestions.length 
-        }]);
-    }
-</script>
+        async function validateAndJoin() {
+            const name = document.getElementById('student-name').value.trim();
+            const code = document.getElementById('exam-code').value.trim();
+
+            if (!name) return notify("What's your name, homie?");
+            if (!code) return notify("The code field is empty!");
+
+            // 1. Check if exam exists
+            const { data: exam, error } = await sb
+                .from('cbt_builds')
+                .select('*')
+                .eq('join_code', code)
+                .single();
+
+            if (error || !exam) {
+                return notify("Invalid Code. Double check it!");
+            }
+
+            // 2. Check Timing Logic
+            const now = new Date();
+            if (exam.start_time) {
+                const start = new Date(exam.start_time);
+                const end = new Date(start.getTime() + (exam.duration_mins * 60000));
+
+                if (now < start) {
+                    const timeStr = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    return notify(`Too early! This starts at ${timeStr}`);
+                }
+                
+                if (now > end) {
+                    return notify("This exam has already expired!");
+                }
+            }
+
+            // 3. If all good, store session and move to test
+            localStorage.setItem('active_exam_id', exam.id);
+            localStorage.setItem('student_name', name);
+            localStorage.setItem('exam_duration', exam.duration_mins);
+            
+            notify("Identity Verified. Entering...");
+            setTimeout(() => {
+                window.location.href = 'test_room.html'; // We'll build the actual test environment next
+            }, 1500);
+        }
+    </script>
 </body>
-                    </html>
-                    
+</html>
