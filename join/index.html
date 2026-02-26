@@ -1,1 +1,214 @@
-cock
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel | Battle Access</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <style>
+        body { background: #000; color: white; font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; }
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+        .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(110vh); opacity: 0; } }
+        
+        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 90%; max-width: 400px; position: relative; z-index: 10; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 100%; color: white; outline: none; transition: 0.3s; text-align: center; font-weight: 600; }
+        .sdel-input:focus { border-color: #FF6600; box-shadow: 0 0 15px rgba(255, 102, 0, 0.1); }
+        .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 18px; border-radius: 12px; text-transform: uppercase; cursor: pointer; border: none; transition: 0.2s; }
+        .btn-orange:active { transform: scale(0.98); }
+        .btn-orange:disabled { background: #555; cursor: not-allowed; }
+        .hidden { display: none !important; }
+        
+        #toast { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(150%); }
+        #toast.active { transform: translateY(0); }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <div class="stars" id="star-field"></div>
+
+    <div id="toast" class="fixed bottom-10 left-5 right-5 z-[200] flex justify-center pointer-events-none">
+        <div class="bg-[#111] border border-[#FF6600]/50 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-xl">
+            <p id="toast-msg" class="text-[10px] font-black uppercase tracking-widest text-center text-[#FF6600]"></p>
+        </div>
+    </div>
+
+    <div class="login-card">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black italic uppercase tracking-tighter">BATTLE <span class="text-[#FF6600]">ROOM</span></h1>
+            <p id="subtitle" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Enter credentials to begin</p>
+        </div>
+        
+        <div id="auth-section" class="space-y-4">
+            <input type="text" id="identifier" placeholder="EMAIL OR USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()">
+            <input type="password" id="pass" placeholder="PASSWORD" class="sdel-input">
+            <p class="text-center text-[9px] text-gray-600 font-bold uppercase">Then enter exam code below</p>
+        </div>
+
+        <div class="space-y-4 mt-4">
+            <input type="text" id="exam-code" placeholder="EXAM CODE (E.G. TH-001)" class="sdel-input border-dashed border-[#FF6600]/30 font-mono text-orange-500 uppercase">
+            <button onclick="handleAccess()" id="l-btn" class="btn-orange">ENTER ARENA</button>
+        </div>
+
+        <div id="footer-links" class="mt-6 text-center space-y-2">
+            <a href="/signup.html" class="block text-[9px] font-bold text-gray-500 hover:text-[#FF6600] uppercase tracking-tighter">New Warrior? Sign Up</a>
+        </div>
+    </div>
+
+    <script>
+        // Star Field Init
+        const f = document.getElementById('star-field');
+        for(let i=0; i<60; i++) {
+            const s = document.createElement('div');
+            s.className = 'star';
+            s.style.width = s.style.height = (Math.random() * 2 + 1) + 'px';
+            s.style.left = Math.random()*100+'vw';
+            s.style.top = Math.random()*100+'vh';
+            s.style.animationDuration = (Math.random()*20 + 25)+'s'; 
+            f.appendChild(s);
+        }
+
+        const sb = window.supabase.createClient(
+            'https://lgfyrlfjoazedwymjpfc.supabase.co', 
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
+        );
+
+        function notify(msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg.toUpperCase();
+            t.classList.add('active');
+            setTimeout(() => t.classList.remove('active'), 3000);
+        }
+
+        // AGGRESSIVE AUTO-RESUME - NO PERMISSION NEEDED
+        async function checkAndResume() {
+            const { data: { user } } = await sb.auth.getUser();
+            
+            if (user) {
+                // Hide auth section immediately
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('footer-links').classList.add('hidden');
+                document.getElementById('subtitle').innerText = "Scanning for active battle...";
+                
+                // Check for ANY active exam session - IMMEDIATE RESUME
+                const { data: activeSession } = await sb.from('exam_sessions')
+                    .select('*, cbt_builds(join_code, duration_mins)')
+                    .eq('user_id', user.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (activeSession) {
+                    // ACTIVE SESSION FOUND - AUTO RESUME, NO QUESTIONS
+                    notify("ACTIVE BATTLE FOUND! RESUMING...");
+                    
+                    // Set storage
+                    localStorage.setItem('active_exam_id', activeSession.build_id);
+                    localStorage.setItem('exam_duration', activeSession.cbt_builds.duration_mins);
+                    
+                    // DIRECT REDIRECT - NO MODAL, NO PERMISSION
+                    setTimeout(() => window.location.href = 'test_room.html', 1000);
+                    return;
+                }
+                
+                document.getElementById('subtitle').innerText = "Identity Confirmed. Enter Code.";
+            }
+        }
+
+        // Run aggressive check immediately
+        checkAndResume();
+
+        async function handleAccess() {
+            const btn = document.getElementById('l-btn');
+            const code = document.getElementById('exam-code').value.trim();
+            
+            if (!code) return notify("Exam code required!");
+
+            btn.innerText = "VERIFYING...";
+            btn.disabled = true;
+
+            try {
+                let { data: { user } } = await sb.auth.getUser();
+
+                // 1. Handle Login if not logged in
+                if (!user) {
+                    const iden = document.getElementById('identifier').value.trim();
+                    const pw = document.getElementById('pass').value;
+                    if (!iden || !pw) {
+                        notify("Login credentials required!");
+                        return resetBtn();
+                    }
+
+                    let email = iden;
+                    if (!iden.includes('@')) {
+                        const { data: p } = await sb.from('profile').select('email').eq('username', iden).maybeSingle();
+                        if (!p) { notify("Username not found!"); return resetBtn(); }
+                        email = p.email;
+                    }
+
+                    const { data: authData, error: authErr } = await sb.auth.signInWithPassword({ email, password: pw });
+                    if (authErr) { notify(authErr.message); return resetBtn(); }
+                    user = authData.user;
+                }
+
+                // 2. Profile Security Check
+                const { data: profile } = await sb.from('profile').select('*').eq('id', user.id).single();
+                if (profile.is_banned || profile.account_status !== 'active') {
+                    notify("Account restricted!");
+                    await sb.auth.signOut();
+                    return location.reload();
+                }
+
+                // 3. Find Exam
+                const { data: exam, error: eErr } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
+                if (eErr || !exam) { notify("Invalid Exam Code!"); return resetBtn(); }
+
+                // 4. Check for active session for THIS exam - AUTO RESUME
+                const { data: activeSession } = await sb.from('exam_sessions')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .eq('build_id', exam.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (activeSession) {
+                    // AUTO RESUME - NO QUESTIONS ASKED
+                    notify("RESUMING EXISTING BATTLE...");
+                    
+                    localStorage.setItem('active_exam_id', exam.id);
+                    localStorage.setItem('exam_duration', exam.duration_mins);
+                    
+                    setTimeout(() => window.location.href = 'test_room.html', 1000);
+                    return;
+                }
+
+                // 5. Retake Protection
+                const { data: taken } = await sb.from('cbt_results').select('id').eq('build_id', exam.id).eq('user_id', user.id).maybeSingle();
+                if (taken) { 
+                    notify("Battle concluded. No retakes allowed!"); 
+                    return resetBtn(); 
+                }
+
+                // 6. Success - Store & Launch (NEW exam)
+                localStorage.setItem('active_exam_id', exam.id);
+                localStorage.setItem('student_name', profile.username);
+                localStorage.setItem('exam_duration', exam.duration_mins);
+                
+                notify("Access Granted. Launching...");
+                setTimeout(() => window.location.href = 'test_room.html', 1500);
+
+            } catch (err) {
+                notify("Connection Error!");
+                resetBtn();
+            }
+        }
+
+        function resetBtn() {
+            const btn = document.getElementById('l-btn');
+            btn.innerText = "ENTER ARENA";
+            btn.disabled = false;
+        }
+    </script>
+</body>
+              </html>
