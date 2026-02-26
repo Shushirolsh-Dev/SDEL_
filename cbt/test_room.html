@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Thesdel Secure Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; user-select: none; }
+        .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .option-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 20px; transition: 0.2s; cursor: pointer; }
+        .option-selected { border-color: #ff6600; background: rgba(255, 102, 0, 0.1); box-shadow: 0 0 15px rgba(255, 102, 0, 0.2); }
+        .timer-low { color: #ef4444; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .hidden { display: none; }
+        
+        /* Submission Modal Animation */
+        #submit-confirm-modal { transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    </style>
+</head>
+<body class="p-6">
+
+    <script>
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () { history.go(1); };
+    </script>
+
+    <div id="submit-confirm-modal" class="fixed inset-0 z-[500] bg-black/90 hidden items-center justify-center p-6 backdrop-blur-md">
+        <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm text-center border-orange-500/30">
+            <div class="w-16 h-16 bg-orange-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <h2 class="text-xl font-black uppercase tracking-tighter">Final Submission?</h2>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2 leading-relaxed">You cannot return to change your answers once you accept.</p>
+            
+            <div class="mt-8 flex flex-col gap-3">
+                <button onclick="finishExam()" class="w-full bg-orange-600 text-white font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest active:scale-95 transition">Accept & Submit</button>
+                <button onclick="closeSubmitModal()" class="w-full bg-white/5 text-gray-400 font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest">Reject</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loader" class="fixed inset-0 z-[300] bg-black flex flex-col items-center justify-center space-y-4">
+        <div class="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="text-[10px] font-black uppercase tracking-widest text-gray-500">Securing Session...</p>
+    </div>
+
+    <div id="exam-ui" class="hidden max-w-xl mx-auto h-screen flex flex-col">
+        <div class="flex justify-between items-end py-6">
+            <div>
+                <p id="display-subject" class="text-[10px] font-black text-orange-500 uppercase tracking-widest"></p>
+                <h2 id="display-q-num" class="text-2xl font-black">Q1</h2>
+            </div>
+            <div class="text-right">
+                <p class="text-[9px] font-black text-gray-500 uppercase">Time Remaining</p>
+                <p id="timer" class="text-xl font-mono font-bold">00:00</p>
+            </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto no-scrollbar space-y-6 pt-4">
+            <p id="question-text" class="text-lg font-bold leading-relaxed"></p>
+            <div id="options-container" class="space-y-3">
+                <div onclick="selectOpt('A')" id="card-A" class="option-card flex items-center gap-4">
+                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">A</span>
+                    <p id="text-A" class="text-sm font-semibold"></p>
+                </div>
+                <div onclick="selectOpt('B')" id="card-B" class="option-card flex items-center gap-4">
+                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">B</span>
+                    <p id="text-B" class="text-sm font-semibold"></p>
+                </div>
+                <div onclick="selectOpt('C')" id="card-C" class="option-card flex items-center gap-4">
+                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">C</span>
+                    <p id="text-C" class="text-sm font-semibold"></p>
+                </div>
+                <div onclick="selectOpt('D')" id="card-D" class="option-card flex items-center gap-4">
+                    <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">D</span>
+                    <p id="text-D" class="text-sm font-semibold"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="py-8 flex gap-3">
+            <button id="btn-next" onclick="nextQuestion()" class="flex-1 bg-white text-black py-5 rounded-[24px] font-black uppercase text-[10px] tracking-widest">Next Question</button>
+        </div>
+    </div>
+
+    <div id="result-modal" class="fixed inset-0 z-[400] bg-black hidden flex flex-col items-center justify-center p-8 text-center">
+        <div class="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center mb-6">
+            <span class="text-orange-500 text-3xl font-black">!</span>
+        </div>
+        <h2 class="text-3xl font-black uppercase tracking-tighter mb-2">Battle Concluded</h2>
+        <p id="res-name" class="text-gray-500 text-xs font-bold uppercase tracking-widest mb-8"></p>
+        
+        <div class="grid grid-cols-2 gap-4 w-full max-w-sm mb-8">
+            <div class="glass-panel p-6 rounded-3xl text-center">
+                <p class="text-[8px] text-gray-500 font-black uppercase">Score</p>
+                <p id="res-score" class="text-2xl font-black text-orange-500"></p>
+            </div>
+            <div class="glass-panel p-6 rounded-3xl text-center">
+                <p class="text-[8px] text-gray-500 font-black uppercase">Earned XP</p>
+                <p id="res-xp" class="text-2xl font-black text-green-500"></p>
+            </div>
+        </div>
+        <button onclick="location.href='join.html'" class="w-full max-w-sm bg-white text-black py-5 rounded-2xl font-black uppercase text-[10px]">Exit Room</button>
+    </div>
+
+    <script>
+        const _URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+        const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+        const sb = supabase.createClient(_URL, _KEY);
+
+        const examId = localStorage.getItem('active_exam_id');
+        const studentName = localStorage.getItem('student_name');
+        
+        let questions = [];
+        let currentIndex = 0;
+        let selectedAnswers = {}; 
+        let timeLeft = 0;
+        let timerInterval;
+        let startTimeKey = `start_${examId}_${studentName}`;
+
+        async function initRoom() {
+            if (!examId || !studentName) return window.location.href = 'join.html';
+
+            const { data: existing } = await sb.from('cbt_results').select('id').eq('build_id', examId).eq('username', studentName).single();
+            if (existing) {
+                document.body.innerHTML = `<div class="h-screen flex flex-col items-center justify-center text-center p-8 bg-black">
+                    <div class="glass-panel p-10 rounded-[40px] border-orange-500/20">
+                        <h2 class="text-2xl font-black uppercase text-orange-500">Access Denied</h2>
+                        <p class="text-gray-500 text-[10px] mt-4 uppercase font-black tracking-[0.2em]">You have already submitted this exam, Homie.</p>
+                        <button onclick="location.href='join.html'" class="mt-8 bg-white text-black px-10 py-4 rounded-2xl font-black text-[10px] uppercase">Back to Join</button>
+                    </div>
+                </div>`;
+                return;
+            }
+
+            const { data: qs } = await sb.from('cbt_questions').select('*').eq('build_id', examId);
+            questions = qs;
+
+            const examDuration = parseInt(localStorage.getItem('exam_duration')) * 60;
+            let savedStart = localStorage.getItem(startTimeKey);
+            if (!savedStart) { savedStart = Date.now(); localStorage.setItem(startTimeKey, savedStart); }
+
+            const elapsed = Math.floor((Date.now() - savedStart) / 1000);
+            timeLeft = examDuration - elapsed;
+
+            if (timeLeft <= 0) return finishExam();
+
+            startTimer();
+            renderQuestion();
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('exam-ui').classList.remove('hidden');
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                const m = Math.floor(timeLeft / 60);
+                const s = timeLeft % 60;
+                document.getElementById('timer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                if (timeLeft < 60) document.getElementById('timer').classList.add('timer-low');
+                if (timeLeft <= 0) { clearInterval(timerInterval); finishExam(); }
+            }, 1000);
+        }
+
+        function renderQuestion() {
+            const q = questions[currentIndex];
+            document.getElementById('display-subject').innerText = q.subject_tag;
+            document.getElementById('display-q-num').innerText = `Q${currentIndex + 1}`;
+            document.getElementById('question-text').innerText = q.question_text;
+            document.getElementById('text-A').innerText = q.option_a;
+            document.getElementById('text-B').innerText = q.option_b;
+            document.getElementById('text-C').innerText = q.option_c;
+            document.getElementById('text-D').innerText = q.option_d;
+            document.querySelectorAll('.option-card').forEach(c => c.classList.remove('option-selected'));
+            const prev = selectedAnswers[currentIndex];
+            if (prev) document.getElementById(`card-${prev}`).classList.add('option-selected');
+            document.getElementById('btn-next').innerText = (currentIndex === questions.length - 1) ? "Submit Exam" : "Next Question";
+        }
+
+        function selectOpt(opt) {
+            selectedAnswers[currentIndex] = opt;
+            document.querySelectorAll('.option-card').forEach(c => c.classList.remove('option-selected'));
+            document.getElementById(`card-${opt}`).classList.add('option-selected');
+        }
+
+        function nextQuestion() {
+            if (currentIndex < questions.length - 1) {
+                currentIndex++;
+                renderQuestion();
+            } else {
+                openSubmitModal();
+            }
+        }
+
+        function openSubmitModal() {
+            const m = document.getElementById('submit-confirm-modal');
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        }
+
+        function closeSubmitModal() {
+            const m = document.getElementById('submit-confirm-modal');
+            m.classList.add('hidden');
+            m.classList.remove('flex');
+        }
+
+        async function finishExam() {
+            clearInterval(timerInterval);
+            closeSubmitModal();
+            document.getElementById('exam-ui').classList.add('hidden');
+            document.getElementById('loader').classList.remove('hidden');
+
+            let score = 0;
+            questions.forEach((q, i) => { if (selectedAnswers[i] === q.correct_answer) score++; });
+
+            await sb.from('cbt_results').insert([{
+                build_id: examId,
+                username: studentName,
+                score: score,
+                total_questions: questions.length
+            }]);
+
+            localStorage.removeItem(startTimeKey);
+            document.getElementById('loader').classList.add('hidden');
+            document.getElementById('res-name').innerText = studentName;
+            document.getElementById('res-score').innerText = `${score}/${questions.length}`;
+            document.getElementById('res-xp').innerText = `+${score * 10}`;
+            document.getElementById('result-modal').classList.remove('hidden');
+        }
+
+        initRoom();
+    </script>
+</body>
+                </html>
+    
