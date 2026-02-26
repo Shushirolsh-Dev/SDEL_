@@ -111,7 +111,7 @@
         let lastUpdateTime = 0;
         let pendingUpdates = false;
 
-        // --- THE GATEKEEPER (UPDATED WITH SESSION HANDLING) ---
+        // --- THE GATEKEEPER ---
         async function verifyAndLock() {
             try {
                 const { data: { user } } = await sb.auth.getUser();
@@ -144,7 +144,7 @@
                     .eq('status', 'active')
                     .maybeSingle();
 
-                // Load questions (without correct_answer for security)
+                // Load questions
                 const { data: qs } = await sb.from('cbt_questions')
                     .select('id, question_text, option_a, option_b, option_c, option_d, subject_tag')
                     .eq('build_id', examId);
@@ -163,24 +163,22 @@
                     activeSub = activeSession.current_subject || allSubjects[0];
                     currentIndex = activeSession.current_index || 0;
                     
-                    // Check if expired
                     if (timeLeft <= 0) {
                         await finishExam(true);
                         return;
                     }
                     
-                    // Resume at correct position
                     switchSubject(activeSub);
                     currentIndex = activeSession.current_index || 0;
                     renderQuestion();
                 } else {
-                    // NEW exam - create session
+                    // NEW exam
                     const duration = parseInt(localStorage.getItem('exam_duration')) * 60 || 1800;
                     timeLeft = duration;
                     activeSub = allSubjects[0];
                     selectedAnswers = {};
                     
-                    const { error: sessionError } = await sb.from('exam_sessions').insert([{
+                    const { error: sessionError } = await sb.from('exam_sessions').insert({
                         user_id: user.id,
                         build_id: examId,
                         time_remaining: duration,
@@ -189,17 +187,14 @@
                         current_index: 0,
                         status: 'active',
                         expires_at: new Date(Date.now() + duration * 1000).toISOString()
-                    }]);
+                    });
                     
                     if (sessionError) throw sessionError;
                     
                     switchSubject(allSubjects[0]);
                 }
 
-                // Start heartbeat
                 startHeartbeat(user.id);
-                
-                // Start timer
                 startTimer();
 
                 document.getElementById('loading-gate').remove();
@@ -211,17 +206,11 @@
             }
         }
 
-        // --- HEARTBEAT (updates server every 1 SECOND and continues offline) ---
+        // --- HEARTBEAT ---
         function startHeartbeat(userId) {
             heartbeatInterval = setInterval(async () => {
                 try {
-                    const now = Date.now();
-                    
-                    // Always update last heartbeat locally
-                    lastUpdateTime = now;
-                    
-                    // Try to update server - if offline, it will queue and retry
-                    const { error } = await sb.from('exam_sessions')
+                    await sb.from('exam_sessions')
                         .update({ 
                             time_remaining: timeLeft,
                             answers: selectedAnswers,
@@ -232,34 +221,22 @@
                         .eq('user_id', userId)
                         .eq('build_id', examId)
                         .eq('status', 'active');
-                    
-                    if (error) {
-                        console.log('Offline - heartbeat queued');
-                        pendingUpdates = true;
-                    } else {
-                        pendingUpdates = false;
-                    }
                 } catch (err) {
-                    // Silently handle offline - will retry next second
-                    console.log('Heartbeat failed - will retry');
-                    pendingUpdates = true;
+                    console.log('Heartbeat failed');
                 }
-            }, 1000); // ⏱️ EVERY 1 SECOND
+            }, 1000);
         }
 
-        // --- TIMER (with server sync EVERY 1 SECOND) ---
+        // --- TIMER ---
         function startTimer() {
             timerInterval = setInterval(() => {
                 timeLeft--;
                 
-                // Sync with server EVERY SECOND
                 sb.from('exam_sessions')
                     .update({ time_remaining: timeLeft })
                     .eq('build_id', examId)
                     .eq('status', 'active')
-                    .then(({ error }) => {
-                        if (error) console.log('Timer sync queued');
-                    });
+                    .catch(err => console.log('Timer sync failed'));
                 
                 const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
                 document.getElementById('timer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
@@ -300,27 +277,20 @@
             renderQuestion(); 
         }
 
-        // --- NEW NAVIGATION LOGIC ---
         function handleNext() {
             const nextBtn = document.getElementById('next-btn');
             
-            // If button is in SUBMIT mode
             if (nextBtn.innerText === 'SUBMIT') {
                 openSubmitModal();
                 return;
             }
             
-            // Normal next question logic
             if (currentIndex < filteredQuestions.length - 1) {
-                // More questions in current subject
                 currentIndex++;
                 renderQuestion();
             } else {
-                // End of current subject - find next subject
                 const currentSubIndex = allSubjects.indexOf(activeSub);
-                
                 if (currentSubIndex < allSubjects.length - 1) {
-                    // Move to next subject
                     switchSubject(allSubjects[currentSubIndex + 1]);
                 }
             }
@@ -332,12 +302,10 @@
             const isLastSubject = allSubjects.indexOf(activeSub) === allSubjects.length - 1;
             
             if (isLastQuestion && isLastSubject) {
-                // Last question of last subject -> SUBMIT
                 nextBtn.innerText = 'SUBMIT';
                 nextBtn.classList.remove('bg-white', 'text-black');
                 nextBtn.classList.add('bg-orange-600', 'text-white');
             } else {
-                // Not the final question -> NEXT
                 nextBtn.innerText = 'Next';
                 nextBtn.classList.remove('bg-orange-600', 'text-white');
                 nextBtn.classList.add('bg-white', 'text-black');
@@ -359,7 +327,7 @@
             document.getElementById('submit-confirm-modal').classList.replace('flex', 'hidden'); 
         }
 
-        // --- FIXED FINISH EXAM WITH XP CALCULATION ---
+        // --- FIXED FINISH EXAM - NO JSON ISSUES ---
         async function finishExam(autoSubmit = false) {
             const btn = document.getElementById('final-sub-btn');
             if (btn) {
@@ -373,58 +341,73 @@
             try {
                 const { data: { user } } = await sb.auth.getUser();
                 
-                 // Get correct answers from server (secure)
+                // Get correct answers
                 const { data: answers } = await sb.from('cbt_questions')
                     .select('id, correct_answer')
                     .eq('build_id', examId);
                 
                 let correct = 0;
                 let missed = 0;
-                let unanswered = 0;
                 
-                answers.forEach(q => {
+                for (let i = 0; i < answers.length; i++) {
+                    const q = answers[i];
                     const userAnswer = selectedAnswers[q.id];
-                    if (!userAnswer) {
-                        unanswered++;
-                    } else if (userAnswer === q.correct_answer) {
+                    if (userAnswer && userAnswer === q.correct_answer) {
                         correct++;
-                    } else {
+                    } else if (userAnswer) {
                         missed++;
                     }
-                });
+                }
 
-                // Calculate XP: +10 for correct, -2 for wrong, 0 for unanswered
+                // Calculate XP
                 const xpDelta = (correct * 10) - (missed * 2);
-                
-                console.log('Score breakdown:', { correct, missed, unanswered, xpDelta });
 
-                // Get current XP from profile table
-                const { data: profile } = await sb.from('profile').select('xp').eq('id', user.id).single();
-                const currentXp = parseInt(profile.xp) || 0;
+                // Get current XP
+                const { data: profile, error: profileError } = await sb
+                    .from('profile')
+                    .select('xp')
+                    .eq('id', user.id)
+                    .single();
+                
+                if (profileError) throw profileError;
+                
+                const currentXp = Number(profile.xp) || 0;
                 const newXp = Math.max(0, currentXp + xpDelta);
 
-                console.log('XP update:', { currentXp, xpDelta, newXp });
-
-                // Insert result
-                const { error: saveErr } = await sb.from('cbt_results')
-                    .insert({
-                        user_id: user.id,
-                        build_id: examId,
-                        score: correct,
-                        total_questions: allQuestions.length
+                // Insert result - WITHOUT using JSON
+                const { error: saveErr } = await sb
+                    .rpc('insert_cbt_result', {
+                        p_user_id: user.id,
+                        p_build_id: examId,
+                        p_score: correct,
+                        p_total: allQuestions.length
                     });
 
-                if (saveErr) throw new Error("Could not save result: " + saveErr.message);
+                if (saveErr) {
+                    // Fallback to direct insert if RPC fails
+                    const { error: insertErr } = await sb
+                        .from('cbt_results')
+                        .insert({
+                            user_id: user.id,
+                            build_id: examId,
+                            score: correct,
+                            total_questions: allQuestions.length
+                        });
+                    
+                    if (insertErr) throw insertErr;
+                }
 
-                // Update XP in profile table
-                const { error: updateErr } = await sb.from('profile')
+                // Update XP - using POST form style
+                const { error: updateErr } = await sb
+                    .from('profile')
                     .update({ xp: newXp })
                     .eq('id', user.id);
 
-                if (updateErr) throw new Error("Could not update XP: " + updateErr.message);
+                if (updateErr) throw updateErr;
 
                 // Close session
-                await sb.from('exam_sessions')
+                await sb
+                    .from('exam_sessions')
                     .update({ 
                         status: 'completed',
                         time_remaining: 0
@@ -437,23 +420,23 @@
                 localStorage.removeItem('active_exam_id');
                 localStorage.removeItem('exam_duration');
 
-                // Show results with XP
+                // Show results
                 document.getElementById('exam-ui').classList.add('hidden');
-                document.getElementById('res-score').innerText = `${correct}/${allQuestions.length}`;
+                document.getElementById('res-score').innerText = correct + '/' + allQuestions.length;
                 
                 const xpDisplay = document.getElementById('res-xp');
-                xpDisplay.innerText = (xpDelta > 0 ? "+" : "") + xpDelta + " XP";
-                xpDisplay.className = `text-2xl font-black ${xpDelta >= 0 ? 'text-green-500' : 'text-red-500'}`;
+                xpDisplay.innerText = (xpDelta > 0 ? '+' : '') + xpDelta + ' XP';
+                xpDisplay.className = 'text-2xl font-black ' + (xpDelta >= 0 ? 'text-green-500' : 'text-red-500');
 
                 document.getElementById('result-modal').classList.replace('hidden', 'flex');
                 closeSubmitModal();
 
             } catch (err) {
-                console.error('Finish exam error:', err);
-                alert("SUBMIT ERROR: " + err.message);
+                console.error('ERROR:', err);
+                alert('SUBMIT ERROR: ' + err.message);
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerText = "Resubmit Battle";
+                    btn.innerText = 'Resubmit Battle';
                 }
             }
         }
