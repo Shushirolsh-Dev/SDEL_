@@ -82,16 +82,42 @@
             setTimeout(() => t.classList.remove('active'), 3000);
         }
 
-        // Check if user is already logged in on load
-        async function checkSession() {
+        // AGGRESSIVE AUTO-RESUME - NO PERMISSION NEEDED
+        async function checkAndResume() {
             const { data: { user } } = await sb.auth.getUser();
+            
             if (user) {
+                // Hide auth section immediately
                 document.getElementById('auth-section').classList.add('hidden');
                 document.getElementById('footer-links').classList.add('hidden');
+                document.getElementById('subtitle').innerText = "Scanning for active battle...";
+                
+                // Check for ANY active exam session - IMMEDIATE RESUME
+                const { data: activeSession } = await sb.from('exam_sessions')
+                    .select('*, cbt_builds(join_code, duration_mins)')
+                    .eq('user_id', user.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                if (activeSession) {
+                    // ACTIVE SESSION FOUND - AUTO RESUME, NO QUESTIONS
+                    notify("ACTIVE BATTLE FOUND! RESUMING...");
+                    
+                    // Set storage
+                    localStorage.setItem('active_exam_id', activeSession.build_id);
+                    localStorage.setItem('exam_duration', activeSession.cbt_builds.duration_mins);
+                    
+                    // DIRECT REDIRECT - NO MODAL, NO PERMISSION
+                    setTimeout(() => window.location.href = 'test_room.html', 1000);
+                    return;
+                }
+                
                 document.getElementById('subtitle').innerText = "Identity Confirmed. Enter Code.";
             }
         }
-        checkSession();
+
+        // Run aggressive check immediately
+        checkAndResume();
 
         async function handleAccess() {
             const btn = document.getElementById('l-btn');
@@ -138,11 +164,33 @@
                 const { data: exam, error: eErr } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
                 if (eErr || !exam) { notify("Invalid Exam Code!"); return resetBtn(); }
 
-                // 4. Retake Protection (The Magic Check)
-                const { data: taken } = await sb.from('cbt_results').select('id').eq('build_id', exam.id).eq('user_id', user.id).single();
-                if (taken) { notify("Battle concluded. No retakes allowed!"); return resetBtn(); }
+                // 4. Check for active session for THIS exam - AUTO RESUME
+                const { data: activeSession } = await sb.from('exam_sessions')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .eq('build_id', exam.id)
+                    .eq('status', 'active')
+                    .maybeSingle();
 
-                // 5. Success - Store & Launch
+                if (activeSession) {
+                    // AUTO RESUME - NO QUESTIONS ASKED
+                    notify("RESUMING EXISTING BATTLE...");
+                    
+                    localStorage.setItem('active_exam_id', exam.id);
+                    localStorage.setItem('exam_duration', exam.duration_mins);
+                    
+                    setTimeout(() => window.location.href = 'test_room.html', 1000);
+                    return;
+                }
+
+                // 5. Retake Protection
+                const { data: taken } = await sb.from('cbt_results').select('id').eq('build_id', exam.id).eq('user_id', user.id).maybeSingle();
+                if (taken) { 
+                    notify("Battle concluded. No retakes allowed!"); 
+                    return resetBtn(); 
+                }
+
+                // 6. Success - Store & Launch (NEW exam)
                 localStorage.setItem('active_exam_id', exam.id);
                 localStorage.setItem('student_name', profile.username);
                 localStorage.setItem('exam_duration', exam.duration_mins);
@@ -163,5 +211,4 @@
         }
     </script>
 </body>
-    </html>
-    
+</html>
