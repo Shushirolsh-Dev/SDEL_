@@ -21,6 +21,7 @@
         .timer-low { color: #ef4444; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         .hidden { display: none; }
+        .submit-btn { background: #ff6600; color: white; }
     </style>
 </head>
 <body class="p-6">
@@ -76,8 +77,8 @@
             </div>
         </div>
         <div class="py-8 flex gap-3">
-            <button onclick="prevQuestion()" class="flex-1 glass-panel py-5 rounded-[24px] text-[10px] font-black uppercase">Prev</button>
-            <button onclick="nextQuestion()" class="flex-[2] bg-white text-black py-5 rounded-[24px] font-black uppercase text-[10px] tracking-widest">Next</button>
+            <button onclick="prevQuestion()" id="prev-btn" class="flex-1 glass-panel py-5 rounded-[24px] text-[10px] font-black uppercase">Prev</button>
+            <button onclick="handleNext()" id="next-btn" class="flex-[2] bg-white text-black py-5 rounded-[24px] font-black uppercase text-[10px] tracking-widest">Next</button>
         </div>
     </div>
 
@@ -105,14 +106,16 @@
         const sb = supabase.createClient(_URL, _KEY);
 
         const examId = localStorage.getItem('active_exam_id');
-        let allQuestions = [], filteredQuestions = [], activeSub = "", currentIndex = 0, selectedAnswers = {}, timeLeft = 0, timerInterval;
+        let allQuestions = [], filteredQuestions = [], activeSub = "", currentIndex = 0, selectedAnswers = {}, timeLeft = 0, timerInterval, heartbeatInterval;
+        let allSubjects = [];
 
-        // --- THE GATEKEEPER ---
+        // --- THE GATEKEEPER (UPDATED WITH SESSION HANDLING) ---
         async function verifyAndLock() {
             try {
                 const { data: { user } } = await sb.auth.getUser();
                 if (!user || !examId) return window.location.replace('/cbt/index.html');
 
+                // Check if already completed
                 const { data: check } = await sb.from('cbt_results')
                     .select('id')
                     .eq('build_id', examId)
@@ -131,15 +134,70 @@
                     return;
                 }
 
-                const { data: qs } = await sb.from('cbt_questions').select('*').eq('build_id', examId);
+                // Check for active session
+                const { data: activeSession } = await sb.from('exam_sessions')
+                    .select('*')
+                    .eq('user_id', user.id)
+                    .eq('build_id', examId)
+                    .eq('status', 'active')
+                    .maybeSingle();
+
+                // Load questions (without correct_answer for security)
+                const { data: qs } = await sb.from('cbt_questions')
+                    .select('id, question_text, option_a, option_b, option_c, option_d, subject_tag')
+                    .eq('build_id', examId);
+                
                 if (!qs || qs.length === 0) throw new Error("No Questions Found");
                 
                 allQuestions = qs;
-                const subjects = [...new Set(qs.map(q => q.subject_tag))];
-                renderTabs(subjects);
-                switchSubject(subjects[0]);
+                allSubjects = [...new Set(qs.map(q => q.subject_tag))];
+                renderTabs(allSubjects);
 
-                timeLeft = parseInt(localStorage.getItem('exam_duration')) * 60 || 1800;
+                if (activeSession) {
+                    // RESUME existing session
+                    console.log('Resuming exam session');
+                    timeLeft = activeSession.time_remaining;
+                    selectedAnswers = activeSession.answers || {};
+                    activeSub = activeSession.current_subject || allSubjects[0];
+                    currentIndex = activeSession.current_index || 0;
+                    
+                    // Check if expired
+                    if (timeLeft <= 0) {
+                        await finishExam(true);
+                        return;
+                    }
+                    
+                    // Resume at correct position
+                    switchSubject(activeSub);
+                    currentIndex = activeSession.current_index || 0;
+                    renderQuestion();
+                } else {
+                    // NEW exam - create session
+                    const duration = parseInt(localStorage.getItem('exam_duration')) * 60 || 1800;
+                    timeLeft = duration;
+                    activeSub = allSubjects[0];
+                    selectedAnswers = {};
+                    
+                    const { error: sessionError } = await sb.from('exam_sessions').insert([{
+                        user_id: user.id,
+                        build_id: examId,
+                        time_remaining: duration,
+                        answers: {},
+                        current_subject: allSubjects[0],
+                        current_index: 0,
+                        status: 'active',
+                        expires_at: new Date(Date.now() + duration * 1000).toISOString()
+                    }]);
+                    
+                    if (sessionError) throw sessionError;
+                    
+                    switchSubject(allSubjects[0]);
+                }
+
+                // Start heartbeat
+                startHeartbeat(user.id);
+                
+                // Start timer
                 startTimer();
 
                 document.getElementById('loading-gate').remove();
@@ -151,10 +209,43 @@
             }
         }
 
-        // --- CORE LOGIC ---
+        // --- HEARTBEAT (updates server every 15 seconds) ---
+        function startHeartbeat(userId) {
+            heartbeatInterval = setInterval(async () => {
+                try {
+                    await sb.from('exam_sessions')
+                        .update({ 
+                            time_remaining: timeLeft,
+                            answers: selectedAnswers,
+                            current_subject: activeSub,
+                            current_index: currentIndex,
+                            last_heartbeat: new Date().toISOString()
+                        })
+                        .eq('user_id', userId)
+                        .eq('build_id', examId)
+                        .eq('status', 'active');
+                } catch (err) {
+                    console.log('Heartbeat failed');
+                }
+            }, 15000);
+        }
+
+        // --- TIMER (with server sync) ---
         function startTimer() {
             timerInterval = setInterval(() => {
                 timeLeft--;
+                
+                // Sync with server every 30 seconds
+                if (timeLeft % 30 === 0) {
+                    sb.from('exam_sessions')
+                        .update({ time_remaining: timeLeft })
+                        .eq('build_id', examId)
+                        .eq('status', 'active')
+                        .then(({ error }) => {
+                            if (error) console.log('Timer sync failed');
+                        });
+                }
+                
                 const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
                 document.getElementById('timer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
                 if (timeLeft < 60) document.getElementById('timer').classList.add('timer-low');
@@ -173,6 +264,7 @@
             filteredQuestions = allQuestions.filter(q => q.subject_tag === s);
             currentIndex = 0;
             renderQuestion();
+            updateNextButton();
         }
 
         function renderQuestion() {
@@ -185,57 +277,135 @@
             document.getElementById('text-D').innerText = q.option_d;
             document.querySelectorAll('.option-card').forEach(c => c.classList.remove('option-selected'));
             if (selectedAnswers[q.id]) document.getElementById(`card-${selectedAnswers[q.id]}`).classList.add('option-selected');
+            updateNextButton();
         }
 
-        function selectOpt(opt) { selectedAnswers[filteredQuestions[currentIndex].id] = opt; renderQuestion(); }
-        function nextQuestion() { if (currentIndex < filteredQuestions.length - 1) { currentIndex++; renderQuestion(); } }
-        function prevQuestion() { if (currentIndex > 0) { currentIndex--; renderQuestion(); } }
-        function openSubmitModal() { document.getElementById('submit-confirm-modal').classList.replace('hidden', 'flex'); }
-        function closeSubmitModal() { document.getElementById('submit-confirm-modal').classList.replace('flex', 'hidden'); }
+        function selectOpt(opt) { 
+            selectedAnswers[filteredQuestions[currentIndex].id] = opt; 
+            renderQuestion(); 
+        }
 
-        // --- THE FINISHER: XP + LOCK ---
-        async function finishExam() {
+        // --- NEW NAVIGATION LOGIC ---
+        function handleNext() {
+            const nextBtn = document.getElementById('next-btn');
+            
+            // If button is in SUBMIT mode
+            if (nextBtn.innerText === 'SUBMIT') {
+                openSubmitModal();
+                return;
+            }
+            
+            // Normal next question logic
+            if (currentIndex < filteredQuestions.length - 1) {
+                // More questions in current subject
+                currentIndex++;
+                renderQuestion();
+            } else {
+                // End of current subject - find next subject
+                const currentSubIndex = allSubjects.indexOf(activeSub);
+                
+                if (currentSubIndex < allSubjects.length - 1) {
+                    // Move to next subject
+                    switchSubject(allSubjects[currentSubIndex + 1]);
+                }
+            }
+        }
+
+        function updateNextButton() {
+            const nextBtn = document.getElementById('next-btn');
+            const isLastQuestion = currentIndex === filteredQuestions.length - 1;
+            const isLastSubject = allSubjects.indexOf(activeSub) === allSubjects.length - 1;
+            
+            if (isLastQuestion && isLastSubject) {
+                // Last question of last subject -> SUBMIT
+                nextBtn.innerText = 'SUBMIT';
+                nextBtn.classList.remove('bg-white', 'text-black');
+                nextBtn.classList.add('bg-orange-600', 'text-white');
+            } else {
+                // Not the final question -> NEXT
+                nextBtn.innerText = 'Next';
+                nextBtn.classList.remove('bg-orange-600', 'text-white');
+                nextBtn.classList.add('bg-white', 'text-black');
+            }
+        }
+
+        function prevQuestion() { 
+            if (currentIndex > 0) { 
+                currentIndex--; 
+                renderQuestion(); 
+            }
+        }
+
+        function openSubmitModal() { 
+            document.getElementById('submit-confirm-modal').classList.replace('hidden', 'flex'); 
+        }
+        
+        function closeSubmitModal() { 
+            document.getElementById('submit-confirm-modal').classList.replace('flex', 'hidden'); 
+        }
+
+        // --- UPDATED FINISH EXAM WITH SESSION CLOSURE ---
+        async function finishExam(autoSubmit = false) {
             const btn = document.getElementById('final-sub-btn');
-            btn.disabled = true;
-            btn.innerText = "UPDATING PROFILE...";
+            if (btn) {
+                btn.disabled = true;
+                btn.innerText = "UPDATING PROFILE...";
+            }
 
             clearInterval(timerInterval);
+            clearInterval(heartbeatInterval);
             
             try {
                 const { data: { user } } = await sb.auth.getUser();
                 
+                // Get correct answers from server (secure)
+                const { data: answers } = await sb.from('cbt_questions')
+                    .select('id, correct_answer')
+                    .eq('build_id', examId);
+                
                 let correct = 0;
                 let missed = 0;
-                allQuestions.forEach(q => {
+                answers.forEach(q => {
                     if (selectedAnswers[q.id] === q.correct_answer) correct++;
-                    else missed++;
+                    else if (selectedAnswers[q.id]) missed++;
                 });
 
-                // Calculate Delta
-                const xpDelta = (correct * 10) - (missed * 10);
+                const xpDelta = (correct * 10) - (missed * 2); // -2 for wrong answers
 
-                // 1. Fetch Current XP
+                // Get current XP
                 const { data: profile } = await sb.from('profile').select('xp').eq('id', user.id).single();
                 const currentXp = parseInt(profile.xp) || 0;
                 const newXp = Math.max(0, currentXp + xpDelta);
 
-                // 2. Insert Score Record (The Lock)
+                // Insert result
                 const { error: saveErr } = await sb.from('cbt_results').insert([{ 
                     user_id: user.id, 
                     build_id: examId, 
                     score: correct, 
-                    total_questions: allQuestions.length 
+                    total_questions: allQuestions.length,
+                    xp_earned: xpDelta
                 }]);
 
-                if (saveErr) throw new Error("Could not save result: " + saveErr.message);
+                if (saveErr) throw saveErr;
 
-                // 3. Update XP in Profile
+                // Update XP
                 await sb.from('profile').update({ xp: newXp }).eq('id', user.id);
 
-                // 4. Wipe Local Storage
-                localStorage.removeItem('active_exam_id');
+                // Close session
+                await sb.from('exam_sessions')
+                    .update({ 
+                        status: 'completed',
+                        time_remaining: 0
+                    })
+                    .eq('user_id', user.id)
+                    .eq('build_id', examId)
+                    .eq('status', 'active');
 
-                // 5. Update UI
+                // Cleanup
+                localStorage.removeItem('active_exam_id');
+                localStorage.removeItem('exam_duration');
+
+                // Show results
                 document.getElementById('exam-ui').classList.add('hidden');
                 document.getElementById('res-score').innerText = `${correct}/${allQuestions.length}`;
                 
@@ -248,8 +418,10 @@
 
             } catch (err) {
                 alert("SUBMIT ERROR: " + err.message);
-                btn.disabled = false;
-                btn.innerText = "Resubmit Battle";
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerText = "Resubmit Battle";
+                }
             }
         }
 
