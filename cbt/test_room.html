@@ -108,10 +108,24 @@
         const examId = localStorage.getItem('active_exam_id');
         let allQuestions = [], filteredQuestions = [], activeSub = "", currentIndex = 0, selectedAnswers = {}, timeLeft = 0, timerInterval, heartbeatInterval;
         let allSubjects = [];
-        let lastUpdateTime = 0;
-        let pendingUpdates = false;
 
-        // --- THE GATEKEEPER ---
+        // --- HELPER FUNCTION FOR TIMER DISPLAY ---
+        function updateTimerDisplay() {
+            const timerElement = document.getElementById('timer');
+            if (timerElement) {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                timerElement.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                if (timeLeft < 60) {
+                    timerElement.classList.add('timer-low');
+                } else {
+                    timerElement.classList.remove('timer-low');
+                }
+            }
+        }
+
+        // --- THE GATEKEEPER WITH CHEAT DETECTION ---
         async function verifyAndLock() {
             try {
                 const { data: { user } } = await sb.auth.getUser();
@@ -156,9 +170,49 @@
                 renderTabs(allSubjects);
 
                 if (activeSession) {
-                    // RESUME existing session
+                    // RESUME existing session WITH CHEAT DETECTION
                     console.log('Resuming exam session');
-                    timeLeft = activeSession.time_remaining;
+                    
+                    // 🔥 CHEAT DETECTION: Check if they tried to farm time offline
+                    const now = new Date();
+                    const lastHeartbeat = new Date(activeSession.last_heartbeat);
+                    const expiryDate = new Date(activeSession.expires_at);
+                    
+                    // Calculate how many seconds they were offline
+                    const offlineSeconds = Math.floor((now - lastHeartbeat) / 1000);
+                    
+                    // What time SHOULD be left based on server expiry
+                    const expectedTimeLeft = Math.max(0, Math.floor((expiryDate - now) / 1000));
+                    
+                    // What time they CLAIM to have left
+                    const claimedTimeLeft = activeSession.time_remaining;
+                    
+                    // If they have MORE time than they should (offline farming detected)
+                    if (claimedTimeLeft > expectedTimeLeft + 10) { // 10 second buffer for network
+                        console.warn('⚠️ CHEAT DETECTED: Time manipulation');
+                        
+                        // Log the cheating attempt
+                        await sb.from('cheat_logs').insert({
+                            user_id: user.id,
+                            build_id: examId,
+                            offline_seconds: offlineSeconds,
+                            claimed_time: claimedTimeLeft,
+                            expected_time: expectedTimeLeft
+                        });
+                        
+                        // Force the CORRECT time
+                        timeLeft = expectedTimeLeft;
+                        
+                        // If they were offline too long (>5 minutes), auto-submit
+                        if (offlineSeconds > 300) {
+                            await finishExam(true);
+                            return;
+                        }
+                    } else {
+                        // No cheating detected, use their saved time
+                        timeLeft = claimedTimeLeft;
+                    }
+                    
                     selectedAnswers = activeSession.answers || {};
                     activeSub = activeSession.current_subject || allSubjects[0];
                     currentIndex = activeSession.current_index || 0;
@@ -178,6 +232,8 @@
                     activeSub = allSubjects[0];
                     selectedAnswers = {};
                     
+                    const expiresAt = new Date(Date.now() + duration * 1000);
+                    
                     const { error: sessionError } = await sb.from('exam_sessions').insert({
                         user_id: user.id,
                         build_id: examId,
@@ -186,7 +242,8 @@
                         current_subject: allSubjects[0],
                         current_index: 0,
                         status: 'active',
-                        expires_at: new Date(Date.now() + duration * 1000).toISOString()
+                        expires_at: expiresAt.toISOString(),
+                        last_heartbeat: new Date().toISOString()
                     });
                     
                     if (sessionError) throw sessionError;
@@ -194,10 +251,13 @@
                     switchSubject(allSubjects[0]);
                 }
 
-                // 🔥 FIX: Update timer display immediately
+                // Update timer display
                 updateTimerDisplay();
                 
+                // Start heartbeat
                 startHeartbeat(user.id);
+                
+                // Start timer
                 startTimer();
 
                 document.getElementById('loading-gate').remove();
@@ -207,13 +267,6 @@
                 alert("GATE ERROR: " + err.message);
                 window.location.replace('/cbt/index.html');
             }
-        }
-
-        // 🔥 NEW: Helper function to update timer display
-        function updateTimerDisplay() {
-            const m = Math.floor(timeLeft / 60);
-            const s = timeLeft % 60;
-            document.getElementById('timer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
         // --- HEARTBEAT ---
@@ -232,26 +285,31 @@
                         .eq('build_id', examId)
                         .eq('status', 'active');
                 } catch (err) {
-                    console.log('Heartbeat failed');
+                    console.log('Heartbeat failed - will retry');
                 }
             }, 1000);
         }
 
         // --- TIMER ---
         function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            
             timerInterval = setInterval(() => {
-                timeLeft--;
-                
-                sb.from('exam_sessions')
-                    .update({ time_remaining: timeLeft })
-                    .eq('build_id', examId)
-                    .eq('status', 'active')
-                    .catch(err => console.log('Timer sync failed'));
-                
-                updateTimerDisplay();
-                
-                if (timeLeft < 60) document.getElementById('timer').classList.add('timer-low');
-                if (timeLeft <= 0) finishExam();
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    
+                    // Sync with server
+                    sb.from('exam_sessions')
+                        .update({ time_remaining: timeLeft })
+                        .eq('build_id', examId)
+                        .eq('status', 'active')
+                        .catch(err => console.log('Timer sync failed'));
+                    
+                    if (timeLeft <= 0) {
+                        finishExam();
+                    }
+                }
             }, 1000);
         }
 
@@ -337,7 +395,7 @@
             document.getElementById('submit-confirm-modal').classList.replace('flex', 'hidden'); 
         }
 
-        // --- FIXED FINISH EXAM - NO JSON ISSUES ---
+        // --- FINISH EXAM ---
         async function finishExam(autoSubmit = false) {
             const btn = document.getElementById('final-sub-btn');
             if (btn) {
@@ -384,30 +442,19 @@
                 const currentXp = Number(profile.xp) || 0;
                 const newXp = Math.max(0, currentXp + xpDelta);
 
-                // Insert result - WITHOUT using JSON
+                // Insert result
                 const { error: saveErr } = await sb
-                    .rpc('insert_cbt_result', {
-                        p_user_id: user.id,
-                        p_build_id: examId,
-                        p_score: correct,
-                        p_total: allQuestions.length
+                    .from('cbt_results')
+                    .insert({
+                        user_id: user.id,
+                        build_id: examId,
+                        score: correct,
+                        total_questions: allQuestions.length
                     });
+                
+                if (saveErr) throw saveErr;
 
-                if (saveErr) {
-                    // Fallback to direct insert if RPC fails
-                    const { error: insertErr } = await sb
-                        .from('cbt_results')
-                        .insert({
-                            user_id: user.id,
-                            build_id: examId,
-                            score: correct,
-                            total_questions: allQuestions.length
-                        });
-                    
-                    if (insertErr) throw insertErr;
-                }
-
-                // Update XP - using POST form style
+                // Update XP
                 const { error: updateErr } = await sb
                     .from('profile')
                     .update({ xp: newXp })
