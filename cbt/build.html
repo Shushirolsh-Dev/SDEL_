@@ -29,11 +29,11 @@
         </div>
     </div>
 
-    <div id="auth-guard" class="hidden flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-        <div class="glass-panel p-8 rounded-[40px] w-full">
-            <h2 class="text-2xl font-black uppercase">Ready to Build?</h2>
-            <p class="text-gray-400 text-sm mt-2">Only authenticated creators can build exams on Thesdel. Join us to start creating.</p>
-            <a href="signup.html" class="inline-block w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-[10px] mt-6">Join Thesdel Now</a>
+    <div id="auth-guard" class="hidden flex flex-col items-center justify-center min-h-[60vh] text-center">
+        <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm">
+            <h2 class="text-2xl font-black uppercase">Creator Required</h2>
+            <p class="text-gray-400 text-sm mt-2">Homie, you need to be part of the squad to build exams.</p>
+            <a href="signup.html" class="inline-block w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-[10px] mt-6">Join Thesdel</a>
         </div>
     </div>
 
@@ -41,25 +41,25 @@
         <div class="glass-panel p-6 rounded-[32px] space-y-5">
             <div>
                 <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Exam Title</label>
-                <input type="text" id="exam-title" placeholder="e.g. 200L Combo Assessment" class="w-full p-4 mt-1">
+                <input type="text" id="exam-title" placeholder="e.g. 200L Anatomy Finals" class="w-full p-4 mt-1">
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Start Time (Opt)</label>
+                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Start (Opt)</label>
                     <input type="datetime-local" id="start-time" class="w-full p-4 mt-1">
                 </div>
                 <div>
-                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Duration (Mins)</label>
+                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Mins</label>
                     <input type="number" id="exam-duration" value="30" class="w-full p-4 mt-1">
                 </div>
             </div>
             <div>
-                <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Subjects</label>
-                <input type="text" id="sub-search" oninput="searchSubs()" placeholder="Search Subjects..." class="w-full p-4 mt-1">
+                <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Add Subjects</label>
+                <input type="text" id="sub-search" oninput="searchSubs()" placeholder="Search..." class="w-full p-4 mt-1">
                 <div id="search-results" class="flex flex-wrap gap-2 mt-3"></div>
                 <div id="selected-list" class="flex flex-wrap gap-2 mt-4 min-h-[30px]"></div>
             </div>
-            <button onclick="initiateBuild()" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-[10px] mt-4">Initialize Build</button>
+            <button onclick="initiateBuild()" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-[10px] mt-4 active:scale-95 transition">Initialize Build</button>
         </div>
     </div>
 
@@ -83,7 +83,7 @@
             </select>
             <div class="flex gap-2">
                 <button onclick="saveQuestion(false)" class="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-bold uppercase">Next Q</button>
-                <button onclick="saveQuestion(true)" class="flex-1 bg-orange-600 py-4 rounded-xl text-[10px] font-black uppercase">Finish</button>
+                <button onclick="saveQuestion(true)" class="flex-1 bg-orange-600 py-4 rounded-xl text-[10px] font-black uppercase">Finish Exam</button>
             </div>
         </div>
     </div>
@@ -96,8 +96,8 @@
             <h2 id="ana-title" class="text-2xl font-black uppercase mb-1"></h2>
             <p id="ana-code" class="text-[10px] font-bold text-gray-500 mb-6"></p>
             <table class="w-full text-left text-[11px]">
-                <thead class="border-b border-white/10 text-gray-500 uppercase">
-                    <tr><th class="py-3">Student</th><th class="py-3">Score</th><th class="py-3">XP</th></tr>
+                <thead class="border-b border-white/10 text-gray-500">
+                    <tr><th class="py-3">STUDENT</th><th class="py-3">SCORE</th><th class="py-3">XP</th></tr>
                 </thead>
                 <tbody id="analysis-rows"></tbody>
             </table>
@@ -120,24 +120,22 @@
         let activeBuildId = null;
         let subQCounts = {};
 
-        const POOL = ["Anatomy", "Physiology", "Biochemistry", "MTH 101", "GST 101", "CHM 101", "PHY 102", "Surgery", "Pathology", "Law of Tort"];
+        const POOL = ["Anatomy", "Physiology", "Biochemistry", "MTH 101", "GST 101", "Surgery", "Law of Tort"];
 
-        // BOOTSTRAP: CHECK AUTH
         window.onload = () => { if(!userId) showSection('auth'); };
 
         function generateStrictCode() {
-            const nums = Math.floor(100 + Math.random() * 900);
-            const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-            let res = "";
-            for(let i=0; i<6; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
-            return `Thesdel-${nums}${res}`;
+            const n = Math.floor(100 + Math.random() * 900);
+            const c = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            let r = "";
+            for(let i=0; i<6; i++) r += c.charAt(Math.floor(Math.random() * c.length));
+            return `Thesdel-${n}${r}`;
         }
 
         function searchSubs() {
             const q = document.getElementById('sub-search').value.toLowerCase();
             const res = document.getElementById('search-results');
-            res.innerHTML = "";
-            if(!q) return;
+            res.innerHTML = ""; if(!q) return;
             POOL.filter(s => s.toLowerCase().includes(q)).forEach(s => {
                 const d = document.createElement('div');
                 d.className = "subject-pill";
@@ -154,14 +152,23 @@
         async function initiateBuild() {
             if(!userId) return showSection('auth');
             const title = document.getElementById('exam-title').value;
-            if(!title || selectedSubs.length === 0) return alert("Fill Title & Select Subjects!");
-            
+            if(!title || selectedSubs.length === 0) return alert("Missing Title or Subjects!");
+
             const code = generateStrictCode();
+            
             const { data, error } = await sb.from('cbt_builds').insert([{
-                creator_id: userId, build_name: title, subjects_list: selectedSubs,
-                duration_mins: document.getElementById('exam-duration').value, join_code: code,
+                creator_id: userId,
+                build_name: title,
+                subjects_list: selectedSubs,
+                duration_mins: parseInt(document.getElementById('exam-duration').value) || 30,
+                join_code: code,
                 start_time: document.getElementById('start-time').value || null
             }]).select().single();
+
+            if (error) {
+                console.error("DEBUG:", error);
+                return alert(`DATABASE ERROR: ${error.message}\n${error.hint || ''}`);
+            }
 
             if(data) {
                 activeBuildId = data.id;
@@ -170,7 +177,7 @@
                 document.getElementById('slide-config').classList.add('hidden');
                 document.getElementById('slide-questions').classList.remove('hidden');
                 setupTabs();
-            } else { alert("Failed to initialize. Check connection."); }
+            }
         }
 
         function setupTabs() {
@@ -184,22 +191,23 @@
         function clearInputs() { ['q-text','opt-a','opt-b','opt-c','opt-d','q-correct'].forEach(id => document.getElementById(id).value = ""); }
 
         async function saveQuestion(isFinal) {
-            const qText = document.getElementById('q-text').value;
-            if(!qText) return alert("Empty Question!");
-            await sb.from('cbt_questions').insert([{
-                build_id: activeBuildId, subject_tag: activeSub, question_text: qText,
+            const qT = document.getElementById('q-text').value;
+            if(!qT) return alert("Question is empty!");
+            const { error } = await sb.from('cbt_questions').insert([{
+                build_id: activeBuildId, subject_tag: activeSub, question_text: qT,
                 option_a: document.getElementById('opt-a').value, option_b: document.getElementById('opt-b').value,
                 option_c: document.getElementById('opt-c').value, option_d: document.getElementById('opt-d').value,
                 correct_answer: document.getElementById('q-correct').value
             }]);
+            
+            if(error) return alert("Save failed: " + error.message);
+
             if(isFinal) location.reload();
             else { subQCounts[activeSub]++; setupTabs(); clearInputs(); }
         }
 
-        async function showSection(sec) {
-            const sections = ['slide-config','slide-questions','view-vault','view-analytics','auth-guard'];
-            sections.forEach(s => document.getElementById(s).classList.add('hidden'));
-            
+        function showSection(sec) {
+            ['slide-config','slide-questions','view-vault','view-analytics','auth-guard'].forEach(s => document.getElementById(s).classList.add('hidden'));
             if(sec === 'auth') document.getElementById('auth-guard').classList.remove('hidden');
             else if(sec === 'create') document.getElementById('slide-config').classList.remove('hidden');
             else if(sec === 'manage') { document.getElementById('view-vault').classList.remove('hidden'); loadVault(); }
@@ -214,11 +222,11 @@
                     <div class="flex justify-between items-start">
                         <div>
                             <p class="text-orange-500 font-black text-xs uppercase">${b.build_name}</p>
-                            <button onclick="copyCode(this, '${b.join_code}')" class="text-[10px] font-mono text-gray-500 mt-1 tracking-widest hover:text-white transition uppercase">
-                                <span>${b.join_code}</span> <span class="text-[7px] ml-1 opacity-50">(Copy)</span>
+                            <button onclick="copyCode(this, '${b.join_code}')" class="text-[10px] font-mono text-gray-500 mt-1 uppercase">
+                                <span>${b.join_code}</span> <span class="opacity-40 text-[7px] ml-1">(COPY)</span>
                             </button>
                         </div>
-                        <button onclick="shareExam('${b.build_name}', '${b.join_code}')" class="text-[8px] font-black text-orange-500 uppercase border border-orange-500/20 px-2 py-1 rounded-lg">Invite</button>
+                        <button onclick="shareExam('${b.build_name}', '${b.join_code}')" class="text-[8px] font-black text-orange-500 border border-orange-500/20 px-2 py-1 rounded-lg">INVITE</button>
                     </div>
                     <div class="flex gap-2 mt-5">
                         <button onclick="viewAnalysis('${b.id}', '${b.build_name}', '${b.join_code}')" class="flex-[3] glass-panel py-3 text-[9px] font-black uppercase">Analysis</button>
@@ -230,21 +238,15 @@
 
         function copyCode(btn, code) {
             navigator.clipboard.writeText(code);
-            const span = btn.querySelector('span');
-            const original = span.innerText;
-            span.innerText = "COPIED!";
-            span.classList.add('copy-success');
-            setTimeout(() => { span.innerText = original; span.classList.remove('copy-success'); }, 1500);
+            const s = btn.querySelector('span'); const old = s.innerText;
+            s.innerText = "COPIED!"; s.classList.add('copy-success');
+            setTimeout(() => { s.innerText = old; s.classList.remove('copy-success'); }, 1200);
         }
 
-        function shareExam(name, code) {
-            const msg = `🚀 Join my exam on Thesdel!\n\nExam: ${name}\nJoin Code: ${code}\n\nSign up and enter the code to begin.`;
-            if (navigator.share) {
-                navigator.share({ title: 'Thesdel Exam Invite', text: msg });
-            } else {
-                navigator.clipboard.writeText(msg);
-                alert("Invite message copied to clipboard!");
-            }
+        function shareExam(n, c) {
+            const m = `🚀 Join my exam on Thesdel!\nExam: ${n}\nCode: ${c}`;
+            if(navigator.share) navigator.share({title: 'Thesdel', text: m});
+            else { navigator.clipboard.writeText(m); alert("Invite Copied!"); }
         }
 
         async function deleteExam(id) {
@@ -259,30 +261,23 @@
             const { data } = await sb.from('cbt_results').select('*, profile(username)').eq('build_id', id);
             currentResults = data;
             document.getElementById('analysis-rows').innerHTML = data.map(r => `
-                <tr class="border-b border-white/5"><td class="py-4 font-bold uppercase">${r.profile?.username || 'Homie'}</td><td class="py-4 font-black text-orange-500">${r.score}/${r.total_questions}</td><td class="py-4 text-gray-400">${r.score * 10}</td></tr>
+                <tr class="border-b border-white/5"><td class="py-4 font-bold uppercase tracking-tighter">${r.profile?.username || 'Homie'}</td><td class="py-4 font-black text-orange-500">${r.score}/${r.total_questions}</td><td class="py-4 text-gray-500">${r.score * 10}</td></tr>
             `).join('');
         }
 
         function downloadExcel() {
             let csv = "Student,Score,Total,XP\n";
-            currentResults.forEach(r => { csv += `${r.profile?.username || 'Homie'},${r.score},${r.total_questions},${r.score*10}\n`; });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Thesdel_${document.getElementById('ana-title').innerText}.csv`;
-            a.click();
+            currentResults.forEach(r => { csv += `${r.profile?.username},${r.score},${r.total_questions},${r.score*10}\n`; });
+            const b = new Blob([csv], {type:'text/csv'});
+            const u = window.URL.createObjectURL(b);
+            const a = document.createElement('a'); a.href = u; a.download = `Thesdel_Results.csv`; a.click();
         }
 
         function shareReport() {
-            html2canvas(document.querySelector("#report-card"), { backgroundColor: '#000', scale: 2 }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `Thesdel_Analysis.png`;
-                link.href = canvas.toDataURL();
-                link.click();
+            html2canvas(document.querySelector("#report-card"), {backgroundColor:'#000', scale:2}).then(c => {
+                const l = document.createElement('a'); l.download = `Analysis.png`; l.href = c.toDataURL(); l.click();
             });
         }
     </script>
 </body>
-    </html>
-    
+</html>
