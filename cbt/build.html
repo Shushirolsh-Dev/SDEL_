@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body { background-color: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
@@ -21,7 +20,7 @@
         .q-preview-card { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 16px; border: 1px solid rgba(255,255,255,0.05); }
         #toast { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(150%); }
         #toast.active { transform: translateY(0); }
-        .watermark { position: absolute; bottom: 10px; right: 20px; font-size: 12px; font-weight: 900; opacity: 0.3; pointer-events: none; }
+        .watermark { position: absolute; bottom: 20px; right: 20px; font-size: 12px; font-weight: 900; opacity: 0.2; color: #ff6600; text-transform: uppercase; letter-spacing: 2px; }
     </style>
 </head>
 <body class="p-5 pb-32">
@@ -42,12 +41,9 @@
 
     <div id="success-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 hidden">
         <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm text-center">
-            <h2 class="text-2xl font-black uppercase italic">Live!</h2>
-            <div class="my-6 p-5 bg-white/5 rounded-3xl border border-white/10">
-                <p class="text-[9px] text-gray-500 uppercase font-black">Access Code</p>
-                <p id="final-code-display" class="text-2xl font-mono font-bold text-orange-500 mt-1"></p>
-            </div>
-            <button onclick="location.reload()" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-[10px]">Back to Vault</button>
+            <h2 class="text-2xl font-black uppercase">Finalized!</h2>
+            <p id="final-code-display" class="text-2xl font-mono font-bold text-orange-500 mt-4 cursor-pointer" onclick="copyToClipboard(this.innerText)"></p>
+            <button onclick="location.reload()" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-[10px] mt-6">Go to Vault</button>
         </div>
     </div>
 
@@ -55,78 +51,71 @@
         <div class="glass-panel p-6 rounded-[32px] space-y-5">
             <div>
                 <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Exam Title</label>
-                <input type="text" id="exam-title" class="w-full p-4 mt-1">
+                <input type="text" id="exam-title" placeholder="Title" class="w-full p-4 mt-1">
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <input type="datetime-local" id="start-time" class="p-4">
                 <input type="number" id="exam-duration" value="30" class="p-4">
             </div>
             <div>
-                <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Subject (Max 4)</label>
+                <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Subjects (Max 4)</label>
                 <input type="text" id="sub-search" oninput="searchSubs()" placeholder="Search..." class="w-full p-4 mt-1">
             </div>
             <div id="search-results" class="flex flex-wrap gap-2"></div>
-            <div id="selected-list" class="flex flex-wrap gap-2 min-h-[30px]"></div>
+            <div id="selected-list" class="flex flex-wrap gap-2 min-h-[30px] border-t border-white/5 pt-3"></div>
             <button onclick="initiateBuild()" class="w-full bg-white text-black font-black py-4 rounded-2xl uppercase text-[10px] mt-4">Start Building</button>
         </div>
     </div>
 
     <div id="slide-questions" class="hidden">
         <div id="subject-tabs" class="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-2"></div>
-        <div class="glass-panel p-6 rounded-[32px] space-y-4">
-            <textarea id="q-text" placeholder="Type question..." class="w-full p-4 h-24 text-sm"></textarea>
+        <div class="glass-panel p-6 rounded-[32px] space-y-4 border-orange-500/20">
+            <span id="cur-sub-label" class="text-orange-500 font-black text-[10px] uppercase"></span>
+            <textarea id="q-text" placeholder="Question..." class="w-full p-4 h-24 text-sm"></textarea>
             <div class="grid grid-cols-2 gap-2">
-                <input type="text" id="opt-a" placeholder="Opt A" class="p-4 text-xs">
-                <input type="text" id="opt-b" placeholder="Opt B" class="p-4 text-xs">
-                <input type="text" id="opt-c" placeholder="Opt C" class="p-4 text-xs">
-                <input type="text" id="opt-d" placeholder="Opt D" class="p-4 text-xs">
+                <input type="text" id="opt-a" placeholder="A" class="p-4 text-xs">
+                <input type="text" id="opt-b" placeholder="B" class="p-4 text-xs">
+                <input type="text" id="opt-c" placeholder="C" class="p-4 text-xs">
+                <input type="text" id="opt-d" placeholder="D" class="p-4 text-xs">
             </div>
             <select id="q-correct" class="w-full p-4 text-orange-500 font-bold text-xs uppercase">
                 <option value="">Correct Answer</option>
                 <option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option>
             </select>
             <div class="flex gap-2">
-                <button id="btn-save" onclick="saveQuestion(false)" class="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-bold uppercase">Save & Next</button>
+                <button onclick="saveQuestion(false)" class="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-bold uppercase">Save & Next</button>
                 <button onclick="saveQuestion(true)" class="flex-1 bg-orange-600 py-4 rounded-xl text-[10px] font-black uppercase">Finish Exam</button>
             </div>
         </div>
-        <div id="q-preview-list" class="mt-8 space-y-4"></div>
+        <div id="q-preview-list" class="mt-8 space-y-4 pb-20"></div>
     </div>
 
     <div id="view-vault" class="hidden space-y-4 pb-20"></div>
 
     <div id="view-analytics" class="hidden pb-20 space-y-6">
-        <button onclick="showSection('manage')" class="text-orange-500 font-black text-[10px] uppercase">← Back</button>
-        
-        <div id="analysis-capture" class="glass-panel p-6 rounded-[40px] relative bg-black">
-            <div class="watermark uppercase tracking-[0.5em]">Thesdel CBT Vault</div>
-            <h2 id="ana-title" class="text-3xl font-black uppercase tracking-tighter text-orange-500 leading-none mb-1"></h2>
+        <div class="flex justify-between items-center">
+            <button onclick="showSection('manage')" class="text-orange-500 font-black text-[10px] uppercase">← Vault</button>
+            <div class="flex gap-2">
+                <button onclick="exportExcel()" class="bg-green-600/10 text-green-500 px-3 py-2 rounded-xl text-[8px] font-black uppercase">Excel</button>
+                <button onclick="exportPNG()" class="bg-white/5 text-white px-3 py-2 rounded-xl text-[8px] font-black uppercase">Save PNG</button>
+            </div>
+        </div>
+        <div id="capture-area" class="glass-panel p-8 rounded-[40px] relative overflow-hidden">
+            <div class="watermark">Thesdel CBT Vault</div>
+            <h2 id="ana-title" class="text-3xl font-black uppercase tracking-tighter text-orange-500"></h2>
             <div class="flex justify-between items-end mb-6">
-                <p id="ana-code-display" class="text-xs font-mono text-gray-600"></p>
+                <p id="ana-code" class="text-[10px] font-mono text-gray-500"></p>
                 <div class="text-right">
-                    <p class="text-[8px] font-black text-gray-500 uppercase tracking-widest">Average Score</p>
-                    <p id="ana-average" class="text-xl font-black text-white"></p>
+                    <p class="text-[8px] text-gray-600 font-black uppercase">Vault Average</p>
+                    <p id="ana-avg" class="text-lg font-black text-white"></p>
                 </div>
             </div>
-
-            <div class="overflow-x-auto">
-                <table id="ana-table" class="w-full text-left text-[11px]">
-                    <thead class="border-b border-white/10 text-gray-500 font-black uppercase">
-                        <tr>
-                            <th class="py-3">Homie</th>
-                            <th class="py-3 text-center">Score</th>
-                            <th class="py-3 text-right">XP</th>
-                        </tr>
-                    </thead>
-                    <tbody id="analysis-rows" class="divide-y divide-white/5"></tbody>
-                </table>
-            </div>
-            <div id="ana-empty" class="hidden text-center py-10 uppercase text-[10px] font-black text-gray-600">No results found.</div>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-            <button onclick="exportExcel()" class="bg-white/5 p-4 rounded-2xl text-[9px] font-black uppercase">Excel</button>
-            <button onclick="exportPNG()" class="bg-white/5 p-4 rounded-2xl text-[9px] font-black uppercase">Save PNG</button>
+            <table class="w-full text-left text-[11px]">
+                <thead class="border-b border-white/10 text-gray-500 uppercase font-black">
+                    <tr><th class="py-3">Homie</th><th class="py-3 text-center">Score</th><th class="py-3 text-right">XP</th></tr>
+                </thead>
+                <tbody id="analysis-rows"></tbody>
+            </table>
         </div>
     </div>
 
@@ -137,9 +126,8 @@
         const userId = localStorage.getItem('thesdel_user_id');
 
         let selectedSubs = [];
-        let activeBuildId = null;
-        let activeJoinCode = "";
         let activeSub = "";
+        let activeBuildId = null;
         let subQuestionsMap = {};
 
         const POOL = ["Anatomy", "Physiology", "Biochemistry", "MTH 101", "GST 101", "Surgery", "Law of Tort", "Pathology"];
@@ -151,7 +139,15 @@
             setTimeout(() => t.classList.remove('active'), 3000);
         }
 
-        // --- CREATE LOGIC ---
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text);
+            notify("Copied to Clipboard!");
+        }
+
+        function generateStrictCode() {
+            return `Thesdel-${Math.floor(100 + Math.random() * 900)}${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+        }
+
         function searchSubs() {
             const q = document.getElementById('sub-search').value.toLowerCase();
             const res = document.getElementById('search-results');
@@ -159,46 +155,40 @@
             POOL.filter(s => s.toLowerCase().includes(q)).forEach(s => {
                 const d = document.createElement('div');
                 d.className = "subject-pill"; d.innerText = s;
-                d.onclick = () => {
+                d.onclick = () => { 
                     if(selectedSubs.length >= 4) return notify("Max 4 Subjects allowed!");
-                    if(!selectedSubs.includes(s)) { selectedSubs.push(s); renderSelected(); }
+                    if(!selectedSubs.includes(s)) { selectedSubs.push(s); renderSelected(); } 
                 };
                 res.appendChild(d);
             });
         }
 
         function renderSelected() {
-            document.getElementById('selected-list').innerHTML = selectedSubs.map(s => `
-                <div class="subject-pill subject-active flex items-center gap-2">
-                    ${s} 
-                    <span onclick="removeSub('${s}')" class="text-[12px] opacity-50">×</span>
-                </div>
-            `).join('');
+            document.getElementById('selected-list').innerHTML = selectedSubs.map(s => 
+                `<div onclick="removeSub('${s}')" class="subject-pill subject-active">${s} ×</div>`
+            ).join('');
         }
 
         function removeSub(s) {
-            selectedSubs = selectedSubs.filter(item => item !== s);
+            selectedSubs = selectedSubs.filter(sub => sub !== s);
             renderSelected();
         }
 
-        function generateStrictCode() {
-            return `Thesdel-${Math.floor(100 + Math.random() * 900)}${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-        }
-
         async function initiateBuild() {
-            if(!userId) return notify("Login required.");
+            if(!userId) return notify("Log in first!");
             const title = document.getElementById('exam-title').value;
-            if(!title || selectedSubs.length === 0) return notify("Fields required!");
-            activeJoinCode = generateStrictCode();
+            if(!title || selectedSubs.length === 0) return notify("Fill all fields!");
+
+            const code = generateStrictCode();
             const { data, error } = await sb.from('cbt_builds').insert([{
                 creator_id: userId, build_name: title, subjects_list: selectedSubs,
                 duration_mins: parseInt(document.getElementById('exam-duration').value) || 30,
-                join_code: activeJoinCode,
-                start_time: document.getElementById('start-time').value || null
+                join_code: code, start_time: document.getElementById('start-time').value || null
             }]).select().single();
-            if(data) {
-                activeBuildId = data.id; activeSub = selectedSubs[0];
-                selectedSubs.forEach(s => subQuestionsMap[s] = []);
+
+            if (data) {
+                activeBuildId = data.id;
+                activeSub = selectedSubs[0];
                 document.getElementById('slide-config').classList.add('hidden');
                 document.getElementById('slide-questions').classList.remove('hidden');
                 setupTabs();
@@ -208,8 +198,10 @@
         function setupTabs() {
             const nav = document.getElementById('subject-tabs');
             nav.innerHTML = selectedSubs.map(s => `<div onclick="setSub('${s}')" class="subject-pill ${s === activeSub ? 'subject-active' : ''}">${s}</div>`).join('');
+            document.getElementById('cur-sub-label').innerText = activeSub;
             renderPreviews();
         }
+
         function setSub(s) { activeSub = s; setupTabs(); }
 
         async function saveQuestion(isFinal) {
@@ -220,128 +212,108 @@
                 option_c: document.getElementById('opt-c').value, option_d: document.getElementById('opt-d').value,
                 correct_answer: document.getElementById('q-correct').value
             };
-            const { error } = await sb.from('cbt_questions').insert([qData]);
-            if(!error) {
-                if(isFinal) {
-                    document.getElementById('final-code-display').innerText = activeJoinCode;
-                    document.getElementById('success-modal').classList.remove('hidden');
-                } else { 
-                    notify("Saved!"); 
-                    document.getElementById('q-text').value = ""; 
-                    loadSubQuestions(); 
-                }
-            }
-        }
-
-        async function loadSubQuestions() {
-             const { data } = await sb.from('cbt_questions').select('*').eq('build_id', activeBuildId).eq('subject_tag', activeSub);
-             subQuestionsMap[activeSub] = data || [];
-             renderPreviews();
-        }
-
-        function renderPreviews() {
-            const qs = subQuestionsMap[activeSub] || [];
-            document.getElementById('q-preview-list').innerHTML = qs.map((q, i) => `
-                <div class="q-preview-card text-xs">
-                    <p class="font-black text-orange-500 mb-1 uppercase">Q${i+1}</p>
-                    <p>${q.question_text}</p>
-                </div>`).join('');
-        }
-
-        // --- VAULT LOGIC ---
-        function showSection(sec) {
-            ['slide-config','slide-questions','view-vault','view-analytics'].forEach(s => document.getElementById(s).classList.add('hidden'));
-            if(sec === 'create') document.getElementById('slide-config').classList.remove('hidden');
-            else if(sec === 'manage') { document.getElementById('view-vault').classList.remove('hidden'); loadVault(); }
+            await sb.from('cbt_questions').insert([qData]);
+            if(isFinal) {
+                const { data } = await sb.from('cbt_builds').select('join_code').eq('id', activeBuildId).single();
+                document.getElementById('final-code-display').innerText = data.join_code;
+                document.getElementById('success-modal').classList.remove('hidden');
+            } else { notify("Saved!"); renderPreviews(); }
         }
 
         async function loadVault() {
             const { data } = await sb.from('cbt_builds').select('*').eq('creator_id', userId).order('created_at', {ascending: false});
             const v = document.getElementById('view-vault');
-            if(data) {
-                v.innerHTML = data.map(b => `
-                    <div class="glass-panel p-8 rounded-[40px]">
-                        <div class="flex justify-between mb-4">
-                            <h2 class="text-2xl font-black uppercase tracking-tighter">${b.build_name}</h2>
-                            <button onclick="shareExam('${b.build_name}', '${b.join_code}')" class="text-[8px] font-black text-orange-500 border border-orange-500/20 px-3 py-2 rounded-xl">INVITE</button>
-                        </div>
-                        <div class="flex items-center gap-3 mb-6">
-                            <div id="code-box-${b.id}" class="bg-white/5 px-4 py-2 rounded-lg blur-[4px] select-none text-xs font-mono transition cursor-pointer" onclick="copyCode('${b.join_code}', '${b.id}')">*******</div>
-                            <button onclick="changeCode('${b.id}')" class="text-[8px] font-black text-gray-500 uppercase">Change Code</button>
-                        </div>
-                        <div class="flex gap-2">
-                            <button onclick="openAnalysis('${b.id}', '${b.build_name}', '${b.join_code}')" class="flex-1 bg-white/5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest">Analysis</button>
-                            <button onclick="deleteExam('${b.id}')" class="w-16 bg-red-900/10 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest">Del</button>
-                        </div>
-                    </div>`).join('');
-            }
+            v.innerHTML = (data || []).map(b => `
+                <div class="glass-panel p-8 rounded-[40px]">
+                    <h2 class="text-2xl font-black uppercase text-white mb-1">${b.build_name}</h2>
+                    <p onclick="copyToClipboard('${b.join_code}')" class="text-[10px] font-mono text-orange-500 mb-6 cursor-pointer tracking-widest">CODE: ${b.join_code} (Click to Copy)</p>
+                    <div class="flex gap-2">
+                        <button onclick="openAnalysis('${b.id}', '${b.build_name}', '${b.join_code}')" class="flex-[2] bg-white/5 py-4 rounded-2xl text-[10px] font-black uppercase">Analysis</button>
+                        <button onclick="resetExamCode('${b.id}')" class="flex-1 bg-white/5 py-4 rounded-2xl text-[10px] font-black uppercase">Reset Code</button>
+                        <button onclick="shareExam('${b.build_name}', '${b.join_code}')" class="flex-1 bg-orange-600/20 text-orange-500 py-4 rounded-2xl text-[10px] font-black uppercase">Invite</button>
+                    </div>
+                </div>`).join('');
         }
 
-        function copyCode(code, id) {
-            navigator.clipboard.writeText(code);
-            const box = document.getElementById(`code-box-${id}`);
-            box.innerText = code; box.classList.remove('blur-[4px]');
-            notify("Code Copied!");
-            setTimeout(() => { box.innerText = "*******"; box.classList.add('blur-[4px]'); }, 2000);
-        }
-
-        async function changeCode(id) {
+        async function resetExamCode(id) {
             const newCode = generateStrictCode();
             const { error } = await sb.from('cbt_builds').update({ join_code: newCode }).eq('id', id);
-            if(!error) { loadVault(); notify("Code Regenerated!"); }
+            if(!error) { notify("Code Refreshed!"); loadVault(); }
         }
 
-        function shareExam(n, c) {
-            const text = `🚀 Join my exam on Thesdel!\nExam: ${n}\nCode: ${c}\n\nJoin: https://thesdel.com/cbt/join.html\n\nDon't have an account? Sign up for free at https://thesdel.com/signup.html`;
-            navigator.clipboard.writeText(text);
-            notify("Full Invite Copied!");
-        }
-
-        // --- ANALYSIS LOGIC ---
+        // --- REAL NAME CORRECTION APPLIED HERE ---
         async function openAnalysis(id, name, code) {
             document.getElementById('view-vault').classList.add('hidden');
             document.getElementById('view-analytics').classList.remove('hidden');
             document.getElementById('ana-title').innerText = name;
-            document.getElementById('ana-code-display').innerText = code;
+            document.getElementById('ana-code').innerText = code;
             
-            const { data } = await sb.from('cbt_results').select('*').eq('build_id', id);
-            const tbody = document.getElementById('analysis-rows');
-            const avgBox = document.getElementById('ana-average');
-            tbody.innerHTML = "";
+            const { data } = await sb
+                .from('cbt_results')
+                .select(`
+                    score, 
+                    total_questions, 
+                    profile:user_id (first_name, last_name)
+                `)
+                .eq('build_id', id);
 
-            if(data && data.length > 0) {
-                // SORT: Highest to Lowest
-                const sorted = data.sort((a,b) => b.score - a.score);
-                const totalScore = sorted.reduce((acc, r) => acc + (r.score / r.total_questions * 100), 0);
-                avgBox.innerText = Math.round(totalScore / sorted.length) + "%";
+            if(data) {
+                data.sort((a, b) => b.score - a.score);
+                const avg = data.length ? (data.reduce((a, b) => a + b.score, 0) / data.length).toFixed(1) : 0;
+                document.getElementById('ana-avg').innerText = avg;
 
-                tbody.innerHTML = sorted.map(r => `
-                    <tr>
-                        <td class="py-4 font-bold uppercase">${r.username || 'Homie'}</td>
+                document.getElementById('analysis-rows').innerHTML = data.map(r => {
+                    const fullName = r.profile ? `${r.profile.first_name} ${r.profile.last_name}` : 'Unknown Homie';
+                    return `
+                    <tr class="border-b border-white/5">
+                        <td class="py-4 font-bold uppercase text-white">${fullName}</td>
                         <td class="py-4 text-center font-black text-orange-500">${r.score}/${r.total_questions}</td>
                         <td class="py-4 text-right text-gray-400 font-mono">${r.score * 10}</td>
-                    </tr>`).join('');
-            } else { avgBox.innerText = "0%"; document.getElementById('ana-empty').classList.remove('hidden'); }
+                    </tr>`;
+                }).join('');
+            }
+        }
+
+        function shareExam(n, c) {
+            const text = `🚀 Exam Invite: ${n}\nCode: ${c}\nJoin: thesdel.com/cbt/join.html\n\nNo account? Signup free: thesdel.com/signup.html`;
+            copyToClipboard(text);
         }
 
         function exportExcel() {
-            const table = document.getElementById('ana-table');
-            const wb = XLSX.utils.table_to_book(table);
-            XLSX.writeFile(wb, `${document.getElementById('ana-title').innerText}_results.xlsx`);
+            let csv = "Homie,Score,XP\n";
+            document.querySelectorAll("#analysis-rows tr").forEach(tr => {
+                const cols = tr.querySelectorAll("td");
+                csv += `${cols[0].innerText},${cols[1].innerText},${cols[2].innerText}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'Vault_Results.csv'; a.click();
         }
 
         function exportPNG() {
-            const capture = document.getElementById('analysis-capture');
-            html2canvas(capture, { backgroundColor: '#000' }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'Thesdel_Vault_Result.png';
-                link.href = canvas.toDataURL();
-                link.click();
+            html2canvas(document.querySelector("#capture-area"), { backgroundColor: '#000' }).then(canvas => {
+                const a = document.createElement('a');
+                a.href = canvas.toDataURL("image/png");
+                a.download = 'Thesdel_Analysis.png';
+                a.click();
+                notify("PNG Saved!");
             });
         }
 
-        async function deleteExam(id) {
-            if(confirm("Strictly delete?")) { await sb.from('cbt_builds').delete().eq('id', id); loadVault(); }
+        function showSection(sec) {
+            ['slide-config','slide-questions','view-vault','view-analytics'].forEach(s => document.getElementById(s).classList.add('hidden'));
+            if(sec === 'create') document.getElementById('slide-config').classList.remove('hidden');
+            else if(sec === 'manage') { document.getElementById('view-vault').classList.remove('hidden'); loadVault(); }
+        }
+        
+        async function renderPreviews() {
+            const { data } = await sb.from('cbt_questions').select('*').eq('build_id', activeBuildId).eq('subject_tag', activeSub);
+            document.getElementById('q-preview-list').innerHTML = (data || []).map((q, i) => `
+                <div class="q-preview-card">
+                    <p class="text-[9px] font-black text-orange-500 uppercase mb-2">Q${i+1}</p>
+                    <p class="text-xs">${q.question_text}</p>
+                </div>`).join('');
         }
     </script>
 </body>
