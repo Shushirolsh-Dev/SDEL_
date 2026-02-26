@@ -252,7 +252,7 @@
             timerInterval = setInterval(() => {
                 timeLeft--;
                 
-                // Sync with server EVERY SECOND (removed the 30-second condition)
+                // Sync with server EVERY SECOND
                 sb.from('exam_sessions')
                     .update({ time_remaining: timeLeft })
                     .eq('build_id', examId)
@@ -373,7 +373,7 @@
             try {
                 const { data: { user } } = await sb.auth.getUser();
                 
-                 // Get correct answers from server (secure)
+                // Get correct answers from server (secure)
                 const { data: answers } = await sb.from('cbt_questions')
                     .select('id, correct_answer')
                     .eq('build_id', examId);
@@ -392,15 +392,16 @@
                 const currentXp = parseInt(profile.xp) || 0;
                 const newXp = Math.max(0, currentXp + xpDelta);
 
-                // Insert result (without xp_earned field)
-                const { error: saveErr } = await sb.from('cbt_results').insert([{ 
-                    user_id: user.id, 
-                    build_id: examId, 
-                    score: correct, 
-                    total_questions: allQuestions.length
-                }]);
+                // Insert result - FIXED: removed array brackets and .select()
+                const { error: saveErr } = await sb.from('cbt_results')
+                    .insert({
+                        user_id: user.id,
+                        build_id: examId,
+                        score: correct,
+                        total_questions: allQuestions.length
+                    });
 
-                if (saveErr) throw saveErr;
+                if (saveErr) throw new Error("Could not save result: " + saveErr.message);
 
                 // Update XP in profile table
                 await sb.from('profile').update({ xp: newXp }).eq('id', user.id);
