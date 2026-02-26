@@ -213,7 +213,17 @@
                         timeLeft = claimedTimeLeft;
                     }
                     
-                    selectedAnswers = activeSession.answers || {};
+                    // Parse answers properly (handle both string and object)
+                    if (typeof activeSession.answers === 'string') {
+                        try {
+                            selectedAnswers = JSON.parse(activeSession.answers);
+                        } catch (e) {
+                            selectedAnswers = {};
+                        }
+                    } else {
+                        selectedAnswers = activeSession.answers || {};
+                    }
+                    
                     activeSub = activeSession.current_subject || allSubjects[0];
                     currentIndex = activeSession.current_index || 0;
                     
@@ -234,11 +244,12 @@
                     
                     const expiresAt = new Date(Date.now() + duration * 1000);
                     
+                    // Store answers as JSON object
                     const { error: sessionError } = await sb.from('exam_sessions').insert({
                         user_id: user.id,
                         build_id: examId,
                         time_remaining: duration,
-                        answers: {},
+                        answers: {}, // Empty JSON object
                         current_subject: allSubjects[0],
                         current_index: 0,
                         status: 'active',
@@ -246,7 +257,10 @@
                         last_heartbeat: new Date().toISOString()
                     });
                     
-                    if (sessionError) throw sessionError;
+                    if (sessionError) {
+                        console.error('Session error:', sessionError);
+                        throw sessionError;
+                    }
                     
                     switchSubject(allSubjects[0]);
                 }
@@ -264,6 +278,7 @@
                 document.getElementById('exam-ui').classList.remove('hidden');
 
             } catch (err) {
+                console.error('GATE ERROR:', err);
                 alert("GATE ERROR: " + err.message);
                 window.location.replace('/cbt/index.html');
             }
@@ -273,10 +288,13 @@
         function startHeartbeat(userId) {
             heartbeatInterval = setInterval(async () => {
                 try {
+                    // Ensure answers is a proper JSON object
+                    const answersJson = typeof selectedAnswers === 'object' ? selectedAnswers : {};
+                    
                     await sb.from('exam_sessions')
                         .update({ 
                             time_remaining: timeLeft,
-                            answers: selectedAnswers,
+                            answers: answersJson,
                             current_subject: activeSub,
                             current_index: currentIndex,
                             last_heartbeat: new Date().toISOString()
@@ -287,7 +305,7 @@
                 } catch (err) {
                     console.log('Heartbeat failed - will retry');
                 }
-            }, 1000);
+            }, 2000); // Slowed to 2 seconds to reduce load
         }
 
         // --- TIMER ---
@@ -298,13 +316,6 @@
                 if (timeLeft > 0) {
                     timeLeft--;
                     updateTimerDisplay();
-                    
-                    // Sync with server
-                    sb.from('exam_sessions')
-                        .update({ time_remaining: timeLeft })
-                        .eq('build_id', examId)
-                        .eq('status', 'active')
-                        .catch(err => console.log('Timer sync failed'));
                     
                     if (timeLeft <= 0) {
                         finishExam();
@@ -467,7 +478,8 @@
                     .from('exam_sessions')
                     .update({ 
                         status: 'completed',
-                        time_remaining: 0
+                        time_remaining: 0,
+                        answers: selectedAnswers // Save final answers
                     })
                     .eq('user_id', user.id)
                     .eq('build_id', examId)
@@ -493,11 +505,12 @@
                 alert('SUBMIT ERROR: ' + err.message);
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerText = 'Resubmit Battle';
+                    btn.innerText = 'Submit Now';
                 }
             }
         }
 
+        // Start the verification
         verifyAndLock();
     </script>
 </body>
