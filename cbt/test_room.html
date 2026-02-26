@@ -372,23 +372,22 @@
 
                 const xpDelta = (correct * 10) - (missed * 2); // -2 for wrong answers
 
-                // Get current XP
+                // Get current XP from profile table
                 const { data: profile } = await sb.from('profile').select('xp').eq('id', user.id).single();
                 const currentXp = parseInt(profile.xp) || 0;
                 const newXp = Math.max(0, currentXp + xpDelta);
 
-                // Insert result
+                // Insert result (without xp_earned field)
                 const { error: saveErr } = await sb.from('cbt_results').insert([{ 
                     user_id: user.id, 
                     build_id: examId, 
                     score: correct, 
-                    total_questions: allQuestions.length,
-                    xp_earned: xpDelta
+                    total_questions: allQuestions.length
                 }]);
 
                 if (saveErr) throw saveErr;
 
-                // Update XP
+                // Update XP in profile table
                 await sb.from('profile').update({ xp: newXp }).eq('id', user.id);
 
                 // Close session
