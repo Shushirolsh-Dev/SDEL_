@@ -26,7 +26,7 @@
 <body class="p-6">
 
     <script>
-        // FORWARD-ONLY NAVIGATION
+        // BLOCK BACK BUTTON
         history.pushState(null, null, location.href);
         window.onpopstate = function () { history.go(1); };
     </script>
@@ -39,10 +39,10 @@
     <div id="submit-confirm-modal" class="fixed inset-0 z-[500] bg-black/95 hidden items-center justify-center p-6 backdrop-blur-xl">
         <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm text-center border-orange-500/30">
             <h2 class="text-xl font-black uppercase tracking-tighter">End Battle?</h2>
-            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2">Results will be locked in the archives.</p>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2">Mistakes cost -10 XP. Submit now?</p>
             <div class="mt-8 flex flex-col gap-3">
                 <button id="final-sub-btn" onclick="finishExam()" class="w-full bg-orange-600 text-white font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest active:scale-95 transition">Submit Now</button>
-                <button onclick="closeSubmitModal()" class="w-full bg-white/5 text-gray-400 font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest">Return to Battle</button>
+                <button onclick="closeSubmitModal()" class="w-full bg-white/5 text-gray-400 font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest">Reject</button>
             </div>
         </div>
     </div>
@@ -83,15 +83,15 @@
 
     <div id="result-modal" class="fixed inset-0 z-[400] bg-black hidden flex-col p-8 overflow-y-auto">
         <div class="max-w-md mx-auto w-full text-center pt-10">
-            <h2 class="text-4xl font-black uppercase tracking-tighter mb-8">Scorecard</h2>
+            <h2 class="text-4xl font-black uppercase tracking-tighter mb-8 italic">Battle Result</h2>
             <div class="grid grid-cols-2 gap-4 mb-10">
                 <div class="glass-panel p-6 rounded-[32px] text-center">
-                    <p class="text-[8px] text-gray-500 font-black mb-1">ACCURACY</p>
+                    <p class="text-[8px] text-gray-500 font-black mb-1">SCORE</p>
                     <p id="res-score" class="text-2xl font-black text-orange-500"></p>
                 </div>
                 <div class="glass-panel p-6 rounded-[32px] text-center">
-                    <p class="text-[8px] text-gray-500 font-black mb-1 uppercase">Battle XP</p>
-                    <p id="res-xp" class="text-2xl font-black text-green-500">+0</p>
+                    <p class="text-[8px] text-gray-500 font-black mb-1">XP SHIFT</p>
+                    <p id="res-xp" class="text-2xl font-black"></p>
                 </div>
             </div>
             <div id="review-list" class="space-y-4 text-left mb-10"></div>
@@ -107,34 +107,32 @@
         const examId = localStorage.getItem('active_exam_id');
         let allQuestions = [], filteredQuestions = [], activeSub = "", currentIndex = 0, selectedAnswers = {}, timeLeft = 0, timerInterval;
 
-        // 1. THE GATEKEEPER
+        // --- THE GATEKEEPER ---
         async function verifyAndLock() {
             try {
                 const { data: { user } } = await sb.auth.getUser();
                 if (!user || !examId) return window.location.replace('/cbt/index.html');
 
-                // CHECK IF RECORD ALREADY EXISTS
-                const { data: existing } = await sb.from('cbt_results')
+                const { data: check } = await sb.from('cbt_results')
                     .select('id')
                     .eq('build_id', examId)
                     .eq('user_id', user.id)
                     .maybeSingle();
 
-                if (existing) {
+                if (check) {
                     document.body.innerHTML = `
                     <div class="h-screen flex items-center justify-center bg-black text-center p-10">
                         <div class="glass-panel p-10 rounded-[40px] border-red-500/30">
-                            <h1 class="text-red-500 font-black uppercase text-xl">Battle Concluded</h1>
-                            <p class="text-[10px] text-gray-500 mt-4 font-bold uppercase tracking-widest">Unlimited retakes are prohibited.</p>
-                            <button onclick="window.location.replace('/cbt/index.html')" class="mt-8 bg-white text-black px-10 py-4 rounded-2xl font-black text-[10px] uppercase">Exit</button>
+                            <h1 class="text-red-500 font-black uppercase text-xl italic">Battle Recorded</h1>
+                            <p class="text-[10px] text-gray-500 mt-4 font-bold uppercase tracking-widest leading-relaxed">Retakes are prohibited to maintain the leaderboards.</p>
+                            <button onclick="window.location.replace('/cbt/index.html')" class="mt-8 bg-white text-black px-10 py-4 rounded-2xl font-black text-[10px] uppercase">Back to Base</button>
                         </div>
                     </div>`;
                     return;
                 }
 
-                // 2. FETCH QUESTIONS & INIT
-                const { data: qs, error: qErr } = await sb.from('cbt_questions').select('*').eq('build_id', examId);
-                if (qErr || !qs.length) throw new Error("Could not fetch questions.");
+                const { data: qs } = await sb.from('cbt_questions').select('*').eq('build_id', examId);
+                if (!qs || qs.length === 0) throw new Error("No Questions Found");
                 
                 allQuestions = qs;
                 const subjects = [...new Set(qs.map(q => q.subject_tag))];
@@ -148,12 +146,12 @@
                 document.getElementById('exam-ui').classList.remove('hidden');
 
             } catch (err) {
-                alert("CRITICAL: " + err.message);
+                alert("GATE ERROR: " + err.message);
                 window.location.replace('/cbt/index.html');
             }
         }
 
-        // TIMER & UI HELPERS
+        // --- CORE LOGIC ---
         function startTimer() {
             timerInterval = setInterval(() => {
                 timeLeft--;
@@ -195,20 +193,33 @@
         function openSubmitModal() { document.getElementById('submit-confirm-modal').classList.replace('hidden', 'flex'); }
         function closeSubmitModal() { document.getElementById('submit-confirm-modal').classList.replace('flex', 'hidden'); }
 
-        // 3. THE FINISHER
+        // --- THE FINISHER: XP + LOCK ---
         async function finishExam() {
             const btn = document.getElementById('final-sub-btn');
             btn.disabled = true;
-            btn.innerText = "RECORDING SCORE...";
+            btn.innerText = "UPDATING PROFILE...";
 
             clearInterval(timerInterval);
             
             try {
                 const { data: { user } } = await sb.auth.getUser();
+                
                 let correct = 0;
-                allQuestions.forEach(q => { if (selectedAnswers[q.id] === q.correct_answer) correct++; });
+                let missed = 0;
+                allQuestions.forEach(q => {
+                    if (selectedAnswers[q.id] === q.correct_answer) correct++;
+                    else missed++;
+                });
 
-                // SAVE TO YOUR EXACT COLUMNS
+                // Calculate Delta
+                const xpDelta = (correct * 10) - (missed * 10);
+
+                // 1. Fetch Current XP
+                const { data: profile } = await sb.from('profile').select('xp').eq('id', user.id).single();
+                const currentXp = parseInt(profile.xp) || 0;
+                const newXp = Math.max(0, currentXp + xpDelta);
+
+                // 2. Insert Score Record (The Lock)
                 const { error: saveErr } = await sb.from('cbt_results').insert([{ 
                     user_id: user.id, 
                     build_id: examId, 
@@ -216,21 +227,29 @@
                     total_questions: allQuestions.length 
                 }]);
 
-                if (saveErr) throw new Error("DB REJECTION: " + saveErr.message);
+                if (saveErr) throw new Error("Could not save result: " + saveErr.message);
 
-                // LOCK DOWN
+                // 3. Update XP in Profile
+                await sb.from('profile').update({ xp: newXp }).eq('id', user.id);
+
+                // 4. Wipe Local Storage
                 localStorage.removeItem('active_exam_id');
 
-                // UI RESULTS
+                // 5. Update UI
                 document.getElementById('exam-ui').classList.add('hidden');
                 document.getElementById('res-score').innerText = `${correct}/${allQuestions.length}`;
+                
+                const xpDisplay = document.getElementById('res-xp');
+                xpDisplay.innerText = (xpDelta >= 0 ? "+" : "") + xpDelta + " XP";
+                xpDisplay.className = `text-2xl font-black ${xpDelta >= 0 ? 'text-green-500' : 'text-red-500'}`;
+
                 document.getElementById('result-modal').classList.replace('hidden', 'flex');
                 closeSubmitModal();
 
             } catch (err) {
-                alert(err.message);
+                alert("SUBMIT ERROR: " + err.message);
                 btn.disabled = false;
-                btn.innerText = "Try Resubmit";
+                btn.innerText = "Resubmit Battle";
             }
         }
 
