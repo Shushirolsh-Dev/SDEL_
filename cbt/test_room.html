@@ -17,19 +17,34 @@
         .option-selected { border-color: #ff6600; background: rgba(255, 102, 0, 0.1); box-shadow: 0 0 15px rgba(255, 102, 0, 0.2); }
         .subject-pill { padding: 8px 16px; border-radius: 99px; font-size: 10px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; white-space: nowrap; transition: 0.3s; }
         .subject-active { background: #ff6600; border-color: #ff6600; color: white; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .timer-low { color: #ef4444; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         .hidden { display: none; }
     </style>
 </head>
 <body class="p-6">
 
     <script>
-        // HISTORY KILLER
+        // FORWARD-ONLY NAVIGATION
         history.pushState(null, null, location.href);
         window.onpopstate = function () { history.go(1); };
     </script>
 
-    <div id="loading-gate" class="fixed inset-0 z-[999] bg-black flex items-center justify-center">
-        <p class="text-[10px] font-black uppercase tracking-[0.5em] animate-pulse">Verifying Identity...</p>
+    <div id="loading-gate" class="fixed inset-0 z-[999] bg-black flex flex-col items-center justify-center">
+        <div class="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+        <p class="text-[10px] font-black uppercase tracking-[0.4em] text-gray-500">Syncing Battle Data...</p>
+    </div>
+
+    <div id="submit-confirm-modal" class="fixed inset-0 z-[500] bg-black/95 hidden items-center justify-center p-6 backdrop-blur-xl">
+        <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm text-center border-orange-500/30">
+            <h2 class="text-xl font-black uppercase tracking-tighter">End Battle?</h2>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2">Results will be locked in the archives.</p>
+            <div class="mt-8 flex flex-col gap-3">
+                <button id="final-sub-btn" onclick="finishExam()" class="w-full bg-orange-600 text-white font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest active:scale-95 transition">Submit Now</button>
+                <button onclick="closeSubmitModal()" class="w-full bg-white/5 text-gray-400 font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest">Return to Battle</button>
+            </div>
+        </div>
     </div>
 
     <div id="exam-ui" class="hidden max-w-xl mx-auto h-screen flex flex-col">
@@ -39,7 +54,7 @@
         </div>
         <div id="subject-tabs" class="flex gap-2 overflow-x-auto no-scrollbar pb-4"></div>
         <div class="flex-1 overflow-y-auto no-scrollbar space-y-6 pt-4">
-            <span id="display-q-num" class="text-[10px] font-black text-gray-500 uppercase">Question 1</span>
+            <span id="display-q-num" class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Question 1</span>
             <p id="question-text" class="text-lg font-bold leading-relaxed"></p>
             <div id="options-container" class="space-y-3 pb-20">
                 <div onclick="selectOpt('A')" id="card-A" class="option-card flex items-center gap-4">
@@ -62,7 +77,7 @@
         </div>
         <div class="py-8 flex gap-3">
             <button onclick="prevQuestion()" class="flex-1 glass-panel py-5 rounded-[24px] text-[10px] font-black uppercase">Prev</button>
-            <button onclick="nextQuestion()" class="flex-[2] bg-white text-black py-5 rounded-[24px] font-black uppercase text-[10px]">Next</button>
+            <button onclick="nextQuestion()" class="flex-[2] bg-white text-black py-5 rounded-[24px] font-black uppercase text-[10px] tracking-widest">Next</button>
         </div>
     </div>
 
@@ -70,11 +85,17 @@
         <div class="max-w-md mx-auto w-full text-center pt-10">
             <h2 class="text-4xl font-black uppercase tracking-tighter mb-8">Scorecard</h2>
             <div class="grid grid-cols-2 gap-4 mb-10">
-                <div class="glass-panel p-6 rounded-[32px] text-center"><p id="res-score" class="text-2xl font-black text-orange-500"></p></div>
-                <div class="glass-panel p-6 rounded-[32px] text-center"><p id="res-xp" class="text-2xl font-black"></p></div>
+                <div class="glass-panel p-6 rounded-[32px] text-center">
+                    <p class="text-[8px] text-gray-500 font-black mb-1">ACCURACY</p>
+                    <p id="res-score" class="text-2xl font-black text-orange-500"></p>
+                </div>
+                <div class="glass-panel p-6 rounded-[32px] text-center">
+                    <p class="text-[8px] text-gray-500 font-black mb-1 uppercase">Battle XP</p>
+                    <p id="res-xp" class="text-2xl font-black text-green-500">+0</p>
+                </div>
             </div>
             <div id="review-list" class="space-y-4 text-left mb-10"></div>
-            <button onclick="window.location.replace('/cbt/index.html')" class="w-full bg-white text-black py-6 rounded-3xl font-black text-[10px] uppercase">Exit Arena</button>
+            <button onclick="window.location.replace('/cbt/index.html')" class="w-full bg-white text-black py-6 rounded-3xl font-black text-[10px] uppercase tracking-widest">Exit Arena</button>
         </div>
     </div>
 
@@ -86,74 +107,134 @@
         const examId = localStorage.getItem('active_exam_id');
         let allQuestions = [], filteredQuestions = [], activeSub = "", currentIndex = 0, selectedAnswers = {}, timeLeft = 0, timerInterval;
 
+        // 1. THE GATEKEEPER
         async function verifyAndLock() {
-            const { data: { user } } = await sb.auth.getUser();
-            
-            // IF NO USER, KICK THEM OUT
-            if (!user || !examId) return window.location.replace('/cbt/index.html');
+            try {
+                const { data: { user } } = await sb.auth.getUser();
+                if (!user || !examId) return window.location.replace('/cbt/index.html');
 
-            // THE REAL LOCK: Checking if THIS UUID exists for THIS EXAM in cbt_results
-            const { data: check, error: checkErr } = await sb.from('cbt_results')
-                .select('id')
-                .eq('build_id', examId)
-                .eq('user_id', user.id)
-                .maybeSingle();
+                // CHECK IF RECORD ALREADY EXISTS
+                const { data: existing } = await sb.from('cbt_results')
+                    .select('id')
+                    .eq('build_id', examId)
+                    .eq('user_id', user.id)
+                    .maybeSingle();
 
-            if (check) {
-                document.body.innerHTML = `<div class="h-screen flex items-center justify-center bg-black text-center p-10"><div class="glass-panel p-10 rounded-[40px] border-red-500/50"><h1 class="text-red-500 font-black uppercase text-xl">Access Denied</h1><p class="text-[10px] text-gray-500 mt-4 font-bold uppercase">Record already exists. No retakes.</p><button onclick="window.location.replace('/cbt/index.html')" class="mt-8 bg-white text-black px-10 py-4 rounded-2xl font-black text-[10px] uppercase">Back to Hub</button></div></div>`;
-                return;
+                if (existing) {
+                    document.body.innerHTML = `
+                    <div class="h-screen flex items-center justify-center bg-black text-center p-10">
+                        <div class="glass-panel p-10 rounded-[40px] border-red-500/30">
+                            <h1 class="text-red-500 font-black uppercase text-xl">Battle Concluded</h1>
+                            <p class="text-[10px] text-gray-500 mt-4 font-bold uppercase tracking-widest">Unlimited retakes are prohibited.</p>
+                            <button onclick="window.location.replace('/cbt/index.html')" class="mt-8 bg-white text-black px-10 py-4 rounded-2xl font-black text-[10px] uppercase">Exit</button>
+                        </div>
+                    </div>`;
+                    return;
+                }
+
+                // 2. FETCH QUESTIONS & INIT
+                const { data: qs, error: qErr } = await sb.from('cbt_questions').select('*').eq('build_id', examId);
+                if (qErr || !qs.length) throw new Error("Could not fetch questions.");
+                
+                allQuestions = qs;
+                const subjects = [...new Set(qs.map(q => q.subject_tag))];
+                renderTabs(subjects);
+                switchSubject(subjects[0]);
+
+                timeLeft = parseInt(localStorage.getItem('exam_duration')) * 60 || 1800;
+                startTimer();
+
+                document.getElementById('loading-gate').remove();
+                document.getElementById('exam-ui').classList.remove('hidden');
+
+            } catch (err) {
+                alert("CRITICAL: " + err.message);
+                window.location.replace('/cbt/index.html');
             }
-
-            // Start everything only if we passed the check
-            document.getElementById('loading-gate').remove();
-            initRoom(user);
         }
 
-        async function initRoom(user) {
-            const { data: qs } = await sb.from('cbt_questions').select('*').eq('build_id', examId);
-            allQuestions = qs;
-            const subjects = [...new Set(qs.map(q => q.subject_tag))];
-            renderTabs(subjects);
-            switchSubject(subjects[0]);
-
-            timeLeft = parseInt(localStorage.getItem('exam_duration')) * 60;
-            startTimer();
-            document.getElementById('exam-ui').classList.remove('hidden');
+        // TIMER & UI HELPERS
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+                document.getElementById('timer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                if (timeLeft < 60) document.getElementById('timer').classList.add('timer-low');
+                if (timeLeft <= 0) finishExam();
+            }, 1000);
         }
 
+        function renderTabs(subs) {
+            document.getElementById('subject-tabs').innerHTML = subs.map(s => `<div id="tab-${s}" onclick="switchSubject('${s}')" class="subject-pill">${s}</div>`).join('');
+        }
+
+        function switchSubject(s) {
+            activeSub = s;
+            document.querySelectorAll('.subject-pill').forEach(p => p.classList.remove('subject-active'));
+            document.getElementById(`tab-${s}`).classList.add('subject-active');
+            filteredQuestions = allQuestions.filter(q => q.subject_tag === s);
+            currentIndex = 0;
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = filteredQuestions[currentIndex];
+            document.getElementById('display-q-num').innerText = `Question ${currentIndex + 1} of ${filteredQuestions.length}`;
+            document.getElementById('question-text').innerText = q.question_text;
+            document.getElementById('text-A').innerText = q.option_a;
+            document.getElementById('text-B').innerText = q.option_b;
+            document.getElementById('text-C').innerText = q.option_c;
+            document.getElementById('text-D').innerText = q.option_d;
+            document.querySelectorAll('.option-card').forEach(c => c.classList.remove('option-selected'));
+            if (selectedAnswers[q.id]) document.getElementById(`card-${selectedAnswers[q.id]}`).classList.add('option-selected');
+        }
+
+        function selectOpt(opt) { selectedAnswers[filteredQuestions[currentIndex].id] = opt; renderQuestion(); }
+        function nextQuestion() { if (currentIndex < filteredQuestions.length - 1) { currentIndex++; renderQuestion(); } }
+        function prevQuestion() { if (currentIndex > 0) { currentIndex--; renderQuestion(); } }
+        function openSubmitModal() { document.getElementById('submit-confirm-modal').classList.replace('hidden', 'flex'); }
+        function closeSubmitModal() { document.getElementById('submit-confirm-modal').classList.replace('flex', 'hidden'); }
+
+        // 3. THE FINISHER
         async function finishExam() {
+            const btn = document.getElementById('final-sub-btn');
+            btn.disabled = true;
+            btn.innerText = "RECORDING SCORE...";
+
             clearInterval(timerInterval);
-            const { data: { user } } = await sb.auth.getUser();
             
-            let correct = 0;
-            allQuestions.forEach(q => { if (selectedAnswers[q.id] === q.correct_answer) correct++; });
+            try {
+                const { data: { user } } = await sb.auth.getUser();
+                let correct = 0;
+                allQuestions.forEach(q => { if (selectedAnswers[q.id] === q.correct_answer) correct++; });
 
-            // 1. URGENT: ATTEMPT TO SAVE RESULT
-            const { error: saveErr } = await sb.from('cbt_results').insert([{ 
-                build_id: examId, 
-                user_id: user.id, // IF THIS IS NULL, THE LOCK FAILS.
-                username: localStorage.getItem('student_name'), 
-                score: correct, 
-                total_questions: allQuestions.length 
-            }]);
+                // SAVE TO YOUR EXACT COLUMNS
+                const { error: saveErr } = await sb.from('cbt_results').insert([{ 
+                    user_id: user.id, 
+                    build_id: examId, 
+                    score: correct, 
+                    total_questions: allQuestions.length 
+                }]);
 
-            if (saveErr) {
-                console.error("Critical Save Error:", saveErr);
-                alert("Critical Error: Result not saved. Check console.");
-                return;
+                if (saveErr) throw new Error("DB REJECTION: " + saveErr.message);
+
+                // LOCK DOWN
+                localStorage.removeItem('active_exam_id');
+
+                // UI RESULTS
+                document.getElementById('exam-ui').classList.add('hidden');
+                document.getElementById('res-score').innerText = `${correct}/${allQuestions.length}`;
+                document.getElementById('result-modal').classList.replace('hidden', 'flex');
+                closeSubmitModal();
+
+            } catch (err) {
+                alert(err.message);
+                btn.disabled = false;
+                btn.innerText = "Try Resubmit";
             }
-
-            // 2. CLEANUP & SHOW RESULTS
-            localStorage.removeItem('active_exam_id');
-            document.getElementById('exam-ui').classList.add('hidden');
-            document.getElementById('res-score').innerText = `${correct}/${allQuestions.length}`;
-            document.getElementById('result-modal').classList.replace('hidden', 'flex');
         }
-
-        // ... Keep existing UI helper functions (renderTabs, switchSubject, selectOpt, etc.) ...
 
         verifyAndLock();
     </script>
 </body>
-                    </html>
-    
+</html>
