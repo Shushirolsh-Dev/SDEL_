@@ -26,77 +26,60 @@
     text-align: center;
   }
 
-  h2 {
-    margin-bottom: 20px;
-  }
-
-  .stats {
-    font-size: 16px;
-    line-height: 1.8;
-  }
-
-  .loading {
-    font-style: italic;
-    color: #555;
-  }
+  h2 { margin-bottom: 20px; }
+  .stats { font-size: 16px; line-height: 1.8; }
+  .loading { font-style: italic; color: #555; }
 </style>
 </head>
 
 <body>
-
 <div class="card">
   <h2>Live CBT Stats</h2>
   <div class="stats" id="stats"><span class="loading">Loading stats...</span></div>
 </div>
 
 <script>
-  // ------------------------------
-  // Supabase Client (Dummy Credentials)
-  // ------------------------------
-  const supabase = window.supabase.createClient(
+const supabase = window.supabase.createClient(
     'https://lgfyrlfjoazedwymjpfc.supabase.co',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
-  );
+);
 
-  const statsEl = document.getElementById("stats");
+const statsEl = document.getElementById("stats");
 
-  async function loadStats() {
+async function loadStats() {
     try {
-      const { data, error } = await supabase
-        .from("cbt_rating_stats")
-        .select("*")
-        .maybeSingle(); // safer if view is empty
+        const { data, error } = await supabase
+            .from("cbt_rating_stats")
+            .select("*")
+            .maybeSingle(); // <-- safe even if empty
 
-      if (error) {
-        console.error("Supabase error:", error);
-        statsEl.innerHTML = "Unable to load statistics.";
-        return;
-      }
+        if (error) {
+            console.error("Supabase error:", error);
+            statsEl.innerHTML = "Unable to load statistics.";
+            return;
+        }
 
-      if (!data) {
-        statsEl.innerHTML = "No votes yet.";
-        return;
-      }
+        if (!data) {
+            statsEl.innerHTML = "No votes yet.";
+            return;
+        }
 
-      statsEl.innerHTML = `
-        Total Votes: ${data.total_votes}<br/>
-        Good: ${data.good_votes} (${data.good_percentage || 0}%)<br/>
-        Bad: ${data.bad_votes}<br/>
-        Yes: ${data.yes_votes} (${data.yes_percentage || 0}%)<br/>
-        No: ${data.no_votes}
-      `;
+        statsEl.innerHTML = `
+            Total Votes: ${data.total_votes}<br/>
+            Good: ${data.good_votes} (${data.good_percentage || 0}%)<br/>
+            Bad: ${data.bad_votes}<br/>
+            Yes: ${data.yes_votes} (${data.yes_percentage || 0}%)<br/>
+            No: ${data.no_votes}
+        `;
     } catch (err) {
-      console.error("JS error:", err);
-      statsEl.innerHTML = "Error loading statistics.";
+        console.error("JS error:", err);
+        statsEl.innerHTML = "Error loading statistics.";
     }
-  }
+}
 
-  // Load stats immediately
-  loadStats();
-
-  // Refresh stats every 5 seconds
-  setInterval(loadStats, 5000);
+// Load immediately and refresh every 5s
+loadStats();
+setInterval(loadStats, 5000);
 </script>
-
 </body>
 </html>
