@@ -136,55 +136,6 @@
         // Run initialization immediately
         initializePage();
 
-        // 🔥 NEW FUNCTION: Check if exam is available based on start time
-        function checkExamAvailability(exam) {
-            const now = new Date();
-            
-            // If no start time set, exam is always available
-            if (!exam.start_time) {
-                return { available: true, status: 'LIVE', message: '' };
-            }
-            
-            const startTime = new Date(exam.start_time);
-            const endTime = new Date(startTime.getTime() + (exam.duration_mins * 60000));
-            
-            if (now < startTime) {
-                // Exam hasn't started yet
-                const minsUntilStart = Math.floor((startTime - now) / 60000);
-                const hoursUntilStart = Math.floor(minsUntilStart / 60);
-                
-                let timeMessage = '';
-                if (hoursUntilStart > 0) {
-                    timeMessage = `${hoursUntilStart}h ${minsUntilStart % 60}m`;
-                } else {
-                    timeMessage = `${minsUntilStart}m`;
-                }
-                
-                return {
-                    available: false,
-                    status: 'PENDING',
-                    message: `⏳ Exam starts in ${timeMessage}`
-                };
-            }
-            
-            if (now > endTime) {
-                // Exam has ended
-                return {
-                    available: false,
-                    status: 'ENDED',
-                    message: '⌛ This exam has ended'
-                };
-            }
-            
-            // Exam is currently live
-            const minsLeft = Math.floor((endTime - now) / 60000);
-            return {
-                available: true,
-                status: 'LIVE',
-                message: `⏱️ ${minsLeft} minutes remaining`
-            };
-        }
-
         async function handleAccess() {
             const btn = document.getElementById('l-btn');
             const code = document.getElementById('exam-code').value.trim();
@@ -226,26 +177,37 @@
                     return location.reload();
                 }
 
-                // 3. Find Exam
-                const { data: exam, error: eErr } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
-                if (eErr || !exam) { notify("Invalid Exam Code!"); return resetBtn(); }
+                // 🔥 SERVER-SIDE VALIDATION - CANNOT BE BYPASSED EVEN IF SCRIPT IS EDITED
+                const { data: examData, error: examError } = await sb
+                    .rpc('check_exam_availability', { p_code: code });
 
-                // 🔥 NEW: Check exam availability based on start_time
-                const availability = checkExamAvailability(exam);
-                
-                if (!availability.available) {
-                    notify(availability.message);
+                if (examError || !examData) {
+                    console.error('Exam check failed:', examError);
+                    notify("Error validating exam!");
+                    return resetBtn();
+                }
+
+                // Check if exam is available (server says so)
+                if (!examData.available) {
+                    notify(examData.message || "Exam not available");
                     
-                    // If exam is pending or ended, show detailed message
-                    if (availability.status === 'PENDING') {
-                        const startTime = new Date(exam.start_time).toLocaleString();
+                    // Show appropriate message based on status
+                    if (examData.status === 'PENDING') {
+                        const startTime = new Date(examData.start_time).toLocaleString();
                         alert(`⏳ This exam hasn't started yet!\n\nStarts: ${startTime}`);
-                    } else if (availability.status === 'ENDED') {
-                        alert(`⌛ This exam has already ended.\n\nIt ended at: ${new Date(new Date(exam.start_time).getTime() + (exam.duration_mins * 60000)).toLocaleString()}`);
+                    } else if (examData.status === 'ENDED') {
+                        alert(`⌛ This exam has already ended.`);
                     }
                     
                     return resetBtn();
                 }
+
+                // Use the validated exam data from server
+                const exam = {
+                    id: examData.exam_id,
+                    duration_mins: examData.duration,
+                    join_code: code
+                };
 
                 // 4. Check for active session for THIS exam
                 const { data: activeSession } = await sb.from('exam_sessions')
@@ -277,10 +239,11 @@
                 localStorage.setItem('student_name', profile.username);
                 localStorage.setItem('exam_duration', exam.duration_mins);
                 
-                notify(`Access Granted! ${availability.message}`);
+                notify("Access Granted! Launching...");
                 setTimeout(() => window.location.href = 'cbt/test_room.html', 1500);
 
             } catch (err) {
+                console.error('Access error:', err);
                 notify("Connection Error!");
                 resetBtn();
             }
