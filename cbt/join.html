@@ -3,138 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thesdel Join</title>
+    <title>Sdel | Battle Access</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; }
-        .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.05); }
-        input { background: rgba(255,255,255,0.05) !important; color: white !important; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; outline: none; transition: 0.3s; text-align: center; }
-        input:focus { border-color: #ff6600; box-shadow: 0 0 20px rgba(255, 102, 0, 0.2); }
+        body { background: #000; color: white; font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; }
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+        .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 10% { opacity: 1; } 100% { transform: translateY(110vh); opacity: 0; } }
+        
+        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 90%; max-width: 400px; position: relative; z-index: 10; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 100%; color: white; outline: none; transition: 0.3s; text-align: center; font-weight: 600; }
+        .sdel-input:focus { border-color: #FF6600; box-shadow: 0 0 15px rgba(255, 102, 0, 0.1); }
+        .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 18px; border-radius: 12px; text-transform: uppercase; cursor: pointer; border: none; transition: 0.2s; }
+        .btn-orange:active { transform: scale(0.98); }
+        .btn-orange:disabled { background: #555; cursor: not-allowed; }
+        .hidden { display: none !important; }
         
         #toast { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(150%); }
         #toast.active { transform: translateY(0); }
-
-        .btn-primary { background: white; color: black; font-weight: 800; border-radius: 20px; transition: 0.3s; }
-        .btn-primary:active { scale: 0.95; }
-        .btn-secondary { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; font-weight: 800; border-radius: 20px; }
-        
-        /* Loading Spinner */
-        .loader { width: 14px; height: 14px; border: 2px solid #000; border-top: 2px solid transparent; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; margin-right: 8px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-6">
+<body class="flex items-center justify-center min-h-screen">
+
+    <div class="stars" id="star-field"></div>
 
     <div id="toast" class="fixed bottom-10 left-5 right-5 z-[200] flex justify-center pointer-events-none">
-        <div class="glass-panel px-6 py-4 rounded-2xl border-orange-500/50 border shadow-2xl">
-            <p id="toast-msg" class="text-xs font-black uppercase tracking-widest text-center text-orange-500"></p>
+        <div class="bg-[#111] border border-[#FF6600]/50 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-xl">
+            <p id="toast-msg" class="text-[10px] font-black uppercase tracking-widest text-center text-[#FF6600]"></p>
         </div>
     </div>
 
-    <div class="w-full max-w-sm space-y-8 text-center">
-        <div>
-            <h1 class="text-3xl font-black tracking-tighter uppercase mb-2">Ready for <span class="text-orange-500">Battle?</span></h1>
-            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Enter code to join secure room</p>
+    <div class="login-card">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black italic uppercase tracking-tighter">BATTLE <span class="text-[#FF6600]">ROOM</span></h1>
+            <p id="subtitle" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Enter credentials to begin</p>
+        </div>
+        
+        <div id="auth-section" class="space-y-4">
+            <input type="text" id="identifier" placeholder="EMAIL OR USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()">
+            <input type="password" id="pass" placeholder="PASSWORD" class="sdel-input">
+            <p class="text-center text-[9px] text-gray-600 font-bold uppercase">Then enter exam code below</p>
         </div>
 
-        <div class="glass-panel p-8 rounded-[40px] space-y-4">
-            <input type="text" id="exam-code" placeholder="THESDEL-000XXXX" class="w-full p-5 text-xs font-mono font-bold uppercase tracking-widest">
-            
-            <button id="join-btn" onclick="validateAndJoin()" class="w-full btn-primary py-5 text-[10px] uppercase tracking-widest mt-2 flex items-center justify-center">
-                <span>Enter Exam Room</span>
-            </button>
+        <div class="space-y-4 mt-4">
+            <input type="text" id="exam-code" placeholder="EXAM CODE (E.G. TH-001)" class="sdel-input border-dashed border-[#FF6600]/30 font-mono text-orange-500 uppercase">
+            <button onclick="handleAccess()" id="l-btn" class="btn-orange">ENTER ARENA</button>
         </div>
 
-        <div class="pt-4">
-            <p class="text-[9px] text-gray-600 font-black uppercase tracking-[0.2em] mb-4">Or explore public tests</p>
-            <button onclick="location.href='scholar.html'" class="w-full btn-secondary py-5 text-[10px] uppercase tracking-widest flex items-center justify-center gap-2">
-                <span class="text-orange-500">◈</span> Thesdel Arena
-            </button>
+        <div id="footer-links" class="mt-6 text-center space-y-2">
+            <a href="/signup.html" class="block text-[9px] font-bold text-gray-500 hover:text-[#FF6600] uppercase tracking-tighter">New Warrior? Sign Up</a>
         </div>
     </div>
 
     <script>
-        const _URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
-        const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
-        const sb = supabase.createClient(_URL, _KEY);
+        // Star Field Init
+        const f = document.getElementById('star-field');
+        for(let i=0; i<60; i++) {
+            const s = document.createElement('div');
+            s.className = 'star';
+            s.style.width = s.style.height = (Math.random() * 2 + 1) + 'px';
+            s.style.left = Math.random()*100+'vw';
+            s.style.top = Math.random()*100+'vh';
+            s.style.animationDuration = (Math.random()*20 + 25)+'s'; 
+            f.appendChild(s);
+        }
+
+        const sb = window.supabase.createClient(
+            'https://lgfyrlfjoazedwymjpfc.supabase.co', 
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
+        );
 
         function notify(msg) {
             const t = document.getElementById('toast');
-            document.getElementById('toast-msg').innerText = msg;
+            document.getElementById('toast-msg').innerText = msg.toUpperCase();
             t.classList.add('active');
             setTimeout(() => t.classList.remove('active'), 3000);
         }
 
-        async function validateAndJoin() {
-            const code = document.getElementById('exam-code').value.trim();
-            const btn = document.getElementById('join-btn');
-            
-            if (!code) return notify("The code field is empty!");
+        // Check if user is already logged in on load
+        async function checkSession() {
+            const { data: { user } } = await sb.auth.getUser();
+            if (user) {
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('footer-links').classList.add('hidden');
+                document.getElementById('subtitle').innerText = "Identity Confirmed. Enter Code.";
+            }
+        }
+        checkSession();
 
-            // UI Loading State
+        async function handleAccess() {
+            const btn = document.getElementById('l-btn');
+            const code = document.getElementById('exam-code').value.trim();
+            
+            if (!code) return notify("Exam code required!");
+
+            btn.innerText = "VERIFYING...";
             btn.disabled = true;
-            btn.innerHTML = `<div class="loader"></div> Processing...`;
 
             try {
-                // 1. Check Auth Session
-                const { data: { user } } = await sb.auth.getUser();
+                let { data: { user } } = await sb.auth.getUser();
+
+                // 1. Handle Login if not logged in
                 if (!user) {
-                    notify("Login required to join.");
-                    return resetBtn();
+                    const iden = document.getElementById('identifier').value.trim();
+                    const pw = document.getElementById('pass').value;
+                    if (!iden || !pw) {
+                        notify("Login credentials required!");
+                        return resetBtn();
+                    }
+
+                    let email = iden;
+                    if (!iden.includes('@')) {
+                        const { data: p } = await sb.from('profile').select('email').eq('username', iden).maybeSingle();
+                        if (!p) { notify("Username not found!"); return resetBtn(); }
+                        email = p.email;
+                    }
+
+                    const { data: authData, error: authErr } = await sb.auth.signInWithPassword({ email, password: pw });
+                    if (authErr) { notify(authErr.message); return resetBtn(); }
+                    user = authData.user;
                 }
 
-                // 2. Check Profile Status (Banned/Active)
-                const { data: profile } = await sb.from('profile').select('is_banned, account_status, username').eq('id', user.id).single();
-                if (!profile || profile.is_banned || profile.account_status !== 'active') {
-                    notify("Account restricted or banned.");
-                    return resetBtn();
+                // 2. Profile Security Check
+                const { data: profile } = await sb.from('profile').select('*').eq('id', user.id).single();
+                if (profile.is_banned || profile.account_status !== 'active') {
+                    notify("Account restricted!");
+                    await sb.auth.signOut();
+                    return location.reload();
                 }
 
                 // 3. Find Exam
                 const { data: exam, error: eErr } = await sb.from('cbt_builds').select('*').eq('join_code', code).single();
-                if (eErr || !exam) {
-                    notify("Invalid Code. Double check it!");
-                    return resetBtn();
-                }
+                if (eErr || !exam) { notify("Invalid Exam Code!"); return resetBtn(); }
 
-                // 4. Check if already submitted (Prevent Retake)
-                const { data: existing } = await sb.from('cbt_results').select('id').eq('build_id', exam.id).eq('user_id', user.id).single();
-                if (existing) {
-                    notify("Battle concluded. You cannot retake!");
-                    return resetBtn();
-                }
+                // 4. Retake Protection (The Magic Check)
+                const { data: taken } = await sb.from('cbt_results').select('id').eq('build_id', exam.id).eq('user_id', user.id).single();
+                if (taken) { notify("Battle concluded. No retakes allowed!"); return resetBtn(); }
 
-                // 5. Timing Check
-                const now = new Date();
-                if (exam.start_time) {
-                    const start = new Date(exam.start_time);
-                    if (now < start) {
-                        notify(`Too early! Starts at ${start.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`);
-                        return resetBtn();
-                    }
-                }
-
-                // SUCCESS: Store and move
+                // 5. Success - Store & Launch
                 localStorage.setItem('active_exam_id', exam.id);
-                localStorage.setItem('student_name', profile.username || "Homie");
+                localStorage.setItem('student_name', profile.username);
                 localStorage.setItem('exam_duration', exam.duration_mins);
                 
-                notify("Identity Verified. Entering...");
+                notify("Access Granted. Launching...");
                 setTimeout(() => window.location.href = 'test_room.html', 1500);
 
             } catch (err) {
-                notify("Connection Error. Try again.");
+                notify("Connection Error!");
                 resetBtn();
             }
         }
 
         function resetBtn() {
-            const btn = document.getElementById('join-btn');
+            const btn = document.getElementById('l-btn');
+            btn.innerText = "ENTER ARENA";
             btn.disabled = false;
-            btn.innerHTML = "Enter Exam Room";
         }
     </script>
 </body>
-</html>
+    </html>
+    
