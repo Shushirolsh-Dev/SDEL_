@@ -194,6 +194,9 @@
                     switchSubject(allSubjects[0]);
                 }
 
+                // 🔥 FIX: Update timer display immediately
+                updateTimerDisplay();
+                
                 startHeartbeat(user.id);
                 startTimer();
 
@@ -204,6 +207,13 @@
                 alert("GATE ERROR: " + err.message);
                 window.location.replace('/cbt/index.html');
             }
+        }
+
+        // 🔥 NEW: Helper function to update timer display
+        function updateTimerDisplay() {
+            const m = Math.floor(timeLeft / 60);
+            const s = timeLeft % 60;
+            document.getElementById('timer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
         }
 
         // --- HEARTBEAT ---
@@ -238,8 +248,8 @@
                     .eq('status', 'active')
                     .catch(err => console.log('Timer sync failed'));
                 
-                const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
-                document.getElementById('timer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                updateTimerDisplay();
+                
                 if (timeLeft < 60) document.getElementById('timer').classList.add('timer-low');
                 if (timeLeft <= 0) finishExam();
             }, 1000);
