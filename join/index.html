@@ -23,6 +23,10 @@
         
         #toast { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(150%); }
         #toast.active { transform: translateY(0); }
+        
+        /* Loading state */
+        #loading { display: flex; }
+        #login-content:not(.hidden) + #loading { display: none; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
@@ -35,7 +39,16 @@
         </div>
     </div>
 
-    <div class="login-card">
+    <!-- Loading State -->
+    <div id="loading" class="login-card items-center justify-center">
+        <div class="text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#FF6600] mx-auto mb-4"></div>
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Checking authentication...</p>
+        </div>
+    </div>
+
+    <!-- Main Content (Initially Hidden) -->
+    <div id="login-content" class="hidden login-card">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-black italic uppercase tracking-tighter">BATTLE <span class="text-[#FF6600]">ROOM</span></h1>
             <p id="subtitle" class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Enter credentials to begin</p>
@@ -82,42 +95,47 @@
             setTimeout(() => t.classList.remove('active'), 3000);
         }
 
-        // AGGRESSIVE AUTO-RESUME - NO PERMISSION NEEDED
-        async function checkAndResume() {
-            const { data: { user } } = await sb.auth.getUser();
-            
-            if (user) {
-                // Hide auth section immediately
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('footer-links').classList.add('hidden');
-                document.getElementById('subtitle').innerText = "Scanning for active battle...";
+        // Check authentication before showing ANY content
+        async function initializePage() {
+            try {
+                const { data: { user } } = await sb.auth.getUser();
                 
-                // Check for ANY active exam session - IMMEDIATE RESUME
-                const { data: activeSession } = await sb.from('exam_sessions')
-                    .select('*, cbt_builds(join_code, duration_mins)')
-                    .eq('user_id', user.id)
-                    .eq('status', 'active')
-                    .maybeSingle();
+                if (user) {
+                    // User is authenticated - check for active session
+                    const { data: activeSession } = await sb.from('exam_sessions')
+                        .select('*, cbt_builds(join_code, duration_mins)')
+                        .eq('user_id', user.id)
+                        .eq('status', 'active')
+                        .maybeSingle();
 
-                if (activeSession) {
-                    // ACTIVE SESSION FOUND - AUTO RESUME, NO QUESTIONS
-                    notify("ACTIVE BATTLE FOUND! RESUMING...");
-                    
-                    // Set storage
-                    localStorage.setItem('active_exam_id', activeSession.build_id);
-                    localStorage.setItem('exam_duration', activeSession.cbt_builds.duration_mins);
-                    
-                    // DIRECT REDIRECT - NO MODAL, NO PERMISSION
-                    setTimeout(() => window.location.href = 'test_room.html', 1000);
-                    return;
+                    if (activeSession) {
+                        // Active session found - redirect immediately
+                        localStorage.setItem('active_exam_id', activeSession.build_id);
+                        localStorage.setItem('exam_duration', activeSession.cbt_builds.duration_mins);
+                        window.location.href = 'test_room.html';
+                        return;
+                    }
+
+                    // Authenticated but no active session - show exam code input
+                    document.getElementById('auth-section').classList.add('hidden');
+                    document.getElementById('footer-links').classList.add('hidden');
+                    document.getElementById('subtitle').innerText = "Identity Confirmed. Enter Code.";
                 }
                 
-                document.getElementById('subtitle').innerText = "Identity Confirmed. Enter Code.";
+                // Show the login content (either with auth section visible or hidden)
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('login-content').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                // On error, show login form (safer to require login)
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('login-content').classList.remove('hidden');
             }
         }
 
-        // Run aggressive check immediately
-        checkAndResume();
+        // Run initialization immediately
+        initializePage();
 
         async function handleAccess() {
             const btn = document.getElementById('l-btn');
@@ -211,4 +229,4 @@
         }
     </script>
 </body>
-              </html>
+</html>
