@@ -40,7 +40,7 @@
     <div id="submit-confirm-modal" class="fixed inset-0 z-[500] bg-black/95 hidden items-center justify-center p-6 backdrop-blur-xl">
         <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm text-center border-orange-500/30">
             <h2 class="text-xl font-black uppercase tracking-tighter">End Battle?</h2>
-            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2">Mistakes cost -10 XP. Submit now?</p>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2">Mistakes cost -2 XP. Submit now?</p>
             <div class="mt-8 flex flex-col gap-3">
                 <button id="final-sub-btn" onclick="finishExam()" class="w-full bg-orange-600 text-white font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest active:scale-95 transition">Submit Now</button>
                 <button onclick="closeSubmitModal()" class="w-full bg-white/5 text-gray-400 font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest">Reject</button>
@@ -359,7 +359,7 @@
             document.getElementById('submit-confirm-modal').classList.replace('flex', 'hidden'); 
         }
 
-        // --- UPDATED FINISH EXAM WITH SESSION CLOSURE ---
+        // --- FIXED FINISH EXAM WITH XP CALCULATION ---
         async function finishExam(autoSubmit = false) {
             const btn = document.getElementById('final-sub-btn');
             if (btn) {
@@ -373,26 +373,39 @@
             try {
                 const { data: { user } } = await sb.auth.getUser();
                 
-                // Get correct answers from server (secure)
+                 // Get correct answers from server (secure)
                 const { data: answers } = await sb.from('cbt_questions')
                     .select('id, correct_answer')
                     .eq('build_id', examId);
                 
                 let correct = 0;
                 let missed = 0;
+                let unanswered = 0;
+                
                 answers.forEach(q => {
-                    if (selectedAnswers[q.id] === q.correct_answer) correct++;
-                    else if (selectedAnswers[q.id]) missed++;
+                    const userAnswer = selectedAnswers[q.id];
+                    if (!userAnswer) {
+                        unanswered++;
+                    } else if (userAnswer === q.correct_answer) {
+                        correct++;
+                    } else {
+                        missed++;
+                    }
                 });
 
-                const xpDelta = (correct * 10) - (missed * 2); // +10 for correct, -2 for wrong
+                // Calculate XP: +10 for correct, -2 for wrong, 0 for unanswered
+                const xpDelta = (correct * 10) - (missed * 2);
+                
+                console.log('Score breakdown:', { correct, missed, unanswered, xpDelta });
 
                 // Get current XP from profile table
                 const { data: profile } = await sb.from('profile').select('xp').eq('id', user.id).single();
                 const currentXp = parseInt(profile.xp) || 0;
                 const newXp = Math.max(0, currentXp + xpDelta);
 
-                // Insert result - FIXED: removed array brackets and .select()
+                console.log('XP update:', { currentXp, xpDelta, newXp });
+
+                // Insert result
                 const { error: saveErr } = await sb.from('cbt_results')
                     .insert({
                         user_id: user.id,
@@ -404,7 +417,11 @@
                 if (saveErr) throw new Error("Could not save result: " + saveErr.message);
 
                 // Update XP in profile table
-                await sb.from('profile').update({ xp: newXp }).eq('id', user.id);
+                const { error: updateErr } = await sb.from('profile')
+                    .update({ xp: newXp })
+                    .eq('id', user.id);
+
+                if (updateErr) throw new Error("Could not update XP: " + updateErr.message);
 
                 // Close session
                 await sb.from('exam_sessions')
@@ -420,18 +437,19 @@
                 localStorage.removeItem('active_exam_id');
                 localStorage.removeItem('exam_duration');
 
-                // Show results
+                // Show results with XP
                 document.getElementById('exam-ui').classList.add('hidden');
                 document.getElementById('res-score').innerText = `${correct}/${allQuestions.length}`;
                 
                 const xpDisplay = document.getElementById('res-xp');
-                xpDisplay.innerText = (xpDelta >= 0 ? "+" : "") + xpDelta + " XP";
+                xpDisplay.innerText = (xpDelta > 0 ? "+" : "") + xpDelta + " XP";
                 xpDisplay.className = `text-2xl font-black ${xpDelta >= 0 ? 'text-green-500' : 'text-red-500'}`;
 
                 document.getElementById('result-modal').classList.replace('hidden', 'flex');
                 closeSubmitModal();
 
             } catch (err) {
+                console.error('Finish exam error:', err);
                 alert("SUBMIT ERROR: " + err.message);
                 if (btn) {
                     btn.disabled = false;
