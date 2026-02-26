@@ -24,6 +24,61 @@
         #toast { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(150%); }
         #toast.active { transform: translateY(0); }
         
+        /* Custom Alert Modal */
+        #custom-alert { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            background: rgba(0,0,0,0.8); 
+            backdrop-filter: blur(5px);
+            z-index: 9999; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            opacity: 0; 
+            pointer-events: none; 
+            transition: 0.3s;
+        }
+        #custom-alert.active { 
+            opacity: 1; 
+            pointer-events: all; 
+        }
+        .alert-box { 
+            background: #0a0a0a; 
+            border: 1px solid #FF6600; 
+            border-radius: 24px; 
+            padding: 30px; 
+            max-width: 350px; 
+            width: 90%; 
+            text-align: center; 
+            transform: scale(0.9); 
+            transition: 0.3s;
+        }
+        #custom-alert.active .alert-box { 
+            transform: scale(1); 
+        }
+        .alert-box p { 
+            color: white; 
+            font-size: 14px; 
+            font-weight: 600; 
+            margin-bottom: 20px; 
+            line-height: 1.6; 
+            white-space: pre-line;
+        }
+        .alert-btn { 
+            background: #FF6600; 
+            color: black; 
+            font-weight: 900; 
+            padding: 12px 30px; 
+            border-radius: 12px; 
+            border: none; 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            font-size: 12px; 
+        }
+        
         /* Loading state */
         #loading { display: flex; }
         #login-content:not(.hidden) + #loading { display: none; }
@@ -32,6 +87,14 @@
 <body class="flex items-center justify-center min-h-screen">
 
     <div class="stars" id="star-field"></div>
+
+    <!-- Custom Alert Modal -->
+    <div id="custom-alert">
+        <div class="alert-box">
+            <p id="alert-message"></p>
+            <button class="alert-btn" onclick="closeCustomAlert()">OK</button>
+        </div>
+    </div>
 
     <div id="toast" class="fixed bottom-10 left-5 right-5 z-[200] flex justify-center pointer-events-none">
         <div class="bg-[#111] border border-[#FF6600]/50 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-xl">
@@ -87,6 +150,16 @@
             'https://lgfyrlfjoazedwymjpfc.supabase.co', 
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
         );
+
+        // Custom Alert functions
+        function customAlert(message) {
+            document.getElementById('alert-message').innerText = message;
+            document.getElementById('custom-alert').classList.add('active');
+        }
+
+        function closeCustomAlert() {
+            document.getElementById('custom-alert').classList.remove('active');
+        }
 
         function notify(msg) {
             const t = document.getElementById('toast');
@@ -191,12 +264,12 @@
                 if (!examData.available) {
                     notify(examData.message || "Exam not available");
                     
-                    // Show appropriate message based on status
+                    // Show appropriate message based on status - USING CUSTOM ALERT
                     if (examData.status === 'PENDING') {
                         const startTime = new Date(examData.start_time).toLocaleString();
-                        alert(`⏳ This exam hasn't started yet!\n\nStarts: ${startTime}`);
+                        customAlert(`⏳ This exam hasn't started yet!\n\nStarts: ${startTime}`);
                     } else if (examData.status === 'ENDED') {
-                        alert(`⌛ This exam has already ended.`);
+                        customAlert(`⌛ This exam has already ended.`);
                     }
                     
                     return resetBtn();
