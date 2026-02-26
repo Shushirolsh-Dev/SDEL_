@@ -83,108 +83,37 @@
     </div>
 
     <script>
-        const _URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
-        const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
-        const sb = supabase.createClient(_URL, _KEY);
-        const userId = localStorage.getItem('thesdel_user_id');
+    function switchSubject(subName) {
+        activeSub = subName;
+        // STRICT FILTERING
+        subQuestions = allQuestions.filter(q => q.subject_tag === subName);
+        currentIdx = 0;
+        renderTabs();
+        showQuestion();
+    }
 
-        let allQs = []; let subQs = []; let subjects = [];
-        let activeSub = ""; let userAns = {}; let qIdx = 0;
-        let activeBuildId = null; let timeLeft = 0; let totalTimeSeconds = 0;
-        let startTimestamp = null;
+    async function finishExam() {
+        const timeSpent = Math.floor((Date.now() - startTimestamp) / 1000);
+        const { data: keys } = await sb.from('cbt_questions').select('id, correct_answer').eq('build_id', activeBuildId);
+        
+        let score = 0;
+        keys.forEach(k => { if(userAnswers[k.id] === k.correct_answer) score++; });
 
-        async function validateJoin() {
-            const code = document.getElementById('join-code').value.trim();
-            const btn = document.getElementById('btn-v');
-            const err = document.getElementById('err');
-            
-            btn.innerText = "AUTHENTICATING...";
-            const { data: builds } = await sb.from('cbt_builds').select('*').eq('join_code', code);
-            
-            if(builds && builds.length > 0) {
-                const b = builds[0];
-                const now = new Date();
-                const start = b.start_time ? new Date(b.start_time) : now;
-                
-                if(now < start) {
-                    const diff = Math.ceil((start - now) / 60000);
-                    btn.innerText = "Validate Entry";
-                    err.innerText = `EXAM NOT READY. RETURN IN ${diff} MINS.`;
-                    err.classList.remove('hidden');
-                    return;
-                }
-
-                const { data: qData } = await sb.from('cbt_questions').select('id, subject_tag, question_text, option_a, option_b, option_c, option_d').eq('build_id', b.id);
-                if(qData && qData.length > 0) {
-                    allQs = qData; subjects = b.subjects_list; activeBuildId = b.id;
-                    timeLeft = b.duration_mins * 60; totalTimeSeconds = timeLeft;
-                    startTimestamp = Date.now();
-                    startExam();
-                }
-            } else {
-                btn.innerText = "Validate Entry";
-                err.innerText = "INVALID CODE."; err.classList.remove('hidden');
-            }
-        }
-
-        function startExam() {
-            document.getElementById('screen-join').classList.add('hidden');
-            document.getElementById('screen-engine').classList.remove('hidden');
-            switchSub(subjects[0]);
-            setInterval(() => {
-                const m = Math.floor(timeLeft / 60); const s = timeLeft % 60;
-                document.getElementById('timer').innerText = `${m}:${s.toString().padStart(2, '0')}`;
-                if(timeLeft <= 0) finishExam();
-                timeLeft--;
-            }, 1000);
-        }
-
-        function switchSub(s) {
-            activeSub = s;
-            subQs = allQs.filter(q => q.subject_tag === s);
-            qIdx = 0;
-            renderNav(); renderQ();
-        }
-
-        function renderNav() {
-            document.getElementById('sub-nav').innerHTML = subjects.map(s => `
-                <div onclick="switchSub('${s}')" class="subject-tab ${s === activeSub ? 'tab-active' : ''}">${s}</div>
-            `).join('');
-        }
-
-        function renderQ() {
-            const q = subQs[qIdx];
-            document.getElementById('q-text').innerText = q.question_text;
-            document.getElementById('opt-container').innerHTML = ['a','b','c','d'].map(key => `
-                <button onclick="userAns['${q.id}'] = '${key.toUpperCase()}'; renderQ();" class="option-btn ${userAns[q.id] === key.toUpperCase() ? 'opt-selected' : ''}">
-                    <span>${q['option_'+key]}</span>
-                    <span class="opacity-30 uppercase text-[10px]">${key}</span>
-                </button>
-            `).join('');
-        }
-
-        function nextQ() { if(qIdx < subQs.length - 1) { qIdx++; renderQ(); } }
-        function prevQ() { if(qIdx > 0) { qIdx--; renderQ(); } }
-
-        async function finishExam() {
-            const durationTaken = Math.floor((Date.now() - startTimestamp) / 1000);
-            const { data: keys } = await sb.from('cbt_questions').select('id, correct_answer').eq('build_id', activeBuildId);
-            let score = 0;
-            keys.forEach(k => { if(userAns[k.id] === k.correct_answer) score++; });
-
-            document.getElementById('screen-engine').classList.add('hidden');
-            document.getElementById('screen-results').classList.remove('hidden');
-            document.getElementById('res-score').innerText = score;
-            document.getElementById('res-total').innerText = `Out of ${allQs.length} Questions`;
-            
-            const xp = score * 10;
-            document.getElementById('res-xp').innerText = `+${xp} XP`;
-            document.getElementById('res-time').innerText = `${Math.floor(durationTaken/60)}m ${durationTaken%60}s`;
-
-            setTimeout(() => { document.getElementById('xp-fill').style.width = "75%"; }, 500);
-            await sb.from('cbt_results').insert([{ user_id: userId, build_id: activeBuildId, score: score, total_questions: allQs.length }]);
-        }
-    </script>
+        document.getElementById('exam-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        
+        // Billion Dollar Results UI
+        document.getElementById('score-display').innerText = `${score}/${allQuestions.length}`;
+        document.getElementById('time-display').innerText = `${Math.floor(timeSpent/60)}m ${timeSpent%60}s`;
+        document.getElementById('xp-display').innerText = `+${score * 10} XP`;
+        
+        // Log to DB
+        await sb.from('cbt_results').insert([{ 
+            user_id: userId, build_id: activeBuildId, 
+            score: score, total_questions: allQuestions.length 
+        }]);
+    }
+</script>
 </body>
                     </html>
                     
