@@ -13,15 +13,11 @@
         .option-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 20px; transition: 0.2s; cursor: pointer; }
         .option-selected { border-color: #ff6600; background: rgba(255, 102, 0, 0.1); box-shadow: 0 0 15px rgba(255, 102, 0, 0.2); }
         .subject-pill { padding: 8px 16px; border-radius: 99px; font-size: 10px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; white-space: nowrap; transition: 0.3s; }
-        .subject-active { background: #ff6600; border-color: #ff6600; color: white; box-shadow: 0 0 15px rgba(255, 102, 0, 0.3); }
+        .subject-active { background: #ff6600; border-color: #ff6600; color: white; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .timer-low { color: #ef4444; animation: pulse 1s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
         .hidden { display: none; }
-        
-        /* Review Colors */
-        .rev-correct { border-color: #22c55e !important; background: rgba(34, 197, 94, 0.1) !important; }
-        .rev-wrong { border-color: #ef4444 !important; background: rgba(239, 68, 68, 0.1) !important; }
     </style>
 </head>
 <body class="p-6">
@@ -34,7 +30,7 @@
     <div id="submit-confirm-modal" class="fixed inset-0 z-[500] bg-black/95 hidden items-center justify-center p-6 backdrop-blur-xl">
         <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm text-center border-orange-500/30">
             <h2 class="text-xl font-black uppercase tracking-tighter">End Battle?</h2>
-            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2 leading-relaxed">Unanswered questions and mistakes result in -10 XP penalty.</p>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2 leading-relaxed">Mistakes result in -10 XP penalty from your profile.</p>
             <div class="mt-8 flex flex-col gap-3">
                 <button onclick="finishExam()" class="w-full bg-orange-600 text-white font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest active:scale-95 transition">Submit Now</button>
                 <button onclick="closeSubmitModal()" class="w-full bg-white/5 text-gray-400 font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest">Reject</button>
@@ -50,10 +46,8 @@
 
         <div id="subject-tabs" class="flex gap-2 overflow-x-auto no-scrollbar pb-4"></div>
 
-        <div class="flex-1 overflow-y-auto no-scrollbar space-y-6 pt-4" id="question-area">
-            <div class="flex justify-between items-center">
-                <span id="display-q-num" class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Question 1</span>
-            </div>
+        <div class="flex-1 overflow-y-auto no-scrollbar space-y-6 pt-4">
+            <span id="display-q-num" class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Question 1</span>
             <p id="question-text" class="text-lg font-bold leading-relaxed"></p>
             <div id="options-container" class="space-y-3 pb-20">
                 <div onclick="selectOpt('A')" id="card-A" class="option-card flex items-center gap-4">
@@ -75,7 +69,7 @@
             </div>
         </div>
 
-        <div class="py-8 flex gap-3" id="nav-btns">
+        <div class="py-8 flex gap-3">
             <button id="btn-prev" onclick="prevQuestion()" class="flex-1 glass-panel py-5 rounded-[24px] text-[10px] font-black uppercase">Prev</button>
             <button id="btn-next" onclick="nextQuestion()" class="flex-[2] bg-white text-black py-5 rounded-[24px] font-black uppercase text-[10px] tracking-widest">Next</button>
         </div>
@@ -83,24 +77,20 @@
 
     <div id="result-modal" class="fixed inset-0 z-[400] bg-black hidden flex-col p-8 overflow-y-auto">
         <div class="max-w-md mx-auto w-full text-center pt-10">
-            <h2 class="text-4xl font-black uppercase tracking-tighter mb-2">Final Verdict</h2>
-            <p id="res-status" class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-8"></p>
-            
+            <h2 class="text-4xl font-black uppercase tracking-tighter mb-8">Scorecard</h2>
             <div class="grid grid-cols-2 gap-4 mb-10">
-                <div class="glass-panel p-6 rounded-[32px]">
-                    <p class="text-[8px] text-gray-500 font-black mb-1 uppercase">Accuracy</p>
+                <div class="glass-panel p-6 rounded-[32px] text-center">
+                    <p class="text-[8px] text-gray-500 font-black mb-1">ACCURACY</p>
                     <p id="res-score" class="text-2xl font-black text-orange-500"></p>
                 </div>
-                <div class="glass-panel p-6 rounded-[32px]">
-                    <p class="text-[8px] text-gray-500 font-black mb-1 uppercase">XP Shift</p>
+                <div class="glass-panel p-6 rounded-[32px] text-center">
+                    <p class="text-[8px] text-gray-500 font-black mb-1">XP EARNED</p>
                     <p id="res-xp" class="text-2xl font-black"></p>
                 </div>
             </div>
 
-            <h3 class="text-left text-[10px] font-black uppercase tracking-widest mb-4 text-gray-400">Battle Review</h3>
             <div id="review-list" class="space-y-4 text-left mb-10"></div>
-
-            <button onclick="location.href='join.html'" class="w-full bg-white text-black py-6 rounded-3xl font-black text-[10px] uppercase tracking-widest mb-10">Exit Arena</button>
+            <button onclick="location.href='join.html'" class="w-full bg-white text-black py-6 rounded-3xl font-black text-[10px] uppercase">Close Arena</button>
         </div>
     </div>
 
@@ -110,23 +100,23 @@
         const sb = supabase.createClient(_URL, _KEY);
 
         const examId = localStorage.getItem('active_exam_id');
-        const studentName = localStorage.getItem('student_name');
-        
-        let allQuestions = [];
-        let filteredQuestions = [];
-        let activeSub = "";
-        let currentIndex = 0;
-        let selectedAnswers = {}; 
-        let timeLeft = 0;
-        let timerInterval;
+        let allQuestions = [], filteredQuestions = [], activeSub = "", currentIndex = 0, selectedAnswers = {}, timeLeft = 0, timerInterval;
 
         async function initRoom() {
             const { data: { user } } = await sb.auth.getUser();
             if (!user || !examId) return window.location.href = 'join.html';
 
+            // 1. Fetch Profile and check for Bans/Status
+            const { data: profile, error: pErr } = await sb.from('profile').select('*').eq('id', user.id).single();
+            if (pErr || profile.is_banned || profile.account_status !== 'active') {
+                document.body.innerHTML = `<div class="h-screen flex items-center justify-center bg-black text-center p-10"><div class="glass-panel p-10 rounded-[40px] border-red-500/20"><h2 class="text-red-500 font-black uppercase">Account Restricted</h2><p class="text-xs text-gray-500 mt-4 uppercase font-bold">Your profile is not eligible for this battle.</p></div></div>`;
+                return;
+            }
+
+            // 2. Check for Previous Attempt
             const { data: existing } = await sb.from('cbt_results').select('id').eq('build_id', examId).eq('user_id', user.id).single();
             if (existing) {
-                document.body.innerHTML = `<div class="h-screen flex items-center justify-center bg-black text-center p-10"><div class="glass-panel p-10 rounded-[40px] border-red-500/20"><h2 class="text-orange-500 font-black uppercase">Battle Already Fought</h2><p class="text-[10px] text-gray-500 mt-4 uppercase font-bold leading-relaxed">You have submitted this exam and cannot retake it.</p></div></div>`;
+                document.body.innerHTML = `<div class="h-screen flex items-center justify-center bg-black text-center p-10"><div class="glass-panel p-10 rounded-[40px] border-orange-500/20"><h2 class="text-orange-500 font-black uppercase">Battle Fought</h2><p class="text-xs text-gray-500 mt-4 uppercase font-bold">You cannot retake this exam, Homie.</p></div></div>`;
                 return;
             }
 
@@ -165,7 +155,7 @@
         function startTimer() {
             timerInterval = setInterval(() => {
                 timeLeft--;
-                const m = Math.floor(timeLeft / 60); const s = timeLeft % 60;
+                const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
                 document.getElementById('timer').innerText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
                 if (timeLeft < 60) document.getElementById('timer').classList.add('timer-low');
                 if (timeLeft <= 0) finishExam();
@@ -184,11 +174,7 @@
             if (selectedAnswers[q.id]) document.getElementById(`card-${selectedAnswers[q.id]}`).classList.add('option-selected');
         }
 
-        function selectOpt(opt) {
-            selectedAnswers[filteredQuestions[currentIndex].id] = opt;
-            renderQuestion();
-        }
-
+        function selectOpt(opt) { selectedAnswers[filteredQuestions[currentIndex].id] = opt; renderQuestion(); }
         function nextQuestion() { if (currentIndex < filteredQuestions.length - 1) { currentIndex++; renderQuestion(); } }
         function prevQuestion() { if (currentIndex > 0) { currentIndex--; renderQuestion(); } }
 
@@ -198,42 +184,33 @@
         async function finishExam() {
             clearInterval(timerInterval);
             const { data: { user } } = await sb.auth.getUser();
-            
-            let correctCount = 0;
-            let missedCount = 0;
-            let reviewHtml = "";
+            let correct = 0, missed = 0, reviewHtml = "";
 
             allQuestions.forEach((q, idx) => {
                 const userAns = selectedAnswers[q.id];
                 const isCorrect = userAns === q.correct_answer;
-                
-                if (isCorrect) correctCount++; else missedCount++;
+                if (isCorrect) correct++; else missed++;
 
-                reviewHtml += `
-                    <div class="glass-panel p-5 rounded-2xl border-l-4 ${isCorrect ? 'border-l-green-500' : 'border-l-red-500'}">
-                        <p class="text-[9px] font-black text-gray-500 uppercase mb-2">${q.subject_tag} - Q${idx+1}</p>
-                        <p class="text-sm font-bold mb-3">${q.question_text}</p>
-                        <div class="text-[10px] font-black uppercase">
-                            <span class="${isCorrect ? 'text-green-500' : 'text-red-500'}">Your Ans: ${userAns || 'NONE'}</span>
-                            ${!isCorrect ? `<span class="text-green-500 ml-4">Correct: ${q.correct_answer}</span>` : ''}
-                        </div>
-                    </div>`;
+                reviewHtml += `<div class="glass-panel p-5 rounded-2xl border-l-4 ${isCorrect ? 'border-l-green-500' : 'border-l-red-500'}">
+                    <p class="text-[9px] font-black text-gray-500 uppercase mb-1">${q.subject_tag} - Q${idx+1}</p>
+                    <p class="text-xs font-bold mb-2">${q.question_text}</p>
+                    <p class="text-[10px] font-black uppercase ${isCorrect ? 'text-green-500' : 'text-red-500'}">PICKED: ${userAns || 'SKIPPED'}</p>
+                    ${!isCorrect ? `<p class="text-[10px] font-black uppercase text-green-500">CORRECT: ${q.correct_answer}</p>` : ''}
+                </div>`;
             });
 
-            const netXp = (correctCount * 10) - (missedCount * 10);
+            // XP Logic
+            const netXpChange = (correct * 10) - (missed * 10);
+            const { data: p } = await sb.from('profile').select('xp').eq('id', user.id).single();
+            await sb.from('profile').update({ xp: Math.max(0, (p?.xp || 0) + netXpChange) }).eq('id', user.id);
+            await sb.from('cbt_results').insert([{ build_id: examId, user_id: user.id, username: localStorage.getItem('student_name'), score: correct, total_questions: allQuestions.length }]);
 
-            // Update Database
-            await sb.from('cbt_results').insert([{ build_id: examId, user_id: user.id, username: studentName, score: correctCount, total_questions: allQuestions.length }]);
-            
-            const { data: profile } = await sb.from('profiles').select('xp').eq('id', user.id).single();
-            await sb.from('profiles').update({ xp: Math.max(0, (profile?.xp || 0) + netXp) }).eq('id', user.id);
-
-            // UI Finalize
+            // UI
             document.getElementById('exam-ui').classList.add('hidden');
-            document.getElementById('res-score').innerText = `${correctCount}/${allQuestions.length}`;
-            const xpEl = document.getElementById('res-xp');
-            xpEl.innerText = (netXp >= 0 ? "+" : "") + netXp;
-            xpEl.className = `text-2xl font-black ${netXp >= 0 ? 'text-green-500' : 'text-red-500'}`;
+            document.getElementById('res-score').innerText = `${correct}/${allQuestions.length}`;
+            const xpDisplay = document.getElementById('res-xp');
+            xpDisplay.innerText = (netXpChange >= 0 ? "+" : "") + netXpChange;
+            xpDisplay.className = `text-2xl font-black ${netXpChange >= 0 ? 'text-green-500' : 'text-red-500'}`;
             document.getElementById('review-list').innerHTML = reviewHtml;
             document.getElementById('result-modal').classList.replace('hidden', 'flex');
             localStorage.removeItem(`start_${examId}_${user.id}`);
