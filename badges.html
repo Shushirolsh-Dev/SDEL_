@@ -9,101 +9,288 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Sdel | Badges</title>
+    <title>Sdel · three tiers</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         :root { --bg: #000; --surface: #0a0a0a; --card: #121212; --border: rgba(255,255,255,0.08); --text: #fff; --dim: #71717a; }
         .sunlight-mode { --bg: #fff; --surface: #f4f4f5; --card: #ffffff; --border: #e4e4e7; --text: #09090b; --dim: #71717a; }
-        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; transition: 0.3s; }
-        .tier-card { background: var(--card); border: 2px solid var(--border); transition: 0.3s; }
-        .tier-card.selected { border-color: #FF6600; transform: scale(1.02); }
+        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; transition: 0.3s; margin: 0; padding: 0; }
+        .tier-card { background: var(--card); border: 2px solid var(--border); transition: all 0.2s ease; border-radius: 2rem; padding: 1.5rem; cursor: pointer; }
+        .tier-card.selected { border-color: #FF6600; transform: scale(1.02); background: var(--card); }
         .text-sdel { color: #FF6600; }
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #FF6600; color: black; padding: 12px 24px; border-radius: 12px; font-weight: 900; font-size: 11px; transition: 0.4s; z-index: 9999; }
         #toast.show { transform: translateX(-50%) translateY(0); }
+        /* custom modal — dark, sleek, matches app style */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            transition: 0.2s ease;
+        }
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: var(--card);
+            border: 2px solid var(--border);
+            border-radius: 2.5rem;
+            padding: 2rem 1.8rem;
+            max-width: 300px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 30px 50px -20px #FF6600;
+            transform: scale(0.95);
+            transition: 0.2s ease;
+        }
+        .modal-overlay.show .modal-content {
+            transform: scale(1);
+        }
+        .modal-icon {
+            background: #FF6600/20;
+            width: 60px;
+            height: 60px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+        }
+        .modal-icon i {
+            color: #FF6600;
+            width: 32px;
+            height: 32px;
+        }
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.75rem;
+        }
+        .modal-text {
+            color: var(--dim);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2rem;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 0.8rem;
+            justify-content: center;
+        }
+        .modal-btn {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 3rem;
+            font-weight: 900;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: none;
+            cursor: pointer;
+            transition: 0.1s ease;
+        }
+        .modal-btn.primary {
+            background: #FF6600;
+            color: black;
+        }
+        .modal-btn.secondary {
+            background: transparent;
+            color: var(--text);
+            border: 2px solid var(--border);
+        }
+        .modal-btn.primary:active { transform: scale(0.95); }
+        .modal-btn.secondary:active { background: var(--border); }
+
+        /* ensure no cutoff, use viewport units wisely */
+        .screen-safe { min-height: 100vh; display: flex; flex-direction: column; }
+        .cards-container { flex: 1; overflow-y: auto; padding-bottom: 100px; } /* space for fixed btn */
+        .fixed-bottom { position: fixed; bottom: 0; left: 0; right: 0; padding: 1.5rem; background: linear-gradient(to top, var(--bg) 60%, transparent); }
     </style>
 </head>
-<body class="pb-32">
+<body class="screen-safe">
+    <!-- toast (keep original) -->
     <div id="toast">Message</div>
 
-    <nav class="p-5 flex items-center justify-between sticky top-0 bg-[var(--bg)]/80 backdrop-blur-xl z-50">
-        <i data-lucide="chevron-left" onclick="history.back()"></i>
-        <h2 class="text-[10px] font-black uppercase tracking-[0.2em]">Verification</h2>
-        <i data-lucide="shield-check" class="text-sdel"></i>
-    </nav>
-
-    <div class="p-8 text-center">
-        <h1 class="text-3xl font-black uppercase italic italic">Sdel <span class="text-sdel">Premium</span></h1>
-        <p class="text-[10px] text-[var(--dim)] font-black uppercase tracking-widest mt-2">Valid for 30 days</p>
+    <!-- custom modal (hidden by default) -->
+    <div id="customAlertModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon">
+                <i data-lucide="alert-triangle"></i>
+            </div>
+            <h3 class="modal-title">hold on</h3>
+            <p class="modal-text" id="alertMessage">You need to select a tier first</p>
+            <div class="modal-actions">
+                <button class="modal-btn primary" id="alertConfirm">got it</button>
+            </div>
+        </div>
     </div>
 
-    <main id="tier-container" class="px-6 space-y-6">
-        </main>
+    <!-- main scrollable area (no cut off) -->
+    <div class="cards-container">
+        <!-- nav exactly as original, sticky but inside scroll -->
+        <nav class="p-5 flex items-center justify-between sticky top-0 bg-[var(--bg)]/80 backdrop-blur-xl z-50">
+            <i data-lucide="chevron-left" onclick="history.back()" class="cursor-pointer"></i>
+            <h2 class="text-[10px] font-black uppercase tracking-[0.2em]">Verification</h2>
+            <i data-lucide="shield-check" class="text-sdel"></i>
+        </nav>
 
-    <div class="fixed bottom-0 inset-x-0 p-6 bg-gradient-to-t from-[var(--bg)] to-transparent">
+        <div class="p-8 text-center">
+            <h1 class="text-3xl font-black uppercase italic">Sdel <span class="text-sdel">Premium</span></h1>
+            <p class="text-[10px] text-[var(--dim)] font-black uppercase tracking-widest mt-2">Valid for 30 days</p>
+        </div>
+
+        <!-- exactly three tiers, using original layout but professional polish -->
+        <main id="tier-container" class="px-6 space-y-6 pb-8">
+            <!-- hardcoded 3 cards with professional look, matching original structure but better hierarchy -->
+            <div id="tier_basic" class="tier-card" onclick="selectCard('tier_basic', 2500)">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-black uppercase italic text-xl tracking-tight">BASIC</h3>
+                        <p class="text-sdel font-black text-3xl mt-1">₦2,500</p>
+                    </div>
+                    <span class="text-[10px] font-black bg-[#FF6600]/20 text-[#FF6600] px-3 py-1 rounded-full">TIER 1</span>
+                </div>
+                <ul class="text-[9px] font-black uppercase space-y-3 opacity-80 mt-4">
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> verified badge</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> profile highlight</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> 30 days validity</li>
+                    <li class="flex items-center gap-3 opacity-40"><i data-lucide="x" size="14" class="text-[var(--dim)]"></i> priority support</li>
+                </ul>
+            </div>
+
+            <div id="tier_premium" class="tier-card" onclick="selectCard('tier_premium', 5500)">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-black uppercase italic text-xl tracking-tight">PREMIUM</h3>
+                        <p class="text-sdel font-black text-3xl mt-1">₦5,500</p>
+                    </div>
+                    <span class="text-[10px] font-black bg-[#FF6600]/30 text-[#FF6600] px-3 py-1 rounded-full">MOST POPULAR</span>
+                </div>
+                <ul class="text-[9px] font-black uppercase space-y-3 opacity-90 mt-4">
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> verified badge</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> profile highlight</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> 30 days validity</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> priority support</li>
+                </ul>
+            </div>
+
+            <div id="tier_executive" class="tier-card" onclick="selectCard('tier_executive', 10000)">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <h3 class="font-black uppercase italic text-xl tracking-tight">EXECUTIVE</h3>
+                        <p class="text-sdel font-black text-3xl mt-1">₦10,000</p>
+                    </div>
+                    <span class="text-[10px] font-black bg-[#FF6600]/20 text-[#FF6600] px-3 py-1 rounded-full">TIER 3</span>
+                </div>
+                <ul class="text-[9px] font-black uppercase space-y-3 opacity-100 mt-4">
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> verified badge</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> profile highlight</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> 30 days validity</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> priority support</li>
+                    <li class="flex items-center gap-3"><i data-lucide="check-circle" size="14" class="text-sdel"></i> exclusive content</li>
+                </ul>
+            </div>
+        </main>
+    </div>
+
+    <!-- fixed bottom button (exactly original style, no cut) -->
+    <div class="fixed-bottom">
         <button id="pay-btn" onclick="handleSub()" class="w-full bg-[#FF6600] text-black py-5 rounded-[2rem] font-black uppercase text-xs shadow-2xl active:scale-95 transition-all">Subscribe</button>
     </div>
 
 <script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+    // ----- supabase logic remains but alert replaced with custom modal & redirect to /b_s -----
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-let selectedTier = null;
-let user = null;
+    let selectedTier = null;
+    let user = null;
 
-async function init() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return location.replace('login.html');
-    user = session.user;
-    loadTiers();
-}
-
-async function loadTiers() {
-    const { data: configs } = await supabase.from('app_config').select('*').filter('id', 'ilike', 'tier_%');
-    const container = document.getElementById('tier-container');
-    
-    container.innerHTML = configs.map(conf => `
-        <div id="${conf.id}" class="tier-card p-6 rounded-[2.5rem]" onclick="selectCard('${conf.id}', ${conf.price})">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h3 class="font-black uppercase italic text-lg">${conf.description}</h3>
-                    <p class="text-sdel font-black text-xl">₦${conf.price.toLocaleString()}</p>
-                </div>
-            </div>
-            <ul class="text-[9px] font-black uppercase space-y-2 opacity-60">
-                ${conf.features.map(f => `<li class="flex items-center gap-2"><i data-lucide="check" size="12"></i> ${f}</li>`).join('')}
-            </ul>
-        </div>
-    `).join('');
-    lucide.createIcons();
-}
-
-window.selectCard = (id, price) => {
-    selectedTier = { id, price };
-    document.querySelectorAll('.tier-card').forEach(c => c.classList.remove('selected'));
-    document.getElementById(id).classList.add('selected');
-};
-
-window.handleSub = async () => {
-    if (!selectedTier) return alert("Select a tier!");
-    const expiry = new Date();
-    expiry.setDate(expiry.getDate() + 30);
-
-    const { error } = await supabase.from('profile').update({
-        badge_level: selectedTier.id.replace('tier_', ''),
-        badge_expiry: expiry.toISOString(),
-        is_official: true
-    }).eq('id', user.id);
-
-    if (!error) {
-        showToast("Payment Success! Badge Active.");
-        setTimeout(() => location.href='profile.html', 1500);
+    async function init() {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return location.replace('login.html');
+        user = session.user;
+        lucide.createIcons();
     }
-};
 
-function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
-init();
+    window.selectCard = (id, price) => {
+        selectedTier = { id, price };
+        document.querySelectorAll('.tier-card').forEach(c => c.classList.remove('selected'));
+        document.getElementById(id).classList.add('selected');
+    };
+
+    // custom alert controller
+    const modal = document.getElementById('customAlertModal');
+    const alertMsg = document.getElementById('alertMessage');
+    const confirmBtn = document.getElementById('alertConfirm');
+
+    function showCustomAlert(message) {
+        alertMsg.innerText = message;
+        modal.classList.add('show');
+        // recreate icons inside modal (if needed)
+        lucide.createIcons();
+    }
+
+    function hideCustomAlert() {
+        modal.classList.remove('show');
+    }
+
+    confirmBtn.addEventListener('click', hideCustomAlert);
+
+    // close modal if click outside content (optional)
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) hideCustomAlert();
+    });
+
+    window.handleSub = async () => {
+        if (!selectedTier) {
+            showCustomAlert("You need to select a tier first");
+            return;
+        }
+
+        // (optional: you could still do supabase update, but redirect to /b_s)
+        // we do both: update supabase then redirect to /b_s
+        const expiry = new Date();
+        expiry.setDate(expiry.getDate() + 30);
+
+        // silent update (don't wait for it to finish before redirect, but we keep async)
+        supabase.from('profile').update({
+            badge_level: selectedTier.id.replace('tier_', ''),
+            badge_expiry: expiry.toISOString(),
+            is_official: true
+        }).eq('id', user.id).then(() => {
+            // after update (or even if error, we still redirect as requested)
+            // redirect to /b_s
+            window.location.href = '/b_s';
+        }).catch(() => {
+            // still redirect even on error? better to redirect as per requirement.
+            window.location.href = '/b_s';
+        });
+
+        // show toast quickly (optional)
+        showToast("Processing...");
+    };
+
+    function showToast(m) { const t=document.getElementById('toast'); t.innerText=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
+    
+    init();
+</script>
+<!-- ensure icons are rendered (for static cards) -->
+<script>
+    document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
 </script>
 </body>
 </html>
