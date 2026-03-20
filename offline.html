@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') document.documentElement.classList.add('sunlight-mode');
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thesdel · Offline</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1"></script>
+    <style>
+        /* GLOBAL NO-SELECT */
+        * { 
+            font-family: 'Poppins', sans-serif; margin: 0; padding: 0; box-sizing: border-box; 
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+            -webkit-tap-highlight-color: transparent; outline: none;
+        }
+        
+        :root {
+            --bg: #000000;
+            --surface: #0a0a0a;
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #ffffff;
+            --text-dim: #71717a;
+            --sdel-orange: #FF6600;
+            --star-speed: 20s;
+        }
+
+        .sunlight-mode {
+            --bg: #ffffff;
+            --surface: #f4f4f5;
+            --border: #e4e4e7;
+            --text-main: #09090b;
+            --text-dim: #71717a;
+        }
+
+        .glitch-mode {
+            --bg: #050505;
+            --sdel-orange: #bc13fe;
+            --surface: #111;
+            --text-main: #d1ff00;
+        }
+
+        body { 
+            background: var(--bg); color: var(--text-main); 
+            min-height: 100vh; display: flex; flex-direction: column; 
+            transition: background 0.5s; overflow: hidden;
+        }
+
+        /* STAR ENGINE */
+        #star-field { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .star { position: absolute; background: white; border-radius: 50%; animation: fall var(--star-speed) linear infinite; opacity: 0.5; }
+        @keyframes fall { 0% { transform: translateY(-10vh); } 100% { transform: translateY(110vh); } }
+
+        /* Hyperdrive */
+        .hyperdrive .star { height: 150px !important; width: 1px !important; border-radius: 0; opacity: 1; box-shadow: 0 0 10px white; transition: 0.3s; }
+
+        /* ICON BOX & CHARGING */
+        .icon-box {
+            position: relative; width: 6rem; height: 6rem; border-radius: 2.5rem;
+            background: #111; display: flex; align-items: center; justify-content: center;
+            border: 4px solid #18181b; cursor: pointer; transition: 0.1s; z-index: 50;
+        }
+        .loading-ring {
+            position: absolute; inset: -4px; border-radius: 2.5rem; border: 4px solid transparent;
+            background: conic-gradient(var(--sdel-orange) 0%, transparent 0%) border-box;
+            -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: destination-out; mask-composite: exclude;
+            pointer-events: none; opacity: 0;
+        }
+        .charging .loading-ring { opacity: 1; animation: fillRing 0.5s linear forwards; }
+        @keyframes fillRing { from { background: conic-gradient(var(--sdel-orange) 0%, transparent 0%) border-box; } to { background: conic-gradient(var(--sdel-orange) 100%, transparent 0%) border-box; } }
+        
+        .shake { animation: nukeShake 0.05s infinite; }
+        @keyframes nukeShake { 0% { transform: translate(5px, 5px); } 50% { transform: translate(-5px, -5px); } 100% { transform: translate(5px, 5px); } }
+        .rotate-inf { animation: spin 3s linear infinite; transform-origin: center; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* JOKE CARD */
+        .joke-wrapper { width: 100%; height: 140px; margin-bottom: 3rem; z-index: 10; position: relative; }
+        .joke-container { background: var(--surface); border: 1px solid var(--border); border-radius: 1.5rem; padding: 1.5rem; width: 100%; height: 100%; cursor: pointer; display: flex; flex-direction: column; transition: 0.3s; }
+        .joke-container.ball-mode { animation: ballMorph 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; pointer-events: none; }
+        .joke-container.ball-mode .joke-content { opacity: 0; visibility: hidden; }
+        .joke-container.fly-away { animation: gravityFly 0.7s ease-in forwards; pointer-events: none; }
+
+        @keyframes ballMorph {
+            0% { border-radius: 1.5rem; transform: scale(1); }
+            15% { border-radius: 50%; width: 55px; height: 55px; background: var(--sdel-orange); margin: 0 auto; }
+            100% { border-radius: 1.5rem; transform: scale(1) rotate(-360deg); }
+        }
+        @keyframes gravityFly { 0% { transform: translateY(0); } 100% { transform: translateY(-120vh) rotate(45deg); opacity: 0; } }
+
+        #toast { 
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); 
+            background: var(--sdel-orange); color: black; padding: 12px 24px; border-radius: 12px; 
+            font-weight: 900; font-size: 11px; text-transform: uppercase; transition: 0.3s; z-index: 9999; 
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+
+        .joke-text { font-size: 15px; line-height: 1.5; color: var(--text-dim); font-weight: 500; }
+        .joke-label { font-size: 10px; font-weight: 900; text-transform: uppercase; color: var(--sdel-orange); margin-bottom: 0.75rem; display: flex; justify-content: space-between; }
+
+        /* NEW EASTER EGG ANIMATIONS */
+        @keyframes rainbowFlash {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+        .rainbow-mode {
+            animation: rainbowFlash 0.5s linear infinite !important;
+        }
+        @keyframes bouncePop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); background: var(--sdel-orange); color: black; }
+            100% { transform: scale(1); }
+        }
+        .secret-bounce {
+            animation: bouncePop 0.4s ease-out;
+        }
+        @keyframes spinZoom {
+            0% { transform: rotate(0deg) scale(1); }
+            100% { transform: rotate(360deg) scale(0); opacity: 0; }
+        }
+        .vanish-spin {
+            animation: spinZoom 0.6s forwards !important;
+        }
+        .easter-egg-glow {
+            text-shadow: 0 0 10px var(--sdel-orange), 0 0 20px var(--sdel-orange);
+        }
+        .pulse-ring {
+            animation: pulseRing 0.8s ease-out;
+        }
+        @keyframes pulseRing {
+            0% { box-shadow: 0 0 0 0 var(--sdel-orange); }
+            100% { box-shadow: 0 0 0 20px rgba(255,102,0,0); }
+        }
+        .secret-rain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9998;
+        }
+        .rain-drop {
+            position: absolute;
+            background: linear-gradient(135deg, #FF6600, #FFAA33);
+            width: 3px;
+            height: 20px;
+            animation: rainFall 1s linear forwards;
+            opacity: 0.8;
+        }
+        @keyframes rainFall {
+            0% { transform: translateY(-20px); opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+        .konami-toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #FF6600, #FF3366);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 10000;
+            animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+    </style>
+</head>
+<body class="items-center justify-center flex">
+    <div id="star-field"></div>
+    <div id="toast">✨ CONNECTING</div>
+
+    <div class="text-center p-6 w-full max-w-sm flex flex-col items-center z-10">
+        <div class="icon-box mb-10 shadow-2xl" id="sun-trigger">
+            <div class="loading-ring"></div>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="rotate-inf text-[var(--sdel-orange)]">
+                <circle cx="12" cy="12" r="4"/><path d="M12 2v4M4.93 4.93l2.83 2.83M2 12h4M4.93 19.07l2.83-2.83M12 22v-4M19.07 19.07l-2.83-2.83M22 12h-4M19.07 4.93l-2.83 2.83"/>
+            </svg>
+        </div>
+        
+        <h1 class="text-5xl font-black uppercase tracking-tighter mb-2 cursor-pointer" id="title-trigger">OFFLINE</h1>
+        <p class="text-[11px] text-[var(--text-dim)] font-bold uppercase tracking-[0.2em] mb-14" id="subtitle-trigger">Waiting for network</p>
+        
+        <div class="joke-wrapper">
+            <div class="joke-container" id="joke-card" onclick="handleJokeClick()">
+                <div class="joke-content">
+                    <div class="joke-label"><span>😂 while you wait</span><span class="opacity-50 text-[8px]">↻ FLIP</span></div>
+                    <div class="joke-text" id="joke-display">Loading joke...</div>
+                </div>
+            </div>
+        </div>
+        
+        <button id="retry-btn" onclick="checkConnection()" class="bg-[var(--sdel-orange)] text-black font-black w-full py-5 rounded-3xl uppercase tracking-widest text-sm active:scale-95 transition shadow-lg">
+            TRY AGAIN
+        </button>
+    </div>
+
+    <script>
+        const jokes = ["What do you call a boomerang that won't come back? A stick!", "Wake up with determination. Go to bed with satisfaction.",
+"Don’t wait for opportunity. Create it.",
+"Small steps every day lead to big results.",
+"Push yourself, because no one else is going to do it for you.",
+"Discipline is choosing between what you want now and what you want most.",
+"Every morning is a new beginning. Take a deep breath and start again.",
+"Success doesn’t come to you. You go to it.",
+"Don’t watch the clock; do what it does—keep going.",
+"Great things never come from comfort zones.",
+"Don’t stop when you’re tired. Stop when you’re done.",
+"Your only limit is your mind.",
+"Do something today that your future self will thank you for.",
+"The harder you work for something, the greater you’ll feel when you achieve it.",
+"Dream it. Wish it. Do it.",
+"Don’t let yesterday take up too much of today.",
+"Little by little, day by day, what’s meant for you will find its way.",
+"You are capable of amazing things.",
+"Stop wishing, start doing.",
+"Don’t wait for the perfect moment. Take the moment and make it perfect.",
+"Success is the sum of small efforts repeated daily.",
+"Don’t be afraid to fail. Be afraid not to try.",
+"You are stronger than you think.",
+"Focus on progress, not perfection.",
+"The key to success is to start before you’re ready.",
+"Your dreams don’t work unless you do.",
+"One day or day one. You decide.",
+"Don’t limit your challenges. Challenge your limits.",
+"Be the energy you want to attract.",
+"Great things take time. Be patient.",
+"Work hard in silence. Let success make the noise.",
+"Believe you can and you’re halfway there.",
+"Do what you can, with what you have, where you are.",
+"The secret of getting ahead is getting started.",
+"You don’t have to be perfect to be amazing.",
+"Don’t let fear stop you. Let it fuel you.",
+"Your only competition is yourself.",
+"Wake up with purpose. Go to bed with achievement.",
+"The future depends on what you do today.",
+"Life begins at the end of your comfort zone.",
+"Be fearless in the pursuit of what sets your soul on fire.",
+"Discipline equals freedom.",
+"Your vibe attracts your tribe. Keep it positive.",
+"Success is not final, failure is not fatal. Keep going.",
+"Every day is a chance to get better.",
+"You are the artist of your own life. Paint boldly.",
+"Stop doubting yourself. Start achieving yourself.",
+"Push past your limits. That’s where growth happens.",
+"Don’t compare yourself to others. Compete with yourself.",
+"Take the risk or lose the chance.",
+"You are stronger than your excuses.",
+"Motivation gets you started. Habit keeps you going.",
+"Focus on the goal, not the obstacle.",
+"Small progress is still progress.",
+"The best way to predict your future is to create it.",
+"Work until your idols become your rivals.",
+"Success doesn’t just find you. You have to go after it.",
+"Keep going. Everything you need will come at the right time.",
+"Don’t quit. You’re closer than you think.",
+"Turn your dreams into plans. Your plans into action.",
+"The pain you feel today will be the strength you feel tomorrow.",
+"Failure is not the opposite of success. It’s part of it.",
+"Your mindset determines your reality.",
+"Do not wait for inspiration. It comes while you work.",
+"Be so good they can’t ignore you.",
+"Don’t stop until you’re proud.",
+"Focus on what you can control, not what you can’t.",
+"Your goals don’t care about your mood.",
+"Success is built on consistency, not luck.",
+"Be relentless.",
+"The harder you work, the luckier you get.",
+"Don’t be afraid to shine. The world needs your light.",
+"Life rewards action, not intention.",
+"Stop waiting for the right time. The time is now.",
+"Discomfort is the price of growth.",
+"Do what scares you. Fear is a compass pointing to growth.",
+"You are your only limit.",
+"The only bad workout is the one you didn’t do.",
+"Focus. Hustle. Repeat.",
+"Don’t settle for good when you can be great.",
+"Your excuses don’t burn calories.",
+"Be the reason someone believes in themselves today.",
+"Don’t wait for opportunity. Build it.",
+"Be a voice, not an echo.",
+"Consistency compounds.",
+"Don’t quit. Suffer now and live the rest of your life as a champion.",
+"Your passion is your power. Use it.",
+"Discipline is the bridge between goals and accomplishment.",
+"Greatness is a series of small wins.",
+"You are the CEO of your life.",
+"Action is the antidote to fear.",
+"Don’t fear failure. Fear being in the same place next year.",
+"Your comfort zone is beautiful, but nothing ever grows there.",
+"Hard work beats talent when talent doesn’t work hard.",
+"Life is tough, but so are you.",
+"Your hustle determines your future.",
+"Don’t wait for things to happen. Make them happen.",
+"Success is never owned. It’s rented, and rent is due every day.",
+"Stop wishing. Start doing.",
+"Take the first step in faith, not in fear.",
+"Every morning is a new opportunity.",
+"Be the hardest worker in the room.",
+"You don’t get what you wish for. You get what you work for.",
+"Don’t let fear control your life.",
+"Push past what’s comfortable.",
+"The only limits that exist are the ones in your mind.",
+"Be the person who decided to go for it.",
+"Energy flows where attention goes.",
+"Turn your can’ts into cans, and your dreams into plans.",
+"The grind never stops. Neither should you.",
+"Your dream life requires your best effort every single day.",
+"Don’t stop when you’re tired. Stop when you’re done.",
+"Success isn’t overnight. It’s the result of daily persistence.",
+"Stop underestimating yourself.",
+"Don’t wait for perfect. Do it now.",
+"Every accomplishment starts with the decision to try.",
+"Dreams don’t work unless you do.",
+"You are capable of more than you know.",
+"Don’t be afraid to outwork everyone.",
+"Start where you are. Use what you have. Do what you can.",
+"Your actions today create your tomorrow.",
+"Make today so awesome that yesterday gets jealous.",
+"Push yourself beyond the limits you set.",
+"Do it with passion or not at all.",
+"One step at a time is better than no steps.",
+"Success is the sum of consistent effort.",
+"Your life is your message. Make it inspiring.",
+"Don’t wait for motivation. Create it.",
+"The best view comes after the hardest climb.",
+"Do what’s hard now, so you can live easy later.",
+"Discipline today leads to freedom tomorrow.",
+"Excuses don’t get results.",
+"Focus on your vision, not the noise.",
+"Don’t fear the storm. Be the storm.",
+"Consistency is what transforms average into excellence.",
+"Action beats intention every time.",
+"Invest in yourself. You are worth it.",
+"Stop doubting. Start doing.",
+"Your dreams are valid. Go claim them.",
+"Success is earned one day at a time.",
+"Every setback is a setup for a comeback.",
+"Be stronger than your strongest excuse.",
+"Do more than just exist. Live.",
+"The pain of discipline is nothing compared to the pain of regret.",
+"Rise up and attack the day with enthusiasm.",
+"Motivation is fleeting. Habit is permanent.",
+"Don’t just dream about it. Work for it.",
+"Your goals are calling. Will you answer?",
+"Be unstoppable.",
+"Do it now. Sometimes ‘later’ becomes ‘never’.",
+"Life rewards action, not intention.",
+"Make yourself proud every day.",
+"The difference between ordinary and extraordinary is that little extra.",
+"Turn your struggles into strength.",
+"Keep grinding. Keep shining.",
+"Be patient. Great things take time.",
+"Small daily improvements lead to massive success.",
+"Don’t wish for it. Work for it.",
+"Be fearless. Be bold. Be relentless.",
+"Success doesn’t come from comfort zones.",
+"Your journey is your own. Run your race.",
+"Push through the fear. It’s worth it.",
+"Work hard, dream big, stay humble.",
+"Don’t be afraid to fail forward.",
+"Do what others won’t, so you can live like others can’t.",
+"Keep going. Your future self will thank you.",
+"Opportunities don’t happen. You create them.",
+"Don’t let temporary discomfort stop permanent growth.",
+"Your potential is limitless.",
+"Turn your dreams into goals. Goals into action. Action into results.",
+"Start today. Not tomorrow. Not next week.",
+"Be consistent. Be disciplined. Be unstoppable.",
+"Every expert was once a beginner.",
+"Stop complaining. Start creating.",
+"The harder you work, the luckier you get.",
+"Your effort today defines your tomorrow.",
+"Focus on what you can do today.",
+"Do it for the person you’ll become tomorrow.",
+"Success is daily. Not instant.",
+"Be bold. Take risks. Make mistakes.",
+"Small efforts, repeated daily, lead to big results.",
+"Your dream life needs your daily work.",
+"Don’t let fear decide your future.",
+"Push yourself. Prove them wrong.",
+"Your grind is your growth.",
+"Be ambitious. Be consistent. Be resilient.",
+"Don’t wait for permission. Take action.",
+"Every day is a new chance to get closer to your goals." "Life isn’t about finding yourself. It’s about creating yourself.",
+"The pain you feel today is the strength you feel tomorrow.",
+"Sometimes the hardest battles are fought in silence.",
+"Don’t let yesterday take up too much of today.",
+"Every adversity carries with it the seed of an equal or greater opportunity.",
+"You can’t start the next chapter of your life if you keep re-reading the last one.",
+"Sometimes you have to get knocked down lower than you’ve ever been to stand taller than you ever were.",
+"Your life does not get better by chance, it gets better by change.",
+"Do not pray for an easy life, pray for the strength to endure a hard one.",
+"Life is 10% what happens to you and 90% how you react to it.",
+"It’s okay to struggle. It means you’re trying.",
+"Don’t wait for the storm to pass. Learn to dance in the rain.",
+"Failure is not the opposite of success. It’s part of it.",
+"The strongest people aren’t always the people who win, but those who don’t give up when they lose.",
+"Don’t let small minds convince you that your dreams are too big.",
+"Life is tough, but so are you.",
+"You are not a drop in the ocean. You are the entire ocean in a drop.",
+"It’s not about how hard you hit. It’s about how hard you can get hit and keep moving forward.",
+"Sometimes the best way to grow is to let go.",
+"Your scars are proof that you survived.",
+"Life doesn’t require that we be the best, only that we try our best.",
+"The darkest nights produce the brightest stars.",
+"Don’t just exist. Live.",
+"The more you sweat in peace, the less you bleed in war.",
+"You can’t pour from an empty cup. Take care of yourself first.",
+"Life is not measured by the breaths you take, but by the moments that take your breath away.",
+"Sometimes letting things go is an act of far greater power than holding on.",
+"The struggle you’re in today is developing the strength you need for tomorrow.",
+"Don’t be afraid of being different. Be afraid of being the same as everyone else.",
+"Life is short. Make every hair flip count.",
+"Pain is inevitable, suffering is optional.",
+"You were never created to live depressed, defeated, guilty, condemned, ashamed or unworthy. You were created to be victorious.",
+"Your journey is unique. Don’t compare it to someone else’s highlight reel.",
+"You are not broken. You’re just a work in progress.",
+"What feels like the end is often the beginning.",
+"Let your challenges make you stronger, not bitter.",
+"Life isn’t about waiting for the storm to pass. It’s about learning to dance in it.",
+"Even if you are on the right track, you’ll get run over if you just sit there.",
+"The best way to predict your future is to create it.",
+"Don’t let fear of losing be greater than the excitement of winning.",
+"The only time you should ever look back is to see how far you’ve come.",
+"Sometimes the hardest thing and the right thing are the same.",
+"You can’t control everything, but you can control your attitude.",
+"Life is a balance of holding on and letting go.",
+"The people who are crazy enough to think they can change the world are the ones who do.",
+"Don’t count the days. Make the days count.",
+"Strength doesn’t come from what you can do. It comes from overcoming the things you once thought you couldn’t.",
+"Be so good they can’t ignore you.",
+"Your life is your message to the world. Make it inspiring.",
+"The pain you endure today will be your strength tomorrow.",
+"You will never always be motivated, so you must learn to be disciplined.",
+"The more you love your decisions, the less you need others to love them.",
+"Success is not final, failure is not fatal: it is the courage to continue that counts.",
+"The harder you fall, the higher you bounce.",
+"Don’t be pushed around by the fears in your mind. Be led by the dreams in your heart.",
+"Stop being afraid of what could go wrong, and start being excited about what could go right.",
+"You don’t find happiness. You create it.",
+"Sometimes you have to lose yourself to find yourself.",
+"Don’t wait for opportunity. Create it.",
+"You can’t control the wind, but you can adjust your sails.",
+"The secret to getting ahead is getting started.",
+"It’s not the load that breaks you down, it’s the way you carry it.",
+"Small steps every day lead to big results.",
+"Your mind is a garden. Your thoughts are the seeds. You can grow flowers or weeds.",
+"The biggest risk is not taking any risk.",
+"Life is about moments. Don’t wait for them. Create them.",
+"Fall seven times and stand up eight.",
+"The only impossible journey is the one you never begin.",
+"You are stronger than you think.",
+"Don’t let the fear of losing be greater than the excitement of winning.",
+"Your value doesn’t decrease based on someone’s inability to see your worth.",
+"You are the artist of your own life. Don’t hand the paintbrush to anyone else.",
+"What lies behind us and what lies before us are tiny matters compared to what lies within us.",
+"You don’t have to have it all figured out to move forward.",
+"Life is not about how fast you run, but how well you bounce.",
+"Storms don’t last forever.",
+"The more you try to please everyone, the less you please yourself.",
+"Don’t be afraid to start over. It’s a chance to rebuild what you want.",
+"Do not let someone else’s opinion of you become your reality.",
+"Your struggles today are shaping the person you will become tomorrow.",
+"Sometimes courage is the little voice at the end of the day saying, ‘I’ll try again tomorrow.’",
+"Great things never come from comfort zones.",
+"You were given this life because you are strong enough to live it.",
+"Don’t just survive. Thrive.",
+"The strongest steel is forged by the fires of hell.",
+"Life is too short to waste time on things that don’t matter.",
+"Don’t let the noise of others’ opinions drown out your inner voice.",
+"Your biggest competition is yourself.",
+"Even the darkest night will end and the sun will rise.",
+"Pain is temporary. Quitting lasts forever.",
+"Sometimes you have to go through the worst to reach the best.",
+"Life is tough, but so are you.",
+"Make peace with your past so it won’t disturb your present.",
+"Don’t fear change. Embrace it.",
+"Your potential is endless.",
+"The difference between who you are and who you want to be is what you do.",
+"Life begins at the end of your comfort zone.",
+"Trust the timing of your life.",
+"You are capable of amazing things.",
+"Don’t let anyone steal your sparkle.",
+"Your scars are proof that you survived.",
+"Nothing worth having comes easy.",
+"The comeback is always stronger than the setback.",
+"Fall in love with taking care of yourself.",
+"The harder you work for something, the greater you’ll feel when you achieve it.",
+"Don’t let yesterday define you.",
+"Sometimes you have to create your own sunshine.",
+"Success is the sum of small efforts repeated daily.",
+"Life doesn’t require that we be the best, only that we try our best.",
+"Hardships often prepare ordinary people for an extraordinary destiny.",
+"Don’t just chase your dreams. Hunt them.",
+"Life isn’t perfect, but your mindset can be.",
+"Stop waiting for the right time. The time is now.",
+"Your life is your story. Write well.",
+"Life is about making an impact, not making an income.",
+"Challenges are what make life interesting.",
+"The best view comes after the hardest climb.",
+"Don’t limit your challenges. Challenge your limits.",
+"Even if you fall on your face, you’re still moving forward.",
+"You are allowed to be both a masterpiece and a work in progress simultaneously.",
+"It’s not about perfect. It’s about effort.",
+"You can’t control everything. Sometimes you just need to relax and have faith.",
+"Don’t let fear decide your future.",
+"Every morning you have two choices: continue to sleep with your dreams or wake up and chase them.",
+"The pain of discipline is nothing compared to the pain of regret.",
+"Be the energy you want to attract.",
+"Life is short, so make it sweet.",
+"The struggle is part of the story.",
+"Don’t give up. Great things take time.",
+"Your mindset determines your reality.",
+"What you do today can improve all your tomorrows.",
+"Sometimes the smallest step in the right direction ends up being the biggest step of your life.",
+"Be fearless in the pursuit of what sets your soul on fire.",
+"You are stronger than your strongest excuse.",
+"Life is a journey, not a destination.",
+"Keep going. Everything you need will come to you at the perfect time.",
+"The best way out is always through.",
+"Be so busy improving yourself that you have no time to criticize others.",
+"Don’t let the fear of losing keep you from playing the game.",
+"Life is not about waiting for the storm to pass but learning to dance in the rain.",
+"The only way to do great work is to love what you do.",
+"You can’t have a million-dollar dream with a minimum-wage work ethic.",
+"Never let your fear decide your future.",
+"Turn your wounds into wisdom.",
+"Life is 10% what happens to us and 90% how we react to it.",
+"Do what you can with what you have, where you are.",
+"Life shrinks or expands in proportion to one’s courage.",
+"Sometimes you win, sometimes you learn.",
+"The key to life is to accept challenges, not avoid them.",
+"Your future is created by what you do today, not tomorrow.",
+"Dream big. Start small. Act now.",
+"Success is not for the lazy.",
+"Don’t watch the clock; do what it does—keep going.",
+"Be a voice, not an echo.",
+"The harder the battle, the sweeter the victory.",
+"Let go of what’s killing you inside.",
+"Life is too short to wait.",
+"Your vibe attracts your tribe.",
+"Life is about moments, not things.",
+"Keep your head high and your heart brave.",
+"Everything you’ve ever wanted is on the other side of fear.",
+"Don’t be afraid to shine. The world needs your light.",
+"Life is a gift. Don’t waste it being unhappy.",
+"Live for moments you can’t put into words.",
+"The comeback is always stronger than the setback.",
+"Stop doubting yourself. Work hard and make it happen.",
+"Life is either a daring adventure or nothing at all.",
+"What you think, you become.",
+"Life’s greatest lessons are often learned at the worst times.",
+"Turn your pain into power.",
+"Your life is your message. Make it inspiring.",
+"Believe you can and you’re halfway there.",
+"Live the life you imagined.",
+"Be relentless.",
+"The best revenge is massive success.",
+"The journey is yours, own it.",
+"Success is built on consistency, not luck.",
+"Your story isn’t over yet.",
+"Progress, not perfection, is what matters.",
+"Dream it. Wish it. Do it.",
+"Life is tough, but so are you.",
+"Be the energy you want to see in the world.",
+"The only limit is the one you set yourself." "Are you a magician? Because every time you open your mouth, everyone disappears… out of horror.",
+"Is your name Wi-Fi? Because I’m feeling a strong connection… but only to cringe.",
+"Are you a parking ticket? Because you’ve got ‘fine’ written all over… but in Comic Sans.",
+"Are you French? Because ‘Eiffel’ for you… and by ‘fell’ I mean my jaw when I heard you talk.",
+"Do you have a map? Because I just got lost… in your terrible ideas.",
+"Are you a camera? Every time I look at you, I laugh.",
+"Is your dad a boxer? Because you’re a knockout… mentally, not physically.",
+"Are you a loan? Because you’ve got my interest… and my confusion.",
+"Are you a keyboard? Because you’re just my type… but with missing keys.",
+"Are you a light bulb? Because you brighten the room… and make everyone squint.",
+"Do you have a Band-Aid? Because I scraped my brain listening to you.",
+"Are you a time traveler? Because I see no future in that plan you made.",
+"Are you a snowstorm? Because you leave everyone cold and confused.",
+"Are you a broom? Because you sweep everyone off their feet… into chaos.",
+"Are you a cat? Because you’re purr-fect…ly annoying.",
+"Are you a puzzle? Because nobody can figure you out… mostly because you make no sense.",
+"Are you a star? Because your ideas are out of this world… unfortunately, in a black hole.",
+"Are you a book? Because your chapters are long and confusing.",
+"Are you a cupcake? Because you’re sweet… and a bit too much frosting.",
+"Are you a volcano? Because you erupt unexpectedly… usually chaos.",
+"Are you a rainbow? Because you bring color… and terrible contrast.",
+"Are you a mirror? Because I see someone trying too hard.",
+"Are you a phone? Because I can’t ignore the notification… of my second-hand embarrassment.",
+"Are you a painting? Because every glance is a mistake I regret.",
+"Are you a candle? Because you light things up… awkwardly.",
+"Are you a song? Because you get stuck in my head… like a bad earworm.",
+"Are you a cloud? Because you cover everything… in nonsense.",
+"Are you a starfish? Because you’re out of place and slightly alarming.",
+"Are you a ladder? Because you take things to new heights… of absurdity.",
+"Are you a coffee? Because you’re bitter but everyone pretends to like you.",
+"Are you a magician? Because you make logic disappear.",
+"Are you a cupcake? Because people can’t resist… and regret it later.",
+"Are you a soda? Because you’re fizzy… and slightly nauseating.",
+"Are you a sweater? Because you’re warm… and itchy.",
+"Are you a moon? Because you have phases… and bad timing.",
+"Are you a garden? Because everything grows… except sense around you.",
+"Are you a jellybean? Because you’re colorful… but weirdly textured.",
+"Are you a painting? Because the more I look, the more I question reality.",
+"Are you a hurricane? Because chaos follows you everywhere.",
+"Are you a balloon? Because you’re full of hot air.",
+"Are you a firework? Because your presence is loud… and startling.",
+"Are you a sandwich? Because you’re stacked… badly.",
+"Are you a mirror? Because I see someone who shouldn’t be reflected.",
+"Are you a rocket? Because you launch ideas… straight into oblivion.",
+"Are you a tree? Because you drop leaves… and terrible decisions.",
+"Are you a star? Because you twinkle… confusingly.",
+"Are you a sweater? Because everyone regrets hugging you.",
+"Are you a comet? Because you’re blazing… into disaster.",
+"Are you a cookie? Because I regret biting into this.",
+"Are you a train? Because you derail conversations.",
+"Are you a piano? Because you hit every wrong note perfectly.",
+"Are you a chocolate? Because you melt expectations… horribly.",
+"Are you a puzzle? Because I’m missing pieces… and patience.",
+"Are you a rollercoaster? Because you make me scream… internally.",
+"Are you a mountain? Because I can’t climb your nonsense.",
+"Are you a balloon? Because I’m waiting for you to pop.",
+"Are you a dolphin? Because everyone loves you… until you open your mouth.",
+"Are you a smoothie? Because you look good… and taste regrettable.",
+"Are you a rainbow? Because your colors clash terribly.",
+"Are you a sandwich? Because you’re filling… in all the wrong ways.",
+"Are you a lamp? Because you illuminate confusion.",
+"Are you a clock? Because you tick… people off.",
+"Are you a sweater? Because you wrap people… in awkwardness.",
+"Are you a pizza? Because everyone loves you… for 10 minutes.",
+"Are you a ghost? Because your presence is alarming.",
+"Are you a taco? Because you crumble under pressure.",
+"Are you a cookie? Because you’re sweet… and slightly hard to swallow.",
+"Are you a balloon? Because you float… above comprehension.",
+"Are you a star? Because everyone notices… and then regrets it.",
+"Are you a donut? Because I can’t finish you without questioning my choices.",
+"Are you a jelly? Because you wobble through life.",
+"Are you a cupcake? Because you’re too much… like, literally.",
+"Are you a painting? Because everyone stares… then looks away quickly.",
+"Are you a cloud? Because people hope you disappear.",
+"Are you a rocket? Because your trajectory makes no sense.",
+"Are you a coffee? Because you’re hot… and bitter to everyone.",
+"Are you a rollercoaster? Because you go up… then crash terribly.",
+"Are you a cat? Because you land awkwardly every time.",
+"Are you a pillow? Because people lie down… and regret it.",
+"Are you a wave? Because everyone gets thrown off by you.",
+"Are you a rainbow? Because your colors hurt my eyes.",
+"Are you a lamp? Because you shine… only to blind people.",
+"Are you a mountain? Because climbing you is pointless.",
+"Are you a shoe? Because you leave marks… everywhere.",
+"Are you a cookie? Because I bite and regret it.",
+"Are you a cloud? Because you block clarity.",
+"Are you a pizza? Because your layers confuse everyone.",
+"Are you a balloon? Because you float into nonsense.",
+"Are you a tree? Because you drop surprises… none welcome.",
+"Are you a donut? Because I keep coming back… to regret.",
+"Are you a rocket? Because you shoot up… then explode.",
+"Are you a chocolate? Because people love you… briefly.",
+"Are you a jellybean? Because you’re tiny and confusing.",
+"Are you a rainbow? Because everyone squints at you.",
+"Are you a mirror? Because you reflect chaos.",
+"Are you a pancake? Because you flip expectations badly.",
+"Are you a cupcake? Because sweetness can be dangerous.",
+"Are you a cat? Because curiosity kills patience.",
+"Are you a cloud? Because confusion follows you.",
+"Are you a star? Because shining is optional.",
+"Are you a soda? Because you fizz… then disappoint.",
+"Are you a lamp? Because you glare unintentionally.",
+"Are you a tree? Because people avoid your shade.",
+"Are you a balloon? Because you pop… metaphorically.",
+"Are you a sandwich? Because no one asked for that combination.",
+"Are you a chocolate? Because temptation leads to regret.",
+"Are you a rocket? Because lift-off is messy.",
+"Are you a pillow? Because soft… and suffocating.",
+"Are you a cookie? Because you crumble under pressure.",
+"Are you a wave? Because you crash… at inconvenient times.",
+"Are you a donut? Because sweet and empty.",
+"Are you a mirror? Because I see confusion staring back.",
+"Are you a rainbow? Because you appear… briefly and then fade.",
+"Are you a cat? Because people pretend to like you.",
+"Are you a cupcake? Because indulgence leads to regret.",
+"Are you a balloon? Because inflation is noticeable.",
+"Are you a pancake? Because your layers are disappointing.",
+"Are you a lamp? Because light reveals awkwardness.",
+"Are you a coffee? Because bitterness hides intentions.",
+"Are you a cloud? Because shadows follow you.", "Oh wow, you tried. That’s already impressive.",
+"I love how confident you are about being wrong.",
+"You really said that out loud and felt good about it.",
+"That’s one way to think… not a good one, but a way.",
+"I wish I had your level of unearned confidence.",
+"You make bold choices… consistently the wrong ones.",
+"That idea had potential… then you touched it.",
+"I see what you were going for… I just wish you didn’t.",
+"You really woke up and chose confusion today.",
+"That’s not even wrong… it’s something else entirely.",
+"I’m amazed. Not in a good way, but still amazed.",
+"You didn’t think that through, did you?",
+"You’re so close to getting it… yet so far it’s impressive.",
+"That made sense in your head, right?",
+"You really committed to that mistake. Respect.",
+"I didn’t expect much… and somehow you still surprised me.",
+"You don’t miss… you just aim badly.",
+"I like the effort. The result? Not so much.",
+"You had options… and chose that.",
+"That’s a decision you can’t undo… sadly.",
+"You really thought you did something there.",
+"I’m trying to understand… but I value my brain.",
+"You turned a simple thing into a whole disaster.",
+"You didn’t fail… you redefined it.",
+"I see the vision… it just needs to disappear.",
+"You’re consistent… consistently off.",
+"That’s a bold move for someone with no plan.",
+"You don’t need advice, you need a reset button.",
+"You took a good idea and… wow.",
+"I respect the confidence, not the outcome.",
+"You didn’t just drop the ball… you kicked it away.",
+"That’s one way to ruin it efficiently.",
+"You really said ‘watch this’ and then did that.",
+"I’m impressed… by how unnecessary that was.",
+"You managed to complicate the obvious.",
+"You’re not lost… you’re creatively confused.",
+"That wasn’t a mistake, that was a performance.",
+"You didn’t just miss the point… you avoided it.",
+"You really added nothing… and still took space.",
+"I admire the courage… not the execution.",
+"You didn’t think outside the box… you left it behind.",
+"That’s the kind of idea you keep to yourself.",
+"You really went all in… on the wrong thing.",
+"You didn’t just mess up… you innovated failure.",
+"You’re not wrong… you’re just not right at all.",
+"I’d ask what you were thinking… but I already know.",
+"You really said ‘trust me’ and then did that.",
+"You didn’t just try… you tried something.",
+"That’s a choice… definitely a choice.",
+"You turned simple into stressful. Congrats.",
+"You didn’t fail quietly… you made it loud.",
+"You really doubled down on that, huh?",
+"You’re not off track… you built a new wrong track.",
+"I see the effort… it just didn’t help.",
+"You didn’t ruin it… you transformed it into chaos.",
+"You really looked at that and said ‘perfect.’",
+"You didn’t miss the mark… you ignored it.",
+"You had one job… and created three problems.",
+"You didn’t just go wrong… you committed.",
+"You’re not confused… you’re committed to confusion.",
+"You really turned nothing into something worse.",
+"You didn’t drop the ball… you threw it away.",
+"You’re not unlucky… you’re consistent.",
+"You really said ‘let me cook’ and burned everything.",
+"You didn’t just mess up… you expanded the mess.",
+"You’re not lost… you’re exploring wrong paths.",
+"You really saw that through… unfortunately.",
+"You didn’t make a mistake… you made a statement.",
+"You’re not behind… you’re in a different race.",
+"You really said ‘this will work’ with full confidence.",
+"You didn’t just try… you experimented badly.",
+"You’re not confused… you’re creatively incorrect.",
+"You really made sure that didn’t work.",
+"You didn’t just fail… you put effort into it.",
+"You’re not off… you’re consistently off.",
+"You really turned that into a situation.",
+"You didn’t just miss… you avoided success.",
+"You’re not struggling… you’re committed to struggle.",
+"You really gave it your all… that’s the scary part.",
+"You didn’t just complicate things… you mastered it.",
+"You’re not lost… you’re confidently wandering.",
+"You really said ‘I got this’ and then… wow.",
+"You didn’t just break it… you redesigned failure.",
+"You’re not behind… you’re on another map.",
+"You really made sure that went wrong.",
+"You didn’t just mess up… you followed through.",
+"You’re not confused… you’re dedicated to it.",
+"You really turned that into a full experience.",
+"You didn’t just fail… you elevated it.",
+"You’re not off track… you built your own wrong one.",
+"You really said ‘easy’ and then struggled.",
+"You didn’t just try… you tried something else.",
+"You’re not lost… you’re exploring chaos.",
+"You really committed to that idea… unfortunate.",
+"You didn’t just mess up… you made it memorable.",
+"You’re not wrong… you’re uniquely incorrect.",
+"You really said ‘this is it’… it wasn’t.",
+"You didn’t just fail… you added effort to it.",
+"You’re not confused… you’re consistent with it.",
+"You really turned that into a whole problem.",
+"You didn’t just miss… you dodged success.",
+"You’re not off… you’re in another dimension.",
+"You really said ‘watch me’… we watched.",
+"You didn’t just mess up… you followed instructions incorrectly.",
+"You’re not lost… you’re confidently gone.",
+"You really made that choice… bold.",
+"You didn’t just try… you tried wrong.",
+"You’re not confused… you’re dedicated to chaos.",
+"You really turned that into something… unfortunate.",
+"Are you a soda? Because fizz fades quickly.",
+"Are you a tree? Because roots are questionable.",
+"Are you a shoe? Because you leave footprints of chaos.",
+"Are you a rocket? Because landing is unpredictable.",
+"Are you a chocolate? Because sweetness is temporary.",
+"Are you a jellybean? Because chewing takes effort and regret.",
+"Are you a donut? Because hollow inside.",
+"Are you a mirror? Because reflection causes concern.",
+"Are you a wave? Because turbulence follows.",
+"Are you a pillow? Because softness hides danger.",
+"Are you a cupcake? Because icing is deceiving.",
+"Are you a cat? Because independence annoys everyone.",
+"Are you a balloon? Because popping is inevitable.",
+"Are you a sandwich? Because ingredients clash badly.",
+"Are you a rainbow? Because brightness blinds.",
+"Are you a lamp? Because glare hurts unexpectedly.",
+"Are you a coffee? Because hot, bitter, and necessary.",
+"Are you a tree? Because branches reach… nowhere useful.",
+"Are you a chocolate? Because sweet… then gone.",
+"Are you a rocket? Because launch equals chaos.",
+"Are you a pancake? Because flat and disappointing.",
+"Are you a wave? Because unpredictably messy.",
+"Are you a mirror? Because reflection is questionable.",
+"Are you a donut? Because you look good but feel empty.",
+"Are you a balloon? Because floating leads to popping.", "Why did the developer go broke? Because he used up all his cache!", "What's a computer's favorite beat? An algorithm!", "Why did the Wi-Fi break up with the router? No connection!", "Why don't scientists trust atoms? They make up everything!", "What do you call a belt made of watches? A waist of time!", "What do you call a fish with no eyes? A fsh!", "Why did the picture go to jail? It was framed!"];
+        let usedJokes = [], sunClicks = 0, jokeClicks = 0, titleClicks = 0, pressTimer, chargeTimer, retryTimer, detonated = false;
+        
+        // ========== NEW EASTER EGGS VARIABLES ==========
+        let subtitleClicks = 0;
+        let konamiIndex = 0;
+        const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
+        let tripleTapTimer = null;
+        let tripleTapCount = 0;
+        let rainbowActive = false;
+        let eggCounter = 0;
+        
+        // Secret egg: double tap on background
+        let bgTapCount = 0;
+        let bgTapTimer = null;
+        
+        function getRandomJoke() {
+            if (usedJokes.length >= jokes.length) usedJokes = [];
+            const available = jokes.filter(j => !usedJokes.includes(j));
+            const joke = available[Math.floor(Math.random() * available.length)];
+            usedJokes.push(joke);
+            return joke;
+        }
+        document.getElementById('joke-display').textContent = getRandomJoke();
+
+        const f = document.getElementById('star-field');
+        function initStars(binary = false) {
+            f.innerHTML = '';
+            for(let i = 0; i < 50; i++) {
+                const s = document.createElement('div'); s.className = 'star';
+                if(binary) {
+                    s.innerText = Math.round(Math.random()); s.style.color = "var(--sdel-orange)";
+                    s.style.fontSize = "12px"; s.style.fontWeight = "900"; s.style.background = "none";
+                } else { s.style.width = s.style.height = (Math.random() * 3 + 1) + 'px'; }
+                s.style.left = Math.random() * 100 + 'vw';
+                s.style.animationDuration = (Math.random() * 3 + (binary ? 1 : 5)) + 's';
+                s.style.animationDelay = (Math.random() * 5) + 's';
+                f.appendChild(s);
+            }
+        }
+        initStars();
+
+        function handleJokeClick() {
+            if (++jokeClicks >= 8) {
+                const card = document.getElementById('joke-card');
+                card.classList.add('fly-away');
+                setTimeout(() => { card.classList.remove('fly-away'); jokeClicks = 0; }, 1500);
+            } else { ballMorphJoke(); }
+        }
+
+        function ballMorphJoke() {
+            const card = document.getElementById('joke-card');
+            if (card.classList.contains('ball-mode')) return;
+            card.classList.add('ball-mode');
+            setTimeout(() => { document.getElementById('joke-display').textContent = getRandomJoke(); }, 600);
+            setTimeout(() => { card.classList.remove('ball-mode'); }, 1200);
+        }
+
+        document.getElementById('title-trigger').addEventListener('click', () => {
+            if (++titleClicks >= 3) { document.body.classList.toggle('glitch-mode'); titleClicks = 0; }
+        });
+        
+        // ========== EASTER EGG 1: Subtitle secret (5 clicks changes text to secret message) ==========
+        const subtitle = document.getElementById('subtitle-trigger');
+        subtitle.addEventListener('click', () => {
+            subtitleClicks++;
+            if (subtitleClicks === 5) {
+                const originalText = subtitle.innerText;
+                subtitle.innerText = "✨ SECRET MODE ✨";
+                subtitle.classList.add('easter-egg-glow');
+                setTimeout(() => {
+                    subtitle.innerText = originalText;
+                    subtitle.classList.remove('easter-egg-glow');
+                }, 2000);
+                // Extra: rainbow confetti
+                confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 }, colors: ['#FF6600', '#00FF66', '#FF33FF', '#33FF33'] });
+                subtitleClicks = 0;
+            }
+        });
+        
+        // ========== EASTER EGG 2: Triple tap on any empty area (background) creates rainbow rain ==========
+        function createRainbowRain() {
+            const container = document.createElement('div');
+            container.className = 'secret-rain';
+            document.body.appendChild(container);
+            for (let i = 0; i < 100; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'rain-drop';
+                drop.style.left = Math.random() * 100 + '%';
+                drop.style.animationDelay = Math.random() * 0.5 + 's';
+                drop.style.animationDuration = 0.8 + Math.random() * 0.7 + 's';
+                drop.style.width = (2 + Math.random() * 4) + 'px';
+                drop.style.height = (15 + Math.random() * 20) + 'px';
+                container.appendChild(drop);
+            }
+            setTimeout(() => { container.remove(); }, 1500);
+            // Playful confetti burst
+            confetti({ particleCount: 300, spread: 120, origin: { y: 0.2 }, startVelocity: 20 });
+        }
+        
+        document.body.addEventListener('click', (e) => {
+            // Only trigger on background (not on interactive elements)
+            if (e.target === document.body || e.target.id === 'star-field' || e.target === f) {
+                if (bgTapTimer) clearTimeout(bgTapTimer);
+                bgTapCount++;
+                if (bgTapCount === 3) {
+                    createRainbowRain();
+                    showToastMessage("🌈 RAINBOW STORM! 🌈");
+                    bgTapCount = 0;
+                }
+                bgTapTimer = setTimeout(() => { bgTapCount = 0; }, 800);
+            }
+        });
+        
+        // ========== EASTER EGG 3: Konami Code (up, up, down, down, left, right, left, right, B, A) ==========
+        document.addEventListener('keydown', (e) => {
+            const key = e.code;
+            if (key === konamiCode[konamiIndex]) {
+                konamiIndex++;
+                if (konamiIndex === konamiCode.length) {
+                    // Activate Konami mode: screen flash, all stars turn into rainbow, extra confetti
+                    document.body.style.transition = '0.2s';
+                    document.body.style.backgroundColor = 'var(--sdel-orange)';
+                    setTimeout(() => { document.body.style.backgroundColor = ''; }, 300);
+                    // Change all stars to rainbow colors temporarily
+                    const stars = document.querySelectorAll('.star');
+                    stars.forEach(star => {
+                        const originalBg = star.style.background;
+                        star.style.background = `hsl(${Math.random() * 360}, 100%, 60%)`;
+                        star.style.boxShadow = '0 0 5px currentColor';
+                        setTimeout(() => {
+                            star.style.background = originalBg;
+                            star.style.boxShadow = '';
+                        }, 2000);
+                    });
+                    confetti({ particleCount: 800, spread: 180, origin: { y: 0.5 }, startVelocity: 40, colors: ['#FF6600', '#FF3366', '#33FF66', '#FFCC33'] });
+                    showToastMessage("🎮 KONAMI CODE UNLOCKED! 🎮");
+                    // Also create a floating message
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'konami-toast';
+                    msgDiv.innerText = "⚡ SECRET UNLOCKED! ⚡";
+                    document.body.appendChild(msgDiv);
+                    setTimeout(() => msgDiv.remove(), 2000);
+                    konamiIndex = 0;
+                }
+            } else {
+                konamiIndex = 0;
+            }
+        });
+        
+        // ========== EASTER EGG 4: Secret rainbow mode (click the orange button text 10 times) ==========
+        const retryBtn = document.getElementById('retry-btn');
+        let retryTextClicks = 0;
+        retryBtn.addEventListener('click', (e) => {
+            // Count clicks on button for secret rainbow mode (only when checking connection, but we'll count anyway)
+            retryTextClicks++;
+            if (retryTextClicks === 10) {
+                if (!rainbowActive) {
+                    document.body.classList.add('rainbow-mode');
+                    rainbowActive = true;
+                    showToastMessage("🌈 RAINBOW MODE ACTIVATED! 🌈");
+                    // Auto disable after 5 seconds
+                    setTimeout(() => {
+                        document.body.classList.remove('rainbow-mode');
+                        rainbowActive = false;
+                    }, 5000);
+                }
+                retryTextClicks = 0;
+            }
+            // Reset counter after 2 seconds of inactivity
+            setTimeout(() => { if (retryTextClicks < 10) retryTextClicks = 0; }, 2000);
+        });
+        
+        // ========== EASTER EGG 5: Secret mouse wheel spin on joke card (spin joke card) ==========
+        const jokeCard = document.getElementById('joke-card');
+        jokeCard.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            jokeCard.style.transition = 'transform 0.5s ease';
+            jokeCard.style.transform = `rotate(${e.deltaY > 0 ? '360deg' : '-360deg'})`;
+            setTimeout(() => { jokeCard.style.transform = ''; }, 500);
+            showToastMessage("🌀 SPINNING JOKE! 🌀");
+            // Also change joke
+            setTimeout(() => {
+                document.getElementById('joke-display').textContent = getRandomJoke();
+            }, 200);
+        });
+        
+// ========== EASTER EGG 6: Secret "7" key press reveals hidden animation (press '7') ==========
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '7') {
+                // Secret number 7: all elements pulse and orange glow
+                const allElements = document.querySelectorAll('.icon-box, .joke-container, #retry-btn');
+                allElements.forEach(el => {
+                    el.classList.add('pulse-ring');
+                    setTimeout(() => el.classList.remove('pulse-ring'), 800);
+                });
+                showToastMessage("✨ LUCKY NUMBER 7! ✨");
+                confetti({ particleCount: 400, spread: 100, origin: { y: 0.6 }, startVelocity: 25 });
+            }
+            
+            // Extra: press 'E' for explosion of easter eggs
+            if (e.key === 'e' || e.key === 'E') {
+                showToastMessage("🐣 EASTER EGG EXPLOSION! 🐣");
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => {
+                        confetti({ particleCount: 150, spread: 80, origin: { x: Math.random(), y: Math.random() }, colors: ['#FF6600', '#FFAA33', '#FFCC88'] });
+                    }, i * 100);
+                }
+                // create floating egg icons
+                for (let i = 0; i < 20; i++) {
+                    const egg = document.createElement('div');
+                    egg.innerText = '🥚';
+                    egg.style.position = 'fixed';
+                    egg.style.left = Math.random() * 100 + '%';
+                    egg.style.top = Math.random() * 100 + '%';
+                    egg.style.fontSize = (20 + Math.random() * 30) + 'px';
+                    egg.style.pointerEvents = 'none';
+                    egg.style.zIndex = '10000';
+                    egg.style.animation = 'bouncePop 0.6s ease-out forwards';
+                    document.body.appendChild(egg);
+                    setTimeout(() => egg.remove(), 600);
+                }
+            }
+        });
+        
+        // ========== EASTER EGG 7: Secret double click on the sun icon after nuke does special effect ==========
+        let doubleSunClick = 0;
+        const sunIcon = document.getElementById('sun-trigger');
+        sunIcon.addEventListener('dblclick', () => {
+            doubleSunClick++;
+            if (doubleSunClick >= 1) {
+                // Mega confetti explosion
+                for (let i = 0; i < 3; i++) {
+                    setTimeout(() => {
+                        confetti({ particleCount: 500, spread: 360, origin: { y: 0.5 }, startVelocity: 50, colors: ['gold', 'orange', 'red', 'yellow'] });
+                    }, i * 100);
+                }
+                showToastMessage("💥 DOUBLE SUN EXPLOSION! 💥");
+                doubleSunClick = 0;
+            }
+        });
+        
+        // ========== EASTER EGG 8: Secret "rainbow mode" for stars when you press 'R' ==========
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R') {
+                const stars = document.querySelectorAll('.star');
+                stars.forEach(star => {
+                    const randomColor = `hsl(${Math.random() * 360}, 100%, 65%)`;
+                    star.style.background = randomColor;
+                    star.style.boxShadow = `0 0 8px ${randomColor}`;
+                    setTimeout(() => {
+                        if (!star.innerText) {
+                            star.style.background = 'white';
+                        }
+                        star.style.boxShadow = '';
+                    }, 3000);
+                });
+                showToastMessage("🌈 RAINBOW STARS! 🌟");
+            }
+            
+            // Press 'C' to clear all easter egg effects
+            if (e.key === 'c' || e.key === 'C') {
+                document.body.classList.remove('rainbow-mode');
+                rainbowActive = false;
+                showToastMessage("✨ Effects cleared! ✨");
+            }
+        });
+        
+        // Helper function for toast notifications
+        function showToastMessage(msg) {
+            const toast = document.getElementById('toast');
+            const originalText = toast.innerText;
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                if (toast.innerText === msg) {
+                    toast.innerText = originalText;
+                    setTimeout(() => toast.classList.remove('show'), 500);
+                }
+            }, 1800);
+        }
+
+        // --- SUN BOMB LOGIC (unchanged) ---
+        const sun = document.getElementById('sun-trigger');
+        const fireNuke = () => {
+            confetti({ particleCount: 1000, spread: 360, startVelocity: 60, origin: { y: 0.5 }, colors: ['#FF6600', '#FFFFFF', '#FFCC00'], scalar: 1.2 });
+            const end = Date.now() + 1000;
+            (function frame() {
+                confetti({ particleCount: 20, angle: 60, spread: 90, origin: { x: 0 } });
+                confetti({ particleCount: 20, angle: 120, spread: 90, origin: { x: 1 } });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        };
+
+        const startSunPress = (e) => {
+            e.preventDefault(); detonated = false;
+            pressTimer = setTimeout(() => {
+                sun.classList.add('charging');
+                chargeTimer = setTimeout(() => {
+                    detonated = true; sun.classList.remove('charging');
+                    sun.classList.add('shake'); fireNuke();
+                    setTimeout(() => sun.classList.remove('shake'), 1000);
+                }, 500);
+            }, 500);
+        };
+
+        const endSunPress = () => {
+            clearTimeout(pressTimer); clearTimeout(chargeTimer);
+            sun.classList.remove('charging');
+            if (!detonated) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.7 }, colors: ['#FF6600', '#FFFFFF'] });
+                if (++sunClicks >= 5) {
+                    document.body.classList.add('hyperdrive');
+                    setTimeout(() => { document.body.classList.remove('hyperdrive'); sunClicks = 0; }, 4000);
+                }
+            }
+        };
+
+        sun.addEventListener('mousedown', startSunPress); sun.addEventListener('mouseup', endSunPress);
+        sun.addEventListener('touchstart', startSunPress); sun.addEventListener('touchend', endSunPress);
+
+        // --- BINARY RAIN (unchanged) ---
+        const startRetryPress = () => { retryTimer = setTimeout(() => { initStars(true); setTimeout(() => initStars(false), 8000); }, 3000); };
+        retryBtn.addEventListener('mousedown', startRetryPress); retryBtn.addEventListener('mouseup', () => clearTimeout(retryTimer));
+        retryBtn.addEventListener('touchstart', startRetryPress); retryBtn.addEventListener('touchend', () => clearTimeout(retryTimer));
+
+        function checkConnection() {
+            const toast = document.getElementById('toast');
+            toast.innerText = "📡 CHECKING"; toast.classList.add('show');
+            if (navigator.onLine) {
+                toast.innerText = "✅ CONNECTED";
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                toast.innerText = "❌ OFFLINE";
+                setTimeout(() => toast.classList.remove('show'), 2000);
+                ballMorphJoke();
+            }
+        }
+    </script>
+</body>
+</html>
