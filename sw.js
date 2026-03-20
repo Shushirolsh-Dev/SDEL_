@@ -6,6 +6,7 @@ const ASSETS_TO_CACHE = [
   '/index.html',
   '/dashboard.html',
   '/manifest.json',
+  '/offline.html',
   '/converted-image.png'
 ];
 
