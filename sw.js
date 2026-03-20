@@ -1,6 +1,5 @@
 const CACHE_NAME = 'sdel-v1';
 
-// We've updated this to use your specific filename
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -22,7 +21,6 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // If network is successful, update the cache with the new version
         const clonedResponse = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, clonedResponse);
@@ -30,8 +28,13 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // If offline, serve from cache
-        return caches.match(event.request);
+        return caches.match(event.request).then((response) => {
+          // ✅ If request exists in cache, return it
+          if (response) return response;
+
+          // 💥 If NOT in cache, show offline page
+          return caches.match('/offline.html');
+        });
       })
   );
 });
