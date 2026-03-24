@@ -2,94 +2,461 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel | Maintenance</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Thesdel · radial menu</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Poppins', sans-serif; background: #000; color: #fff; overflow: hidden; }
-        
-        /* The Full Screen Puppy Container */
-        .puppy-container {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            background: #000000;
+            min-height: 100vh;
             display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Poppins', sans-serif;
+            transition: background-color 0.3s;
+            overflow: hidden;
+            position: relative;
+        }
+        /* Sunlight mode (preserved) */
+        .sunlight-mode body {
+            background: #ffffff;
+        }
+        .sunlight-mode .star {
+            background: rgba(255,255,255,0.6) !important;
+            box-shadow: 0 0 4px white;
+        }
+        .sunlight-mode .outer-btn {
+            background: rgba(255, 255, 255, 0.92);
+            color: #121212;
+            border-color: rgba(255,102,0,0.3);
+        }
+        .sunlight-mode .outer-btn:hover {
+            background: #FF6600;
+            color: black;
+        }
+        /* Stars background — pure white with slight glow */
+        .stars {
             position: fixed;
-            inset: 0;
-            background: radial-gradient(circle at center, #111 0%, #000 100%);
-            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+        .star {
+            position: absolute;
+            background-color: #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 6px rgba(255,255,255,0.7);
+            animation: fall linear infinite;
+        }
+        @keyframes fall {
+            to { transform: translateY(110vh); }
+        }
+        /* Radial menu container */
+        .radial-menu {
+            position: relative;
+            width: 400px;
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        /* Center circle — Thesdel orange core */
+        .center-circle {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            background: #FF6600;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 20px 35px rgba(255,102,0,0.3), 0 0 0 4px rgba(255,102,0,0.2), 0 0 0 8px rgba(255,102,0,0.1);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 20;
+            cursor: pointer;
+            border: none;
+        }
+        .center-circle:hover {
+            background: #ff8533;
+            transform: scale(1.08);
+        }
+        .center-circle:active { transform: scale(0.95); }
+        .circle-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            color: black;
+            font-weight: 900;
+            font-size: 1.4rem;
+            text-transform: uppercase;
+            background: transparent;
+            pointer-events: none;
+        }
+        .circle-link span { margin-left: 4px; font-size: 1.2rem; }
+        /* Outer buttons — modern card style */
+        .outer-btn {
+            position: absolute;
+            width: 110px;
+            height: 110px;
+            border-radius: 30px;
+            background: rgba(18, 18, 18, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,102,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 30px -8px rgba(0,0,0,0.5);
+            cursor: pointer;
+            text-decoration: none;
+            color: white;
+            font-weight: 800;
+            font-size: 0.95rem;
+            text-align: center;
+            padding: 0 8px;
+            transition: all 0.2s ease;
+            will-change: transform;
+            font-family: 'Poppins', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        /* subtle orange gradients */
+        .outer-btn:nth-child(2) { background: linear-gradient(135deg, rgba(255,102,0,0.2), rgba(18,18,18,0.95)); }
+        .outer-btn:nth-child(3) { background: linear-gradient(135deg, rgba(255,102,0,0.25), rgba(18,18,18,0.95)); }
+        .outer-btn:nth-child(4) { background: linear-gradient(135deg, rgba(255,102,0,0.15), rgba(18,18,18,0.95)); }
+        .outer-btn:nth-child(5) { background: linear-gradient(135deg, rgba(255,102,0,0.3), rgba(18,18,18,0.95)); }
+        .outer-btn:nth-child(6) { background: linear-gradient(135deg, rgba(255,102,0,0.2), rgba(18,18,18,0.95)); }
+        .outer-btn:hover {
+            border: 1px solid #FF6600;
+            box-shadow: 0 20px 30px -8px #FF6600, 0 0 0 2px rgba(255,102,0,0.4);
+            background: rgba(255,102,0,0.25);
+            color: #FF6600;
+            transform: rotate(var(--rotation)) translate(var(--radius)) rotate(calc(-1 * var(--rotation))) scale(1.1) !important;
+            z-index: 30;
+        }
+        .outer-btn:active {
+            transform: rotate(var(--rotation)) translate(var(--radius)) rotate(calc(-1 * var(--rotation))) scale(0.95) !important;
+        }
+        .outer-btn span {
+            display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            gap: 5px;
+        }
+        /* signature */
+        .signature-line {
+            position: fixed;
+            bottom: 24px;
+            left: 0;
+            right: 0;
             text-align: center;
-            padding: 2rem;
-        }
-
-        /* The Breathing Logo/Puppy Animation */
-        .puppy-main {
-            font-size: 7rem;
-            filter: drop-shadow(0 0 20px rgba(255, 102, 0, 0.3));
-            animation: breathe 3s infinite ease-in-out;
-        }
-
-        @keyframes breathe {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-        }
-
-        .sdel-logo-float {
-            background: #2563eb;
-            width: 60px;
-            height: 60px;
-            border-radius: 1.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 2rem;
-            box-shadow: 0 0 30px rgba(37,99,235,0.4);
-            animation: float 4s infinite ease-in-out;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-        }
-
-        .status-text {
-            letter-spacing: 0.5em;
+            font-size: 0.85rem;
             color: #FF6600;
-            font-weight: 900;
-            animation: pulse-text 2s infinite;
+            font-weight: 800;
+            letter-spacing: 2px;
+            opacity: 0.75;
+            pointer-events: none;
+            z-index: 100;
+            text-transform: uppercase;
         }
-
-        @keyframes pulse-text {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        #dynamicSignature {
+            display: inline-block;
+            transition: opacity 0.35s ease;
+            background: rgba(255,102,0,0.1);
+            backdrop-filter: blur(5px);
+            padding: 6px 20px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,102,0,0.3);
+        }
+        /* confetti canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        @media (max-width: 480px) {
+            .radial-menu { width: 300px; height: 300px; }
+            .outer-btn { width: 90px; height: 90px; font-size: 0.8rem; }
+            .center-circle { width: 120px; height: 120px; }
+            .circle-link { font-size: 1.2rem; }
         }
     </style>
 </head>
 <body>
-
-    <div class="puppy-container">
-        <div class="sdel-logo-float">
-            <i data-lucide="sparkles" class="text-white w-8 h-8"></i>
-        </div>
-
-        <div class="puppy-main">🐶</div>
-
-        <h1 class="text-4xl font-black italic uppercase mt-6 mb-2">Pardon our paws!</h1>
-        <p class="status-text text-[10px] uppercase mb-8">Feature Under Construction</p>
-        
-        <p class="max-w-xs text-zinc-500 text-sm font-medium leading-relaxed">
-            Our tiny dev is working as fast as he can. Please check back in a bit, homie!
-        </p>
-
-        <button onclick="window.history.back()" class="mt-12 text-zinc-700 text-[10px] font-black uppercase tracking-widest border-b border-zinc-800 pb-1">
-            Go Back
-        </button>
+<div class="stars" id="stars"></div>
+<canvas id="confetti-canvas"></canvas>
+<div class="radial-menu">
+    <div class="center-circle" id="centerButton">
+        <span class="circle-link">●<span>Thesdel</span></span>
     </div>
+    <a href="#" class="outer-btn" id="btn1"><span>🧺 Laundry</span></a>
+    <a href="#" class="outer-btn" id="btn2"><span>✂️ Grooming</span></a>
+    <a href="#" class="outer-btn" id="btn3"><span>📚 Study</span></a>
+    <a href="#" class="outer-btn" id="btn4"><span>🖨️ Print</span></a>
+    <a href="#" class="outer-btn" id="btn5"><span>🍲 Food</span></a>
+</div>
+<div class="signature-line"><span id="dynamicSignature">THESDEL</span></div>
 
-    <script>
-        lucide.createIcons();
-    </script>
+<script>
+(function(){
+    // --- WHITE STARS (not orange) ---
+    const starsContainer = document.getElementById('stars');
+    function initStars() {
+        starsContainer.innerHTML = '';
+        const starCount = 85; // richer starfield
+        for(let i=0; i<starCount; i++) {
+            const star = document.createElement('div');
+            star.classList.add('star');
+            const size = Math.random() * 3 + 1.5;
+            star.style.width = size + 'px';
+            star.style.height = size + 'px';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            const duration = Math.random() * 12 + 8;
+            star.style.animationDuration = duration + 's';
+            star.style.animationDelay = Math.random() * 8 + 's';
+            star.style.opacity = Math.random() * 0.6 + 0.4;
+            starsContainer.appendChild(star);
+        }
+    }
+    initStars();
+    // optional resize to keep stars but no need to recreate heavy — fine.
+
+    // --- ROTATION LOGIC (smooth continuous rotation) ---
+    const btns = document.querySelectorAll('.outer-btn');
+    const baseAngles = [0, 72, 144, 216, 288];   // 5 buttons
+    let rotationOffset = 0;
+    let lastTime = 0;
+    const ROT_SPEED = 0.022; // deg per ms -> fluid
+    
+    // hover state map for scaling
+    const hoverMap = new Map();
+    btns.forEach(btn => {
+        hoverMap.set(btn, { scale: 1, hover: false });
+        btn.addEventListener('mouseenter', () => hoverMap.set(btn, { scale: 1.1, hover: true }));
+        btn.addEventListener('mouseleave', () => hoverMap.set(btn, { scale: 1, hover: false }));
+        // touch support
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); hoverMap.set(btn, { scale: 1.1, hover: true }); });
+        btn.addEventListener('touchend', () => hoverMap.set(btn, { scale: 1, hover: false }));
+        btn.addEventListener('touchcancel', () => hoverMap.set(btn, { scale: 1, hover: false }));
+    });
+    
+    function getRadius() { return window.innerWidth <= 480 ? 120 : 150; }
+    
+    function updateRotation(now) {
+        if(lastTime) {
+            const delta = Math.min(50, now - lastTime);
+            rotationOffset = (rotationOffset + ROT_SPEED * delta) % 360;
+        }
+        lastTime = now;
+        const radius = getRadius();
+        btns.forEach((btn, idx) => {
+            const angle = (baseAngles[idx] + rotationOffset) % 360;
+            const state = hoverMap.get(btn) || { scale: 1 };
+            btn.style.setProperty('--rotation', angle + 'deg');
+            btn.style.setProperty('--radius', radius + 'px');
+            btn.style.transform = `rotate(${angle}deg) translate(${radius}px) rotate(-${angle}deg) scale(${state.scale})`;
+        });
+        requestAnimationFrame(updateRotation);
+    }
+    requestAnimationFrame(updateRotation);
+    
+    // --- SIGNATURE CYCLE (preserved, short) ---
+    const sigSpan = document.getElementById('dynamicSignature');
+    const phrases = ['Thesdel Official', 'radial flow', 'momentum'];
+    let phraseIdx = 0;
+    function rotateSig() {
+        sigSpan.style.opacity = '0';
+        setTimeout(() => {
+            phraseIdx = (phraseIdx + 1) % phrases.length;
+            sigSpan.textContent = phrases[phraseIdx];
+            sigSpan.style.opacity = '1';
+        }, 300);
+    }
+    sigSpan.style.transition = 'opacity 0.3s ease';
+    sigSpan.textContent = phrases[0];
+    setInterval(rotateSig, 2800);
+    
+    // --- CONFETTI & FIREWORKS (orange thesdel style, but stars untouched) ---
+    const canvas = document.getElementById('confetti-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let animFrame = null;
+    let animActive = false;
+    
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+    
+    class ConfettiParticle {
+        constructor(x, y, isFireworkFrag = false) {
+            this.x = x;
+            this.y = y;
+            this.isFire = isFireworkFrag;
+            // vibrant orange / amber palette
+            const hues = [20, 30, 40, 15, 5]; // orange spectrum
+            const hue = hues[Math.floor(Math.random() * hues.length)];
+            this.color = `hsl(${hue}, 100%, 58%)`;
+            if(isFireworkFrag) {
+                const angle = Math.random() * Math.PI * 2;
+                const spd = 2 + Math.random() * 4.5;
+                this.vx = Math.cos(angle) * spd;
+                this.vy = Math.sin(angle) * spd;
+                this.size = 3 + Math.random() * 5;
+                this.life = 0.95;
+                this.decay = 0.012 + Math.random() * 0.02;
+                this.gravity = 0.12;
+            } else {
+                this.vx = (Math.random() - 0.5) * 9;
+                this.vy = (Math.random() - 0.5) * 9 - 4;
+                this.size = 5 + Math.random() * 8;
+                this.life = 1;
+                this.decay = 0.007 + Math.random() * 0.012;
+                this.gravity = 0.2;
+                this.rot = Math.random() * 360;
+                this.rotSpeed = (Math.random() - 0.5) * 7;
+            }
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vy += this.gravity;
+            if(!this.isFire) this.rot += this.rotSpeed;
+            this.life -= this.decay;
+            return this.life > 0.02;
+        }
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            if(!this.isFire) ctx.rotate(this.rot * Math.PI/180);
+            ctx.globalAlpha = this.life * 0.9;
+            ctx.fillStyle = this.color;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#FF8800';
+            ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+            ctx.restore();
+        }
+    }
+    
+    function burstConfetti(cx, cy) {
+        for(let i=0;i<140;i++) particles.push(new ConfettiParticle(cx, cy, false));
+    }
+    function burstFirework(cx, cy) {
+        for(let i=0;i<65;i++) particles.push(new ConfettiParticle(cx, cy, true));
+        // secondary little explosions
+        for(let s=0;s<3;s++) {
+            setTimeout(() => {
+                let offX = cx + (Math.random() - 0.5)*140;
+                let offY = cy + (Math.random() - 0.5)*140;
+                for(let k=0;k<28;k++) particles.push(new ConfettiParticle(offX, offY, true));
+            }, s*80);
+        }
+    }
+    
+    function animateConfetti() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles = particles.filter(p => p.update());
+        particles.forEach(p => p.draw());
+        if(particles.length > 0) {
+            animFrame = requestAnimationFrame(animateConfetti);
+        } else {
+            animActive = false;
+            if(animFrame) cancelAnimationFrame(animFrame);
+            animFrame = null;
+        }
+    }
+    
+    function startParty() {
+        const center = document.getElementById('centerButton');
+        const rect = center.getBoundingClientRect();
+        const centerX = rect.left + rect.width/2;
+        const centerY = rect.top + rect.height/2;
+        particles = [];
+        burstConfetti(centerX, centerY);
+        burstFirework(centerX, centerY);
+        if(!animActive) {
+            animActive = true;
+            if(animFrame) cancelAnimationFrame(animFrame);
+            animateConfetti();
+        }
+    }
+    
+    const centerBtn = document.getElementById('centerButton');
+    centerBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        startParty();
+        centerBtn.style.transform = 'scale(0.92)';
+        setTimeout(() => { if(centerBtn) centerBtn.style.transform = ''; }, 180);
+    });
+    
+    // quick theme toggle preserved (sunlight mode does NOT affect star color because stars are white, but we ensure sunlight mode overrides background correctly)
+    // create global toggle if needed from external, but we keep local storage detection for theme
+    (function initTheme() {
+        const saved = localStorage.getItem('theme');
+        if(saved === 'sunlight') document.documentElement.classList.add('sunlight-mode');
+        // optional: double-click on signature or hidden but we provide minimal but full functionality
+        window.toggleSunlight = function() {
+            const html = document.documentElement;
+            if(html.classList.contains('sunlight-mode')) {
+                html.classList.remove('sunlight-mode');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                html.classList.add('sunlight-mode');
+                localStorage.setItem('theme', 'sunlight');
+            }
+        };
+        // Add a small gesture: double tap signature toggles theme (nice hidden ux)
+        const sigDiv = document.querySelector('.signature-line');
+        sigDiv.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            window.toggleSunlight();
+        });
+        // also if user wants, they can toggle but it's optional — doesn't break stars.
+    })();
+    
+    // Prevent default actions on outer buttons (demo purposes, but show console log or placeholder)
+    btns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const txt = btn.innerText.trim() || btn.querySelector('span')?.innerText || 'action';
+            console.log(`🔘 Thesdel menu: ${txt} selected`);
+            // subtle haptic / flash
+            btn.style.filter = 'brightness(1.2)';
+            setTimeout(() => { if(btn) btn.style.filter = ''; }, 120);
+        });
+    });
+    
+    // Window resize doesn't break radius; rotation already reads dynamic radius each frame.
+    // ensure stars don't break
+    window.addEventListener('resize', () => {
+        // stars remain fine (position relative). but could optionally reinit for better coverage?
+        // not needed for UX, but ensures star positions stay fresh.
+    });
+    
+    // Additional micro fix: stars are WHITE, ensure no orange tint anywhere (stars background)
+    // also removes old orange star remnants by forcing background white stars.
+    // if sunlight mode, stars have white glow.
+})();
+</script>
 </body>
 </html>
