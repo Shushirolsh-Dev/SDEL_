@@ -29,8 +29,8 @@
             background: #ffffff;
         }
         .sunlight-mode .star {
-            background: rgba(255,255,255,0.6) !important;
-            box-shadow: 0 0 4px white;
+            background: rgba(255,255,255,0.8) !important;
+            box-shadow: 0 0 5px white;
         }
         .sunlight-mode .outer-btn {
             background: rgba(255, 255, 255, 0.92);
@@ -41,7 +41,13 @@
             background: #FF6600;
             color: black;
         }
-        /* Stars background — pure white with slight glow */
+        .sunlight-mode .back-button {
+            background: rgba(0,0,0,0.1);
+            backdrop-filter: blur(8px);
+            color: #FF6600;
+            border-color: rgba(255,102,0,0.4);
+        }
+        /* Stars background — pure white */
         .stars {
             position: fixed;
             top: 0;
@@ -156,6 +162,53 @@
             align-items: center;
             gap: 5px;
         }
+        /* BACK BUTTON - elegant and matches theme */
+        .back-button {
+            position: fixed;
+            top: 28px;
+            left: 28px;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            border-radius: 60px;
+            border: 1px solid rgba(255,102,0,0.4);
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #FF6600;
+            transition: all 0.25s ease;
+            text-decoration: none;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .back-button:hover {
+            background: rgba(255,102,0,0.85);
+            color: #121212;
+            border-color: #FF6600;
+            transform: translateX(-4px);
+            box-shadow: 0 8px 20px rgba(255,102,0,0.3);
+        }
+        .back-button:active {
+            transform: translateX(-2px) scale(0.96);
+        }
+        .back-button svg {
+            width: 18px;
+            height: 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: transform 0.2s;
+        }
+        .back-button:hover svg {
+            transform: translateX(-3px);
+        }
         /* signature */
         .signature-line {
             position: fixed;
@@ -168,9 +221,10 @@
             font-weight: 800;
             letter-spacing: 2px;
             opacity: 0.75;
-            pointer-events: none;
+            pointer-events: auto;
             z-index: 100;
             text-transform: uppercase;
+            cursor: pointer;
         }
         #dynamicSignature {
             display: inline-block;
@@ -180,6 +234,7 @@
             padding: 6px 20px;
             border-radius: 30px;
             border: 1px solid rgba(255,102,0,0.3);
+            pointer-events: none;
         }
         /* confetti canvas */
         #confetti-canvas {
@@ -196,12 +251,28 @@
             .outer-btn { width: 90px; height: 90px; font-size: 0.8rem; }
             .center-circle { width: 120px; height: 120px; }
             .circle-link { font-size: 1.2rem; }
+            .back-button {
+                top: 16px;
+                left: 16px;
+                padding: 7px 16px;
+                font-size: 0.8rem;
+            }
+            .back-button svg { width: 16px; height: 16px; }
         }
     </style>
 </head>
 <body>
 <div class="stars" id="stars"></div>
 <canvas id="confetti-canvas"></canvas>
+
+<!-- BACK BUTTON -->
+<div class="back-button" id="backButton">
+    <svg viewBox="0 0 24 24" width="20" height="20">
+        <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" fill="none"/>
+    </svg>
+    <span>Back</span>
+</div>
+
 <div class="radial-menu">
     <div class="center-circle" id="centerButton">
         <span class="circle-link">●<span>Thesdel</span></span>
@@ -216,46 +287,43 @@
 
 <script>
 (function(){
-    // --- WHITE STARS (not orange) ---
+    // --- WHITE STARS (pure white, not orange) ---
     const starsContainer = document.getElementById('stars');
     function initStars() {
         starsContainer.innerHTML = '';
-        const starCount = 85; // richer starfield
+        const starCount = 95; // rich starfield
         for(let i=0; i<starCount; i++) {
             const star = document.createElement('div');
             star.classList.add('star');
-            const size = Math.random() * 3 + 1.5;
+            const size = Math.random() * 3 + 1.2;
             star.style.width = size + 'px';
             star.style.height = size + 'px';
             star.style.left = Math.random() * 100 + '%';
             star.style.top = Math.random() * 100 + '%';
-            const duration = Math.random() * 12 + 8;
+            const duration = Math.random() * 14 + 7;
             star.style.animationDuration = duration + 's';
             star.style.animationDelay = Math.random() * 8 + 's';
-            star.style.opacity = Math.random() * 0.6 + 0.4;
+            star.style.opacity = Math.random() * 0.7 + 0.3;
             starsContainer.appendChild(star);
         }
     }
     initStars();
-    // optional resize to keep stars but no need to recreate heavy — fine.
 
-    // --- ROTATION LOGIC (smooth continuous rotation) ---
+    // --- ROTATION LOGIC (smooth continuous) ---
     const btns = document.querySelectorAll('.outer-btn');
-    const baseAngles = [0, 72, 144, 216, 288];   // 5 buttons
+    const baseAngles = [0, 72, 144, 216, 288];
     let rotationOffset = 0;
     let lastTime = 0;
-    const ROT_SPEED = 0.022; // deg per ms -> fluid
+    const ROT_SPEED = 0.022;
     
-    // hover state map for scaling
     const hoverMap = new Map();
     btns.forEach(btn => {
-        hoverMap.set(btn, { scale: 1, hover: false });
-        btn.addEventListener('mouseenter', () => hoverMap.set(btn, { scale: 1.1, hover: true }));
-        btn.addEventListener('mouseleave', () => hoverMap.set(btn, { scale: 1, hover: false }));
-        // touch support
-        btn.addEventListener('touchstart', (e) => { e.preventDefault(); hoverMap.set(btn, { scale: 1.1, hover: true }); });
-        btn.addEventListener('touchend', () => hoverMap.set(btn, { scale: 1, hover: false }));
-        btn.addEventListener('touchcancel', () => hoverMap.set(btn, { scale: 1, hover: false }));
+        hoverMap.set(btn, { scale: 1 });
+        btn.addEventListener('mouseenter', () => hoverMap.set(btn, { scale: 1.1 }));
+        btn.addEventListener('mouseleave', () => hoverMap.set(btn, { scale: 1 }));
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); hoverMap.set(btn, { scale: 1.1 }); });
+        btn.addEventListener('touchend', () => hoverMap.set(btn, { scale: 1 }));
+        btn.addEventListener('touchcancel', () => hoverMap.set(btn, { scale: 1 }));
     });
     
     function getRadius() { return window.innerWidth <= 480 ? 120 : 150; }
@@ -278,7 +346,7 @@
     }
     requestAnimationFrame(updateRotation);
     
-    // --- SIGNATURE CYCLE (preserved, short) ---
+    // --- SIGNATURE CYCLE ---
     const sigSpan = document.getElementById('dynamicSignature');
     const phrases = ['Thesdel Official', 'radial flow', 'momentum'];
     let phraseIdx = 0;
@@ -294,7 +362,7 @@
     sigSpan.textContent = phrases[0];
     setInterval(rotateSig, 2800);
     
-    // --- CONFETTI & FIREWORKS (orange thesdel style, but stars untouched) ---
+    // --- CONFETTI & FIREWORKS (orange thesdel style) ---
     const canvas = document.getElementById('confetti-canvas');
     const ctx = canvas.getContext('2d');
     let particles = [];
@@ -313,8 +381,7 @@
             this.x = x;
             this.y = y;
             this.isFire = isFireworkFrag;
-            // vibrant orange / amber palette
-            const hues = [20, 30, 40, 15, 5]; // orange spectrum
+            const hues = [20, 30, 40, 15, 5];
             const hue = hues[Math.floor(Math.random() * hues.length)];
             this.color = `hsl(${hue}, 100%, 58%)`;
             if(isFireworkFrag) {
@@ -363,7 +430,6 @@
     }
     function burstFirework(cx, cy) {
         for(let i=0;i<65;i++) particles.push(new ConfettiParticle(cx, cy, true));
-        // secondary little explosions
         for(let s=0;s<3;s++) {
             setTimeout(() => {
                 let offX = cx + (Math.random() - 0.5)*140;
@@ -409,12 +475,71 @@
         setTimeout(() => { if(centerBtn) centerBtn.style.transform = ''; }, 180);
     });
     
-    // quick theme toggle preserved (sunlight mode does NOT affect star color because stars are white, but we ensure sunlight mode overrides background correctly)
-    // create global toggle if needed from external, but we keep local storage detection for theme
+    // --- BACK BUTTON FUNCTIONALITY (navigation & history) ---
+    const backButton = document.getElementById('backButton');
+    
+    // Smart back: tries to go back in history if available, else provides fallback visual feedback + optional exit
+    function handleGoBack() {
+        // Check if there is history to go back to
+        if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            // fallback: show subtle notification & optionally close window/tab? but we'll just give animation and message.
+            // for better UX: create a temporary micro toaster effect
+            const toastMsg = document.createElement('div');
+            toastMsg.innerText = 'No previous page ✨';
+            toastMsg.style.position = 'fixed';
+            toastMsg.style.bottom = '80px';
+            toastMsg.style.left = '50%';
+            toastMsg.style.transform = 'translateX(-50%)';
+            toastMsg.style.background = 'rgba(0,0,0,0.8)';
+            toastMsg.style.backdropFilter = 'blur(12px)';
+            toastMsg.style.color = '#FF6600';
+            toastMsg.style.padding = '8px 20px';
+            toastMsg.style.borderRadius = '40px';
+            toastMsg.style.fontFamily = 'Poppins, sans-serif';
+            toastMsg.style.fontSize = '0.8rem';
+            toastMsg.style.fontWeight = '600';
+            toastMsg.style.zIndex = '10000';
+            toastMsg.style.border = '1px solid #FF6600';
+            toastMsg.style.pointerEvents = 'none';
+            toastMsg.style.opacity = '0';
+            toastMsg.style.transition = 'opacity 0.2s';
+            document.body.appendChild(toastMsg);
+            setTimeout(() => { toastMsg.style.opacity = '1'; }, 10);
+            setTimeout(() => {
+                toastMsg.style.opacity = '0';
+                setTimeout(() => toastMsg.remove(), 400);
+            }, 1800);
+            
+            // additional micro vibration if supported (optional)
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+        // Add haptic feedback to button
+        backButton.style.transform = 'translateX(-2px) scale(0.97)';
+        setTimeout(() => {
+            if(backButton) backButton.style.transform = '';
+        }, 150);
+    }
+    
+    backButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleGoBack();
+    });
+    
+    // Also keyboard support: backspace / browser back button simulation is not needed, but we can add Escape alternative?
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || (e.key === 'Backspace' && !e.target.matches('input, textarea'))) {
+            e.preventDefault();
+            handleGoBack();
+        }
+    });
+    
+    // --- THEME TOGGLE (preserved, with double-click on signature) ---
     (function initTheme() {
         const saved = localStorage.getItem('theme');
         if(saved === 'sunlight') document.documentElement.classList.add('sunlight-mode');
-        // optional: double-click on signature or hidden but we provide minimal but full functionality
         window.toggleSunlight = function() {
             const html = document.documentElement;
             if(html.classList.contains('sunlight-mode')) {
@@ -425,37 +550,35 @@
                 localStorage.setItem('theme', 'sunlight');
             }
         };
-        // Add a small gesture: double tap signature toggles theme (nice hidden ux)
         const sigDiv = document.querySelector('.signature-line');
         sigDiv.addEventListener('dblclick', (e) => {
             e.stopPropagation();
             window.toggleSunlight();
+            // tiny ripple effect on signature
+            const sigText = document.getElementById('dynamicSignature');
+            sigText.style.transform = 'scale(1.05)';
+            setTimeout(() => { if(sigText) sigText.style.transform = ''; }, 200);
         });
-        // also if user wants, they can toggle but it's optional — doesn't break stars.
     })();
     
-    // Prevent default actions on outer buttons (demo purposes, but show console log or placeholder)
+    // Outer buttons click handling (prevent default, add visual)
     btns.forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
-            const txt = btn.innerText.trim() || btn.querySelector('span')?.innerText || 'action';
+            const txt = btn.innerText.trim() || btn.querySelector('span')?.innerText || 'option';
             console.log(`🔘 Thesdel menu: ${txt} selected`);
-            // subtle haptic / flash
-            btn.style.filter = 'brightness(1.2)';
-            setTimeout(() => { if(btn) btn.style.filter = ''; }, 120);
+            // flash animation
+            btn.style.filter = 'brightness(1.3)';
+            setTimeout(() => { if(btn) btn.style.filter = ''; }, 130);
+            // optional: additional subtle confetti? but keep minimal
         });
     });
     
-    // Window resize doesn't break radius; rotation already reads dynamic radius each frame.
-    // ensure stars don't break
-    window.addEventListener('resize', () => {
-        // stars remain fine (position relative). but could optionally reinit for better coverage?
-        // not needed for UX, but ensures star positions stay fresh.
-    });
+    // make sure stars stay white, also resize safe
+    window.addEventListener('resize', () => {});
     
-    // Additional micro fix: stars are WHITE, ensure no orange tint anywhere (stars background)
-    // also removes old orange star remnants by forcing background white stars.
-    // if sunlight mode, stars have white glow.
+    // prevent accidental drag on back button text
+    backButton.addEventListener('dragstart', (e) => e.preventDefault());
 })();
 </script>
 </body>
