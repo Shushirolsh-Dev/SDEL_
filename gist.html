@@ -86,7 +86,7 @@
         let userProfile = null;
         let pressTimer;
         
-        // --- Optimistic UI + Offline Queue (no toast on success) ---
+        // --- Optimistic UI + Offline Queue (NO success toast, only errors) ---
         let pendingComments = []; // { id, content, tempId, createdAt, username, isOfficial, isVerified }
         let syncInProgress = false;
         let syncRetryTimeout = null;
@@ -120,7 +120,7 @@
             }
         }
         
-        // Show toast ONLY for errors (silent on success)
+        // Show toast ONLY for errors (silent on success - "rubbish" removed)
         function showErrorToast(msg) {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
@@ -130,7 +130,7 @@
             setTimeout(() => toast.classList.remove('error'), 3000);
         }
         
-        // Optimistic insert: add comment to UI instantly
+        // Optimistic insert: add comment to UI instantly, no toast
         function addOptimisticComment(content) {
             const tempId = generateTempId();
             const now = new Date().toISOString();
@@ -200,7 +200,7 @@
             lucide.createIcons();
         }
         
-        // Sync: try to send all pending comments to server
+        // Sync: try to send all pending comments to server — NO success toasts, only errors
         async function triggerSync() {
             if (syncInProgress) return;
             if (pendingComments.length === 0) return;
@@ -224,22 +224,19 @@
                     });
                     
                     if (!error) {
-                        // Success: remove from queue
+                        // Success: remove from queue - NO TOAST
                         pendingComments.shift();
                         savePendingQueue();
                         
-                        // Update comment count on original post (optimistic but fire-and-forget)
+                        // Update comment count on original post (fire-and-forget)
                         supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
                         
-                        // Replace pending comment with permanent one? Instead, refresh comments section for accuracy.
-                        // But to keep UX smooth, we'll re-fetch comments in background and replace the pending badge with real data.
-                        // However we don't want to flicker. Let's mark as synced by removing pending style.
+                        // Replace pending style with permanent look
                         const tempElement = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
                         if (tempElement) {
                             tempElement.classList.remove('pending');
                             const badgeSpan = tempElement.querySelector('.pending-badge');
                             if (badgeSpan) badgeSpan.remove();
-                            // update time badge to accurate time
                             const timeBadge = tempElement.querySelector('.time-badge');
                             if (timeBadge) timeBadge.innerText = 'just now';
                         }
@@ -252,7 +249,7 @@
                     if (!pending.retryCount) pending.retryCount = 0;
                     pending.retryCount++;
                     if (pending.retryCount >= 5) {
-                        // too many failures, drop it and show error
+                        // too many failures, drop it and show error (only error toast)
                         showErrorToast("Reply failed after multiple attempts. Please try again.");
                         pendingComments.shift();
                         savePendingQueue();
@@ -282,7 +279,6 @@
         }
         
         // Refresh comments from server but preserve optimistic pending comments? Actually pending queue is empty after sync.
-        // However during offline we keep pending UI. After coming online we sync, then reload to match server state.
         async function refreshCommentsFromServer() {
             if (!postId) return;
             const { data: comments } = await supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').eq('parent_id', postId).order('created_at', { ascending: true });
@@ -455,7 +451,7 @@
                     await supabase.from('posts').update({ content: newContent }).eq('id', id);
                     closeEditModal();
                     loadGist();
-                    // no success toast
+                    // No success toast on edit either
                 }
             };
         };
@@ -469,13 +465,12 @@
             }
         }
         
-        // POST with optimistic UI & no toast on success
+        // POST with optimistic UI & NO toast on success (removed the "sending rubbish")
         window.postComment = async () => {
             const input = document.getElementById('comment-input');
             let content = input.value.trim();
             if (!content) return;
             
-            // duplicate guard (basic)
             content = sanitizeInput(content);
             const scanResult = scanContent(content);
             if (!scanResult.safe) {
@@ -485,14 +480,14 @@
                 return;
             }
             
-            // Add optimistic comment instantly
+            // Add optimistic comment instantly — completely silent on success
             addOptimisticComment(content);
             
             // Clear input field and reset height
             input.value = '';
             input.style.height = 'auto';
             
-            // No toast shown for successful send (offline/online silent)
+            // NO TOAST, NO "sending rubbish" — exactly what you requested
         };
         
         window.autoResize = (el) => {
