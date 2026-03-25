@@ -30,7 +30,6 @@
         .comments-section{display:flex;flex-direction:column;gap:12px}
         .send-button{background:#FF6600;color:#000;width:44px;height:44px;border-radius:30px;display:flex;align-items:center;justify-content:center;transition:all .2s;box-shadow:0 5px 15px rgba(255,102,0,.2);border:none;cursor:pointer;flex-shrink:0;position:relative}
         .send-button:active{transform:scale(.92);background:#e55a00}
-        .send-button.disabled{opacity:0.6;cursor:wait;pointer-events:none}
         .input-container{display:flex;align-items:flex-end;gap:8px;background:#111;border:1px solid #222;border-radius:30px;padding:4px;transition:border .2s;width:100%}
         .input-container:focus-within{border-color:#FF6600}
         #comment-input{background:transparent;border:none;padding:12px 16px;flex:1}
@@ -72,7 +71,167 @@
         let userProfile = null;
         let pressTimer;
         
-        // ---- core app logic - NO OFFLINE QUEUE, NO SYNC INDICATOR ----
+        // --- Optimistic UI + Offline Queue (NO "Sending..." badge on comments, NO sync indicator) ---
+        let pendingComments = []; // { id, content, tempId, createdAt, username, isOfficial, isVerified }
+        let syncInProgress = false;
+        let syncRetryTimeout = null;
+        
+        // Generate temp IDs for optimistic comments
+        function generateTempId() { return `temp_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`; }
+        
+        // Load pending queue from localStorage
+        function loadPendingQueue() {
+            const stored = localStorage.getItem('gist_pending_comments');
+            if (stored) {
+                try { pendingComments = JSON.parse(stored); } catch(e) { pendingComments = []; }
+            } else { pendingComments = []; }
+        }
+        
+        function savePendingQueue() {
+            localStorage.setItem('gist_pending_comments', JSON.stringify(pendingComments));
+        }
+        
+        // Optimistic insert: add comment to UI instantly - NO BADGE, NO SYNC INDICATOR
+        function addOptimisticComment(content) {
+            const tempId = generateTempId();
+            const now = new Date().toISOString();
+            const optimisticComment = {
+                id: tempId,
+                tempId: tempId,
+                content: content,
+                created_at: now,
+                user_id: userProfile?.id,
+                profile: {
+                    username: userProfile?.username || 'homie',
+                    is_official: userProfile?.is_official || false,
+                    is_verified: userProfile?.is_verified || false
+                },
+                pending: true  // internal flag only, no visual badge
+            };
+            
+            // Store in pending queue
+            pendingComments.push({
+                tempId: tempId,
+                content: content,
+                createdAt: now,
+                username: userProfile?.username || 'homie',
+                isOfficial: userProfile?.is_official || false,
+                isVerified: userProfile?.is_verified || false
+            });
+            savePendingQueue();
+            
+            // Render comment into the DOM - NO "Sending..." badge, looks like a normal comment
+            appendCommentToDOM(optimisticComment);
+            
+            // Auto-scroll to new comment
+            setTimeout(() => {
+                const newCommentEl = document.querySelector(`.comment-card[data-temp-id="${tempId}"]`);
+                if (newCommentEl) newCommentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+            
+            // Trigger background sync
+            triggerSync();
+            
+            return tempId;
+        }
+        
+        function appendCommentToDOM(comment) {
+            const commentsContainer = document.querySelector('.comments-section');
+            if (!commentsContainer) return;
+            
+            const badge = getBadgeHTML(comment.profile?.is_official, comment.profile?.is_verified);
+            // NO pending badge, just a normal-looking comment
+            const timeDisplay = formatTimeAgo(comment.created_at);
+            
+            const commentHtml = `
+                <div class="comment-card" data-temp-id="${comment.tempId || comment.id}" data-comment-id="${comment.id}">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span onclick="location.href='profile.html?u=${escapeHTML(comment.profile?.username || '')}'" class="username-link text-xs">@${escapeHTML(comment.profile?.username || 'homie')}</span>
+                            ${badge}
+                        </div>
+                        <span class="time-badge text-[9px]">${timeDisplay}</span>
+                    </div>
+                    <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
+                </div>
+            `;
+            commentsContainer.insertAdjacentHTML('beforeend', commentHtml);
+            lucide.createIcons();
+        }
+        
+        // Sync: try to send all pending comments to server - NO ALERTS, NO BADGES, NO SYNC UI
+        async function triggerSync() {
+            if (syncInProgress) return;
+            if (pendingComments.length === 0) return;
+            if (!userProfile) return;
+            
+            syncInProgress = true;
+            
+            // Process queue sequentially
+            while (pendingComments.length > 0) {
+                const pending = pendingComments[0];
+                if (!pending) break;
+                
+                try {
+                    const { error } = await supabase.from('posts').insert({
+                        user_id: userProfile.id,
+                        content: pending.content,
+                        parent_id: postId,
+                        post_type: 'comment',
+                        school_name: 'Gist'
+                    });
+                    
+                    if (!error) {
+                        // Success: remove from queue
+                        pendingComments.shift();
+                        savePendingQueue();
+                        
+                        // Update comment count
+                        supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
+                        
+                        // Update the comment in DOM with real ID (just remove temp-id, no visual change)
+                        const tempElement = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
+                        if (tempElement) {
+                            tempElement.removeAttribute('data-temp-id');
+                            // No badge to remove, no visual change at all
+                        }
+                    } else {
+                        throw new Error(error.message);
+                    }
+                } catch (err) {
+                    console.warn("Sync failed, will retry later", err);
+                    // exponential backoff - NO ALERT
+                    if (!pending.retryCount) pending.retryCount = 0;
+                    pending.retryCount++;
+                    if (pending.retryCount >= 10) {
+                        // Too many failures, drop it silently
+                        pendingComments.shift();
+                        savePendingQueue();
+                        // remove the failed comment silently
+                        const failedEl = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
+                        if (failedEl) failedEl.remove();
+                    } else {
+                        const delay = Math.min(60000, 1000 * Math.pow(2, pending.retryCount));
+                        if (syncRetryTimeout) clearTimeout(syncRetryTimeout);
+                        syncRetryTimeout = setTimeout(() => {
+                            syncInProgress = false;
+                            triggerSync();
+                        }, delay);
+                        syncInProgress = false;
+                        return;
+                    }
+                }
+            }
+            syncInProgress = false;
+            if (syncRetryTimeout) clearTimeout(syncRetryTimeout);
+        }
+        
+        // Network listeners: auto-sync when back online
+        window.addEventListener('online', () => {
+            if (pendingComments.length > 0) triggerSync();
+        });
+        
+        // ---- core app logic ----
         window.closeSheet = () => document.getElementById('action-sheet').style.display = 'none';
         window.closeEditModal = () => document.getElementById('edit-modal').style.display = 'none';
         
@@ -114,7 +273,31 @@
             if (!session) return window.location.replace('login.html');
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             userProfile = profile;
+            loadPendingQueue();
             await loadGist();
+            // Re-append pending comments that aren't in DOM (no badge)
+            if (pendingComments.length > 0) {
+                for (const pending of pendingComments) {
+                    const exists = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
+                    if (!exists) {
+                        const optimistic = {
+                            id: pending.tempId,
+                            tempId: pending.tempId,
+                            content: pending.content,
+                            created_at: pending.createdAt,
+                            profile: {
+                                username: pending.username,
+                                is_official: pending.isOfficial,
+                                is_verified: pending.isVerified
+                            },
+                            pending: true
+                        };
+                        appendCommentToDOM(optimistic);
+                    }
+                }
+                lucide.createIcons();
+                triggerSync();
+            }
         }
         
         const harmfulPatterns = [/porn/i, /xxx/i, /adult/i, /sex/i, /nude/i, /onlyfans/i, /fansly/i, /gambling/i, /casino/i, /bet/i, /betting/i, /poker/i, /slot/i, /crypto/i, /bitcoin/i, /investment/i, /forex/i, /drug/i, /weed/i, /cannabis/i, /marijuana/i, /hack/i, /cheat/i, /crack/i, /violence/i, /gore/i, /kill/i, /viagra/i, /cialis/i, /free money/i, /work from home/i, /get rich/i];
@@ -129,10 +312,10 @@
         function scanContent(content) {
             const urlRegex = /(https?:\/\/[^\s<>"']+)|(www\.[^\s<>"']+\.[^\s<>"']+)/gi;
             const urls = content.match(urlRegex) || [];
-            if (urls.length > 3) return { safe: false };
+            if (urls.length > 3) return { safe: false, reason: "Too many links" };
             const lowerContent = content.toLowerCase();
             for (const pattern of harmfulPatterns) {
-                if (pattern.test(lowerContent)) return { safe: false };
+                if (pattern.test(lowerContent)) return { safe: false, reason: "Content blocked" };
             }
             return { safe: true };
         }
@@ -209,7 +392,7 @@
             loadGist();
         }
         
-        // Direct post - sends to server, shows immediately, no sync indicator
+        // POST with optimistic UI - IMMEDIATE DISPLAY, NO BADGES, NO ALERTS, NO SYNC INDICATOR
         window.postComment = async () => {
             const input = document.getElementById('comment-input');
             let content = input.value.trim();
@@ -218,92 +401,21 @@
             content = sanitizeInput(content);
             const scanResult = scanContent(content);
             if (!scanResult.safe) {
+                // Silent fail - just clear input
                 input.value = '';
                 input.style.height = 'auto';
                 return;
             }
             
-            // Disable send button temporarily
-            const sendBtn = document.getElementById('sendButton');
-            const originalIcon = sendBtn.innerHTML;
-            sendBtn.disabled = true;
-            sendBtn.classList.add('disabled');
-            sendBtn.innerHTML = '<div class="spinner-small" style="width:18px;height:18px;border:2px solid #000;border-top:2px solid transparent;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block"></div>';
+            // Add optimistic comment instantly - looks like a normal comment, no badge
+            addOptimisticComment(content);
             
-            try {
-                // Send to database
-                const { data, error } = await supabase.from('posts').insert({
-                    user_id: userProfile.id,
-                    content: content,
-                    parent_id: postId,
-                    post_type: 'comment',
-                    school_name: 'Gist'
-                }).select('*, profile:user_id(username, is_official, is_verified)').single();
-                
-                if (error) throw error;
-                
-                // Update comment count
-                supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
-                
-                // Add the new comment to the DOM immediately
-                addCommentToDOM(data);
-                
-                // Clear input
-                input.value = '';
-                input.style.height = 'auto';
-                
-            } catch (err) {
-                console.error("Failed to post:", err);
-                // Silent fail - no alert
-            } finally {
-                // Re-enable send button
-                sendBtn.disabled = false;
-                sendBtn.classList.remove('disabled');
-                sendBtn.innerHTML = originalIcon;
-                lucide.createIcons();
-            }
+            // Clear input field
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // NO ALERTS, NO BADGES, NO TOASTS, NO SYNC INDICATOR
         };
-        
-        function addCommentToDOM(comment) {
-            const commentsContainer = document.querySelector('.comments-section');
-            if (!commentsContainer) return;
-            
-            // If there's a "No replies yet" placeholder, remove it
-            if (commentsContainer.innerHTML.includes('No replies yet')) {
-                commentsContainer.innerHTML = '';
-            }
-            
-            const badge = getBadgeHTML(comment.profile?.is_official, comment.profile?.is_verified);
-            
-            const commentHtml = `
-                <div class="comment-card" data-comment-id="${comment.id}" ontouchstart="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" ontouchend="endPress()" onmousedown="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" onmouseup="endPress()">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <span onclick="location.href='profile.html?u=${escapeHTML(comment.profile?.username || '')}'" class="username-link text-xs">@${escapeHTML(comment.profile?.username || 'homie')}</span>
-                            ${badge}
-                        </div>
-                        <span class="time-badge text-[9px]">just now</span>
-                    </div>
-                    <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
-                </div>
-            `;
-            commentsContainer.insertAdjacentHTML('beforeend', commentHtml);
-            
-            // Update reply count
-            const replyCountHeader = document.getElementById('replyCountHeader');
-            const replyCountDisplay = document.getElementById('replyCountDisplay');
-            const currentCount = parseInt(replyCountHeader?.innerText || '0');
-            if (replyCountHeader) replyCountHeader.innerText = currentCount + 1;
-            if (replyCountDisplay) replyCountDisplay.innerText = currentCount + 1;
-            
-            lucide.createIcons();
-            
-            // Scroll to new comment
-            setTimeout(() => {
-                const newComment = commentsContainer.lastElementChild;
-                if (newComment) newComment.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
-        }
         
         window.autoResize = (el) => {
             el.style.height = 'auto';
@@ -314,17 +426,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             const btn = document.getElementById('sendButton');
             if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); window.postComment(); });
-            
-            // Enter key to send
-            const textarea = document.getElementById('comment-input');
-            if (textarea) {
-                textarea.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        window.postComment();
-                    }
-                });
-            }
         });
         
         init();
