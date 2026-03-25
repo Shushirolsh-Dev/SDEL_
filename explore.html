@@ -24,7 +24,7 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         
-        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; will-change: transform; }
+        .post-card { background: rgba(15, 15, 15, 0.4); border-bottom: 1px solid rgba(255,255,255,0.08); transition: background 0.2s; will-change: transform; cursor: pointer; }
         .post-card:active { background: rgba(255, 102, 0, 0.05); }
         
         .tab-btn { transition: all 0.3s ease; border-bottom: 3px solid transparent; opacity: 0.5; font-weight: 900; text-transform: uppercase; font-size: 10px; letter-spacing: 0.1em; cursor: pointer; }
@@ -355,16 +355,6 @@
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-// ==================== SCALABILITY OPTIMIZATIONS ====================
-// 1. Set for O(1) lookups
-// 2. Parallel API calls
-// 3. User profile caching
-// 4. Batch like updates
-// 5. Memory leak prevention
-// 6. DocumentFragment rendering
-// 7. Debounced scroll
-// 8. RAF animations ready
-
 const supabase = createClient(
     'https://lgfyrlfjoazedwymjpfc.supabase.co', 
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
@@ -375,6 +365,7 @@ let userProfile = null;
 let currentMode = 'campus';
 let securityViolationCount = 0;
 let pressTimer = null;
+let currentActivePostId = null;
 let searchQuery = '';
 let currentEditPostId = null;
 let repostedPosts = new Set();
@@ -392,6 +383,9 @@ const userCache = new Map();
 
 let offlineQueue = JSON.parse(localStorage.getItem('offlinePosts') || '[]');
 let isOnline = navigator.onLine;
+
+// Realtime subscription for comment count updates
+let commentsSubscription = null;
 
 const bannedWebsites = [
     'porn', 'xxx', 'adult', 'sex', 'nude', 'onlyfans',
@@ -475,6 +469,38 @@ function closeSecurityModal() {
     if (modal) modal.style.display = 'none';
 }
 
+// Setup realtime subscription for comment count updates
+function setupRealtimeComments() {
+    if (commentsSubscription) {
+        commentsSubscription.unsubscribe();
+    }
+    
+    commentsSubscription = supabase
+        .channel('comments-count-updates')
+        .on('postgres_changes', { 
+            event: 'UPDATE', 
+            schema: 'public', 
+            table: 'posts',
+            filter: 'comments_count=neq.comments_count'
+        }, (payload) => {
+            // Update comment count in realtime for the affected post
+            const updatedPost = payload.new;
+            const postIndex = allPosts.findIndex(p => p.id === updatedPost.id);
+            if (postIndex !== -1) {
+                allPosts[postIndex].comments_count = updatedPost.comments_count;
+                // Update the specific post's comment count in the DOM
+                const postElement = document.querySelector(`.post-card[data-post-id="${updatedPost.id}"]`);
+                if (postElement) {
+                    const commentSpan = postElement.querySelector('.comment-count-span');
+                    if (commentSpan) {
+                        commentSpan.textContent = formatNum(updatedPost.comments_count || 0);
+                    }
+                }
+            }
+        })
+        .subscribe();
+}
+
 async function init() {
     if (initTimer) clearTimeout(initTimer);
     
@@ -520,6 +546,7 @@ async function init() {
     
     await loadMorePosts();
     setupInfiniteScroll();
+    setupRealtimeComments();
     
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', () => { isOnline = false; });
@@ -655,6 +682,16 @@ async function loadMorePosts() {
     loading = false;
 }
 
+function updateCommentCountInDOM(postId, newCount) {
+    const postElement = document.querySelector(`.post-card[data-post-id="${postId}"]`);
+    if (postElement) {
+        const commentSpan = postElement.querySelector('.comment-count-span');
+        if (commentSpan) {
+            commentSpan.textContent = formatNum(newCount);
+        }
+    }
+}
+
 function renderFeed() {
     const container = document.getElementById('feed-container');
     
@@ -698,7 +735,7 @@ function renderFeed() {
         const safeContent = post.formattedContent || escapeHTML(filterProfanity(filterLinks(post.content)));
         
         html += `
-        <div class="post-card p-4" data-post-id="${post.id}" data-post='${postDataStr}' onmousedown="startPress(event, '${postDataStr}')" onmouseup="endPress()" ontouchstart="startPress(event, '${postDataStr}')" ontouchend="endPress()">
+        <div class="post-card p-4" data-post-id="${post.id}" data-post='${postDataStr}' onmousedown="startPress(event, '${postDataStr}')" onmouseup="endPress()" onmouseleave="endPress()" ontouchstart="startPress(event, '${postDataStr}')" ontouchend="endPress()">
             <div class="flex space-x-3">
                 <div onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
                 <div class="flex-1">
@@ -713,7 +750,7 @@ function renderFeed() {
                             <i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}" class="like-icon"></i>
                             <span class="text-xs font-bold like-count">${formatNum(post.likes_count || 0)}</span>
                         </button>
-                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count || 0)}</span></button>
+                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold comment-count-span">${formatNum(post.comments_count || 0)}</span></button>
                         <button onclick="handleRepost('${post.id}', '${escapeHTML(username)}', '${escapeAttribute(post.content)}')" 
                                 class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}">
                             <i data-lucide="repeat" size="18"></i>
@@ -1042,14 +1079,18 @@ async function formatContent(text, postId) {
 function closeActions() { 
     const sheet = document.getElementById('action-sheet');
     if (sheet) sheet.classList.remove('open');
+    currentActivePostId = null;
 }
 
 document.addEventListener('click', function(event) {
     const sheet = document.getElementById('action-sheet');
     const isSheetOpen = sheet?.classList.contains('open');
     const clickedInsideSheet = sheet?.contains(event.target);
+    const clickedInsidePost = event.target.closest('.post-card');
     
-    if (isSheetOpen && !clickedInsideSheet) closeActions();
+    if (isSheetOpen && !clickedInsideSheet && !clickedInsidePost) {
+        closeActions();
+    }
 });
 
 let scrollTimeout;
@@ -1062,6 +1103,9 @@ document.addEventListener('scroll', function() {
 }, { passive: true });
 
 function showActionSheet(post) {
+    // Close any existing action sheet first
+    closeActions();
+    
     const sheet = document.getElementById('action-sheet');
     const options = document.getElementById('action-options');
     const isOwner = post.user_id === userProfile.id;
@@ -1071,7 +1115,7 @@ function showActionSheet(post) {
     let html = '';
     if (isOwner) {
         html += `<button onclick="burnGist('${post.id}')" class="w-full py-4 bg-red-950/30 text-red-500 rounded-2xl font-black uppercase text-xs flex items-center justify-center gap-2"><i data-lucide="flame" size="16"></i> Burn Gist</button>`;
-        if (canEdit) html += `<button onclick="editGist('${post.id}', \`${post.content.replace(/`/g, '\\`')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist</button>`;
+        if (canEdit) html += `<button onclick="editGist('${post.id}', \`${post.content.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)" class="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black uppercase text-xs">Edit Gist (15min)</button>`;
     }
     if (isOfficial && !isOwner) {
         const isBanned = post.is_banned || false;
@@ -1083,6 +1127,7 @@ function showActionSheet(post) {
     }
     options.innerHTML = html || '<p class="text-zinc-500 text-xs font-bold uppercase text-center">No actions available</p>';
     sheet.classList.add('open');
+    currentActivePostId = post.id;
     lucide.createIcons();
 }
 
@@ -1099,11 +1144,17 @@ async function unbanUser(userId) {
 }
 
 async function burnGist(id) {
+    if (!confirm("🔥 Burn this gist? This action cannot be undone.")) return;
+    
     const { error } = await supabase.from('posts').delete().eq('id', id);
     if (!error) { 
         allPosts = allPosts.filter(p => p.id !== id);
         renderFeed();
-        closeActions(); 
+        closeActions();
+        showToast("Gist burned!");
+    } else {
+        showToast("Failed to burn gist");
+        console.error("Burn error:", error);
     }
 }
 
@@ -1172,16 +1223,24 @@ function toggleSearch() {
 }
 
 function startPress(e, postData) {
+    // Clear any existing timer
+    if (pressTimer) clearTimeout(pressTimer);
+    
     try {
         const post = typeof postData === 'string' ? JSON.parse(postData) : postData;
-        pressTimer = setTimeout(() => { showActionSheet(post); }, 500);
+        pressTimer = setTimeout(() => { 
+            showActionSheet(post); 
+        }, 500);
     } catch (error) {
         console.error("Error parsing post data:", error);
     }
 }
 
 function endPress() { 
-    clearTimeout(pressTimer); 
+    if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+    }
 }
 
 async function handleMentions(input) {
