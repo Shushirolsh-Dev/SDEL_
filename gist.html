@@ -340,7 +340,8 @@
                     if (!error) {
                         pendingComments.shift();
                         savePendingQueue();
-                        supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
+                        // Increment comment count when offline comment syncs
+                        await supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
                         
                         const tempElement = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
                         if (tempElement) {
@@ -492,6 +493,12 @@
                 .select('*', { count: 'exact', head: true })
                 .eq('parent_id', postId);
             totalCommentsCount = count || 0;
+            
+            // Sync comments_count in database if it's out of sync
+            if (post.comments_count !== totalCommentsCount) {
+                await supabase.from('posts').update({ comments_count: totalCommentsCount }).eq('id', postId);
+                post.comments_count = totalCommentsCount;
+            }
             
             const profile = post.profile || {};
             const badge = getBadgeHTML(profile.is_official, profile.is_verified);
