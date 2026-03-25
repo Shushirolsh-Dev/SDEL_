@@ -35,6 +35,19 @@
         #comment-input{background:transparent;border:none;padding:12px 16px;flex:1}
         #comment-input:focus{border:none;outline:0}
         .time-badge{font-size:10px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;background:rgba(255,255,255,.03);padding:4px 8px;border-radius:20px;display:inline-block}
+        .original-post-card {
+            background: rgba(18,18,18,.7);
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
+            word-wrap: break-word;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .original-post-card:active {
+            background: rgba(255,102,0,.05);
+        }
         /* sunlight mode */
         .sunlight-mode body{background-color:#f8f8fa;color:#121212}
         .sunlight-mode nav{background-color:rgba(255,255,255,.95)!important;border-color:#e4e4e7!important}
@@ -45,6 +58,7 @@
         .sunlight-mode .modal-content{background:#fff;border-color:#eee;color:#121212}
         .sunlight-mode #edit-textarea{background:#f4f4f5;border-color:#e4e4e7;color:#121212}
         .sunlight-mode .comment-card{background:rgba(240,240,245,.7);border:1px solid rgba(0,0,0,.05);border-left:3px solid #FF6600}
+        .sunlight-mode .original-post-card{background:rgba(240,240,245,.7);border:1px solid rgba(0,0,0,.05)}
         .sunlight-mode .time-badge{background:rgba(0,0,0,.03);color:#52525b}
         
         /* Skeleton loading styles */
@@ -92,10 +106,31 @@
             color: #71717a;
             font-size: 12px;
         }
+        .toast-message {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #FF6600;
+            color: black;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 900;
+            font-size: 12px;
+            text-transform: uppercase;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 9999;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .toast-message.show {
+            transform: translateX(-50%) translateY(0);
+        }
     </style>
 </head>
 <body class="pb-24">
-    <div id="action-sheet" onclick="closeSheet()"><div class="sheet-content" onclick="event.stopPropagation()"><div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6"></div><div id="edit-option"><button id="edit-btn" class="w-full py-4 text-left font-medium border-b border-white/5 flex items-center gap-3"><i data-lucide="edit-3" size="18"></i> Edit Reply</button></div><button id="burn-btn" class="w-full py-4 text-left font-medium text-red-500 flex items-center gap-3"><i data-lucide="flame" size="18"></i> Burn Reply</button><button onclick="closeSheet()" class="w-full py-4 mt-2 text-center text-zinc-500 font-medium text-xs">Cancel</button></div></div>
+    <div id="toast" class="toast-message"></div>
+    <div id="action-sheet" onclick="closeSheet()"><div class="sheet-content" onclick="event.stopPropagation()"><div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6"></div><div id="edit-option" style="display: none;"><button id="edit-btn" class="w-full py-4 text-left font-medium border-b border-white/5 flex items-center gap-3"><i data-lucide="edit-3" size="18"></i> Edit Reply (15min)</button></div><button id="burn-btn" class="w-full py-4 text-left font-medium text-red-500 flex items-center gap-3"><i data-lucide="flame" size="18"></i> Burn Reply</button><button onclick="closeSheet()" class="w-full py-4 mt-2 text-center text-zinc-500 font-medium text-xs">Cancel</button></div></div>
     <div id="edit-modal"><div class="modal-content"><h3 class="font-bold text-lg text-sdel tracking-tighter">Edit your reply</h3><textarea id="edit-textarea" rows="4"></textarea><div class="flex gap-3"><button onclick="closeEditModal()" class="flex-1 py-3 bg-zinc-900 rounded-xl font-medium text-xs">Cancel</button><button id="save-edit-btn" class="flex-1 py-3 bg-sdel text-black rounded-xl font-bold text-xs">Update</button></div></div></div>
 
     <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/5"><div class="px-4 py-4 flex items-center gap-4"><button onclick="history.back()" class="p-2 -ml-2"><i data-lucide="arrow-left"></i></button><h1 class="text-xl font-bold tracking-tight">The <span class="text-sdel">Gist</span></h1></div></nav>
@@ -115,7 +150,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const postId = urlParams.get('id');
         let userProfile = null;
-        let pressTimer;
+        let pressTimer = null;
+        let currentPressTarget = null;
         
         // Pagination state
         const COMMENTS_PER_PAGE = 25;
@@ -129,6 +165,13 @@
         let pendingComments = [];
         let syncInProgress = false;
         let syncRetryTimeout = null;
+        
+        function showToastMessage(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
         
         function generateTempId() { return `temp_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`; }
         
@@ -177,11 +220,15 @@
                 if (newCommentEl) newCommentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 100);
             
-            // Update reply count optimistically
+            // Update reply count optimistically AND update database
             const replyCountDisplay = document.getElementById('replyCountDisplay');
             const replyCountHeader = document.getElementById('replyCountHeader');
-            if (replyCountDisplay) replyCountDisplay.innerText = (parseInt(replyCountDisplay.innerText) || 0) + 1;
-            if (replyCountHeader) replyCountHeader.innerText = (parseInt(replyCountHeader.innerText) || 0) + 1;
+            const newCount = (parseInt(replyCountDisplay?.innerText) || 0) + 1;
+            if (replyCountDisplay) replyCountDisplay.innerText = newCount;
+            if (replyCountHeader) replyCountHeader.innerText = newCount;
+            
+            // Also update the post's comments_count in database immediately
+            supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
             
             triggerSync();
             return tempId;
@@ -193,9 +240,12 @@
             
             const badge = getBadgeHTML(comment.profile?.is_official, comment.profile?.is_verified);
             const timeDisplay = formatTimeAgo(comment.created_at);
+            const commentTime = new Date(comment.created_at).getTime();
+            const now = Date.now();
+            const canEdit = (now - commentTime) < 15 * 60 * 1000;
             
             const commentHtml = `
-                <div class="comment-card" data-temp-id="${comment.tempId || comment.id}" data-comment-id="${comment.id}">
+                <div class="comment-card" data-temp-id="${comment.tempId || comment.id}" data-comment-id="${comment.id}" data-user-id="${comment.user_id}" data-created-at="${comment.created_at}" data-content="${escapeHTML(comment.content)}" oncontextmenu="return false;" ontouchstart="startPressComment(event, '${comment.id}', '${comment.user_id}', '${escapeHTML(comment.content)}', '${comment.created_at}')" ontouchend="endPress()" onmousedown="startPressComment(event, '${comment.id}', '${comment.user_id}', '${escapeHTML(comment.content)}', '${comment.created_at}')" onmouseup="endPress()">
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center gap-2 flex-wrap">
                             <span onclick="location.href='profile.html?u=${escapeHTML(comment.profile?.username || '')}'" class="username-link text-xs">@${escapeHTML(comment.profile?.username || 'homie')}</span>
@@ -242,14 +292,13 @@
             if (isLoading || !hasMoreComments) return;
             isLoading = true;
             
-            // Show skeleton loaders
             renderSkeletonLoaders(3);
             
             try {
                 const start = currentPage * COMMENTS_PER_PAGE;
                 const { data: comments, error } = await supabase
                     .from('posts')
-                    .select('*, profile:user_id(username, is_official, is_verified)', { count: 'exact' })
+                    .select('*, profile:user_id(username, is_official, is_verified)')
                     .eq('parent_id', postId)
                     .order('created_at', { ascending: true })
                     .range(start, start + COMMENTS_PER_PAGE - 1);
@@ -260,7 +309,6 @@
                 
                 if (comments && comments.length > 0) {
                     const commentsContainer = document.querySelector('.comments-section');
-                    // Remove "No replies yet" placeholder if exists
                     const noRepliesMsg = commentsContainer?.querySelector('.no-replies-placeholder');
                     if (noRepliesMsg) noRepliesMsg.remove();
                     
@@ -273,7 +321,6 @@
                     hasMoreComments = false;
                 }
                 
-                // Show end message if no more comments
                 if (!hasMoreComments && currentPage > 0) {
                     const commentsContainer = document.querySelector('.comments-section');
                     const existingEnd = commentsContainer?.querySelector('.end-message');
@@ -289,7 +336,6 @@
             }
         }
         
-        // Infinite scroll observer
         let observer = null;
         function setupInfiniteScroll() {
             if (observer) observer.disconnect();
@@ -340,7 +386,6 @@
                     if (!error) {
                         pendingComments.shift();
                         savePendingQueue();
-                        // Increment comment count when offline comment syncs
                         await supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
                         
                         const tempElement = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
@@ -379,25 +424,47 @@
             if (pendingComments.length > 0) triggerSync();
         });
         
-        window.closeSheet = () => document.getElementById('action-sheet').style.display = 'none';
-        window.closeEditModal = () => document.getElementById('edit-modal').style.display = 'none';
+        window.closeSheet = () => {
+            const sheet = document.getElementById('action-sheet');
+            if (sheet) sheet.style.display = 'none';
+            if (pressTimer) clearTimeout(pressTimer);
+        };
+        window.closeEditModal = () => {
+            const modal = document.getElementById('edit-modal');
+            if (modal) modal.style.display = 'none';
+        };
         
-        window.startPress = (id, userId, content, time) => {
+        function startPressComment(e, id, userId, content, createdAt) {
             if (userProfile?.id !== userId) return;
+            e.preventDefault();
+            currentPressTarget = { id, userId, content, createdAt };
             pressTimer = setTimeout(() => {
                 const sheet = document.getElementById('action-sheet');
                 const editOpt = document.getElementById('edit-option');
                 const editBtn = document.getElementById('edit-btn');
-                const commentTime = new Date(time).getTime();
-                const diffMinutes = (Date.now() - commentTime) / (1e3 * 60);
-                editOpt.style.display = diffMinutes < 20 ? 'block' : 'none';
-                sheet.style.display = 'flex';
-                editBtn.onclick = () => openEditModal(id, content);
+                const commentTime = new Date(createdAt).getTime();
+                const diffMinutes = (Date.now() - commentTime) / (1000 * 60);
+                
+                if (diffMinutes < 15) {
+                    editOpt.style.display = 'block';
+                    editBtn.onclick = () => openEditModal(id, content);
+                } else {
+                    editOpt.style.display = 'none';
+                }
+                
                 document.getElementById('burn-btn').onclick = () => burnComment(id);
+                sheet.style.display = 'flex';
                 lucide.createIcons();
             }, 500);
-        };
-        window.endPress = () => clearTimeout(pressTimer);
+        }
+        
+        function endPress() { 
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+            currentPressTarget = null;
+        }
         
         function formatTimeAgo(dateString) {
             const date = new Date(dateString);
@@ -445,7 +512,6 @@
                 triggerSync();
             }
             
-            // Load first batch of comments
             await loadMoreComments();
             setupInfiniteScroll();
         }
@@ -487,14 +553,13 @@
             
             postData = post;
             
-            // Get total comment count for pagination awareness
             const { count } = await supabase
                 .from('posts')
                 .select('*', { count: 'exact', head: true })
                 .eq('parent_id', postId);
             totalCommentsCount = count || 0;
             
-            // Sync comments_count in database if it's out of sync
+            // Sync comments_count if out of sync
             if (post.comments_count !== totalCommentsCount) {
                 await supabase.from('posts').update({ comments_count: totalCommentsCount }).eq('id', postId);
                 post.comments_count = totalCommentsCount;
@@ -502,26 +567,104 @@
             
             const profile = post.profile || {};
             const badge = getBadgeHTML(profile.is_official, profile.is_verified);
-            let html = `<div class="original-post-container"><div class="flex items-center gap-3 mb-4"><div onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center font-bold text-sdel border border-white/10 uppercase cursor-pointer">${escapeHTML(profile.username?.[0] || 'H')}</div><div><div class="flex items-center gap-1.5"><span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link">@${escapeHTML(profile.username || 'homie')}</span>${badge}</div><span class="time-badge">${formatTimeAgo(post.created_at)}</span></div></div><p class="text-base text-zinc-100 leading-relaxed mb-4">${escapeHTML(post.content)}</p><div class="flex items-center gap-6 text-zinc-500 border-y border-white/5 py-3"><div class="flex items-center gap-1.5"><span class="font-medium text-white">${post.likes_count || 0}</span> <span class="text-xs">Likes</span></div><div class="flex items-center gap-1.5"><span class="font-medium text-white" id="replyCountDisplay">${totalCommentsCount}</span> <span class="text-xs">Replies</span></div></div></div><div class="mt-2"><h2 class="text-xs font-medium uppercase text-zinc-600 tracking-wider mb-4">Replies · <span id="replyCountHeader">${totalCommentsCount}</span></h2><div class="comments-section">${totalCommentsCount === 0 ? '<p class="text-center py-8 text-zinc-600 text-sm no-replies-placeholder">No replies yet</p>' : ''}</div></div>`;
+            const postTime = new Date(post.created_at).getTime();
+            const canEditOriginal = (Date.now() - postTime) < 15 * 60 * 1000;
+            
+            let html = `
+                <div class="original-post-card" data-post-id="${post.id}" data-user-id="${post.user_id}" data-created-at="${post.created_at}" oncontextmenu="return false;" ontouchstart="startPressOriginal(event, '${post.id}', '${post.user_id}', '${escapeHTML(post.content)}', '${post.created_at}')" ontouchend="endPress()" onmousedown="startPressOriginal(event, '${post.id}', '${post.user_id}', '${escapeHTML(post.content)}', '${post.created_at}')" onmouseup="endPress()">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center font-bold text-sdel border border-white/10 uppercase cursor-pointer">${escapeHTML(profile.username?.[0] || 'H')}</div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link">@${escapeHTML(profile.username || 'homie')}</span>
+                                ${badge}
+                            </div>
+                            <span class="time-badge">${formatTimeAgo(post.created_at)}</span>
+                        </div>
+                    </div>
+                    <p class="text-base text-zinc-100 leading-relaxed mb-4">${escapeHTML(post.content)}</p>
+                    <div class="flex items-center gap-6 text-zinc-500 border-y border-white/5 py-3">
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-medium text-white">${post.likes_count || 0}</span> <span class="text-xs">Likes</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-medium text-white" id="replyCountDisplay">${totalCommentsCount}</span> <span class="text-xs">Replies</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <h2 class="text-xs font-medium uppercase text-zinc-600 tracking-wider mb-4">Replies · <span id="replyCountHeader">${totalCommentsCount}</span></h2>
+                    <div class="comments-section">${totalCommentsCount === 0 ? '<p class="text-center py-8 text-zinc-600 text-sm no-replies-placeholder">No replies yet</p>' : ''}</div>
+                </div>
+            `;
             container.innerHTML = html;
             lucide.createIcons();
         }
         
-        function renderCommentHtml(comment) {
-            const profile = comment.profile || {};
-            const badge = getBadgeHTML(profile.is_official, profile.is_verified);
-            return `
-                <div class="comment-card" data-comment-id="${comment.id}" ontouchstart="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" ontouchend="endPress()" onmousedown="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" onmouseup="endPress()">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link text-xs">@${escapeHTML(profile.username || 'homie')}</span>
-                            ${badge}
-                        </div>
-                        <span class="time-badge text-[9px]">${formatTimeAgo(comment.created_at)}</span>
-                    </div>
-                    <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
-                </div>
-            `;
+        // Long press for original post
+        window.startPressOriginal = (e, id, userId, content, createdAt) => {
+            if (userProfile?.id !== userId) return;
+            e.preventDefault();
+            pressTimer = setTimeout(() => {
+                const sheet = document.getElementById('action-sheet');
+                const editOpt = document.getElementById('edit-option');
+                const editBtn = document.getElementById('edit-btn');
+                const postTime = new Date(createdAt).getTime();
+                const diffMinutes = (Date.now() - postTime) / (1000 * 60);
+                
+                if (diffMinutes < 15) {
+                    editOpt.style.display = 'block';
+                    editBtn.innerHTML = '<i data-lucide="edit-3" size="18"></i> Edit Gist (15min)';
+                    editBtn.onclick = () => openEditOriginalModal(id, content);
+                } else {
+                    editOpt.style.display = 'none';
+                }
+                
+                document.getElementById('burn-btn').innerHTML = '<i data-lucide="flame" size="18"></i> Burn Gist';
+                document.getElementById('burn-btn').onclick = () => burnOriginalPost(id);
+                sheet.style.display = 'flex';
+                lucide.createIcons();
+            }, 500);
+        };
+        
+        async function openEditOriginalModal(id, oldContent) {
+            closeSheet();
+            const modal = document.getElementById('edit-modal');
+            const textarea = document.getElementById('edit-textarea');
+            const saveBtn = document.getElementById('save-edit-btn');
+            textarea.value = oldContent;
+            modal.style.display = 'flex';
+            saveBtn.onclick = async () => {
+                let newContent = textarea.value.trim();
+                newContent = sanitizeInput(newContent);
+                if (newContent && newContent !== oldContent) {
+                    const { error } = await supabase.from('posts').update({ content: newContent }).eq('id', id);
+                    if (!error) {
+                        showToastMessage("Gist updated!");
+                        closeEditModal();
+                        await loadGist();
+                        await loadMoreComments();
+                        setupInfiniteScroll();
+                    } else {
+                        showToastMessage("Failed to update");
+                    }
+                } else {
+                    closeEditModal();
+                }
+            };
+        }
+        
+        async function burnOriginalPost(id) {
+            closeSheet();
+            const { error } = await supabase.from('posts').delete().eq('id', id);
+            if (!error) {
+                showToastMessage("Gist burned!");
+                setTimeout(() => {
+                    window.location.href = 'explore.html';
+                }, 1000);
+            } else {
+                showToastMessage("Failed to burn gist");
+            }
         }
         
         function getBadgeHTML(official, verified) {
@@ -541,15 +684,19 @@
                 let newContent = textarea.value.trim();
                 newContent = sanitizeInput(newContent);
                 if (newContent && newContent !== oldContent) {
-                    await supabase.from('posts').update({ content: newContent }).eq('id', id);
-                    closeEditModal();
-                    // Reload the page state instead of full reload
-                    currentPage = 0;
-                    hasMoreComments = true;
-                    const commentsContainer = document.querySelector('.comments-section');
-                    if (commentsContainer) commentsContainer.innerHTML = '';
-                    await loadMoreComments();
-                    setupInfiniteScroll();
+                    const { error } = await supabase.from('posts').update({ content: newContent }).eq('id', id);
+                    if (!error) {
+                        showToastMessage("Reply updated!");
+                        closeEditModal();
+                        currentPage = 0;
+                        hasMoreComments = true;
+                        const commentsContainer = document.querySelector('.comments-section');
+                        if (commentsContainer) commentsContainer.innerHTML = '';
+                        await loadMoreComments();
+                        setupInfiniteScroll();
+                    } else {
+                        showToastMessage("Failed to update");
+                    }
                 } else {
                     closeEditModal();
                 }
@@ -558,20 +705,34 @@
         
         async function burnComment(id) {
             closeSheet();
-            await supabase.from('posts').delete().eq('id', id);
-            await supabase.rpc('decrement_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
-            // Refresh comments
-            currentPage = 0;
-            hasMoreComments = true;
-            const commentsContainer = document.querySelector('.comments-section');
-            if (commentsContainer) commentsContainer.innerHTML = '';
-            await loadMoreComments();
-            setupInfiniteScroll();
-            
-            const replyCountDisplay = document.getElementById('replyCountDisplay');
-            const replyCountHeader = document.getElementById('replyCountHeader');
-            if (replyCountDisplay) replyCountDisplay.innerText = Math.max(0, (parseInt(replyCountDisplay.innerText) || 0) - 1);
-            if (replyCountHeader) replyCountHeader.innerText = Math.max(0, (parseInt(replyCountHeader.innerText) || 0) - 1);
+            const { error } = await supabase.from('posts').delete().eq('id', id);
+            if (!error) {
+                showToastMessage("Reply burned!");
+                await supabase.rpc('decrement_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
+                
+                currentPage = 0;
+                hasMoreComments = true;
+                const commentsContainer = document.querySelector('.comments-section');
+                if (commentsContainer) commentsContainer.innerHTML = '';
+                await loadMoreComments();
+                setupInfiniteScroll();
+                
+                const { count } = await supabase
+                    .from('posts')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('parent_id', postId);
+                const newCount = count || 0;
+                
+                const replyCountDisplay = document.getElementById('replyCountDisplay');
+                const replyCountHeader = document.getElementById('replyCountHeader');
+                if (replyCountDisplay) replyCountDisplay.innerText = newCount;
+                if (replyCountHeader) replyCountHeader.innerText = newCount;
+                
+                // Also update the post's comments_count in database
+                await supabase.from('posts').update({ comments_count: newCount }).eq('id', postId);
+            } else {
+                showToastMessage("Failed to burn reply");
+            }
         }
         
         window.postComment = async () => {
@@ -584,6 +745,7 @@
             if (!scanResult.safe) {
                 input.value = '';
                 input.style.height = 'auto';
+                showToastMessage("Content blocked");
                 return;
             }
             
@@ -601,6 +763,14 @@
             const btn = document.getElementById('sendButton');
             if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); window.postComment(); });
         });
+        
+        // Make functions global
+        window.startPressOriginal = startPressOriginal;
+        window.startPressComment = startPressComment;
+        window.endPress = endPress;
+        window.closeSheet = closeSheet;
+        window.closeEditModal = closeEditModal;
+        window.openEditModal = openEditModal;
         
         init();
     </script>
