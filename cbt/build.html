@@ -17,10 +17,13 @@
         .subject-pill { padding: 6px 14px; border-radius: 99px; font-size: 10px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .subject-active { background: #ff6600; border-color: #ff6600; color: white; box-shadow: 0 4px 15px rgba(255, 102, 0, 0.3); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .q-preview-card { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 16px; border: 1px solid rgba(255,255,255,0.05); }
+        .q-preview-card { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 16px; border: 1px solid rgba(255,255,255,0.05); position: relative; }
         #toast { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(150%); }
         #toast.active { transform: translateY(0); }
         .watermark { position: absolute; bottom: 20px; right: 20px; font-size: 12px; font-weight: 900; opacity: 0.2; color: #ff6600; text-transform: uppercase; letter-spacing: 2px; }
+        .option-text { word-wrap: break-word; white-space: normal; line-height: 1.4; }
+        .delete-question-btn { transition: 0.2s; }
+        .delete-question-btn:hover { color: #ff6600; }
     </style>
 </head>
 <body class="p-5 pb-32">
@@ -189,23 +192,18 @@
             const title = document.getElementById('exam-title').value;
             if(!title || selectedSubs.length === 0) return notify("Incomplete Details!");
 
-            // 🔥 NEW: Validate start time is not in the past
             const startTimeValue = document.getElementById('start-time').value;
             if (startTimeValue) {
                 const selectedDate = new Date(startTimeValue);
                 const now = new Date();
-                
-                // Remove timezone offset for accurate comparison
                 selectedDate.setMinutes(selectedDate.getMinutes() + selectedDate.getTimezoneOffset());
-                
                 if (selectedDate < now) {
                     notify("❌ Start time cannot be in the past!");
                     return;
                 }
             }
 
-            // Generate 12-character code: 3 digits, uppercase, 3 lowercase, 2 digits, 2 lowercase, 1 digit
-            const firstThree = Math.floor(100 + Math.random() * 900); // 100-999
+            const firstThree = Math.floor(100 + Math.random() * 900);
             const upper = String.fromCharCode(65 + Math.floor(Math.random() * 26));
             const lower1 = String.fromCharCode(97 + Math.floor(Math.random() * 26));
             const lower2 = String.fromCharCode(97 + Math.floor(Math.random() * 26));
@@ -284,22 +282,43 @@
             }
         }
 
+        async function deleteQuestion(questionId) {
+            if(confirm("Delete this question? This action cannot be undone.")) {
+                const { error } = await sb.from('cbt_questions').delete().eq('id', questionId);
+                if(!error) {
+                    notify("Question deleted!");
+                    renderPreviews();
+                    // If we were editing this question, clear the form
+                    if(editingQId === questionId) {
+                        clearQForm();
+                    }
+                } else {
+                    notify("Error deleting question!");
+                }
+            }
+        }
+
         async function renderPreviews() {
             const { data } = await sb.from('cbt_questions')
                 .select('*')
                 .eq('build_id', activeBuildId)
-                .eq('subject_tag', activeSub); // SEPARATED BY SUBJECT
+                .eq('subject_tag', activeSub);
             
             document.getElementById('q-preview-list').innerHTML = (data || []).map((q, i) => `
                 <div class="q-preview-card">
-                    <div class="flex justify-between mb-2">
+                    <div class="flex justify-between items-center mb-2">
                         <p class="text-[9px] font-black text-orange-500 uppercase">Question ${i+1}</p>
-                        <button onclick="editQ('${q.id}')" class="text-[8px] font-black text-white/40 uppercase">Edit</button>
+                        <div class="flex gap-2">
+                            <button onclick="editQ('${q.id}')" class="text-[8px] font-black text-white/40 uppercase hover:text-white/80 transition">Edit</button>
+                            <button onclick="deleteQuestion('${q.id}')" class="text-[8px] font-black text-red-500/60 uppercase hover:text-red-500 transition delete-question-btn">Delete</button>
+                        </div>
                     </div>
                     <p class="text-xs font-bold mb-3">${q.question_text}</p>
-                    <div class="grid grid-cols-2 gap-2 opacity-50 text-[10px]">
-                        <p>A: ${q.option_a}</p><p>B: ${q.option_b}</p>
-                        <p>C: ${q.option_c}</p><p>D: ${q.option_d}</p>
+                    <div class="space-y-1 text-[10px] opacity-50">
+                        <p class="option-text">A: ${q.option_a}</p>
+                        <p class="option-text">B: ${q.option_b}</p>
+                        <p class="option-text">C: ${q.option_c}</p>
+                        <p class="option-text">D: ${q.option_d}</p>
                     </div>
                 </div>`).join('');
         }
@@ -319,7 +338,8 @@
                 window.scrollTo({top: 0, behavior: 'smooth'});
             }
         }
-      async function loadVault() {
+        
+        async function loadVault() {
             const { data } = await sb.from('cbt_builds').select('*').eq('creator_id', userId).order('created_at', {ascending: false});
             const v = document.getElementById('view-vault');
             
@@ -359,7 +379,8 @@
                 notify("Exam Wiped!");
             }
         }
-async function openAnalysis(id, name, code) {
+
+        async function openAnalysis(id, name, code) {
             document.getElementById('view-vault').classList.add('hidden');
             document.getElementById('view-analytics').classList.remove('hidden');
             document.getElementById('ana-title').innerText = name;
