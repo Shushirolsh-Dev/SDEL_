@@ -41,8 +41,6 @@
         #comment-input{background:transparent;border:none;padding:12px 16px;flex:1}
         #comment-input:focus{border:none;outline:0}
         .time-badge{font-size:10px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;background:rgba(255,255,255,.03);padding:4px 8px;border-radius:20px;display:inline-block}
-        .pending-badge{background:rgba(255,102,0,.2);color:#FF6600;font-size:9px;padding:2px 8px;border-radius:20px;margin-left:8px;display:inline-flex;align-items:center;gap:4px}
-        .comment-card.pending{opacity:0.85;border-left-color:#ffaa44;background:rgba(255,102,0,.08)}
         /* sunlight mode */
         .sunlight-mode body{background-color:#f8f8fa;color:#121212}
         .sunlight-mode nav{background-color:rgba(255,255,255,.95)!important;border-color:#e4e4e7!important}
@@ -54,11 +52,6 @@
         .sunlight-mode #edit-textarea{background:#f4f4f5;border-color:#e4e4e7;color:#121212}
         .sunlight-mode .comment-card{background:rgba(240,240,245,.7);border:1px solid rgba(0,0,0,.05);border-left:3px solid #FF6600}
         .sunlight-mode .time-badge{background:rgba(0,0,0,.03);color:#52525b}
-        .sunlight-mode .pending-badge{background:rgba(255,102,0,.15);color:#cc5200}
-        .sunlight-mode .comment-card.pending{background:rgba(255,102,0,.05)}
-        /* sync indicator - subtle */
-        .sync-status{position:fixed;bottom:80px;right:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);padding:6px 12px;border-radius:40px;font-size:10px;color:#FF6600;z-index:100;display:flex;align-items:center;gap:6px;pointer-events:none;font-weight:500}
-        .sunlight-mode .sync-status{background:rgba(255,255,255,.8);color:#FF6600}
     </style>
 </head>
 <body class="pb-24">
@@ -71,7 +64,6 @@
     <main id="gist-thread" class="p-4 flex flex-col gap-6"><div id="main-post-loader" class="py-20 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div></main>
 
     <div class="fixed bottom-0 inset-x-0 bg-black/95 border-t border-white/10 p-4 pb-env(safe-area-inset-bottom) z-50"><div class="input-container"><textarea id="comment-input" placeholder="Drop a reply..." rows="1" oninput="autoResize(this)"></textarea><button id="sendButton" class="send-button"><i data-lucide="send" size="18"></i></button></div></div>
-    <div id="syncStatus" class="sync-status" style="display: none;"><i data-lucide="cloud" size="12"></i> <span>Syncing...</span></div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -86,41 +78,7 @@
         let userProfile = null;
         let pressTimer;
         
-        // --- Optimistic UI + Offline Queue (NO success toast, only errors) ---
-        let pendingComments = []; // { id, content, tempId, createdAt, username, isOfficial, isVerified }
-        let syncInProgress = false;
-        let syncRetryTimeout = null;
-        
-        // Generate temp IDs for optimistic comments
-        function generateTempId() { return `temp_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`; }
-        
-        // Load pending queue from localStorage
-        function loadPendingQueue() {
-            const stored = localStorage.getItem('gist_pending_comments');
-            if (stored) {
-                try { pendingComments = JSON.parse(stored); } catch(e) { pendingComments = []; }
-            } else { pendingComments = []; }
-        }
-        
-        function savePendingQueue() {
-            localStorage.setItem('gist_pending_comments', JSON.stringify(pendingComments));
-            updateSyncIndicator();
-        }
-        
-        function updateSyncIndicator() {
-            const el = document.getElementById('syncStatus');
-            if (!el) return;
-            if (pendingComments.length > 0 || syncInProgress) {
-                el.style.display = 'flex';
-                const span = el.querySelector('span');
-                if (span) span.innerText = pendingComments.length > 0 ? `Syncing (${pendingComments.length})` : 'Syncing...';
-                lucide.createIcons();
-            } else {
-                el.style.display = 'none';
-            }
-        }
-        
-        // Show toast ONLY for errors (silent on success - "rubbish" removed)
+        // Show toast ONLY for errors (silent on success)
         function showErrorToast(msg) {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
@@ -129,195 +87,6 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
             setTimeout(() => toast.classList.remove('error'), 3000);
         }
-        
-        // Optimistic insert: add comment to UI instantly, no toast
-        function addOptimisticComment(content) {
-            const tempId = generateTempId();
-            const now = new Date().toISOString();
-            const optimisticComment = {
-                id: tempId,
-                tempId: tempId,
-                content: content,
-                created_at: now,
-                user_id: userProfile?.id,
-                profile: {
-                    username: userProfile?.username || 'homie',
-                    is_official: userProfile?.is_official || false,
-                    is_verified: userProfile?.is_verified || false
-                },
-                pending: true
-            };
-            
-            // Store in pending queue
-            pendingComments.push({
-                tempId: tempId,
-                content: content,
-                createdAt: now,
-                username: userProfile?.username || 'homie',
-                isOfficial: userProfile?.is_official || false,
-                isVerified: userProfile?.is_verified || false
-            });
-            savePendingQueue();
-            
-            // Render comment into the DOM optimistically
-            appendCommentToDOM(optimisticComment);
-            
-            // Auto-scroll to new comment
-            setTimeout(() => {
-                const newCommentEl = document.querySelector(`.comment-card[data-temp-id="${tempId}"]`);
-                if (newCommentEl) newCommentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
-            
-            // Trigger background sync
-            triggerSync();
-            
-            return tempId;
-        }
-        
-        function appendCommentToDOM(comment) {
-            const commentsContainer = document.querySelector('.comments-section');
-            if (!commentsContainer) return;
-            
-            const badge = getBadgeHTML(comment.profile?.is_official, comment.profile?.is_verified);
-            const pendingAttr = comment.pending ? 'pending' : '';
-            const pendingBadgeHtml = comment.pending ? `<span class="pending-badge"><i data-lucide="clock" size="10"></i> Sending...</span>` : '';
-            const timeDisplay = comment.pending ? 'just now' : formatTimeAgo(comment.created_at);
-            
-            const commentHtml = `
-                <div class="comment-card ${pendingAttr}" data-temp-id="${comment.tempId || comment.id}" data-comment-id="${comment.id}">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span onclick="location.href='profile.html?u=${escapeHTML(comment.profile?.username || '')}'" class="username-link text-xs">@${escapeHTML(comment.profile?.username || 'homie')}</span>
-                            ${badge}
-                            ${pendingBadgeHtml}
-                        </div>
-                        <span class="time-badge text-[9px]">${timeDisplay}</span>
-                    </div>
-                    <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
-                </div>
-            `;
-            commentsContainer.insertAdjacentHTML('beforeend', commentHtml);
-            lucide.createIcons();
-        }
-        
-        // Sync: try to send all pending comments to server — NO success toasts, only errors
-        async function triggerSync() {
-            if (syncInProgress) return;
-            if (pendingComments.length === 0) return;
-            if (!userProfile) return;
-            
-            syncInProgress = true;
-            updateSyncIndicator();
-            
-            // Process queue sequentially to avoid race conditions
-            while (pendingComments.length > 0) {
-                const pending = pendingComments[0];
-                if (!pending) break;
-                
-                try {
-                    const { error } = await supabase.from('posts').insert({
-                        user_id: userProfile.id,
-                        content: pending.content,
-                        parent_id: postId,
-                        post_type: 'comment',
-                        school_name: 'Gist'
-                    });
-                    
-                    if (!error) {
-                        // Success: remove from queue - NO TOAST
-                        pendingComments.shift();
-                        savePendingQueue();
-                        
-                        // Update comment count on original post (fire-and-forget)
-                        supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
-                        
-                        // Replace pending style with permanent look
-                        const tempElement = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
-                        if (tempElement) {
-                            tempElement.classList.remove('pending');
-                            const badgeSpan = tempElement.querySelector('.pending-badge');
-                            if (badgeSpan) badgeSpan.remove();
-                            const timeBadge = tempElement.querySelector('.time-badge');
-                            if (timeBadge) timeBadge.innerText = 'just now';
-                        }
-                    } else {
-                        throw new Error(error.message);
-                    }
-                } catch (err) {
-                    console.warn("Sync failed, will retry later", err);
-                    // exponential backoff
-                    if (!pending.retryCount) pending.retryCount = 0;
-                    pending.retryCount++;
-                    if (pending.retryCount >= 5) {
-                        // too many failures, drop it and show error (only error toast)
-                        showErrorToast("Reply failed after multiple attempts. Please try again.");
-                        pendingComments.shift();
-                        savePendingQueue();
-                        // remove the failed optimistic comment
-                        const failedEl = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
-                        if (failedEl) failedEl.remove();
-                    } else {
-                        const delay = Math.min(30000, 1000 * Math.pow(2, pending.retryCount));
-                        if (syncRetryTimeout) clearTimeout(syncRetryTimeout);
-                        syncRetryTimeout = setTimeout(() => {
-                            syncInProgress = false;
-                            triggerSync();
-                        }, delay);
-                        syncInProgress = false;
-                        updateSyncIndicator();
-                        return;
-                    }
-                }
-            }
-            syncInProgress = false;
-            updateSyncIndicator();
-            if (syncRetryTimeout) clearTimeout(syncRetryTimeout);
-            // After all synced, optionally do a full refresh to ensure counts match server
-            if (pendingComments.length === 0) {
-                await refreshCommentsFromServer();
-            }
-        }
-        
-        // Refresh comments from server but preserve optimistic pending comments? Actually pending queue is empty after sync.
-        async function refreshCommentsFromServer() {
-            if (!postId) return;
-            const { data: comments } = await supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').eq('parent_id', postId).order('created_at', { ascending: true });
-            const container = document.querySelector('.comments-section');
-            if (container && comments) {
-                // rebuild comments section but preserve the main post (don't reload entire gist)
-                const newHtml = comments.length ? comments.map(c => renderCommentHtml(c)).join('') : '<p class="text-center py-8 text-zinc-600 text-sm">No replies yet</p>';
-                container.innerHTML = newHtml;
-                lucide.createIcons();
-            }
-            // also update reply count on header
-            const replyCountSpan = document.querySelector('.original-post-container .flex.items-center.gap-1.5:last-child .font-medium');
-            if (replyCountSpan && comments) {
-                const countSpan = replyCountSpan;
-                countSpan.innerText = comments.length;
-            }
-        }
-        
-        function renderCommentHtml(comment) {
-            const profile = comment.profile || {};
-            const badge = getBadgeHTML(profile.is_official, profile.is_verified);
-            return `
-                <div class="comment-card" data-comment-id="${comment.id}" ontouchstart="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" ontouchend="endPress()" onmousedown="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" onmouseup="endPress()">
-                    <div class="flex items-center justify-between mb-2">
-                        <div class="flex items-center gap-2">
-                            <span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link text-xs">@${escapeHTML(profile.username || 'homie')}</span>
-                            ${badge}
-                        </div>
-                        <span class="time-badge text-[9px]">${formatTimeAgo(comment.created_at)}</span>
-                    </div>
-                    <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
-                </div>
-            `;
-        }
-        
-        // Network listeners: auto-sync when back online
-        window.addEventListener('online', () => {
-            if (pendingComments.length > 0) triggerSync();
-        });
         
         // ---- core app logic ----
         window.closeSheet = () => document.getElementById('action-sheet').style.display = 'none';
@@ -361,32 +130,7 @@
             if (!session) return window.location.replace('login.html');
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             userProfile = profile;
-            loadPendingQueue();
-            await loadGist(); // loads main post + comments
-            // After loading gist, re-append any pending comments that are not already in DOM (prevents duplicates)
-            if (pendingComments.length > 0) {
-                for (const pending of pendingComments) {
-                    const exists = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
-                    if (!exists) {
-                        const optimistic = {
-                            id: pending.tempId,
-                            tempId: pending.tempId,
-                            content: pending.content,
-                            created_at: pending.createdAt,
-                            profile: {
-                                username: pending.username,
-                                is_official: pending.isOfficial,
-                                is_verified: pending.isVerified
-                            },
-                            pending: true
-                        };
-                        appendCommentToDOM(optimistic);
-                    }
-                }
-                lucide.createIcons();
-                triggerSync();
-            }
-            updateSyncIndicator();
+            await loadGist();
         }
         
         const harmfulPatterns = [/porn/i, /xxx/i, /adult/i, /sex/i, /nude/i, /onlyfans/i, /fansly/i, /gambling/i, /casino/i, /bet/i, /betting/i, /poker/i, /slot/i, /crypto/i, /bitcoin/i, /investment/i, /forex/i, /drug/i, /weed/i, /cannabis/i, /marijuana/i, /hack/i, /cheat/i, /crack/i, /violence/i, /gore/i, /kill/i, /viagra/i, /cialis/i, /free money/i, /work from home/i, /get rich/i];
@@ -431,6 +175,23 @@
             lucide.createIcons();
         }
         
+        function renderCommentHtml(comment) {
+            const profile = comment.profile || {};
+            const badge = getBadgeHTML(profile.is_official, profile.is_verified);
+            return `
+                <div class="comment-card" data-comment-id="${comment.id}" ontouchstart="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" ontouchend="endPress()" onmousedown="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" onmouseup="endPress()">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link text-xs">@${escapeHTML(profile.username || 'homie')}</span>
+                            ${badge}
+                        </div>
+                        <span class="time-badge text-[9px]">${formatTimeAgo(comment.created_at)}</span>
+                    </div>
+                    <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
+                </div>
+            `;
+        }
+        
         function getBadgeHTML(official, verified) {
             if (official) return `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
             if (verified) return `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
@@ -448,10 +209,15 @@
                 let newContent = textarea.value.trim();
                 newContent = sanitizeInput(newContent);
                 if (newContent && newContent !== oldContent) {
-                    await supabase.from('posts').update({ content: newContent }).eq('id', id);
+                    const { error } = await supabase.from('posts').update({ content: newContent }).eq('id', id);
+                    if (error) {
+                        showErrorToast("Failed to update reply");
+                    } else {
+                        closeEditModal();
+                        loadGist();
+                    }
+                } else {
                     closeEditModal();
-                    loadGist();
-                    // No success toast on edit either
                 }
             };
         };
@@ -459,13 +225,15 @@
         async function burnComment(id) {
             closeSheet();
             const { error } = await supabase.from('posts').delete().eq('id', id);
-            if (!error) {
-                await supabase.rpc('decrement_stat', { post_id: postId, field: 'comments_count' });
+            if (error) {
+                showErrorToast("Failed to delete reply");
+            } else {
+                await supabase.rpc('decrement_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
                 loadGist();
             }
         }
         
-        // POST with optimistic UI & NO toast on success (removed the "sending rubbish")
+        // Direct post with no offline queue, no optimistic UI, no success toast
         window.postComment = async () => {
             const input = document.getElementById('comment-input');
             let content = input.value.trim();
@@ -480,15 +248,79 @@
                 return;
             }
             
-            // Add optimistic comment instantly — completely silent on success
-            addOptimisticComment(content);
+            // Disable send button temporarily to prevent double submission
+            const sendBtn = document.getElementById('sendButton');
+            const originalIcon = sendBtn.innerHTML;
+            sendBtn.disabled = true;
+            sendBtn.classList.add('disabled');
+            sendBtn.innerHTML = '<div class="spinner-small"></div>';
             
-            // Clear input field and reset height
-            input.value = '';
-            input.style.height = 'auto';
-            
-            // NO TOAST, NO "sending rubbish" — exactly what you requested
+            try {
+                // Direct insert to Supabase
+                const { error } = await supabase.from('posts').insert({
+                    user_id: userProfile.id,
+                    content: content,
+                    parent_id: postId,
+                    post_type: 'comment',
+                    school_name: 'Gist'
+                });
+                
+                if (error) {
+                    throw new Error(error.message);
+                }
+                
+                // Update comment count on original post (fire and forget, but we'll refresh)
+                supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
+                
+                // Clear input field
+                input.value = '';
+                input.style.height = 'auto';
+                
+                // Refresh the comments section to show the new reply
+                await refreshCommentsOnly();
+                
+            } catch (err) {
+                console.error("Post error:", err);
+                showErrorToast("Failed to send reply. Please try again.");
+            } finally {
+                // Re-enable send button
+                sendBtn.disabled = false;
+                sendBtn.classList.remove('disabled');
+                sendBtn.innerHTML = originalIcon;
+                lucide.createIcons();
+            }
         };
+        
+        // Refresh only the comments section without reloading the whole post
+        async function refreshCommentsOnly() {
+            if (!postId) return;
+            const { data: comments, error } = await supabase.from('posts')
+                .select('*, profile:user_id(username, is_official, is_verified)')
+                .eq('parent_id', postId)
+                .order('created_at', { ascending: true });
+            
+            if (error) return;
+            
+            const commentsContainer = document.querySelector('.comments-section');
+            const replyCountHeader = document.getElementById('replyCountHeader');
+            const replyCountDisplay = document.getElementById('replyCountDisplay');
+            
+            if (commentsContainer) {
+                const newHtml = comments.length ? comments.map(c => renderCommentHtml(c)).join('') : '<p class="text-center py-8 text-zinc-600 text-sm">No replies yet</p>';
+                commentsContainer.innerHTML = newHtml;
+                if (replyCountHeader) replyCountHeader.innerText = comments.length;
+                if (replyCountDisplay) replyCountDisplay.innerText = comments.length;
+                lucide.createIcons();
+                
+                // Scroll to the new comment (last one)
+                setTimeout(() => {
+                    const lastComment = commentsContainer.lastElementChild;
+                    if (lastComment && comments.length > 0) {
+                        lastComment.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            }
+        }
         
         window.autoResize = (el) => {
             el.style.height = 'auto';
@@ -499,6 +331,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             const btn = document.getElementById('sendButton');
             if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); window.postComment(); });
+            // Also allow Enter key to send (Shift+Enter for new line)
+            const textarea = document.getElementById('comment-input');
+            if (textarea) {
+                textarea.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        window.postComment();
+                    }
+                });
+            }
         });
         
         init();
