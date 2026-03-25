@@ -1,294 +1,77 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-        (function() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'sunlight') {
-                document.documentElement.classList.add('sunlight-mode');
-            }
-        })();
-    </script>
+    <script>(function(){const savedTheme=localStorage.getItem('theme');if(savedTheme==='sunlight'){document.documentElement.classList.add('sunlight-mode')}})();</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Sdel | Gist — Resilient Replies</title>
+    <title>Sdel | Gist — Seamless Replies</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-        body {
-            background-color: #000;
-            color: #fff;
-            overscroll-behavior-y: contain;
-            transition: background-color .3s;
-        }
-        .text-sdel { color: #FF6600; }
-        .bg-sdel { background-color: #FF6600; }
-        .comment-card {
-            background: rgba(18,18,18,.4);
-            border: 1px solid rgba(255,255,255,.05);
-            border-left: 3px solid #FF6600;
-            border-radius: 16px;
-            padding: 16px;
-            transition: all .2s;
-            user-select: none;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            word-break: break-word;
-        }
-        .comment-card:active { background: rgba(255,102,0,.05); }
-        .comment-card p {
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            word-break: break-word;
-            white-space: pre-wrap;
-            max-width: 100%;
-        }
-        #comment-input {
-            resize: none;
-            background: #111;
-            border: 1px solid #222;
-            outline: 0;
-            width: 100%;
-            color: #fff;
-            font-size: 14px;
-            border-radius: 24px;
-            padding: 12px 18px;
-            transition: border .3s;
-            max-height: 120px;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        #comment-input:focus { border-color: #FF6600; }
-        .spinner { animation: spin 1s linear infinite; }
-        @keyframes spin {
-            from { transform: rotate(0); }
-            to { transform: rotate(360deg); }
-        }
-        #toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-100px);
-            background: #FF6600;
-            color: #000;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-weight: 600;
-            font-size: 13px;
-            box-shadow: 0 10px 25px rgba(255,102,0,.3);
-            transition: transform .3s cubic-bezier(.175,.885,.32,1.275);
-            z-index: 9999;
-        }
-        #toast.show { transform: translateX(-50%) translateY(0); }
-        #action-sheet, #edit-modal {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,.85);
-            z-index: 1000;
-            display: none;
-            align-items: flex-end;
-            backdrop-filter: blur(5px);
-        }
-        .sheet-content {
-            background: #111;
-            width: 100%;
-            border-radius: 24px 24px 0 0;
-            padding: 20px;
-            border-top: 1px solid #222;
-            padding-bottom: calc(20px + env(safe-area-inset-bottom));
-        }
-        #edit-modal {
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .modal-content {
-            background: #111;
-            width: 100%;
-            max-width: 400px;
-            border-radius: 24px;
-            padding: 24px;
-            border: 1px solid #222;
-            box-shadow: 0 20px 40px rgba(0,0,0,.5);
-        }
-        #edit-textarea {
-            background: #000;
-            border: 1px solid #222;
-            border-radius: 16px;
-            width: 100%;
-            color: #fff;
-            padding: 15px;
-            font-size: 14px;
-            outline: 0;
-            margin: 15px 0;
-            resize: none;
-            word-wrap: break-word;
-        }
-        #edit-textarea:focus { border-color: #FF6600; }
-        .username-link {
-            color: #FF6600;
-            font-weight: 700;
-            cursor: pointer;
-            text-decoration: none;
-            text-transform: uppercase;
-            letter-spacing: .02em;
-            font-size: 13px;
-        }
-        .original-post-container {
-            background: rgba(18,18,18,.7);
-            border: 1px solid rgba(255,255,255,.08);
-            border-radius: 24px;
-            padding: 20px;
-            margin-bottom: 16px;
-            word-wrap: break-word;
-        }
-        .comments-section { display: flex; flex-direction: column; gap: 12px; }
-        .send-button {
-            background: #FF6600;
-            color: #000;
-            width: 44px;
-            height: 44px;
-            border-radius: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all .2s;
-            box-shadow: 0 5px 15px rgba(255,102,0,.2);
-            border: none;
-            cursor: pointer;
-            flex-shrink: 0;
-            position: relative;
-        }
-        .send-button:active { transform: scale(.92); background: #e55a00; }
-        .send-button.disabled {
-            opacity: 0.5;
-            transform: scale(0.96);
-            cursor: not-allowed;
-            background: #cc5200;
-            pointer-events: none;
-        }
-        .send-button .spinner-small {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #000;
-            border-top: 2px solid transparent;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            display: inline-block;
-        }
-        .input-container {
-            display: flex;
-            align-items: flex-end;
-            gap: 8px;
-            background: #111;
-            border: 1px solid #222;
-            border-radius: 30px;
-            padding: 4px;
-            transition: border .2s;
-            width: 100%;
-        }
-        .input-container:focus-within { border-color: #FF6600; }
-        #comment-input {
-            background: transparent;
-            border: none;
-            padding: 12px 16px;
-            flex: 1;
-        }
-        #comment-input:focus { border: none; outline: 0; }
-        .time-badge {
-            font-size: 10px;
-            font-weight: 600;
-            color: #71717a;
-            text-transform: uppercase;
-            letter-spacing: .5px;
-            background: rgba(255,255,255,.03);
-            padding: 4px 8px;
-            border-radius: 20px;
-            display: inline-block;
-        }
+        *{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;-webkit-tap-highlight-color:transparent}
+        body{background-color:#000;color:#fff;overscroll-behavior-y:contain;transition:background-color .3s}
+        .text-sdel{color:#FF6600}.bg-sdel{background-color:#FF6600}
+        .comment-card{background:rgba(18,18,18,.4);border:1px solid rgba(255,255,255,.05);border-left:3px solid #FF6600;border-radius:16px;padding:16px;transition:all .2s;user-select:none;word-wrap:break-word;overflow-wrap:break-word;word-break:break-word}
+        .comment-card:active{background:rgba(255,102,0,.05)}
+        .comment-card p{word-wrap:break-word;overflow-wrap:break-word;word-break:break-word;white-space:pre-wrap;max-width:100%}
+        #comment-input{resize:none;background:#111;border:1px solid #222;outline:0;width:100%;color:#fff;font-size:14px;border-radius:24px;padding:12px 18px;transition:border .3s;max-height:120px;word-wrap:break-word}
+        #comment-input:focus{border-color:#FF6600}
+        .spinner{animation:spin 1s linear infinite}
+        @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+        /* Silent toast - only shows for errors, not for successful sends */
+        #toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:#FF6600;color:#000;padding:12px 24px;border-radius:30px;font-weight:600;font-size:13px;box-shadow:0 10px 25px rgba(255,102,0,.3);transition:transform .3s cubic-bezier(.175,.885,.32,1.275);z-index:9999}
+        #toast.error{background:#d32f2f;color:#fff;box-shadow:0 10px 25px rgba(211,47,47,.3)}
+        #toast.show{transform:translateX(-50%) translateY(0)}
+        #action-sheet,#edit-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;display:none;align-items:flex-end;backdrop-filter:blur(5px)}
+        .sheet-content{background:#111;width:100%;border-radius:24px 24px 0 0;padding:20px;border-top:1px solid #222;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+        #edit-modal{align-items:center;justify-content:center;padding:20px}
+        .modal-content{background:#111;width:100%;max-width:400px;border-radius:24px;padding:24px;border:1px solid #222;box-shadow:0 20px 40px rgba(0,0,0,.5)}
+        #edit-textarea{background:#000;border:1px solid #222;border-radius:16px;width:100%;color:#fff;padding:15px;font-size:14px;outline:0;margin:15px 0;resize:none;word-wrap:break-word}
+        #edit-textarea:focus{border-color:#FF6600}
+        .username-link{color:#FF6600;font-weight:700;cursor:pointer;text-decoration:none;text-transform:uppercase;letter-spacing:.02em;font-size:13px}
+        .original-post-container{background:rgba(18,18,18,.7);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:20px;margin-bottom:16px;word-wrap:break-word}
+        .comments-section{display:flex;flex-direction:column;gap:12px}
+        .send-button{background:#FF6600;color:#000;width:44px;height:44px;border-radius:30px;display:flex;align-items:center;justify-content:center;transition:all .2s;box-shadow:0 5px 15px rgba(255,102,0,.2);border:none;cursor:pointer;flex-shrink:0;position:relative}
+        .send-button:active{transform:scale(.92);background:#e55a00}
+        .send-button.disabled{opacity:0.6;transform:scale(0.96);cursor:default;pointer-events:none}
+        .send-button .spinner-small{width:18px;height:18px;border:2px solid #000;border-top:2px solid transparent;border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block}
+        .input-container{display:flex;align-items:flex-end;gap:8px;background:#111;border:1px solid #222;border-radius:30px;padding:4px;transition:border .2s;width:100%}
+        .input-container:focus-within{border-color:#FF6600}
+        #comment-input{background:transparent;border:none;padding:12px 16px;flex:1}
+        #comment-input:focus{border:none;outline:0}
+        .time-badge{font-size:10px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:.5px;background:rgba(255,255,255,.03);padding:4px 8px;border-radius:20px;display:inline-block}
+        .pending-badge{background:rgba(255,102,0,.2);color:#FF6600;font-size:9px;padding:2px 8px;border-radius:20px;margin-left:8px;display:inline-flex;align-items:center;gap:4px}
+        .comment-card.pending{opacity:0.85;border-left-color:#ffaa44;background:rgba(255,102,0,.08)}
         /* sunlight mode */
-        .sunlight-mode body {
-            background-color: #f8f8fa;
-            color: #121212;
-        }
-        .sunlight-mode nav {
-            background-color: rgba(255,255,255,.95) !important;
-            border-color: #e4e4e7 !important;
-        }
-        .sunlight-mode .fixed.bottom-0 {
-            background-color: rgba(255,255,255,.95) !important;
-            border-color: #e4e4e7 !important;
-        }
-        .sunlight-mode .input-container {
-            background: #f4f4f5;
-            border-color: #e4e4e7;
-        }
-        .sunlight-mode #comment-input { color: #121212; }
-        .sunlight-mode .sheet-content { background: #fff; border-color: #eee; }
-        .sunlight-mode .modal-content { background: #fff; border-color: #eee; color: #121212; }
-        .sunlight-mode #edit-textarea { background: #f4f4f5; border-color: #e4e4e7; color: #121212; }
-        .sunlight-mode .text-zinc-300 { color: #3f3f46; }
-        .sunlight-mode .original-post-container {
-            background: rgba(240,240,245,.7);
-            border: 1px solid rgba(0,0,0,.05);
-        }
-        .sunlight-mode .comment-card {
-            background: rgba(240,240,245,.7);
-            border: 1px solid rgba(0,0,0,.05);
-            border-left: 3px solid #FF6600;
-        }
-        .sunlight-mode .time-badge {
-            background: rgba(0,0,0,.03);
-            color: #52525b;
-        }
+        .sunlight-mode body{background-color:#f8f8fa;color:#121212}
+        .sunlight-mode nav{background-color:rgba(255,255,255,.95)!important;border-color:#e4e4e7!important}
+        .sunlight-mode .fixed.bottom-0{background-color:rgba(255,255,255,.95)!important;border-color:#e4e4e7!important}
+        .sunlight-mode .input-container{background:#f4f4f5;border-color:#e4e4e7}
+        .sunlight-mode #comment-input{color:#121212}
+        .sunlight-mode .sheet-content{background:#fff;border-color:#eee}
+        .sunlight-mode .modal-content{background:#fff;border-color:#eee;color:#121212}
+        .sunlight-mode #edit-textarea{background:#f4f4f5;border-color:#e4e4e7;color:#121212}
+        .sunlight-mode .comment-card{background:rgba(240,240,245,.7);border:1px solid rgba(0,0,0,.05);border-left:3px solid #FF6600}
+        .sunlight-mode .time-badge{background:rgba(0,0,0,.03);color:#52525b}
+        .sunlight-mode .pending-badge{background:rgba(255,102,0,.15);color:#cc5200}
+        .sunlight-mode .comment-card.pending{background:rgba(255,102,0,.05)}
+        /* sync indicator - subtle */
+        .sync-status{position:fixed;bottom:80px;right:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(8px);padding:6px 12px;border-radius:40px;font-size:10px;color:#FF6600;z-index:100;display:flex;align-items:center;gap:6px;pointer-events:none;font-weight:500}
+        .sunlight-mode .sync-status{background:rgba(255,255,255,.8);color:#FF6600}
     </style>
 </head>
 <body class="pb-24">
-    <div id="toast">Sent!</div>
-    <div id="action-sheet" onclick="closeSheet()">
-        <div class="sheet-content" onclick="event.stopPropagation()">
-            <div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6"></div>
-            <div id="edit-option"><button id="edit-btn" class="w-full py-4 text-left font-medium border-b border-white/5 flex items-center gap-3"><i data-lucide="edit-3" size="18"></i> Edit Reply</button></div>
-            <button id="burn-btn" class="w-full py-4 text-left font-medium text-red-500 flex items-center gap-3"><i data-lucide="flame" size="18"></i> Burn Reply</button>
-            <button onclick="closeSheet()" class="w-full py-4 mt-2 text-center text-zinc-500 font-medium text-xs">Cancel</button>
-        </div>
-    </div>
-    <div id="edit-modal">
-        <div class="modal-content">
-            <h3 class="font-bold text-lg text-sdel tracking-tighter">Edit your reply</h3>
-            <textarea id="edit-textarea" rows="4"></textarea>
-            <div class="flex gap-3">
-                <button onclick="closeEditModal()" class="flex-1 py-3 bg-zinc-900 rounded-xl font-medium text-xs">Cancel</button>
-                <button id="save-edit-btn" class="flex-1 py-3 bg-sdel text-black rounded-xl font-bold text-xs">Update</button>
-            </div>
-        </div>
-    </div>
+    <div id="toast"></div>
+    <div id="action-sheet" onclick="closeSheet()"><div class="sheet-content" onclick="event.stopPropagation()"><div class="w-12 h-1 bg-zinc-800 rounded-full mx-auto mb-6"></div><div id="edit-option"><button id="edit-btn" class="w-full py-4 text-left font-medium border-b border-white/5 flex items-center gap-3"><i data-lucide="edit-3" size="18"></i> Edit Reply</button></div><button id="burn-btn" class="w-full py-4 text-left font-medium text-red-500 flex items-center gap-3"><i data-lucide="flame" size="18"></i> Burn Reply</button><button onclick="closeSheet()" class="w-full py-4 mt-2 text-center text-zinc-500 font-medium text-xs">Cancel</button></div></div>
+    <div id="edit-modal"><div class="modal-content"><h3 class="font-bold text-lg text-sdel tracking-tighter">Edit your reply</h3><textarea id="edit-textarea" rows="4"></textarea><div class="flex gap-3"><button onclick="closeEditModal()" class="flex-1 py-3 bg-zinc-900 rounded-xl font-medium text-xs">Cancel</button><button id="save-edit-btn" class="flex-1 py-3 bg-sdel text-black rounded-xl font-bold text-xs">Update</button></div></div></div>
 
-    <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/5">
-        <div class="px-4 py-4 flex items-center gap-4">
-            <button onclick="history.back()" class="p-2 -ml-2"><i data-lucide="arrow-left"></i></button>
-            <h1 class="text-xl font-bold tracking-tight">The <span class="text-sdel">Gist</span></h1>
-        </div>
-    </nav>
+    <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/5"><div class="px-4 py-4 flex items-center gap-4"><button onclick="history.back()" class="p-2 -ml-2"><i data-lucide="arrow-left"></i></button><h1 class="text-xl font-bold tracking-tight">The <span class="text-sdel">Gist</span></h1></div></nav>
 
-    <main id="gist-thread" class="p-4 flex flex-col gap-6">
-        <div id="main-post-loader" class="py-20 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div>
-    </main>
+    <main id="gist-thread" class="p-4 flex flex-col gap-6"><div id="main-post-loader" class="py-20 text-center"><i data-lucide="loader-2" class="spinner text-sdel inline-block"></i></div></main>
 
-    <div class="fixed bottom-0 inset-x-0 bg-black/95 border-t border-white/10 p-4 pb-env(safe-area-inset-bottom) z-50">
-        <div class="input-container">
-            <textarea id="comment-input" placeholder="Drop a reply..." rows="1" oninput="autoResize(this)"></textarea>
-            <button id="sendButton" class="send-button"><i data-lucide="send" size="18"></i></button>
-        </div>
-    </div>
+    <div class="fixed bottom-0 inset-x-0 bg-black/95 border-t border-white/10 p-4 pb-env(safe-area-inset-bottom) z-50"><div class="input-container"><textarea id="comment-input" placeholder="Drop a reply..." rows="1" oninput="autoResize(this)"></textarea><button id="sendButton" class="send-button"><i data-lucide="send" size="18"></i></button></div></div>
+    <div id="syncStatus" class="sync-status" style="display: none;"><i data-lucide="cloud" size="12"></i> <span>Syncing...</span></div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -303,149 +86,244 @@
         let userProfile = null;
         let pressTimer;
         
-        // --- AGGRESSIVE SCALE & DUPLICATE PREVENTION ---
-        let isSending = false;               // guards double submission
-        let pendingQueue = [];               // queue for offline/retry
-        let retryTimeout = null;
-        let networkOnline = navigator.onLine;
+        // --- Optimistic UI + Offline Queue (no toast on success) ---
+        let pendingComments = []; // { id, content, tempId, createdAt, username, isOfficial, isVerified }
+        let syncInProgress = false;
+        let syncRetryTimeout = null;
         
-        // Exponential backoff config
-        const MAX_RETRIES = 4;
-        let currentRetryDelay = 1000;
+        // Generate temp IDs for optimistic comments
+        function generateTempId() { return `temp_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`; }
         
-        // Show toast with professional error/success
-        function showToast(msg, isError = false) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            toast.style.background = isError ? '#d32f2f' : '#FF6600';
-            toast.style.color = isError ? '#fff' : '#000';
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2500);
-        }
-        
-        // Monitor network status to retry pending messages aggressively
-        window.addEventListener('online', () => {
-            networkOnline = true;
-            processQueue();   // flush any pending replies when connection returns
-        });
-        window.addEventListener('offline', () => {
-            networkOnline = false;
-        });
-        
-        // Process pending replies stored in IndexedDB or memory queue (advanced)
-        // Since we're not using IndexedDB for simplicity, but we keep in-memory queue for aggressive scale
-        // But for real persistence across reloads we'd use localStorage. We'll store pending queue in localStorage to survive bad network reloads
+        // Load pending queue from localStorage
         function loadPendingQueue() {
-            const stored = localStorage.getItem('gist_pending_replies');
+            const stored = localStorage.getItem('gist_pending_comments');
             if (stored) {
-                try {
-                    pendingQueue = JSON.parse(stored);
-                } catch(e) { pendingQueue = []; }
-            } else {
-                pendingQueue = [];
-            }
+                try { pendingComments = JSON.parse(stored); } catch(e) { pendingComments = []; }
+            } else { pendingComments = []; }
         }
         
         function savePendingQueue() {
-            localStorage.setItem('gist_pending_replies', JSON.stringify(pendingQueue));
+            localStorage.setItem('gist_pending_comments', JSON.stringify(pendingComments));
+            updateSyncIndicator();
         }
         
-        async function processQueue() {
-            if (!userProfile || !postId) return;
-            if (pendingQueue.length === 0) return;
-            if (!networkOnline) {
-                showToast("Waiting for connection...", false);
-                return;
+        function updateSyncIndicator() {
+            const el = document.getElementById('syncStatus');
+            if (!el) return;
+            if (pendingComments.length > 0 || syncInProgress) {
+                el.style.display = 'flex';
+                const span = el.querySelector('span');
+                if (span) span.innerText = pendingComments.length > 0 ? `Syncing (${pendingComments.length})` : 'Syncing...';
+                lucide.createIcons();
+            } else {
+                el.style.display = 'none';
             }
-            if (isSending) return; // avoid overlapping queue processing
-            
-            // process first pending item (FIFO)
-            const pending = pendingQueue[0];
-            if (!pending) return;
-            
-            isSending = true;
-            try {
-                const { error } = await supabase.from('posts').insert({
-                    user_id: userProfile.id,
-                    content: pending.content,
-                    parent_id: postId,
-                    post_type: 'comment',
-                    school_name: 'Gist'
-                });
-                
-                if (!error) {
-                    // success: remove from queue and update counters
-                    pendingQueue.shift();
-                    savePendingQueue();
-                    
-                    // update comments count on main post
-                    await supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
-                    showToast("Reply sent!", false);
-                    await loadGist();   // refresh UI
-                    
-                    // Reset exponential backoff after successful send
-                    currentRetryDelay = 1000;
-                    if (retryTimeout) clearTimeout(retryTimeout);
-                    isSending = false;
-                    processQueue(); // continue next pending
-                } else {
-                    throw new Error(error.message);
-                }
-            } catch (err) {
-                console.warn("Queue send failed, will retry:", err);
-                // exponential backoff for next retry attempt
-                if (pending.retryCount === undefined) pending.retryCount = 0;
-                pending.retryCount++;
-                if (pending.retryCount <= MAX_RETRIES) {
-                    const delay = Math.min(30000, currentRetryDelay * Math.pow(2, pending.retryCount - 1));
-                    showToast(`Network issue. Retrying in ${Math.round(delay/1000)}s...`, false);
-                    if (retryTimeout) clearTimeout(retryTimeout);
-                    retryTimeout = setTimeout(() => {
-                        isSending = false;
-                        processQueue();
-                    }, delay);
-                } else {
-                    // Max retries exhausted: drop from queue and notify user
-                    showToast("Reply failed after several attempts. Please try again later.", true);
-                    pendingQueue.shift();
-                    savePendingQueue();
-                    isSending = false;
-                    processQueue(); // move to next
-                }
-                isSending = false;
-                return;
-            }
-            isSending = false;
         }
         
-        // Enqueue reply content and process
-        function enqueueReply(content) {
-            if (!content.trim()) return false;
-            // Also check duplicate recent content (optional but X style)
-            const lastInQueue = pendingQueue[pendingQueue.length - 1];
-            if (lastInQueue && lastInQueue.content === content && (Date.now() - (lastInQueue.timestamp || 0) < 5000)) {
-                showToast("Duplicate reply blocked", true);
-                return false;
-            }
-            pendingQueue.push({
+        // Show toast ONLY for errors (silent on success)
+        function showErrorToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('error');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+            setTimeout(() => toast.classList.remove('error'), 3000);
+        }
+        
+        // Optimistic insert: add comment to UI instantly
+        function addOptimisticComment(content) {
+            const tempId = generateTempId();
+            const now = new Date().toISOString();
+            const optimisticComment = {
+                id: tempId,
+                tempId: tempId,
                 content: content,
-                timestamp: Date.now(),
-                retryCount: 0
+                created_at: now,
+                user_id: userProfile?.id,
+                profile: {
+                    username: userProfile?.username || 'homie',
+                    is_official: userProfile?.is_official || false,
+                    is_verified: userProfile?.is_verified || false
+                },
+                pending: true
+            };
+            
+            // Store in pending queue
+            pendingComments.push({
+                tempId: tempId,
+                content: content,
+                createdAt: now,
+                username: userProfile?.username || 'homie',
+                isOfficial: userProfile?.is_official || false,
+                isVerified: userProfile?.is_verified || false
             });
             savePendingQueue();
-            processQueue(); // aggressive sending attempt
-            return true;
+            
+            // Render comment into the DOM optimistically
+            appendCommentToDOM(optimisticComment);
+            
+            // Auto-scroll to new comment
+            setTimeout(() => {
+                const newCommentEl = document.querySelector(`.comment-card[data-temp-id="${tempId}"]`);
+                if (newCommentEl) newCommentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+            
+            // Trigger background sync
+            triggerSync();
+            
+            return tempId;
         }
         
-        // Helper to clear pending if needed
-        window.clearPendingReplies = () => {
-            pendingQueue = [];
-            savePendingQueue();
-            showToast("Pending drafts cleared", false);
-        };
+        function appendCommentToDOM(comment) {
+            const commentsContainer = document.querySelector('.comments-section');
+            if (!commentsContainer) return;
+            
+            const badge = getBadgeHTML(comment.profile?.is_official, comment.profile?.is_verified);
+            const pendingAttr = comment.pending ? 'pending' : '';
+            const pendingBadgeHtml = comment.pending ? `<span class="pending-badge"><i data-lucide="clock" size="10"></i> Sending...</span>` : '';
+            const timeDisplay = comment.pending ? 'just now' : formatTimeAgo(comment.created_at);
+            
+            const commentHtml = `
+                <div class="comment-card ${pendingAttr}" data-temp-id="${comment.tempId || comment.id}" data-comment-id="${comment.id}">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span onclick="location.href='profile.html?u=${escapeHTML(comment.profile?.username || '')}'" class="username-link text-xs">@${escapeHTML(comment.profile?.username || 'homie')}</span>
+                            ${badge}
+                            ${pendingBadgeHtml}
+                        </div>
+                        <span class="time-badge text-[9px]">${timeDisplay}</span>
+                    </div>
+                    <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
+                </div>
+            `;
+            commentsContainer.insertAdjacentHTML('beforeend', commentHtml);
+            lucide.createIcons();
+        }
         
-        // --- end aggressive scale queue logic ---
+        // Sync: try to send all pending comments to server
+        async function triggerSync() {
+            if (syncInProgress) return;
+            if (pendingComments.length === 0) return;
+            if (!userProfile) return;
+            
+            syncInProgress = true;
+            updateSyncIndicator();
+            
+            // Process queue sequentially to avoid race conditions
+            while (pendingComments.length > 0) {
+                const pending = pendingComments[0];
+                if (!pending) break;
+                
+                try {
+                    const { error } = await supabase.from('posts').insert({
+                        user_id: userProfile.id,
+                        content: pending.content,
+                        parent_id: postId,
+                        post_type: 'comment',
+                        school_name: 'Gist'
+                    });
+                    
+                    if (!error) {
+                        // Success: remove from queue
+                        pendingComments.shift();
+                        savePendingQueue();
+                        
+                        // Update comment count on original post (optimistic but fire-and-forget)
+                        supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
+                        
+                        // Replace pending comment with permanent one? Instead, refresh comments section for accuracy.
+                        // But to keep UX smooth, we'll re-fetch comments in background and replace the pending badge with real data.
+                        // However we don't want to flicker. Let's mark as synced by removing pending style.
+                        const tempElement = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
+                        if (tempElement) {
+                            tempElement.classList.remove('pending');
+                            const badgeSpan = tempElement.querySelector('.pending-badge');
+                            if (badgeSpan) badgeSpan.remove();
+                            // update time badge to accurate time
+                            const timeBadge = tempElement.querySelector('.time-badge');
+                            if (timeBadge) timeBadge.innerText = 'just now';
+                        }
+                    } else {
+                        throw new Error(error.message);
+                    }
+                } catch (err) {
+                    console.warn("Sync failed, will retry later", err);
+                    // exponential backoff
+                    if (!pending.retryCount) pending.retryCount = 0;
+                    pending.retryCount++;
+                    if (pending.retryCount >= 5) {
+                        // too many failures, drop it and show error
+                        showErrorToast("Reply failed after multiple attempts. Please try again.");
+                        pendingComments.shift();
+                        savePendingQueue();
+                        // remove the failed optimistic comment
+                        const failedEl = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
+                        if (failedEl) failedEl.remove();
+                    } else {
+                        const delay = Math.min(30000, 1000 * Math.pow(2, pending.retryCount));
+                        if (syncRetryTimeout) clearTimeout(syncRetryTimeout);
+                        syncRetryTimeout = setTimeout(() => {
+                            syncInProgress = false;
+                            triggerSync();
+                        }, delay);
+                        syncInProgress = false;
+                        updateSyncIndicator();
+                        return;
+                    }
+                }
+            }
+            syncInProgress = false;
+            updateSyncIndicator();
+            if (syncRetryTimeout) clearTimeout(syncRetryTimeout);
+            // After all synced, optionally do a full refresh to ensure counts match server
+            if (pendingComments.length === 0) {
+                await refreshCommentsFromServer();
+            }
+        }
         
+        // Refresh comments from server but preserve optimistic pending comments? Actually pending queue is empty after sync.
+        // However during offline we keep pending UI. After coming online we sync, then reload to match server state.
+        async function refreshCommentsFromServer() {
+            if (!postId) return;
+            const { data: comments } = await supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').eq('parent_id', postId).order('created_at', { ascending: true });
+            const container = document.querySelector('.comments-section');
+            if (container && comments) {
+                // rebuild comments section but preserve the main post (don't reload entire gist)
+                const newHtml = comments.length ? comments.map(c => renderCommentHtml(c)).join('') : '<p class="text-center py-8 text-zinc-600 text-sm">No replies yet</p>';
+                container.innerHTML = newHtml;
+                lucide.createIcons();
+            }
+            // also update reply count on header
+            const replyCountSpan = document.querySelector('.original-post-container .flex.items-center.gap-1.5:last-child .font-medium');
+            if (replyCountSpan && comments) {
+                const countSpan = replyCountSpan;
+                countSpan.innerText = comments.length;
+            }
+        }
+        
+        function renderCommentHtml(comment) {
+            const profile = comment.profile || {};
+            const badge = getBadgeHTML(profile.is_official, profile.is_verified);
+            return `
+                <div class="comment-card" data-comment-id="${comment.id}" ontouchstart="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" ontouchend="endPress()" onmousedown="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" onmouseup="endPress()">
+                    <div class="flex items-center justify-between mb-2">
+                        <div class="flex items-center gap-2">
+                            <span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link text-xs">@${escapeHTML(profile.username || 'homie')}</span>
+                            ${badge}
+                        </div>
+                        <span class="time-badge text-[9px]">${formatTimeAgo(comment.created_at)}</span>
+                    </div>
+                    <p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p>
+                </div>
+            `;
+        }
+        
+        // Network listeners: auto-sync when back online
+        window.addEventListener('online', () => {
+            if (pendingComments.length > 0) triggerSync();
+        });
+        
+        // ---- core app logic ----
         window.closeSheet = () => document.getElementById('action-sheet').style.display = 'none';
         window.closeEditModal = () => document.getElementById('edit-modal').style.display = 'none';
         
@@ -487,10 +365,32 @@
             if (!session) return window.location.replace('login.html');
             const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
             userProfile = profile;
-            loadPendingQueue();    // load any pending replies from previous session
-            loadGist();
-            // process queue right after user ready
-            processQueue();
+            loadPendingQueue();
+            await loadGist(); // loads main post + comments
+            // After loading gist, re-append any pending comments that are not already in DOM (prevents duplicates)
+            if (pendingComments.length > 0) {
+                for (const pending of pendingComments) {
+                    const exists = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
+                    if (!exists) {
+                        const optimistic = {
+                            id: pending.tempId,
+                            tempId: pending.tempId,
+                            content: pending.content,
+                            created_at: pending.createdAt,
+                            profile: {
+                                username: pending.username,
+                                is_official: pending.isOfficial,
+                                is_verified: pending.isVerified
+                            },
+                            pending: true
+                        };
+                        appendCommentToDOM(optimistic);
+                    }
+                }
+                lucide.createIcons();
+                triggerSync();
+            }
+            updateSyncIndicator();
         }
         
         const harmfulPatterns = [/porn/i, /xxx/i, /adult/i, /sex/i, /nude/i, /onlyfans/i, /fansly/i, /gambling/i, /casino/i, /bet/i, /betting/i, /poker/i, /slot/i, /crypto/i, /bitcoin/i, /investment/i, /forex/i, /drug/i, /weed/i, /cannabis/i, /marijuana/i, /hack/i, /cheat/i, /crack/i, /violence/i, /gore/i, /kill/i, /viagra/i, /cialis/i, /free money/i, /work from home/i, /get rich/i];
@@ -530,15 +430,15 @@
             const { data: comments } = await supabase.from('posts').select('*, profile:user_id(username, is_official, is_verified)').eq('parent_id', postId).order('created_at', { ascending: true });
             const profile = post.profile || {};
             const badge = getBadgeHTML(profile.is_official, profile.is_verified);
-            let html = `<div class="original-post-container"><div class="flex items-center gap-3 mb-4"><div onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center font-bold text-sdel border border-white/10 uppercase cursor-pointer">${escapeHTML(profile.username?.[0] || 'H')}</div><div><div class="flex items-center gap-1.5"><span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link">@${escapeHTML(profile.username || 'homie')}</span>${badge}</div><span class="time-badge">${formatTimeAgo(post.created_at)}</span></div></div><p class="text-base text-zinc-100 leading-relaxed mb-4">${escapeHTML(post.content)}</p><div class="flex items-center gap-6 text-zinc-500 border-y border-white/5 py-3"><div class="flex items-center gap-1.5"><span class="font-medium text-white">${post.likes_count || 0}</span> <span class="text-xs">Likes</span></div><div class="flex items-center gap-1.5"><span class="font-medium text-white">${post.comments_count || 0}</span> <span class="text-xs">Replies</span></div></div></div><div class="mt-2"><h2 class="text-xs font-medium uppercase text-zinc-600 tracking-wider mb-4">Replies · ${comments?.length || 0}</h2><div class="comments-section">${comments?.length ? comments.map(c => renderComment(c)).join('') : '<p class="text-center py-8 text-zinc-600 text-sm">No replies yet</p>'}</div></div>`;
+            let html = `<div class="original-post-container"><div class="flex items-center gap-3 mb-4"><div onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center font-bold text-sdel border border-white/10 uppercase cursor-pointer">${escapeHTML(profile.username?.[0] || 'H')}</div><div><div class="flex items-center gap-1.5"><span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link">@${escapeHTML(profile.username || 'homie')}</span>${badge}</div><span class="time-badge">${formatTimeAgo(post.created_at)}</span></div></div><p class="text-base text-zinc-100 leading-relaxed mb-4">${escapeHTML(post.content)}</p><div class="flex items-center gap-6 text-zinc-500 border-y border-white/5 py-3"><div class="flex items-center gap-1.5"><span class="font-medium text-white">${post.likes_count || 0}</span> <span class="text-xs">Likes</span></div><div class="flex items-center gap-1.5"><span class="font-medium text-white" id="replyCountDisplay">${post.comments_count || 0}</span> <span class="text-xs">Replies</span></div></div></div><div class="mt-2"><h2 class="text-xs font-medium uppercase text-zinc-600 tracking-wider mb-4">Replies · <span id="replyCountHeader">${comments?.length || 0}</span></h2><div class="comments-section">${comments?.length ? comments.map(c => renderCommentHtml(c)).join('') : '<p class="text-center py-8 text-zinc-600 text-sm">No replies yet</p>'}</div></div>`;
             container.innerHTML = html;
             lucide.createIcons();
         }
         
-        function renderComment(comment) {
-            const profile = comment.profile || {};
-            const badge = getBadgeHTML(profile.is_official, profile.is_verified);
-            return `<div class="comment-card" ontouchstart="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" ontouchend="endPress()" onmousedown="startPress('${comment.id}','${comment.user_id}',\`${escapeHTML(comment.content)}\`,'${comment.created_at}')" onmouseup="endPress()"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span onclick="location.href='profile.html?u=${escapeHTML(profile.username || '')}'" class="username-link text-xs">@${escapeHTML(profile.username || 'homie')}</span>${badge}</div><span class="time-badge text-[9px]">${formatTimeAgo(comment.created_at)}</span></div><p class="text-sm text-zinc-300">${escapeHTML(comment.content)}</p></div>`;
+        function getBadgeHTML(official, verified) {
+            if (official) return `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+            if (verified) return `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
+            return '';
         }
         
         window.openEditModal = (id, oldContent) => {
@@ -555,7 +455,7 @@
                     await supabase.from('posts').update({ content: newContent }).eq('id', id);
                     closeEditModal();
                     loadGist();
-                    showToast("Reply updated");
+                    // no success toast
                 }
             };
         };
@@ -565,80 +465,34 @@
             const { error } = await supabase.from('posts').delete().eq('id', id);
             if (!error) {
                 await supabase.rpc('decrement_stat', { post_id: postId, field: 'comments_count' });
-                showToast("Reply deleted");
                 loadGist();
             }
         }
         
-        function getBadgeHTML(official, verified) {
-            if (official) return `<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
-            if (verified) return `<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>`;
-            return '';
-        }
-        
-        // POST comment with aggressive scale + duplicate prevention + queue
+        // POST with optimistic UI & no toast on success
         window.postComment = async () => {
-            if (isSending) {
-                showToast("Already sending, please wait", true);
-                return;
-            }
             const input = document.getElementById('comment-input');
             let content = input.value.trim();
             if (!content) return;
             
-            // duplicate guard: prevent sending exactly same content within 4 seconds
-            const lastMsgTime = window._lastSentTime || 0;
-            const lastMsgContent = window._lastSentContent || '';
-            if (content === lastMsgContent && (Date.now() - lastMsgTime) < 4000) {
-                showToast("You just sent this — slow down", true);
-                return;
-            }
-            
+            // duplicate guard (basic)
             content = sanitizeInput(content);
             const scanResult = scanContent(content);
             if (!scanResult.safe) {
-                showToast(scanResult.reason, true);
+                showErrorToast(scanResult.reason);
                 input.value = '';
                 input.style.height = 'auto';
                 return;
             }
             
-            // update UI button to loading state
-            const sendBtn = document.getElementById('sendButton');
-            const originalIcon = sendBtn.innerHTML;
-            sendBtn.classList.add('disabled');
-            sendBtn.innerHTML = '<div class="spinner-small"></div>';
+            // Add optimistic comment instantly
+            addOptimisticComment(content);
             
-            // Enqueue or send directly? We'll enqueue to ensure resilience
-            const enqueued = enqueueReply(content);
-            if (enqueued) {
-                window._lastSentTime = Date.now();
-                window._lastSentContent = content;
-                input.value = '';
-                input.style.height = 'auto';
-                // button remains disabled? We need to re-enable after send state? processQueue will handle but we must release button state after queue accepted
-                setTimeout(() => {
-                    if (!isSending || pendingQueue.length === 0) {
-                        sendBtn.classList.remove('disabled');
-                        sendBtn.innerHTML = originalIcon;
-                        lucide.createIcons();
-                    } else {
-                        // keep loading if there's pending activity
-                        const interval = setInterval(() => {
-                            if (!isSending && pendingQueue.length === 0) {
-                                sendBtn.classList.remove('disabled');
-                                sendBtn.innerHTML = originalIcon;
-                                lucide.createIcons();
-                                clearInterval(interval);
-                            }
-                        }, 200);
-                    }
-                }, 300);
-            } else {
-                sendBtn.classList.remove('disabled');
-                sendBtn.innerHTML = originalIcon;
-                lucide.createIcons();
-            }
+            // Clear input field and reset height
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // No toast shown for successful send (offline/online silent)
         };
         
         window.autoResize = (el) => {
@@ -646,7 +500,7 @@
             el.style.height = Math.min(el.scrollHeight, 120) + 'px';
         };
         
-        // UI binding send button
+        // Bind send button
         document.addEventListener('DOMContentLoaded', () => {
             const btn = document.getElementById('sendButton');
             if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); window.postComment(); });
