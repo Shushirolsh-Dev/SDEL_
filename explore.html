@@ -171,83 +171,28 @@
             cursor: pointer;
         }
         
-        /* Fixed button bar - no stretching */
-        .action-buttons {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 12px;
-            max-width: 100%;
-        }
-        
-        .action-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 9999px;
-            transition: all 0.2s;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            color: #71717a;
-        }
-        
-        .action-btn:hover {
-            background: rgba(255, 102, 0, 0.1);
-        }
-        
-        .action-btn.liked {
+        .like-button[data-liked="true"] i {
             color: #FF6600;
-        }
-        
-        .action-btn.reposted {
-            color: #22c55e;
-        }
-        
-        .action-btn i {
-            width: 20px;
-            height: 20px;
-        }
-        
-        /* Notification badge */
-        .badge-container {
-            position: relative;
-            display: inline-flex;
-        }
-        
-        .unread-badge {
-            position: absolute;
-            top: -8px;
-            right: -12px;
-            background: #FF6600;
-            color: black;
-            font-size: 10px;
-            font-weight: 900;
-            padding: 2px 6px;
-            border-radius: 9999px;
-            min-width: 18px;
-            text-align: center;
-            line-height: 1;
-        }
-        
-        .sunlight-mode .unread-badge {
-            color: white;
-        }
-        
-        /* Like button animation */
-        @keyframes likePop {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
-        
-        .like-icon.animate {
-            animation: likePop 0.3s ease;
+            fill: #FF6600;
         }
 
+        #composer-actions {
+            display: flex;
+        }
+        #composer-actions.hidden {
+            display: none;
+        }
+        
+        .mention-link {
+            color: #FF6600;
+            font-weight: 800;
+            text-decoration: none !important;
+        }
+        .mention-link:hover {
+            text-decoration: none !important;
+        }
+        
+        /* Performance optimizations */
         img, video, iframe {
             max-width: 100%;
             height: auto;
@@ -314,14 +259,8 @@
             <h1 class="text-2xl font-black tracking-tighter uppercase">S<span class="text-sdel">del</span> Explore</h1>
             <div class="flex items-center space-x-5">
                 <i data-lucide="search" size="22" onclick="toggleSearch()" style="cursor: pointer;"></i>
-                <div class="badge-container">
-                    <i data-lucide="bell" size="22" onclick="location.href='messages.html'" style="cursor: pointer;"></i>
-                    <span id="notification-badge" class="unread-badge" style="display: none;">0</span>
-                </div>
-                <div class="badge-container">
-                    <i data-lucide="message-square" size="22" onclick="location.href='homies.html'" style="cursor: pointer;"></i>
-                    <span id="message-badge" class="unread-badge" style="display: none;">0</span>
-                </div>
+                <i data-lucide="bell" size="22" onclick="location.href='messages.html'" style="cursor: pointer;"></i>
+                <i data-lucide="message-square" size="22" onclick="location.href='homies.html'" style="cursor: pointer;"></i>
             </div>
         </div>
         
@@ -368,6 +307,36 @@
                     </div>
                 </div>
             </div>
+            <div class="skeleton-card">
+                <div class="flex space-x-3">
+                    <div class="skeleton-avatar"></div>
+                    <div class="flex-1">
+                        <div class="skeleton-line short"></div>
+                        <div class="skeleton-line medium mt-2"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-actions">
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="skeleton-card">
+                <div class="flex space-x-3">
+                    <div class="skeleton-avatar"></div>
+                    <div class="flex-1">
+                        <div class="skeleton-line short"></div>
+                        <div class="skeleton-line medium mt-2"></div>
+                        <div class="skeleton-line long"></div>
+                        <div class="skeleton-actions">
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                            <div class="skeleton-action"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <div id="scroll-sentry"></div>
@@ -385,6 +354,16 @@
     
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+// ==================== SCALABILITY OPTIMIZATIONS ====================
+// 1. Set for O(1) lookups
+// 2. Parallel API calls
+// 3. User profile caching
+// 4. Batch like updates
+// 5. Memory leak prevention
+// 6. DocumentFragment rendering
+// 7. Debounced scroll
+// 8. RAF animations ready
 
 const supabase = createClient(
     'https://lgfyrlfjoazedwymjpfc.supabase.co', 
@@ -410,10 +389,6 @@ let initTimer = null;
 let pendingLikeUpdates = new Map();
 let likeBatchTimeout = null;
 const userCache = new Map();
-
-// Unread counts
-let unreadNotifications = 0;
-let unreadMessages = 0;
 
 let offlineQueue = JSON.parse(localStorage.getItem('offlinePosts') || '[]');
 let isOnline = navigator.onLine;
@@ -500,82 +475,6 @@ function closeSecurityModal() {
     if (modal) modal.style.display = 'none';
 }
 
-// ==================== UNREAD COUNTS ====================
-
-async function loadUnreadCounts() {
-    if (!userProfile) return;
-    
-    try {
-        // Load unread notifications (interactions on your posts)
-        const { data: myPosts } = await supabase
-            .from('posts')
-            .select('id')
-            .eq('user_id', userProfile.id);
-        
-        const myPostIds = myPosts?.map(p => p.id) || [];
-        
-        if (myPostIds.length > 0) {
-            const { data: interactions, error } = await supabase
-                .from('interactions')
-                .select('id, created_at')
-                .in('post_id', myPostIds)
-                .gt('created_at', localStorage.getItem('lastNotificationRead') || '2000-01-01')
-                .not('user_id', 'eq', userProfile.id);
-            
-            if (!error && interactions) {
-                unreadNotifications = interactions.length;
-            }
-        }
-        
-        // Load unread messages from conversations
-        const { data: conversations, error: convError } = await supabase
-            .from('conversations')
-            .select('id, last_message_at, last_read_at')
-            .contains('participants', [userProfile.id]);
-        
-        if (!convError && conversations) {
-            let messageCount = 0;
-            for (const conv of conversations) {
-                const lastRead = conv.last_read_at || '2000-01-01';
-                const { data: unreadMsgs } = await supabase
-                    .from('messages')
-                    .select('id')
-                    .eq('conversation_id', conv.id)
-                    .gt('created_at', lastRead)
-                    .neq('sender_id', userProfile.id);
-                
-                messageCount += unreadMsgs?.length || 0;
-            }
-            unreadMessages = messageCount;
-        }
-        
-        updateBadges();
-    } catch (error) {
-        console.error('Error loading unread counts:', error);
-    }
-}
-
-function updateBadges() {
-    const notifBadge = document.getElementById('notification-badge');
-    const msgBadge = document.getElementById('message-badge');
-    
-    if (unreadNotifications > 0) {
-        notifBadge.style.display = 'inline-block';
-        notifBadge.textContent = unreadNotifications > 99 ? '99+' : unreadNotifications;
-    } else {
-        notifBadge.style.display = 'none';
-    }
-    
-    if (unreadMessages > 0) {
-        msgBadge.style.display = 'inline-block';
-        msgBadge.textContent = unreadMessages > 99 ? '99+' : unreadMessages;
-    } else {
-        msgBadge.style.display = 'none';
-    }
-}
-
-// ==================== INIT ====================
-
 async function init() {
     if (initTimer) clearTimeout(initTimer);
     
@@ -595,7 +494,6 @@ async function init() {
     
     document.getElementById('my-avatar').innerText = userProfile?.username?.charAt(0) || 'H';
     
-    // Load reposts and likes in parallel
     const [myReposts, likes] = await Promise.all([
         supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'repost'),
         supabase.from('interactions').select('post_id').eq('user_id', userProfile.id).eq('interaction_type', 'like')
@@ -603,12 +501,6 @@ async function init() {
     
     if (myReposts.data) repostedPosts = new Set(myReposts.data.map(r => r.post_id));
     if (likes.data) myLikes = new Set(likes.data.map(l => l.post_id));
-    
-    // Load unread counts
-    await loadUnreadCounts();
-    
-    // Set up real-time listeners for unread counts
-    setupRealtimeListeners();
     
     currentPage = 0;
     allPosts = [];
@@ -631,38 +523,6 @@ async function init() {
     
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', () => { isOnline = false; });
-}
-
-function setupRealtimeListeners() {
-    // Listen for new interactions on user's posts
-    supabase
-        .channel('notifications')
-        .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'interactions',
-            filter: `post_id=in.(select id from posts where user_id=eq.${userProfile.id})`
-        }, () => {
-            unreadNotifications++;
-            updateBadges();
-        })
-        .subscribe();
-    
-    // Listen for new messages
-    supabase
-        .channel('messages')
-        .on('postgres_changes', { 
-            event: 'INSERT', 
-            schema: 'public', 
-            table: 'messages',
-            filter: `conversation_id=in.(select id from conversations where participants@>array[${userProfile.id}])`
-        }, (payload) => {
-            if (payload.new.sender_id !== userProfile.id) {
-                unreadMessages++;
-                updateBadges();
-            }
-        })
-        .subscribe();
 }
 
 async function handleOnline() {
@@ -795,74 +655,6 @@ async function loadMorePosts() {
     loading = false;
 }
 
-// Template for rendering a single post
-function renderPostTemplate(post) {
-    const username = post.profile?.username || 'homie';
-    const isLiked = myLikes.has(post.id);
-    const hasReposted = repostedPosts.has(post.id);
-    const isRepost = post.content?.startsWith('Reposted from @');
-    
-    if (isRepost && hasReposted) return '';
-    
-    let badge = post.profile?.is_official 
-        ? '<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
-        : (post.profile?.is_verified 
-            ? '<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
-            : '');
-    
-    const postForAttribute = {
-        id: post.id,
-        user_id: post.user_id,
-        content: post.content,
-        school_name: post.school_name,
-        likes_count: post.likes_count,
-        comments_count: post.comments_count,
-        created_at: post.created_at,
-        updated_at: post.updated_at,
-        parent_id: post.parent_id,
-        username: post.profile?.username,
-        is_official: post.profile?.is_official,
-        is_verified: post.profile?.is_verified,
-        is_banned: post.profile?.is_banned
-    };
-    
-    const postDataStr = escapeAttribute(JSON.stringify(postForAttribute));
-    const safeContent = post.formattedContent || escapeHTML(filterProfanity(filterLinks(post.content)));
-    
-    return `
-    <div class="post-card p-4" data-post-id="${post.id}" data-post='${postDataStr}' onmousedown="startPress(event, '${postDataStr}')" onmouseup="endPress()" ontouchstart="startPress(event, '${postDataStr}')" ontouchend="endPress()">
-        <div class="flex space-x-3">
-            <div onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
-            <div class="flex-1">
-                <div class="flex items-center gap-1.5 mb-1">
-                    <span onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="username-text font-black uppercase tracking-tighter cursor-pointer">@${escapeHTML(username)}</span>
-                    ${badge}
-                    ${currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name || '')}</span>` : ''}
-                </div>
-                <div class="post-content text-zinc-200 mb-3">${safeContent}</div>
-                <div class="action-buttons">
-                    <button onclick="handleLike('${post.id}')" class="action-btn ${isLiked ? 'liked' : ''}" data-post-id="${post.id}">
-                        <i data-lucide="heart" size="18" ${isLiked ? 'fill="#FF6600"' : ''}></i>
-                        <span class="like-count">${formatNum(post.likes_count || 0)}</span>
-                    </button>
-                    <button onclick="location.href='gist.html?id=${post.id}'" class="action-btn">
-                        <i data-lucide="message-circle" size="18"></i>
-                        <span>${formatNum(post.comments_count || 0)}</span>
-                    </button>
-                    <button onclick="handleRepost('${post.id}', '${escapeHTML(username)}', '${escapeAttribute(post.content)}')" 
-                            class="action-btn ${hasReposted ? 'reposted' : ''}">
-                        <i data-lucide="repeat" size="18"></i>
-                        <span>${formatNum(post.reposts_count || 0)}</span>
-                    </button>
-                    <button onclick="handleShare('${post.id}', '${escapeHTML(username)}', '${escapeAttribute(post.content)}')" class="action-btn">
-                        <i data-lucide="upload" size="18"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>`;
-}
-
 function renderFeed() {
     const container = document.getElementById('feed-container');
     
@@ -873,7 +665,65 @@ function renderFeed() {
     
     let html = '';
     for (const post of allPosts) {
-        html += renderPostTemplate(post);
+        const username = post.profile?.username || 'homie';
+        const isLiked = myLikes.has(post.id);
+        const hasReposted = repostedPosts.has(post.id);
+        const isRepost = post.content?.startsWith('Reposted from @');
+        
+        if (isRepost && hasReposted) continue;
+        
+        let badge = post.profile?.is_official 
+            ? '<div class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
+            : (post.profile?.is_verified 
+                ? '<div class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] flex items-center justify-center"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></div>' 
+                : '');
+        
+        const postForAttribute = {
+            id: post.id,
+            user_id: post.user_id,
+            content: post.content,
+            school_name: post.school_name,
+            likes_count: post.likes_count,
+            comments_count: post.comments_count,
+            created_at: post.created_at,
+            updated_at: post.updated_at,
+            parent_id: post.parent_id,
+            username: post.profile?.username,
+            is_official: post.profile?.is_official,
+            is_verified: post.profile?.is_verified,
+            is_banned: post.profile?.is_banned
+        };
+        
+        const postDataStr = escapeAttribute(JSON.stringify(postForAttribute));
+        const safeContent = post.formattedContent || escapeHTML(filterProfanity(filterLinks(post.content)));
+        
+        html += `
+        <div class="post-card p-4" data-post-id="${post.id}" data-post='${postDataStr}' onmousedown="startPress(event, '${postDataStr}')" onmouseup="endPress()" ontouchstart="startPress(event, '${postDataStr}')" ontouchend="endPress()">
+            <div class="flex space-x-3">
+                <div onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="w-11 h-11 rounded-full bg-zinc-900 flex-shrink-0 flex items-center justify-center font-black text-sdel text-sm border border-white/10 uppercase cursor-pointer">${escapeHTML(username[0])}</div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-1.5 mb-1">
+                        <span onclick="location.href='profile.html?u=${escapeHTML(username)}'" class="username-text font-black uppercase tracking-tighter cursor-pointer">@${escapeHTML(username)}</span>
+                        ${badge}
+                        ${currentMode === 'universe' ? `<span class="ml-auto text-[9px] text-zinc-500 font-bold uppercase">${escapeHTML(post.school_name || '')}</span>` : ''}
+                    </div>
+                    <div class="post-content text-zinc-200 mb-3">${safeContent}</div>
+                    <div class="flex items-center justify-between mt-4 text-zinc-500 pr-4">
+                        <button onclick="handleLike('${post.id}')" class="like-button flex items-center gap-2" data-post-id="${post.id}" data-liked="${isLiked}" data-count="${post.likes_count || 0}">
+                            <i data-lucide="heart" size="18" fill="${isLiked ? '#FF6600' : 'none'}" class="like-icon"></i>
+                            <span class="text-xs font-bold like-count">${formatNum(post.likes_count || 0)}</span>
+                        </button>
+                        <button onclick="location.href='gist.html?id=${post.id}'" class="flex items-center gap-2"><i data-lucide="message-circle" size="18"></i><span class="text-xs font-bold">${formatNum(post.comments_count || 0)}</span></button>
+                        <button onclick="handleRepost('${post.id}', '${escapeHTML(username)}', '${escapeAttribute(post.content)}')" 
+                                class="flex items-center gap-2 ${hasReposted ? 'text-green-500 opacity-50' : ''}">
+                            <i data-lucide="repeat" size="18"></i>
+                            <span class="text-xs font-bold">${formatNum(post.reposts_count || 0)}</span>
+                        </button>
+                        <button onclick="handleShare('${post.id}', '${escapeHTML(username)}', '${escapeAttribute(post.content)}')"><i data-lucide="upload" size="18"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>`;
     }
     
     container.innerHTML = html;
@@ -881,28 +731,24 @@ function renderFeed() {
 }
 
 async function handleLike(postId) {
-    const button = document.querySelector(`.action-btn[onclick*="handleLike('${postId}')"]`);
+    const button = document.querySelector(`.like-button[data-post-id="${postId}"]`);
     if (!button) return;
     
-    const icon = button.querySelector('i');
+    const icon = button.querySelector('.like-icon');
     const countSpan = button.querySelector('.like-count');
     const currentCount = parseInt(countSpan.textContent.replace(/[^0-9]/g, '')) || 0;
-    const isLiked = myLikes.has(postId);
-    
-    // Add animation
-    if (icon) icon.classList.add('animate');
-    setTimeout(() => icon?.classList.remove('animate'), 300);
+    const isLiked = button.dataset.liked === 'true';
     
     // Optimistic UI update
     if (isLiked) {
         icon.setAttribute('fill', 'none');
         countSpan.textContent = formatNum(currentCount - 1);
-        button.classList.remove('liked');
+        button.dataset.liked = 'false';
         myLikes.delete(postId);
     } else {
         icon.setAttribute('fill', '#FF6600');
         countSpan.textContent = formatNum(currentCount + 1);
-        button.classList.add('liked');
+        button.dataset.liked = 'true';
         myLikes.add(postId);
     }
     
@@ -998,22 +844,13 @@ async function handleRepost(originalPostId, originalAuthor, originalContent) {
         });
         
         repostedPosts.add(originalPostId);
-        
-        // Increment repost count on original
-        await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' });
-        
-        // Update the original post's repost count in the UI
-        const originalPostIndex = allPosts.findIndex(p => p.id === originalPostId);
-        if (originalPostIndex !== -1) {
-            allPosts[originalPostIndex].reposts_count = (allPosts[originalPostIndex].reposts_count || 0) + 1;
-        }
+        await supabase.rpc('increment_stat', { post_id: originalPostId, field: 'reposts_count' }); 
         
         const formattedContent = await formatContent(newPost.content, newPost.id);
         newPost.formattedContent = formattedContent;
         
         allPosts = [newPost, ...allPosts];
         renderFeed();
-        showToast("Reposted!");
     }
 }
 
@@ -1110,7 +947,6 @@ async function submitPostFromModal() {
                 newPost.formattedContent = formattedContent;
                 allPosts = [newPost, ...allPosts];
                 renderFeed();
-                showToast("Gist published!");
             } else {
                 console.error('Post error:', error);
                 showToast('Failed to post');
@@ -1418,6 +1254,8 @@ function switchTab(mode) {
     hasMore = true;
     
     document.getElementById('feed-container').innerHTML = `
+        <div class="skeleton-card"><div class="flex space-x-3"><div class="skeleton-avatar"></div><div class="flex-1"><div class="skeleton-line short"></div><div class="skeleton-line medium mt-2"></div><div class="skeleton-line long"></div><div class="skeleton-actions"><div class="skeleton-action"></div><div class="skeleton-action"></div><div class="skeleton-action"></div></div></div></div></div>
+        <div class="skeleton-card"><div class="flex space-x-3"><div class="skeleton-avatar"></div><div class="flex-1"><div class="skeleton-line short"></div><div class="skeleton-line medium mt-2"></div><div class="skeleton-line long"></div><div class="skeleton-actions"><div class="skeleton-action"></div><div class="skeleton-action"></div><div class="skeleton-action"></div></div></div></div></div>
         <div class="skeleton-card"><div class="flex space-x-3"><div class="skeleton-avatar"></div><div class="flex-1"><div class="skeleton-line short"></div><div class="skeleton-line medium mt-2"></div><div class="skeleton-line long"></div><div class="skeleton-actions"><div class="skeleton-action"></div><div class="skeleton-action"></div><div class="skeleton-action"></div></div></div></div></div>
     `;
     
