@@ -17,75 +17,64 @@
         .subject-pill { padding: 6px 14px; border-radius: 99px; font-size: 10px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: 0.2s; white-space: nowrap; }
         .subject-active { background: #ff6600; border-color: #ff6600; color: white; box-shadow: 0 4px 15px rgba(255, 102, 0, 0.3); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .q-preview-card { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 16px; border: 1px solid rgba(255,255,255,0.05); transition: all 0.2s; }
-        .q-preview-card:hover { border-color: rgba(255,102,0,0.3); background: rgba(255,102,0,0.05); }
+        .q-preview-card { background: rgba(255,255,255,0.03); border-radius: 20px; padding: 16px; border: 1px solid rgba(255,255,255,0.05); }
         #toast { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(150%); }
         #toast.active { transform: translateY(0); }
         .watermark { position: absolute; bottom: 20px; right: 20px; font-size: 12px; font-weight: 900; opacity: 0.2; color: #ff6600; text-transform: uppercase; letter-spacing: 2px; }
         
-        /* Option Card Styles */
+        /* Simple option cards - text wraps naturally */
         .option-card {
             background: rgba(255,255,255,0.03);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 16px;
+            border-radius: 16px;
+            padding: 12px;
             cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-            overflow: hidden;
+            transition: all 0.2s;
         }
         .option-card:hover {
             background: rgba(255,255,255,0.08);
             border-color: rgba(255,102,0,0.5);
-            transform: translateY(-2px);
         }
         .option-card.selected {
-            background: linear-gradient(135deg, rgba(255,102,0,0.15), rgba(255,102,0,0.05));
             border-color: #ff6600;
-            box-shadow: 0 0 0 2px rgba(255,102,0,0.2), 0 4px 15px rgba(255,102,0,0.2);
-        }
-        .option-card.selected::before {
-            content: '✓';
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            color: #ff6600;
-            font-weight: bold;
-            font-size: 14px;
+            background: rgba(255,102,0,0.1);
         }
         .option-letter {
             display: inline-block;
-            width: 32px;
-            height: 32px;
-            line-height: 32px;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
             text-align: center;
             background: rgba(255,102,0,0.2);
-            border-radius: 12px;
+            border-radius: 10px;
             font-weight: 800;
-            font-size: 14px;
+            font-size: 12px;
             color: #ff6600;
-            margin-right: 12px;
+            margin-right: 10px;
+            flex-shrink: 0;
         }
         .option-text {
-            font-size: 14px;
-            font-weight: 500;
-            word-break: break-word;
+            font-size: 13px;
+            line-height: 1.4;
+            word-wrap: break-word;
+            white-space: normal;
         }
         .option-input {
             background: transparent !important;
             border: none !important;
             padding: 0 !important;
             margin: 0 !important;
-            font-size: 14px;
+            font-size: 13px;
             width: 100%;
             outline: none;
+            resize: vertical;
+            word-wrap: break-word;
+            white-space: normal;
         }
-        .option-input:focus {
-            border: none !important;
-            outline: none !important;
+        textarea.option-input {
+            min-height: 60px;
         }
         
-        /* Build Mode Toggle */
         .mode-toggle {
             background: rgba(255,255,255,0.05);
             border-radius: 99px;
@@ -107,28 +96,19 @@
             color: black;
         }
         
-        /* Auto-gen panel */
         .auto-gen-panel {
-            background: linear-gradient(135deg, rgba(255,102,0,0.1), rgba(255,102,0,0.02));
+            background: rgba(255,102,0,0.05);
             border: 1px solid rgba(255,102,0,0.3);
             border-radius: 20px;
             padding: 20px;
         }
         
-        .question-counter {
+        .question-badge {
             background: rgba(255,102,0,0.2);
             border-radius: 12px;
             padding: 4px 12px;
             font-size: 10px;
             font-weight: 800;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .generating {
-            animation: pulse 1s infinite;
         }
     </style>
 </head>
@@ -164,7 +144,7 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Start Time (Optional - Blank for Infinite)</label>
+                    <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Start Time (Optional)</label>
                     <input type="datetime-local" id="start-time" class="w-full p-4 mt-1">
                 </div>
                 <div>
@@ -185,76 +165,70 @@
     <div id="slide-questions" class="hidden">
         <div id="subject-tabs" class="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-2"></div>
         
-        <!-- Build Mode Toggle -->
+        <!-- Mode Toggle -->
         <div class="flex justify-between items-center mb-4">
             <div class="mode-toggle">
-                <div id="mode-manual" class="mode-option active" onclick="setBuildMode('manual')">✍️ Manual</div>
-                <div id="mode-auto" class="mode-option" onclick="setBuildMode('auto')">🤖 Auto-Generate</div>
+                <div id="mode-manual" class="mode-option active" onclick="setBuildMode('manual')">Manual</div>
+                <div id="mode-auto" class="mode-option" onclick="setBuildMode('auto')">Auto-Gen</div>
             </div>
-            <div id="question-counter" class="question-counter hidden">0 Questions</div>
+            <div id="question-counter" class="question-badge">0 Qs</div>
         </div>
         
-        <!-- Manual Build Panel -->
-        <div id="manual-panel" class="glass-panel p-6 rounded-[32px] space-y-4 border-orange-500/20">
-            <div class="flex justify-between items-center">
-                <span id="cur-sub-label" class="text-orange-500 font-black text-[10px] uppercase"></span>
-                <span id="edit-indicator" class="text-white/20 text-[8px] font-black uppercase">New Mode</span>
-            </div>
-            <textarea id="q-text" placeholder="Question Text..." class="w-full p-4 h-24 text-sm"></textarea>
-            
-            <!-- Options as Cards (Not Straight Line) -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div id="option-card-A" class="option-card" onclick="selectOption('A')">
-                    <div class="flex items-start">
+        <!-- Manual Panel -->
+        <div id="manual-panel">
+            <div class="glass-panel p-6 rounded-[32px] space-y-4">
+                <div class="flex justify-between items-center">
+                    <span id="cur-sub-label" class="text-orange-500 font-black text-[10px] uppercase"></span>
+                    <span id="edit-indicator" class="text-white/20 text-[8px] font-black uppercase">New</span>
+                </div>
+                <textarea id="q-text" placeholder="Question Text..." class="w-full p-4 h-24 text-sm"></textarea>
+                
+                <!-- Option Cards - Text wraps naturally -->
+                <div class="space-y-3">
+                    <div id="option-card-A" class="option-card flex items-start gap-2" onclick="selectCorrect('A')">
                         <span class="option-letter">A</span>
-                        <input type="text" id="opt-a" placeholder="Option A" class="option-text option-input" onclick="event.stopPropagation()" oninput="updateOptionPreview('A', this.value)">
+                        <textarea id="opt-a" placeholder="Option A (click card to mark as correct)" class="option-input flex-1" rows="2" oninput="autoResize(this)"></textarea>
                     </div>
-                </div>
-                <div id="option-card-B" class="option-card" onclick="selectOption('B')">
-                    <div class="flex items-start">
+                    <div id="option-card-B" class="option-card flex items-start gap-2" onclick="selectCorrect('B')">
                         <span class="option-letter">B</span>
-                        <input type="text" id="opt-b" placeholder="Option B" class="option-text option-input" onclick="event.stopPropagation()" oninput="updateOptionPreview('B', this.value)">
+                        <textarea id="opt-b" placeholder="Option B (click card to mark as correct)" class="option-input flex-1" rows="2" oninput="autoResize(this)"></textarea>
                     </div>
-                </div>
-                <div id="option-card-C" class="option-card" onclick="selectOption('C')">
-                    <div class="flex items-start">
+                    <div id="option-card-C" class="option-card flex items-start gap-2" onclick="selectCorrect('C')">
                         <span class="option-letter">C</span>
-                        <input type="text" id="opt-c" placeholder="Option C" class="option-text option-input" onclick="event.stopPropagation()" oninput="updateOptionPreview('C', this.value)">
+                        <textarea id="opt-c" placeholder="Option C (click card to mark as correct)" class="option-input flex-1" rows="2" oninput="autoResize(this)"></textarea>
                     </div>
-                </div>
-                <div id="option-card-D" class="option-card" onclick="selectOption('D')">
-                    <div class="flex items-start">
+                    <div id="option-card-D" class="option-card flex items-start gap-2" onclick="selectCorrect('D')">
                         <span class="option-letter">D</span>
-                        <input type="text" id="opt-d" placeholder="Option D" class="option-text option-input" onclick="event.stopPropagation()" oninput="updateOptionPreview('D', this.value)">
+                        <textarea id="opt-d" placeholder="Option D (click card to mark as correct)" class="option-input flex-1" rows="2" oninput="autoResize(this)"></textarea>
                     </div>
                 </div>
-            </div>
-            
-            <div class="flex gap-2">
-                <button id="main-save-btn" onclick="saveQuestion(false)" class="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-bold uppercase">Save & Next</button>
-                <button onclick="saveQuestion(true)" class="flex-1 bg-orange-600 py-4 rounded-xl text-[10px] font-black uppercase">Finish Exam</button>
-            </div>
-        </div>
-        
-        <!-- Auto-Generate Panel -->
-        <div id="auto-panel" class="auto-gen-panel hidden space-y-4">
-            <div class="flex justify-between items-center">
-                <h3 class="text-orange-500 font-black text-sm uppercase">🤖 AI Question Generator</h3>
-                <button id="generate-btn" onclick="generateQuestions()" class="bg-orange-600 px-6 py-3 rounded-xl text-[10px] font-black uppercase">Generate Questions</button>
-            </div>
-            <div>
-                <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Number of Questions</label>
-                <input type="number" id="num-questions" value="5" min="1" max="20" class="w-full p-4 mt-1">
-            </div>
-            <div>
-                <label class="text-[9px] font-black text-gray-500 uppercase ml-1">Topic Focus (Optional)</label>
-                <input type="text" id="topic-focus" placeholder="e.g., cardiovascular system, pharmacology basics" class="w-full p-4 mt-1">
-            </div>
-            <div class="text-xs text-gray-400">
-                <p>💡 Auto-generated questions will be created based on the subject area. You can edit them after generation.</p>
+                
+                <div class="flex gap-2">
+                    <button id="main-save-btn" onclick="saveQuestion(false)" class="flex-1 bg-white/5 py-4 rounded-xl text-[10px] font-bold uppercase">Save & Next</button>
+                    <button onclick="saveQuestion(true)" class="flex-1 bg-orange-600 py-4 rounded-xl text-[10px] font-black uppercase">Finish Exam</button>
+                </div>
             </div>
         </div>
         
+        <!-- Auto Panel -->
+        <div id="auto-panel" class="hidden">
+            <div class="auto-gen-panel space-y-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-orange-500 font-black text-sm uppercase">Auto-Generate Questions</h3>
+                    <button id="generate-btn" onclick="generateQuestions()" class="bg-orange-600 px-6 py-3 rounded-xl text-[10px] font-black uppercase">Generate</button>
+                </div>
+                <div>
+                    <label class="text-[9px] font-black text-gray-500 uppercase">Number of Questions</label>
+                    <input type="number" id="num-questions" value="5" min="1" max="20" class="w-full p-4 mt-1">
+                </div>
+                <div class="text-xs text-gray-400">
+                    <p>⚠️ Auto-generated questions are saved separately and won't mix with manual questions.</p>
+                    <p>💡 Questions are subject-specific based on your selected subject.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Question List -->
         <div id="q-preview-list" class="mt-8 space-y-4 pb-20"></div>
     </div>
 
@@ -297,30 +271,20 @@
         let activeSub = "";
         let activeBuildId = null;
         let editingQId = null;
-        let currentBuildMode = 'manual'; // 'manual' or 'auto'
-        let selectedCorrectOption = null;
+        let currentBuildMode = 'manual';
+        let selectedCorrect = null;
+        let autoQuestions = []; // Store auto-generated questions separately
 
-        const POOL = ["Anatomy", "Physiology", "Biochemistry", "MTH 101", "GST 101", "Surgery", "Law of Tort", "Pathology"];
-
-        // Sample question bank for auto-generation
-        const questionBank = {
-            "Anatomy": [
-                { text: "Which bone is known as the collarbone?", options: ["Scapula", "Clavicle", "Humerus", "Femur"], correct: "B" },
-                { text: "How many bones are in the adult human body?", options: ["206", "208", "210", "204"], correct: "A" },
-                { text: "What is the longest bone in the human body?", options: ["Tibia", "Fibula", "Femur", "Humerus"], correct: "C" }
-            ],
-            "Physiology": [
-                { text: "Which hormone regulates blood sugar?", options: ["Insulin", "Adrenaline", "Thyroxine", "Cortisol"], correct: "A" },
-                { text: "What is the normal resting heart rate for adults?", options: ["60-100 bpm", "40-60 bpm", "100-120 bpm", "120-140 bpm"], correct: "A" }
-            ],
-            "Biochemistry": [
-                { text: "What is the primary function of hemoglobin?", options: ["Carry oxygen", "Fight infection", "Digest food", "Store energy"], correct: "A" }
-            ]
-        };
+        const POOL = ["Anatomy", "Physiology", "Biochemistry", "MTH 101", "GST 101", "Surgery", "Law of Tort", "Pathology", "Chemistry", "Physics", "Biology"];
 
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('start-time').min = now.toISOString().slice(0, 16);
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+        }
 
         function notify(msg) {
             const t = document.getElementById('toast');
@@ -331,19 +295,26 @@
 
         function copyToClipboard(text) {
             navigator.clipboard.writeText(text);
-            notify("Copied Code!");
+            notify("Copied!");
         }
 
         function searchSubs() {
             const q = document.getElementById('sub-search').value.toLowerCase();
             const res = document.getElementById('search-results');
-            res.innerHTML = ""; if(!q) return;
+            res.innerHTML = "";
+            if(!q) return;
             POOL.filter(s => s.toLowerCase().includes(q)).forEach(s => {
                 const d = document.createElement('div');
-                d.className = "subject-pill"; d.innerText = s;
+                d.className = "subject-pill";
+                d.innerText = s;
                 d.onclick = () => { 
-                    if(selectedSubs.length >= 4) return notify("Max 4!");
-                    if(!selectedSubs.includes(s)) { selectedSubs.push(s); renderSelected(); } 
+                    if(selectedSubs.length >= 4) return notify("Max 4 subjects!");
+                    if(!selectedSubs.includes(s)) { 
+                        selectedSubs.push(s); 
+                        renderSelected(); 
+                    }
+                    document.getElementById('sub-search').value = "";
+                    searchSubs();
                 };
                 res.appendChild(d);
             });
@@ -351,7 +322,7 @@
 
         function renderSelected() {
             document.getElementById('selected-list').innerHTML = selectedSubs.map(s => 
-                `<div onclick="removeSub('${s}')" class="subject-pill subject-active">${s} ×</div>`
+                `<div onclick="removeSub('${s}')" class="subject-pill subject-active">${s} ✕</div>`
             ).join('');
         }
 
@@ -366,118 +337,63 @@
             document.getElementById('mode-auto').classList.toggle('active', mode === 'auto');
             document.getElementById('manual-panel').classList.toggle('hidden', mode !== 'manual');
             document.getElementById('auto-panel').classList.toggle('hidden', mode !== 'auto');
-            
-            if (mode === 'auto') {
-                updateQuestionCounter();
-            }
+            clearQForm();
         }
 
-        function updateOptionPreview(letter, value) {
-            // Auto-save the option text to the hidden input (already happening)
-        }
-
-        function selectOption(option) {
-            selectedCorrectOption = option;
+        function selectCorrect(option) {
+            selectedCorrect = option;
             ['A', 'B', 'C', 'D'].forEach(opt => {
                 const card = document.getElementById(`option-card-${opt}`);
-                if (card) {
-                    if (opt === option) {
-                        card.classList.add('selected');
-                    } else {
-                        card.classList.remove('selected');
-                    }
+                if(card) {
+                    if(opt === option) card.classList.add('selected');
+                    else card.classList.remove('selected');
                 }
             });
-            document.getElementById('q-correct-hidden').value = option;
         }
 
-        async function generateQuestions() {
-            const numQuestions = parseInt(document.getElementById('num-questions').value) || 5;
-            const topicFocus = document.getElementById('topic-focus').value;
+        function clearQForm() {
+            editingQId = null;
+            selectedCorrect = null;
+            document.getElementById('edit-indicator').innerText = "New";
+            document.getElementById('main-save-btn').innerHTML = "Save & Next";
+            document.getElementById('q-text').value = "";
+            document.getElementById('opt-a').value = "";
+            document.getElementById('opt-b').value = "";
+            document.getElementById('opt-c').value = "";
+            document.getElementById('opt-d').value = "";
             
-            notify(`🤖 Generating ${numQuestions} questions...`);
-            const generateBtn = document.getElementById('generate-btn');
-            generateBtn.classList.add('generating');
-            generateBtn.disabled = true;
-            
-            try {
-                // Use sample bank + AI-like generation
-                const bank = questionBank[activeSub] || questionBank["Anatomy"];
-                const generated = [];
-                
-                for (let i = 0; i < Math.min(numQuestions, 20); i++) {
-                    const template = bank[i % bank.length];
-                    const newQuestion = {
-                        build_id: activeBuildId,
-                        subject_tag: activeSub,
-                        question_text: topicFocus ? `${topicFocus}: ${template.text}` : template.text,
-                        option_a: template.options[0],
-                        option_b: template.options[1],
-                        option_c: template.options[2],
-                        option_d: template.options[3],
-                        correct_answer: template.correct
-                    };
-                    
-                    const { error } = await sb.from('cbt_questions').insert([newQuestion]);
-                    if (!error) generated.push(newQuestion);
-                }
-                
-                notify(`✅ Generated ${generated.length} questions successfully!`);
-                renderPreviews();
-                updateQuestionCounter();
-            } catch (err) {
-                notify("❌ Generation failed. Try again.");
-                console.error(err);
-            } finally {
-                generateBtn.classList.remove('generating');
-                generateBtn.disabled = false;
-            }
-        }
-
-        async function updateQuestionCounter() {
-            if (!activeBuildId) return;
-            const { data } = await sb.from('cbt_questions')
-                .select('id', { count: 'exact', head: true })
-                .eq('build_id', activeBuildId);
-            const count = data?.length || 0;
-            const counter = document.getElementById('question-counter');
-            counter.classList.remove('hidden');
-            counter.innerHTML = `${count} Question${count !== 1 ? 's' : ''}`;
+            ['A', 'B', 'C', 'D'].forEach(opt => {
+                const card = document.getElementById(`option-card-${opt}`);
+                if(card) card.classList.remove('selected');
+            });
         }
 
         async function initiateBuild() {
-            if(!userId) return notify("Login first!");
+            if(!userId) return notify("Login required!");
             const title = document.getElementById('exam-title').value;
-            if(!title || selectedSubs.length === 0) return notify("Incomplete Details!");
+            if(!title || selectedSubs.length === 0) return notify("Fill all details!");
 
             const startTimeValue = document.getElementById('start-time').value;
             if (startTimeValue) {
                 const selectedDate = new Date(startTimeValue);
-                const now = new Date();
+                const nowDate = new Date();
                 selectedDate.setMinutes(selectedDate.getMinutes() + selectedDate.getTimezoneOffset());
-                if (selectedDate < now) {
-                    notify("❌ Start time cannot be in the past!");
+                if (selectedDate < nowDate) {
+                    notify("Start time cannot be in the past!");
                     return;
                 }
             }
 
-            const firstThree = Math.floor(100 + Math.random() * 900);
-            const upper = String.fromCharCode(65 + Math.floor(Math.random() * 26));
-            const lower1 = String.fromCharCode(97 + Math.floor(Math.random() * 26));
-            const lower2 = String.fromCharCode(97 + Math.floor(Math.random() * 26));
-            const lower3 = String.fromCharCode(97 + Math.floor(Math.random() * 26));
-            const digit1 = Math.floor(Math.random() * 10);
-            const digit2 = Math.floor(Math.random() * 10);
-            const lower4 = String.fromCharCode(97 + Math.floor(Math.random() * 26));
-            const lower5 = String.fromCharCode(97 + Math.floor(Math.random() * 26));
-            const finalDigit = Math.floor(Math.random() * 10);
-
-            const code = `Thesdel-${firstThree}${upper}${lower1}${lower2}${lower3}${digit1}${digit2}${lower4}${lower5}${finalDigit}`;
+            // Generate unique code
+            const code = `TH-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
             const { data, error } = await sb.from('cbt_builds').insert([{
-                creator_id: userId, build_name: title, subjects_list: selectedSubs,
+                creator_id: userId,
+                build_name: title,
+                subjects_list: selectedSubs,
                 duration_mins: parseInt(document.getElementById('exam-duration').value) || 30,
-                join_code: code, start_time: startTimeValue || null
+                join_code: code,
+                start_time: startTimeValue || null
             }]).select().single();
 
             if (data) {
@@ -492,50 +408,63 @@
 
         function setupTabs() {
             const nav = document.getElementById('subject-tabs');
-            nav.innerHTML = selectedSubs.map(s => `<div onclick="setSub('${s}')" class="subject-pill ${s === activeSub ? 'subject-active' : ''}">${s}</div>`).join('');
+            nav.innerHTML = selectedSubs.map(s => 
+                `<div onclick="switchSubject('${s}')" class="subject-pill ${s === activeSub ? 'subject-active' : ''}">${s}</div>`
+            ).join('');
             document.getElementById('cur-sub-label').innerText = activeSub;
-            renderPreviews();
+            loadQuestionsForSubject();
         }
 
-        function setSub(s) { 
-            activeSub = s; 
-            clearQForm(); 
-            setupTabs(); 
-            updateQuestionCounter();
+        async function switchSubject(s) {
+            activeSub = s;
+            clearQForm();
+            setupTabs();
+            await loadQuestionsForSubject();
         }
 
-        function clearQForm() {
-            editingQId = null;
-            selectedCorrectOption = null;
-            document.getElementById('edit-indicator').innerText = "New Mode";
-            document.getElementById('main-save-btn').innerHTML = "Save & Next";
-            document.getElementById('q-text').value = "";
-            document.getElementById('opt-a').value = "";
-            document.getElementById('opt-b').value = "";
-            document.getElementById('opt-c').value = "";
-            document.getElementById('opt-d').value = "";
+        async function loadQuestionsForSubject() {
+            // Load ONLY questions for this subject (no mixing)
+            const { data } = await sb.from('cbt_questions')
+                .select('*')
+                .eq('build_id', activeBuildId)
+                .eq('subject_tag', activeSub)
+                .order('created_at', { ascending: true });
             
-            ['A', 'B', 'C', 'D'].forEach(opt => {
-                const card = document.getElementById(`option-card-${opt}`);
-                if (card) card.classList.remove('selected');
-            });
+            renderPreviewList(data || []);
+            updateQuestionCount(data?.length || 0);
+        }
+
+        function updateQuestionCount(count) {
+            const counter = document.getElementById('question-counter');
+            counter.innerHTML = `${count} Q${count !== 1 ? 's' : ''}`;
         }
 
         async function saveQuestion(isFinal) {
-            const correctAnswer = selectedCorrectOption;
-            if (!correctAnswer) {
-                notify("Please select the correct answer by clicking on an option card!");
+            if(!selectedCorrect) {
+                notify("Click on the option card that is the correct answer!");
+                return;
+            }
+            
+            const qText = document.getElementById('q-text').value;
+            const optA = document.getElementById('opt-a').value;
+            const optB = document.getElementById('opt-b').value;
+            const optC = document.getElementById('opt-c').value;
+            const optD = document.getElementById('opt-d').value;
+            
+            if(!qText || !optA || !optB || !optC || !optD) {
+                notify("Fill all fields!");
                 return;
             }
             
             const qData = {
-                build_id: activeBuildId, subject_tag: activeSub,
-                question_text: document.getElementById('q-text').value,
-                option_a: document.getElementById('opt-a').value,
-                option_b: document.getElementById('opt-b').value,
-                option_c: document.getElementById('opt-c').value,
-                option_d: document.getElementById('opt-d').value,
-                correct_answer: correctAnswer
+                build_id: activeBuildId,
+                subject_tag: activeSub,
+                question_text: qText,
+                option_a: optA,
+                option_b: optB,
+                option_c: optC,
+                option_d: optD,
+                correct_answer: selectedCorrect
             };
             
             let error;
@@ -546,52 +475,127 @@
                 const { error: err } = await sb.from('cbt_questions').insert([qData]);
                 error = err;
             }
-
+            
             if(!error) {
                 if(isFinal) {
                     const { data } = await sb.from('cbt_builds').select('join_code').eq('id', activeBuildId).single();
                     document.getElementById('final-code-display').innerText = data.join_code;
                     document.getElementById('success-modal').classList.remove('hidden');
-                } else { 
-                    notify("Question Saved!"); 
+                } else {
+                    notify("Saved!");
                     clearQForm();
-                    renderPreviews();
-                    updateQuestionCounter();
+                    await loadQuestionsForSubject();
                 }
             } else {
-                notify("Error saving question!");
+                notify("Error saving!");
             }
         }
 
-        async function renderPreviews() {
-            const { data } = await sb.from('cbt_questions')
-                .select('*')
-                .eq('build_id', activeBuildId)
-                .eq('subject_tag', activeSub);
+        async function generateQuestions() {
+            const numQuestions = parseInt(document.getElementById('num-questions').value) || 5;
+            const generateBtn = document.getElementById('generate-btn');
             
-            document.getElementById('q-preview-list').innerHTML = (data || []).map((q, i) => `
-                <div class="q-preview-card">
-                    <div class="flex justify-between mb-2">
-                        <p class="text-[9px] font-black text-orange-500 uppercase">Question ${i+1}</p>
-                        <button onclick="editQ('${q.id}')" class="text-[8px] font-black text-white/40 uppercase hover:text-orange-500 transition">✏️ Edit</button>
-                    </div>
-                    <p class="text-xs font-bold mb-3">${q.question_text}</p>
-                    <div class="grid grid-cols-2 gap-2 text-[10px]">
-                        <p class="${q.correct_answer === 'A' ? 'text-orange-500 font-bold' : ''}">A: ${q.option_a}</p>
-                        <p class="${q.correct_answer === 'B' ? 'text-orange-500 font-bold' : ''}">B: ${q.option_b}</p>
-                        <p class="${q.correct_answer === 'C' ? 'text-orange-500 font-bold' : ''}">C: ${q.option_c}</p>
-                        <p class="${q.correct_answer === 'D' ? 'text-orange-500 font-bold' : ''}">D: ${q.option_d}</p>
-                    </div>
-                </div>`).join('');
+            notify(`Generating ${numQuestions} questions...`);
+            generateBtn.disabled = true;
+            generateBtn.classList.add('opacity-50');
+            
+            // Subject-specific question templates (no mixing across subjects)
+            const subjectTemplates = {
+                "Anatomy": [
+                    { text: "What is the function of the skeletal system?", opts: ["Protection & support", "Digestion", "Circulation", "Respiration"], correct: "A" },
+                    { text: "Which bone protects the brain?", opts: ["Skull", "Spine", "Ribs", "Pelvis"], correct: "A" },
+                    { text: "How many vertebrae make up the human spine?", opts: ["33", "26", "24", "30"], correct: "A" }
+                ],
+                "Physiology": [
+                    { text: "What is the main function of red blood cells?", opts: ["Carry oxygen", "Fight infection", "Clot blood", "Produce hormones"], correct: "A" },
+                    { text: "Which organ filters blood?", opts: ["Kidney", "Liver", "Heart", "Lungs"], correct: "A" }
+                ],
+                "Biochemistry": [
+                    { text: "What is the primary energy currency of the cell?", opts: ["ATP", "DNA", "RNA", "ADP"], correct: "A" }
+                ],
+                "MTH 101": [
+                    { text: "What is 2 + 2?", opts: ["4", "3", "5", "6"], correct: "A" },
+                    { text: "Solve for x: 2x + 3 = 7", opts: ["2", "3", "4", "5"], correct: "A" }
+                ],
+                "Chemistry": [
+                    { text: "What is the symbol for gold?", opts: ["Au", "Ag", "Fe", "Cu"], correct: "A" }
+                ],
+                "Physics": [
+                    { text: "What is Newton's first law about?", opts: ["Inertia", "Force", "Action-Reaction", "Gravity"], correct: "A" }
+                ]
+            };
+            
+            const templates = subjectTemplates[activeSub] || subjectTemplates["Anatomy"];
+            let generated = 0;
+            
+            for(let i = 0; i < Math.min(numQuestions, 20); i++) {
+                const template = templates[i % templates.length];
+                const qData = {
+                    build_id: activeBuildId,
+                    subject_tag: activeSub,
+                    question_text: template.text,
+                    option_a: template.opts[0],
+                    option_b: template.opts[1],
+                    option_c: template.opts[2],
+                    option_d: template.opts[3],
+                    correct_answer: template.correct
+                };
+                
+                const { error } = await sb.from('cbt_questions').insert([qData]);
+                if(!error) generated++;
+            }
+            
+            notify(`✅ Generated ${generated} questions for ${activeSub}!`);
+            generateBtn.disabled = false;
+            generateBtn.classList.remove('opacity-50');
+            await loadQuestionsForSubject();
         }
 
-        async function editQ(id) {
+        function renderPreviewList(questions) {
+            const container = document.getElementById('q-preview-list');
+            
+            if(questions.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-500 text-xs py-8">No questions yet. Add your first question above ↑</div>`;
+                return;
+            }
+            
+            container.innerHTML = questions.map((q, i) => `
+                <div class="q-preview-card">
+                    <div class="flex justify-between items-start mb-3">
+                        <p class="text-[9px] font-black text-orange-500 uppercase">Q${i+1}</p>
+                        <div class="flex gap-3">
+                            <button onclick="editQuestion('${q.id}')" class="text-[8px] font-black text-white/40 hover:text-white uppercase">Edit</button>
+                            <button onclick="deleteQuestion('${q.id}')" class="text-[8px] font-black text-red-500/40 hover:text-red-500 uppercase">Delete</button>
+                        </div>
+                    </div>
+                    <p class="text-sm font-bold mb-3">${escapeHtml(q.question_text)}</p>
+                    <div class="grid grid-cols-2 gap-2 text-[10px]">
+                        <p class="${q.correct_answer === 'A' ? 'text-orange-500 font-bold' : 'text-gray-400'}">A: ${escapeHtml(q.option_a)}</p>
+                        <p class="${q.correct_answer === 'B' ? 'text-orange-500 font-bold' : 'text-gray-400'}">B: ${escapeHtml(q.option_b)}</p>
+                        <p class="${q.correct_answer === 'C' ? 'text-orange-500 font-bold' : 'text-gray-400'}">C: ${escapeHtml(q.option_c)}</p>
+                        <p class="${q.correct_answer === 'D' ? 'text-orange-500 font-bold' : 'text-gray-400'}">D: ${escapeHtml(q.option_d)}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function escapeHtml(str) {
+            if(!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        async function editQuestion(id) {
             const { data } = await sb.from('cbt_questions').select('*').eq('id', id).single();
             if(data) {
                 editingQId = data.id;
-                selectedCorrectOption = data.correct_answer;
-                document.getElementById('edit-indicator').innerText = "Editing Mode";
-                document.getElementById('main-save-btn').innerHTML = "Update Question";
+                selectedCorrect = data.correct_answer;
+                document.getElementById('edit-indicator').innerText = "Editing";
+                document.getElementById('main-save-btn').innerHTML = "Update";
                 document.getElementById('q-text').value = data.question_text;
                 document.getElementById('opt-a').value = data.option_a;
                 document.getElementById('opt-b').value = data.option_b;
@@ -600,16 +604,21 @@
                 
                 ['A', 'B', 'C', 'D'].forEach(opt => {
                     const card = document.getElementById(`option-card-${opt}`);
-                    if (card) {
-                        if (opt === data.correct_answer) {
-                            card.classList.add('selected');
-                        } else {
-                            card.classList.remove('selected');
-                        }
+                    if(card) {
+                        if(opt === data.correct_answer) card.classList.add('selected');
+                        else card.classList.remove('selected');
                     }
                 });
                 
                 window.scrollTo({top: 0, behavior: 'smooth'});
+            }
+        }
+        
+        async function deleteQuestion(id) {
+            if(confirm("Delete this question?")) {
+                await sb.from('cbt_questions').delete().eq('id', id);
+                await loadQuestionsForSubject();
+                notify("Deleted!");
             }
         }
         
@@ -628,29 +637,29 @@
                     if(now < start) { status = "PENDING"; color = "text-yellow-500"; }
                     else if(now > end) { status = "ENDED"; color = "text-red-500"; }
                 }
-
+                
                 return `
-                <div class="glass-panel p-8 rounded-[40px]">
+                <div class="glass-panel p-6 rounded-[32px]">
                     <div class="flex justify-between items-center mb-4">
                         <span class="text-[9px] font-black ${color} tracking-widest">${status}</span>
                         <button onclick="deleteExam('${b.id}')" class="text-red-500 text-[10px] font-black uppercase">Delete</button>
                     </div>
-                    <h2 class="text-2xl font-black uppercase text-white mb-1">${b.build_name}</h2>
-                    <p onclick="copyToClipboard('${b.join_code}')" class="text-[10px] font-mono text-orange-500 mb-6 cursor-pointer">CODE: ${b.join_code}</p>
+                    <h2 class="text-xl font-black uppercase text-white mb-1">${escapeHtml(b.build_name)}</h2>
+                    <p onclick="copyToClipboard('${b.join_code}')" class="text-[10px] font-mono text-orange-500 mb-4 cursor-pointer">${b.join_code}</p>
                     <div class="flex gap-2">
-                        <button onclick="openAnalysis('${b.id}', '${b.build_name}', '${b.join_code}')" class="flex-[2] bg-white/5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest">Analysis</button>
-                        <button onclick="shareExam('${b.build_name}', '${b.join_code}')" class="flex-1 bg-orange-600/20 text-orange-500 py-4 rounded-2xl text-[10px] font-black uppercase">Invite</button>
+                        <button onclick="openAnalysis('${b.id}', '${b.build_name}', '${b.join_code}')" class="flex-1 bg-white/5 py-3 rounded-xl text-[9px] font-black">Analysis</button>
+                        <button onclick="shareExam('${b.build_name}', '${b.join_code}')" class="flex-1 bg-orange-600/20 text-orange-500 py-3 rounded-xl text-[9px] font-black">Invite</button>
                     </div>
                 </div>`;
             }).join('');
         }
-
+        
         async function deleteExam(id) {
-            if(confirm("Strictly delete this exam and all its questions?")) {
+            if(confirm("Delete this exam and all its questions?")) {
                 await sb.from('cbt_questions').delete().eq('build_id', id);
                 await sb.from('cbt_builds').delete().eq('id', id);
                 loadVault();
-                notify("Exam Wiped!");
+                notify("Deleted!");
             }
         }
         
@@ -661,45 +670,44 @@
             document.getElementById('ana-code').innerText = code;
             
             const { data } = await sb.from('cbt_results').select('score, total_questions, profile:user_id (first_name, last_name)').eq('build_id', id);
-            if(data) {
+            if(data && data.length) {
                 data.sort((a, b) => b.score - a.score);
-                const avg = data.length ? (data.reduce((a, b) => a + b.score, 0) / data.length).toFixed(1) : 0;
+                const avg = (data.reduce((a, b) => a + b.score, 0) / data.length).toFixed(1);
                 document.getElementById('ana-avg').innerHTML = avg;
                 document.getElementById('analysis-rows').innerHTML = data.map(r => `
                     <tr class="border-b border-white/5">
-                        <td class="py-4 font-bold uppercase text-white">${r.profile ? r.profile.first_name + ' ' + r.profile.last_name : 'Homie'}</td>
-                        <td class="py-4 text-center font-black text-orange-500">${r.score}/${r.total_questions}</td>
-                        <td class="py-4 text-right text-gray-400 font-mono">${r.score * 10}</td>
-                    </tr>`).join('');
+                        <td class="py-3 font-bold text-white text-xs">${r.profile ? r.profile.first_name + ' ' + r.profile.last_name : 'Homie'}</td>
+                        <td class="py-3 text-center font-black text-orange-500">${r.score}/${r.total_questions}</td>
+                        <td class="py-3 text-right text-gray-400">${r.score * 10}</td>
+                    </tr>
+                `).join('');
+            } else {
+                document.getElementById('ana-avg').innerHTML = "0";
+                document.getElementById('analysis-rows').innerHTML = '<tr><td colspan="3" class="py-8 text-center text-gray-500">No attempts yet</td></tr>';
             }
         }
-
+        
         function shareExam(n, c) {
-            const text = `🚀 You are warmly invited to participate in a thrilling CBT hosted by Thesdel!
-
-📘 Exam: ${n}
-🔑 Join Code: ${c}
-
-Join now: https://thesdel.com/join
-
-New here? Sign up: https://thesdel.com/signup
-
-Prepare thoroughly and perform at your best. ✨`;
+            const text = `📘 Exam: ${n}\n🔑 Code: ${c}\n\nJoin at: https://thesdel.com/join`;
             copyToClipboard(text);
         }
-
+        
         function exportExcel() {
             let csv = "Homie,Score,XP\n";
             document.querySelectorAll("#analysis-rows tr").forEach(tr => {
                 const cols = tr.querySelectorAll("td");
-                csv += `${cols[0].innerText},${cols[1].innerText},${cols[2].innerText}\n`;
+                if(cols.length === 3) {
+                    csv += `${cols[0].innerText},${cols[1].innerText},${cols[2].innerText}\n`;
+                }
             });
             const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url; a.download = 'Analysis.csv'; a.click();
+            a.href = URL.createObjectURL(blob);
+            a.download = 'Analysis.csv';
+            a.click();
+            URL.revokeObjectURL(a.href);
         }
-
+        
         function exportPNG() {
             html2canvas(document.querySelector("#capture-area"), { backgroundColor: '#000' }).then(canvas => {
                 const a = document.createElement('a');
@@ -708,18 +716,15 @@ Prepare thoroughly and perform at your best. ✨`;
                 a.click();
             });
         }
-
+        
         function showSection(sec) {
             ['slide-config','slide-questions','view-vault','view-analytics'].forEach(s => document.getElementById(s).classList.add('hidden'));
             if(sec === 'create') document.getElementById('slide-config').classList.remove('hidden');
-            else if(sec === 'manage') { document.getElementById('view-vault').classList.remove('hidden'); loadVault(); }
+            else if(sec === 'manage') { 
+                document.getElementById('view-vault').classList.remove('hidden'); 
+                loadVault();
+            }
         }
-        
-        // Add hidden input for correct answer tracking
-        const hiddenInput = document.createElement('input');
-        hiddenInput.type = 'hidden';
-        hiddenInput.id = 'q-correct-hidden';
-        document.body.appendChild(hiddenInput);
     </script>
 </body>
 </html>
