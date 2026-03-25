@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Thesdel Studio</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://lgfyrlfjoazedwymjpfc.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://lgfyrlfjoazedwymjpfc.supabase.co; frame-src 'none';">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="X-Frame-Options" content="DENY">
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -21,9 +26,64 @@
         #toast { transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); transform: translateY(150%); }
         #toast.active { transform: translateY(0); }
         .watermark { position: absolute; bottom: 20px; right: 20px; font-size: 12px; font-weight: 900; opacity: 0.2; color: #ff6600; text-transform: uppercase; letter-spacing: 2px; }
-        .option-text { word-wrap: break-word; white-space: normal; line-height: 1.4; }
+        .option-text { 
+            word-wrap: break-word; 
+            white-space: normal; 
+            line-height: 1.4;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            max-width: 100%;
+        }
         .delete-question-btn { transition: 0.2s; }
         .delete-question-btn:hover { color: #ff6600; }
+        .preview-question-text {
+            word-wrap: break-word;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+        .custom-alert {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        .custom-alert-content {
+            max-width: 90%;
+            width: 320px;
+            background: #111;
+            border: 1px solid rgba(255,102,0,0.3);
+            border-radius: 24px;
+            padding: 24px;
+            text-align: center;
+        }
+        .custom-alert-message {
+            color: white;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .custom-alert-button {
+            background: #ff6600;
+            color: black;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .custom-alert-button:hover {
+            background: #ff8533;
+        }
     </style>
 </head>
 <body class="p-5 pb-32">
@@ -127,7 +187,7 @@
                     <tr><th class="py-3">Homie</th><th class="py-3 text-center">Score</th><th class="py-3 text-right">XP</th></tr>
                 </thead>
                 <tbody id="analysis-rows"></tbody>
-            </table>
+            _options
         </div>
     </div>
 
@@ -144,10 +204,64 @@
 
         const POOL = ["Anatomy", "Physiology", "Biochemistry", "MTH 101", "GST 101", "Surgery", "Law of Tort", "Pathology"];
 
+        // XSS Protection: Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Custom Alert
+        function customAlert(message, callback) {
+            const existingAlert = document.querySelector('.custom-alert');
+            if (existingAlert) existingAlert.remove();
+            
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'custom-alert';
+            alertDiv.innerHTML = `
+                <div class="custom-alert-content">
+                    <div class="custom-alert-message">${escapeHtml(message)}</div>
+                    <button class="custom-alert-button" onclick="this.closest('.custom-alert').remove(); if(window.alertCallback) window.alertCallback(); window.alertCallback = null;">OK</button>
+                </div>
+            `;
+            if (callback) window.alertCallback = callback;
+            document.body.appendChild(alertDiv);
+        }
+
+        // Custom Confirm
+        function customConfirm(message, onConfirm, onCancel) {
+            const existingAlert = document.querySelector('.custom-alert');
+            if (existingAlert) existingAlert.remove();
+            
+            const confirmDiv = document.createElement('div');
+            confirmDiv.className = 'custom-alert';
+            confirmDiv.innerHTML = `
+                <div class="custom-alert-content">
+                    <div class="custom-alert-message">${escapeHtml(message)}</div>
+                    <div style="display: flex; gap: 12px; justify-content: center;">
+                        <button class="custom-alert-button" style="background: #ff6600;" id="confirm-yes">Yes</button>
+                        <button class="custom-alert-button" style="background: #333;" id="confirm-no">No</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(confirmDiv);
+            
+            document.getElementById('confirm-yes').onclick = () => {
+                confirmDiv.remove();
+                if (onConfirm) onConfirm();
+            };
+            document.getElementById('confirm-no').onclick = () => {
+                confirmDiv.remove();
+                if (onCancel) onCancel();
+            };
+        }
+
         // Set min time to now
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        document.getElementById('start-time').min = now.toISOString().slice(0, 16);
+        const startTimeInput = document.getElementById('start-time');
+        if (startTimeInput) startTimeInput.min = now.toISOString().slice(0, 16);
 
         function notify(msg) {
             const t = document.getElementById('toast');
@@ -167,7 +281,8 @@
             res.innerHTML = ""; if(!q) return;
             POOL.filter(s => s.toLowerCase().includes(q)).forEach(s => {
                 const d = document.createElement('div');
-                d.className = "subject-pill"; d.innerText = s;
+                d.className = "subject-pill"; 
+                d.textContent = s;
                 d.onclick = () => { 
                     if(selectedSubs.length >= 4) return notify("Max 4!");
                     if(!selectedSubs.includes(s)) { selectedSubs.push(s); renderSelected(); } 
@@ -178,7 +293,7 @@
 
         function renderSelected() {
             document.getElementById('selected-list').innerHTML = selectedSubs.map(s => 
-                `<div onclick="removeSub('${s}')" class="subject-pill subject-active">${s} ×</div>`
+                `<div onclick="removeSub('${escapeHtml(s)}')" class="subject-pill subject-active">${escapeHtml(s)} ×</div>`
             ).join('');
         }
 
@@ -188,9 +303,9 @@
         }
 
         async function initiateBuild() {
-            if(!userId) return notify("Login first!");
+            if(!userId) return customAlert("Please login first!");
             const title = document.getElementById('exam-title').value;
-            if(!title || selectedSubs.length === 0) return notify("Incomplete Details!");
+            if(!title || selectedSubs.length === 0) return customAlert("Please fill in all exam details and select at least one subject!");
 
             const startTimeValue = document.getElementById('start-time').value;
             if (startTimeValue) {
@@ -198,7 +313,7 @@
                 const now = new Date();
                 selectedDate.setMinutes(selectedDate.getMinutes() + selectedDate.getTimezoneOffset());
                 if (selectedDate < now) {
-                    notify("❌ Start time cannot be in the past!");
+                    customAlert("Start time cannot be in the past!");
                     return;
                 }
             }
@@ -233,7 +348,7 @@
 
         function setupTabs() {
             const nav = document.getElementById('subject-tabs');
-            nav.innerHTML = selectedSubs.map(s => `<div onclick="setSub('${s}')" class="subject-pill ${s === activeSub ? 'subject-active' : ''}">${s}</div>`).join('');
+            nav.innerHTML = selectedSubs.map(s => `<div onclick="setSub('${escapeHtml(s)}')" class="subject-pill ${s === activeSub ? 'subject-active' : ''}">${escapeHtml(s)}</div>`).join('');
             document.getElementById('cur-sub-label').innerText = activeSub;
             renderPreviews();
         }
@@ -283,19 +398,18 @@
         }
 
         async function deleteQuestion(questionId) {
-            if(confirm("Delete this question? This action cannot be undone.")) {
+            customConfirm("Delete this question? This action cannot be undone.", async () => {
                 const { error } = await sb.from('cbt_questions').delete().eq('id', questionId);
                 if(!error) {
                     notify("Question deleted!");
                     renderPreviews();
-                    // If we were editing this question, clear the form
                     if(editingQId === questionId) {
                         clearQForm();
                     }
                 } else {
-                    notify("Error deleting question!");
+                    customAlert("Error deleting question!");
                 }
-            }
+            });
         }
 
         async function renderPreviews() {
@@ -313,12 +427,12 @@
                             <button onclick="deleteQuestion('${q.id}')" class="text-[8px] font-black text-red-500/60 uppercase hover:text-red-500 transition delete-question-btn">Delete</button>
                         </div>
                     </div>
-                    <p class="text-xs font-bold mb-3">${q.question_text}</p>
+                    <p class="text-xs font-bold mb-3 preview-question-text">${escapeHtml(q.question_text)}</p>
                     <div class="space-y-1 text-[10px] opacity-50">
-                        <p class="option-text">A: ${q.option_a}</p>
-                        <p class="option-text">B: ${q.option_b}</p>
-                        <p class="option-text">C: ${q.option_c}</p>
-                        <p class="option-text">D: ${q.option_d}</p>
+                        <p class="option-text"><strong>A:</strong> ${escapeHtml(q.option_a)}</p>
+                        <p class="option-text"><strong>B:</strong> ${escapeHtml(q.option_b)}</p>
+                        <p class="option-text"><strong>C:</strong> ${escapeHtml(q.option_c)}</p>
+                        <p class="option-text"><strong>D:</strong> ${escapeHtml(q.option_d)}</p>
                     </div>
                 </div>`).join('');
         }
@@ -361,23 +475,23 @@
                         <span class="text-[9px] font-black ${color} tracking-widest">${status}</span>
                         <button onclick="deleteExam('${b.id}')" class="text-red-500 text-[10px] font-black uppercase">Delete</button>
                     </div>
-                    <h2 class="text-2xl font-black uppercase text-white mb-1">${b.build_name}</h2>
+                    <h2 class="text-2xl font-black uppercase text-white mb-1">${escapeHtml(b.build_name)}</h2>
                     <p onclick="copyToClipboard('${b.join_code}')" class="text-[10px] font-mono text-orange-500 mb-6 cursor-pointer">CODE: ${b.join_code}</p>
                     <div class="flex gap-2">
-                        <button onclick="openAnalysis('${b.id}', '${b.build_name}', '${b.join_code}')" class="flex-[2] bg-white/5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest">Analysis</button>
-                        <button onclick="shareExam('${b.build_name}', '${b.join_code}')" class="flex-1 bg-orange-600/20 text-orange-500 py-4 rounded-2xl text-[10px] font-black uppercase">Invite</button>
+                        <button onclick="openAnalysis('${b.id}', '${escapeHtml(b.build_name)}', '${b.join_code}')" class="flex-[2] bg-white/5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest">Analysis</button>
+                        <button onclick="shareExam('${escapeHtml(b.build_name)}', '${b.join_code}')" class="flex-1 bg-orange-600/20 text-orange-500 py-4 rounded-2xl text-[10px] font-black uppercase">Invite</button>
                     </div>
                 </div>`;
             }).join('');
         }
 
         async function deleteExam(id) {
-            if(confirm("Strictly delete this exam and all its questions?")) {
+            customConfirm("Strictly delete this exam and all its questions?", async () => {
                 await sb.from('cbt_questions').delete().eq('build_id', id);
                 await sb.from('cbt_builds').delete().eq('id', id);
                 loadVault();
                 notify("Exam Wiped!");
-            }
+            });
         }
 
         async function openAnalysis(id, name, code) {
@@ -393,7 +507,7 @@
                 document.getElementById('ana-avg').innerText = avg;
                 document.getElementById('analysis-rows').innerHTML = data.map(r => `
                     <tr class="border-b border-white/5">
-                        <td class="py-4 font-bold uppercase text-white">${r.profile ? r.profile.first_name + ' ' + r.profile.last_name : 'Homie'}</td>
+                        <td class="py-4 font-bold uppercase text-white">${escapeHtml(r.profile ? r.profile.first_name + ' ' + r.profile.last_name : 'Homie')}</td>
                         <td class="py-4 text-center font-black text-orange-500">${r.score}/${r.total_questions}</td>
                         <td class="py-4 text-right text-gray-400 font-mono">${r.score * 10}</td>
                     </tr>`).join('');
