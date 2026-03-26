@@ -1,11 +1,11 @@
 const CACHE_NAME = 'sdel-v1';
 
-// We've updated this to use your specific filename
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/dashboard.html',
   '/manifest.json',
+  '/offline.html',
   '/converted-image.png'
 ];
 
@@ -14,23 +14,45 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
   );
+  self.skipWaiting();
 });
 
-// Fetch: Try Network first (Live Update), fallback to Cache (Offline)
+// Activate: Take control immediately
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim());
+});
+
+// Fetch: Try Network first, fallback to Cache
 self.addEventListener('fetch', (event) => {
+  // Only handle requests from our origin
+  if (!event.request.url.startsWith(self.location.origin)) {
+    return;
+  }
+  
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // If network is successful, update the cache with the new version
-        const clonedResponse = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, clonedResponse);
-        });
+        // Cache successful responses
+        if (response && response.status === 200) {
+          const clonedResponse = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, clonedResponse);
+          });
+        }
         return response;
       })
-      .catch(() => {
-        // If offline, serve from cache
-        return caches.match(event.request);
+      .catch(async () => {
+        const cachedResponse = await caches.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        
+        // Return offline page for HTML requests
+        if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
+          return caches.match('/offline.html');
+        }
+        
+        return new Response('Offline', { status: 404 });
       })
   );
 });
