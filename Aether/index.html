@@ -108,7 +108,7 @@
             max-width: 100%;
             word-wrap: break-word;
             white-space: pre-wrap;
-            color: var(--text-main);  /* FIXED: explicit white text */
+            color: var(--text-main);
         }
 
         .message.user .message-bubble {
@@ -120,11 +120,7 @@
             display: flex;
             gap: 16px;
             margin-top: 8px;
-            opacity: 0;
             transition: opacity 0.2s ease;
-        }
-        .message:hover .message-actions {
-            opacity: 1;
         }
         .action-btn {
             background: transparent;
@@ -221,10 +217,7 @@
     </div>
 
     <script>
-        // ============================================
-        // AETHER AI — COMPLETE WORKING VERSION
-        // ============================================
-        
+        // Aether AI — with knowledge base
         class AetherAI {
             constructor() {
                 this.knowledge = {
@@ -236,29 +229,21 @@
                     "loop": "A loop repeats a block of code multiple times. 'Do this 10 times'.",
                     "thesdel": "Thesdel is the Students Digital Exchange Layer — an ecosystem for students to connect, study, buy/sell, and compete. Built by a student, for students.",
                     "aether": "I'm Aether. I help students learn without the noise. Ask me about math, programming, or Thesdel.",
-                    "intensity": "Intensity usually refers to the amount of energy or power per unit area. In physics, it's power transferred per unit area. In everyday terms, it's the strength or force of something. Example: Sound intensity is how loud a sound is."
+                    "intensity": "Intensity usually refers to the amount of energy or power per unit area. In physics, it's power transferred per unit area. In everyday terms, it's the strength or force of something."
                 }
-                this.lastAnswer = null
             }
             
             ask(question) {
                 const lower = question.toLowerCase().trim()
-                
                 for (let key in this.knowledge) {
-                    if (lower.includes(key)) {
-                        this.lastAnswer = this.knowledge[key]
-                        return this.knowledge[key]
-                    }
+                    if (lower.includes(key)) return this.knowledge[key]
                 }
-                
                 if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey")) {
                     return "Hey! What do you want to learn today?"
                 }
-                
                 if (lower.includes("thank")) {
                     return "You're welcome! Keep asking questions — that's how we learn."
                 }
-                
                 return "I'm still learning about that. Try asking about: limit, derivative, integral, variable, function, loop, thesdel, aether, or intensity."
             }
         }
@@ -268,51 +253,32 @@
         const chatInput = document.getElementById('chatInput')
         const sendButton = document.getElementById('sendButton')
 
-        function addMessage(role, content) {
+        // Typewriter effect
+        async function typeEffect(element, text, speed = 18) {
+            element.textContent = ''
+            for (let i = 0; i < text.length; i++) {
+                element.textContent += text[i]
+                chatMessages.scrollTop = chatMessages.scrollHeight
+                await new Promise(r => setTimeout(r, speed))
+            }
+        }
+
+        function addUserMessage(content) {
             const messageDiv = document.createElement('div')
-            messageDiv.className = `message ${role}`
+            messageDiv.className = 'message user'
             
             const nameDiv = document.createElement('div')
             nameDiv.className = 'message-username'
-            nameDiv.textContent = role === 'aether' ? 'Aether' : 'User'
+            nameDiv.textContent = 'User'
             
             const bubbleDiv = document.createElement('div')
             bubbleDiv.className = 'message-bubble'
             bubbleDiv.textContent = content
-            bubbleDiv.style.color = '#ffffff'  // Force white text
             
             messageDiv.appendChild(nameDiv)
             messageDiv.appendChild(bubbleDiv)
-            
-            if (role === 'aether') {
-                const actionsDiv = document.createElement('div')
-                actionsDiv.className = 'message-actions'
-                actionsDiv.innerHTML = `
-                    <button class="action-btn" data-action="copy">Copy</button>
-                    <button class="action-btn" data-action="regenerate">Regenerate</button>
-                `
-                messageDiv.appendChild(actionsDiv)
-                
-                actionsDiv.querySelectorAll('.action-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation()
-                        if (btn.dataset.action === 'copy') {
-                            navigator.clipboard.writeText(content)
-                        } else if (btn.dataset.action === 'regenerate') {
-                            messageDiv.remove()
-                            const lastUserMsg = document.querySelectorAll('.message.user')
-                            if (lastUserMsg.length) {
-                                const lastQ = lastUserMsg[lastUserMsg.length - 1].querySelector('.message-bubble').textContent
-                                sendToAether(lastQ)
-                            }
-                        }
-                    })
-                })
-            }
-            
             chatMessages.appendChild(messageDiv)
             chatMessages.scrollTop = chatMessages.scrollHeight
-            return messageDiv
         }
 
         function showTypingIndicator() {
@@ -334,36 +300,81 @@
         }
 
         function hideTypingIndicator() {
-            const typing = document.getElementById('typingIndicator')
-            if (typing) typing.remove()
+            const el = document.getElementById('typingIndicator')
+            if (el) el.remove()
         }
 
-        function sendToAether(question) {
+        async function sendToAether(question) {
             showTypingIndicator()
-            setTimeout(() => {
-                hideTypingIndicator()
-                const answer = ai.ask(question)
-                addMessage('aether', answer)
-            }, 300)
+            await new Promise(r => setTimeout(r, 300))
+            hideTypingIndicator()
+            
+            // Create empty Aether message
+            const messageDiv = document.createElement('div')
+            messageDiv.className = 'message aether'
+            
+            const nameDiv = document.createElement('div')
+            nameDiv.className = 'message-username'
+            nameDiv.textContent = 'Aether'
+            
+            const bubbleDiv = document.createElement('div')
+            bubbleDiv.className = 'message-bubble'
+            bubbleDiv.style.color = '#ffffff'
+            
+            messageDiv.appendChild(nameDiv)
+            messageDiv.appendChild(bubbleDiv)
+            
+            // Add action container (will fill after typing)
+            const actionsDiv = document.createElement('div')
+            actionsDiv.className = 'message-actions'
+            messageDiv.appendChild(actionsDiv)
+            
+            chatMessages.appendChild(messageDiv)
+            chatMessages.scrollTop = chatMessages.scrollHeight
+            
+            // Get answer and type it
+            const answer = ai.ask(question)
+            await typeEffect(bubbleDiv, answer, 15)
+            
+            // Add action buttons after typing
+            actionsDiv.innerHTML = `
+                <button class="action-btn" data-action="copy">Copy</button>
+                <button class="action-btn" data-action="regenerate">Regenerate</button>
+            `
+            actionsDiv.querySelectorAll('.action-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation()
+                    if (btn.dataset.action === 'copy') {
+                        navigator.clipboard.writeText(answer)
+                    } else if (btn.dataset.action === 'regenerate') {
+                        messageDiv.remove()
+                        const lastUser = document.querySelectorAll('.message.user')
+                        if (lastUser.length) {
+                            const lastQ = lastUser[lastUser.length - 1].querySelector('.message-bubble').textContent
+                            sendToAether(lastQ)
+                        }
+                    }
+                })
+            })
+            chatMessages.scrollTop = chatMessages.scrollHeight
         }
 
         function handleSend() {
-            const question = chatInput.value.trim()
-            if (!question) return
+            const q = chatInput.value.trim()
+            if (!q) return
             chatInput.value = ''
-            addMessage('user', question)
-            sendToAether(question)
+            addUserMessage(q)
+            sendToAether(q)
         }
 
         sendButton.addEventListener('click', handleSend)
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleSend()
-        })
+        chatInput.addEventListener('keypress', e => { if (e.key === 'Enter') handleSend() })
 
-        // Welcome message
+        // Welcome
         setTimeout(() => {
-            addMessage('aether', "Aether core initialized. Ask me about: limit, derivative, integral, variable, function, loop, thesdel, aether, or intensity.")
-        }, 100)
+            addUserMessage('Hello')
+            sendToAether('Hello')
+        }, 500)
     </script>
 </body>
 </html>
