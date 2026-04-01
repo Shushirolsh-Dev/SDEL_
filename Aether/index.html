@@ -2,15 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Aether — AI</title>
     <style>
         :root {
             --primary-orange: #FF6600;
             --bg-dark: #000000;
-            --card-bg: #000000;
-            --border-color: #222;
-            --text-main: #fff;
+            --border-color: #1a1a1a;
+            --text-main: #ffffff;
             --text-secondary: #666;
         }
 
@@ -18,268 +17,269 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        body {
-            font-family: 'Inter', 'Menlo', 'Monaco', 'Courier New', monospace;
+        body, html {
             background: var(--bg-dark);
             color: var(--text-main);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            overflow: hidden;
+            font-family: 'Inter', 'Menlo', monospace;
+            height: 100%;
+            width: 100%;
+            overflow: hidden; /* Prevents body bounce on mobile */
         }
 
         .chat-container {
-            width: 100%;
-            max-width: 900px;
-            height: 95vh;
-            background: var(--card-bg);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
+            height: 100vh;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
         }
 
+        /* HEADER */
         .chat-header {
-            padding: 20px 0;
-            margin: 0 32px;
+            padding: 15px 20px;
             border-bottom: 1px solid var(--border-color);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+            background: var(--bg-dark);
         }
 
         .header-logo {
-            width: 20px;
-            height: 20px;
-            /* Placeholder for your image URL */
-            background-image: url('https://placehold.co/40x40/FF6600/000000?text=A');
-            background-size: cover;
+            width: 24px;
+            height: 24px;
+            background: var(--primary-orange);
             border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: black;
+            font-size: 14px;
         }
 
         .chat-header h1 {
             font-size: 1rem;
-            font-weight: 700;
+            font-weight: 800;
             color: var(--primary-orange);
             letter-spacing: 1px;
             text-transform: uppercase;
         }
 
+        /* MESSAGES AREA */
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 32px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 32px;
-            scrollbar-width: none;
+            gap: 25px;
+            /* Makes text selectable */
+            user-select: text;
+            -webkit-user-select: text;
         }
-
-        .chat-messages::-webkit-scrollbar { display: none; }
 
         .message {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            max-width: 100%;
+            gap: 6px;
+            width: 100%;
         }
 
         .message-username {
-            font-size: 0.75rem;
-            font-weight: 800;
+            font-size: 0.7rem;
+            font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 1.5px;
         }
 
-        .message.aether .message-username {
-            color: var(--primary-orange);
-        }
-
-        .message.user .message-username {
-            color: var(--text-main);
-            text-align: right;
-        }
+        .message.aether .message-username { color: var(--primary-orange); }
+        .message.user .message-username { color: #fff; text-align: right; }
 
         .message-bubble {
             line-height: 1.6;
-            font-size: 1rem;
-            max-width: 100%;
-            word-wrap: break-word;
+            font-size: 0.95rem;
+            white-space: pre-wrap; /* Preserves code formatting/spacing */
         }
 
-        .message.user .message-bubble {
-            text-align: right;
-            color: #ccc;
-        }
+        .message.user .message-bubble { text-align: right; color: #bbb; }
 
-        /* Loading Dots */
+        /* TYPING INDICATOR */
         .typing-indicator {
             display: flex;
-            gap: 6px;
-            padding-top: 4px;
+            gap: 5px;
+            padding: 5px 0;
         }
 
-        .typing-dot {
-            width: 4px;
-            height: 4px;
-            background-color: var(--primary-orange);
+        .dot {
+            width: 5px;
+            height: 5px;
+            background: var(--primary-orange);
             border-radius: 50%;
-            animation: blink 1.4s infinite both;
+            animation: blink 1.2s infinite;
         }
-
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
 
         @keyframes blink {
-            0% { opacity: 0.1; }
-            20% { opacity: 1; }
-            100% { opacity: 0.1; }
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
         }
 
+        /* INPUT AREA - LOCKED TO BOTTOM */
         .chat-input-area {
-            padding: 24px 32px;
+            padding: 15px 20px;
+            border-top: 1px solid var(--border-color);
             background: var(--bg-dark);
+            padding-bottom: env(safe-area-inset-bottom, 15px); /* iOS notch fix */
         }
 
-        .input-container {
+        .input-wrapper {
             display: flex;
-            gap: 12px;
-            background: #0a0a0a;
-            border: 1px solid var(--border-color);
-            padding: 8px 16px;
-            border-radius: 8px;
             align-items: center;
-        }
-
-        .input-container:focus-within {
-            border-color: var(--primary-orange);
+            background: #0d0d0d;
+            border: 1px solid var(--primary-orange);
+            border-radius: 8px;
+            padding: 5px 15px;
         }
 
         .chat-input {
             flex: 1;
-            padding: 8px 0;
             background: transparent;
             border: none;
-            color: var(--text-main);
+            color: #fff;
+            padding: 10px 0;
             font-size: 1rem;
             outline: none;
         }
 
-        .send-button {
+        .run-btn {
             background: transparent;
             border: none;
             color: var(--primary-orange);
-            font-weight: 700;
-            font-size: 0.8rem;
+            font-weight: 800;
             cursor: pointer;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            font-size: 0.8rem;
+            margin-left: 10px;
         }
 
-        .send-button:hover {
-            color: #fff;
+        /* Responsive Fix for Keyboard */
+        @media (max-height: 500px) {
+            .chat-header { display: none; }
         }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <div class="header-logo"></div>
-            <h1>Aether</h1>
+
+<div class="chat-container">
+    <header class="chat-header">
+        <div class="header-logo">A</div>
+        <h1>Aether</h1>
+    </header>
+
+    <main class="chat-messages" id="chatWindow">
+        <div class="message aether">
+            <span class="message-username">Aether</span>
+            <div class="message-bubble" id="init-text"></div>
         </div>
-        <div class="chat-messages" id="chatMessages">
-            </div>
-        <div class="chat-input-area">
-            <div class="input-container">
-                <input type="text" class="chat-input" id="chatInput" placeholder="Type a message...">
-                <button class="send-button" id="sendButton">Run</button>
-            </div>
+    </main>
+
+    <footer class="chat-input-area">
+        <div class="input-wrapper">
+            <input type="text" id="userInput" class="chat-input" placeholder="Type a message..." autocomplete="off">
+            <button class="run-btn" id="sendBtn">Run</button>
         </div>
-    </div>
+    </footer>
+</div>
 
-    <script>
-        class AetherAI {
-            constructor() {
-                this.knowledge = {
-                    "limit": "A limit is the value a function approaches as the input approaches some value.",
-                    "derivative": "The derivative is the instantaneous rate of change of a function.",
-                    "integral": "Integration finds the area under a curve, representing accumulation.",
-                    "variable": "A variable is a container for data that can change during execution.",
-                    "default": "I need more specific input to execute that request."
-                }
-            }
-            ask(q) {
-                const lower = q.toLowerCase();
-                for (let key in this.knowledge) {
-                    if (lower.includes(key)) return this.knowledge[key];
-                }
-                return this.knowledge.default;
-            }
-        }
+<script>
+    const chatWindow = document.getElementById('chatWindow');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
 
-        const ai = new AetherAI();
-        const chatMessages = document.getElementById('chatMessages');
-        const chatInput = document.getElementById('chatInput');
-        const sendButton = document.getElementById('sendButton');
+    const Knowledge = {
+        "hello": "Aether core online. Input query.",
+        "hi": "Aether core online. Input query.",
+        "who are you": "I am Aether. The digital intelligence layer for Thesdel.",
+        "default": "I need more specific input to execute that request."
+    };
 
-        function typeEffect(element, text) {
-            let i = 0;
-            element.textContent = "";
-            const interval = setInterval(() => {
-                element.textContent += text[i];
+    function typeWriter(element, text, speed = 25) {
+        let i = 0;
+        element.innerHTML = "";
+        function type() {
+            if (i < text.length) {
+                element.innerHTML += text.charAt(i);
                 i++;
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                if (i >= text.length) clearInterval(interval);
-            }, 20);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+                setTimeout(type, speed);
+            }
+        }
+        type();
+    }
+
+    function addMessage(role, text, isTyping = false) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${role}`;
+        
+        const name = document.createElement('span');
+        name.className = 'message-username';
+        name.textContent = role === 'aether' ? 'Aether' : 'User';
+        
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        
+        if (isTyping) {
+            bubble.innerHTML = `<div class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+        } else {
+            bubble.textContent = text;
         }
 
-        function createMessage(role, isInitial = false) {
-            const container = document.createElement('div');
-            container.className = `message ${role}`;
+        msgDiv.appendChild(name);
+        msgDiv.appendChild(bubble);
+        chatWindow.appendChild(msgDiv);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        
+        return bubble;
+    }
+
+    function handleReply(input) {
+        const loadingBubble = addMessage('aether', '', true);
+        
+        setTimeout(() => {
+            // Remove the loading dots container
+            const parent = loadingBubble.closest('.message');
+            chatWindow.removeChild(parent);
             
-            const name = document.createElement('div');
-            name.className = 'message-username';
-            name.textContent = role === 'aether' ? 'Aether' : 'User';
-            
-            const bubble = document.createElement('div');
-            bubble.className = 'message-bubble';
-            
-            container.appendChild(name);
-            container.appendChild(bubble);
-            chatMessages.appendChild(container);
-            return bubble;
-        }
+            // Add the real reply with typewriter
+            const response = Knowledge[input.toLowerCase()] || Knowledge["default"];
+            const realBubble = addMessage('aether', '');
+            typeWriter(realBubble, response);
+        }, 1000);
+    }
 
-        function handleSend() {
-            const val = chatInput.value.trim();
-            if (!val) return;
+    function process() {
+        const text = userInput.value.trim();
+        if (!text) return;
+        
+        userInput.value = '';
+        addMessage('user', text);
+        handleReply(text);
+    }
 
-            chatInput.value = '';
-            const userBubble = createMessage('user');
-            userBubble.textContent = val;
+    sendBtn.addEventListener('click', process);
+    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') process(); });
 
-            // Loading state
-            const aiDiv = document.createElement('div');
-            aiDiv.className = 'message aether';
-            aiDiv.innerHTML = `<div class="message-username">Aether</div><div class="message-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
-            chatMessages.appendChild(aiDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+    // Initial sequence
+    window.onload = () => {
+        typeWriter(document.getElementById('init-text'), "Aether core initialized. Standing by for input.");
+    };
+</script>
 
-            setTimeout(() => {
-                chatMessages.removeChild(aiDiv);
-                const aiBubble = createMessage('aether');
-                typeEffect(aiBubble, ai.ask(val));
-            }, 1000);
-        }
-
-        sendButton.addEventListener('click', handleSend);
-        chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
-
-        // Start
-        const welcome = createMessage('aether');
-        typeEffect(welcome, "Aether core initialized. Standing by for input.");
-    </script>
 </body>
-</html>
+                </html>
+                
