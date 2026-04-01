@@ -10,8 +10,8 @@
             --bg-dark: #000000;
             --card-bg: #000000;
             --border-color: #222;
-            --text-main: #fff;
-            --text-secondary: #666;
+            --text-main: #ffffff;
+            --text-secondary: #888888;
         }
 
         * {
@@ -108,11 +108,12 @@
             max-width: 100%;
             word-wrap: break-word;
             white-space: pre-wrap;
+            color: var(--text-main);  /* FIXED: explicit white text */
         }
 
         .message.user .message-bubble {
             text-align: right;
-            color: #ccc;
+            color: #cccccc;
         }
 
         .message-actions {
@@ -133,6 +134,7 @@
             cursor: pointer;
             padding: 4px 0;
             text-transform: uppercase;
+            font-weight: 500;
         }
         .action-btn:hover {
             color: var(--primary-orange);
@@ -186,6 +188,9 @@
             outline: none;
             font-family: inherit;
         }
+        .chat-input::placeholder {
+            color: #444;
+        }
         .send-button {
             background: transparent;
             border: none;
@@ -217,12 +222,11 @@
 
     <script>
         // ============================================
-        // AETHER AI — WITH DEBUG LOGGING
+        // AETHER AI — COMPLETE WORKING VERSION
         // ============================================
         
         class AetherAI {
             constructor() {
-                console.log('🔥 Aether AI initialized');
                 this.knowledge = {
                     "limit": "A limit is the value a function approaches as the input approaches some value. Think of getting closer to a point without reaching it.",
                     "derivative": "The derivative measures how a function changes as its input changes. It's like the speed of a function.",
@@ -232,38 +236,30 @@
                     "loop": "A loop repeats a block of code multiple times. 'Do this 10 times'.",
                     "thesdel": "Thesdel is the Students Digital Exchange Layer — an ecosystem for students to connect, study, buy/sell, and compete. Built by a student, for students.",
                     "aether": "I'm Aether. I help students learn without the noise. Ask me about math, programming, or Thesdel.",
-                    "intensity": "Intensity usually refers to the amount of energy or power per unit area. In physics, it's power transferred per unit area. In everyday terms, it's the strength or force of something."
+                    "intensity": "Intensity usually refers to the amount of energy or power per unit area. In physics, it's power transferred per unit area. In everyday terms, it's the strength or force of something. Example: Sound intensity is how loud a sound is."
                 }
                 this.lastAnswer = null
             }
             
             ask(question) {
-                console.log('🧠 Aether received:', question)
                 const lower = question.toLowerCase().trim()
                 
-                // Check knowledge base
                 for (let key in this.knowledge) {
                     if (lower.includes(key)) {
-                        console.log('✅ Found match:', key)
                         this.lastAnswer = this.knowledge[key]
                         return this.knowledge[key]
                     }
                 }
                 
-                // Greetings
                 if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey")) {
-                    console.log('👋 Greeting detected')
                     return "Hey! What do you want to learn today?"
                 }
                 
-                // Thanks
                 if (lower.includes("thank")) {
                     return "You're welcome! Keep asking questions — that's how we learn."
                 }
                 
-                // Default
-                console.log('⚠️ No match found, using default')
-                return "I'm still learning about that. Ask me about: limit, derivative, integral, variable, function, loop, thesdel, aether, or intensity."
+                return "I'm still learning about that. Try asking about: limit, derivative, integral, variable, function, loop, thesdel, aether, or intensity."
             }
         }
 
@@ -273,8 +269,6 @@
         const sendButton = document.getElementById('sendButton')
 
         function addMessage(role, content) {
-            console.log(`📝 Adding ${role} message:`, content.substring(0, 50))
-            
             const messageDiv = document.createElement('div')
             messageDiv.className = `message ${role}`
             
@@ -285,6 +279,7 @@
             const bubbleDiv = document.createElement('div')
             bubbleDiv.className = 'message-bubble'
             bubbleDiv.textContent = content
+            bubbleDiv.style.color = '#ffffff'  // Force white text
             
             messageDiv.appendChild(nameDiv)
             messageDiv.appendChild(bubbleDiv)
@@ -303,9 +298,7 @@
                         e.stopPropagation()
                         if (btn.dataset.action === 'copy') {
                             navigator.clipboard.writeText(content)
-                            console.log('📋 Copied to clipboard')
                         } else if (btn.dataset.action === 'regenerate') {
-                            console.log('🔄 Regenerating...')
                             messageDiv.remove()
                             const lastUserMsg = document.querySelectorAll('.message.user')
                             if (lastUserMsg.length) {
@@ -346,12 +339,10 @@
         }
 
         function sendToAether(question) {
-            console.log('🚀 Sending to Aether:', question)
             showTypingIndicator()
             setTimeout(() => {
                 hideTypingIndicator()
                 const answer = ai.ask(question)
-                console.log('💬 Aether response:', answer)
                 addMessage('aether', answer)
             }, 300)
         }
@@ -359,7 +350,6 @@
         function handleSend() {
             const question = chatInput.value.trim()
             if (!question) return
-            console.log('📤 User sent:', question)
             chatInput.value = ''
             addMessage('user', question)
             sendToAether(question)
@@ -372,7 +362,6 @@
 
         // Welcome message
         setTimeout(() => {
-            console.log('✨ Welcome message sent')
             addMessage('aether', "Aether core initialized. Ask me about: limit, derivative, integral, variable, function, loop, thesdel, aether, or intensity.")
         }, 100)
     </script>
