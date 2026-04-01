@@ -12,7 +12,6 @@
             --border-color: #222;
             --text-main: #fff;
             --text-secondary: #666;
-            --action-hover: #1a1a1a;
         }
 
         * {
@@ -77,19 +76,7 @@
             display: flex;
             flex-direction: column;
             gap: 32px;
-            scrollbar-width: thin;
             min-height: 0;
-        }
-
-        .chat-messages::-webkit-scrollbar {
-            width: 4px;
-        }
-        .chat-messages::-webkit-scrollbar-track {
-            background: #111;
-        }
-        .chat-messages::-webkit-scrollbar-thumb {
-            background: var(--primary-orange);
-            border-radius: 4px;
         }
 
         .message {
@@ -128,7 +115,6 @@
             color: #ccc;
         }
 
-        /* Action tray — only for Aether messages */
         .message-actions {
             display: flex;
             gap: 16px;
@@ -144,24 +130,19 @@
             border: none;
             color: var(--text-secondary);
             font-size: 0.7rem;
-            font-weight: 500;
             cursor: pointer;
             padding: 4px 0;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: color 0.2s;
         }
         .action-btn:hover {
             color: var(--primary-orange);
         }
 
-        /* Loading Dots */
         .typing-indicator {
             display: flex;
             gap: 6px;
             padding-top: 4px;
         }
-
         .typing-dot {
             width: 4px;
             height: 4px;
@@ -169,10 +150,8 @@
             border-radius: 50%;
             animation: blink 1.4s infinite both;
         }
-
         .typing-dot:nth-child(2) { animation-delay: 0.2s; }
         .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
         @keyframes blink {
             0% { opacity: 0.1; }
             20% { opacity: 1; }
@@ -185,7 +164,6 @@
             flex-shrink: 0;
             border-top: 1px solid var(--border-color);
         }
-
         .input-container {
             display: flex;
             gap: 12px;
@@ -195,11 +173,9 @@
             border-radius: 8px;
             align-items: center;
         }
-
         .input-container:focus-within {
             border-color: var(--primary-orange);
         }
-
         .chat-input {
             flex: 1;
             padding: 8px 0;
@@ -210,7 +186,6 @@
             outline: none;
             font-family: inherit;
         }
-
         .send-button {
             background: transparent;
             border: none;
@@ -219,9 +194,7 @@
             font-size: 0.8rem;
             cursor: pointer;
             text-transform: uppercase;
-            letter-spacing: 1px;
         }
-
         .send-button:hover {
             color: #fff;
         }
@@ -243,25 +216,54 @@
     </div>
 
     <script>
-        // Aether AI — Pure, No APIs
+        // ============================================
+        // AETHER AI — WITH DEBUG LOGGING
+        // ============================================
+        
         class AetherAI {
             constructor() {
+                console.log('🔥 Aether AI initialized');
                 this.knowledge = {
-                    "limit": "A limit is the value a function approaches as the input approaches some value.",
-                    "derivative": "The derivative is the instantaneous rate of change of a function.",
-                    "integral": "Integration finds the area under a curve, representing accumulation.",
-                    "variable": "A variable is a container for data that can change during execution.",
+                    "limit": "A limit is the value a function approaches as the input approaches some value. Think of getting closer to a point without reaching it.",
+                    "derivative": "The derivative measures how a function changes as its input changes. It's like the speed of a function.",
+                    "integral": "Integration finds the area under a curve. It's the reverse of differentiation.",
+                    "variable": "A variable is a container for data that can change. Like a labeled box for storing information.",
+                    "function": "A function is a reusable block of code that does one specific thing. Like a recipe.",
+                    "loop": "A loop repeats a block of code multiple times. 'Do this 10 times'.",
                     "thesdel": "Thesdel is the Students Digital Exchange Layer — an ecosystem for students to connect, study, buy/sell, and compete. Built by a student, for students.",
-                    "aether": "I'm Aether. I help students learn without the noise. I remember what you ask so I can get better at helping you.",
-                    "default": "I'm still learning about that. Could you explain what you mean? Or ask me about math, programming, or Thesdel."
+                    "aether": "I'm Aether. I help students learn without the noise. Ask me about math, programming, or Thesdel.",
+                    "intensity": "Intensity usually refers to the amount of energy or power per unit area. In physics, it's power transferred per unit area. In everyday terms, it's the strength or force of something."
                 }
+                this.lastAnswer = null
             }
+            
             ask(question) {
+                console.log('🧠 Aether received:', question)
                 const lower = question.toLowerCase().trim()
+                
+                // Check knowledge base
                 for (let key in this.knowledge) {
-                    if (lower.includes(key)) return this.knowledge[key]
+                    if (lower.includes(key)) {
+                        console.log('✅ Found match:', key)
+                        this.lastAnswer = this.knowledge[key]
+                        return this.knowledge[key]
+                    }
                 }
-                return this.knowledge.default
+                
+                // Greetings
+                if (lower.includes("hello") || lower.includes("hi") || lower.includes("hey")) {
+                    console.log('👋 Greeting detected')
+                    return "Hey! What do you want to learn today?"
+                }
+                
+                // Thanks
+                if (lower.includes("thank")) {
+                    return "You're welcome! Keep asking questions — that's how we learn."
+                }
+                
+                // Default
+                console.log('⚠️ No match found, using default')
+                return "I'm still learning about that. Ask me about: limit, derivative, integral, variable, function, loop, thesdel, aether, or intensity."
             }
         }
 
@@ -269,9 +271,10 @@
         const chatMessages = document.getElementById('chatMessages')
         const chatInput = document.getElementById('chatInput')
         const sendButton = document.getElementById('sendButton')
-        let currentStreamingMessage = null
 
         function addMessage(role, content) {
+            console.log(`📝 Adding ${role} message:`, content.substring(0, 50))
+            
             const messageDiv = document.createElement('div')
             messageDiv.className = `message ${role}`
             
@@ -292,18 +295,17 @@
                 actionsDiv.innerHTML = `
                     <button class="action-btn" data-action="copy">Copy</button>
                     <button class="action-btn" data-action="regenerate">Regenerate</button>
-                    <button class="action-btn" data-action="like">Like</button>
-                    <button class="action-btn" data-action="dislike">Dislike</button>
                 `
                 messageDiv.appendChild(actionsDiv)
                 
                 actionsDiv.querySelectorAll('.action-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation()
-                        const action = btn.dataset.action
-                        if (action === 'copy') {
+                        if (btn.dataset.action === 'copy') {
                             navigator.clipboard.writeText(content)
-                        } else if (action === 'regenerate') {
+                            console.log('📋 Copied to clipboard')
+                        } else if (btn.dataset.action === 'regenerate') {
+                            console.log('🔄 Regenerating...')
                             messageDiv.remove()
                             const lastUserMsg = document.querySelectorAll('.message.user')
                             if (lastUserMsg.length) {
@@ -344,10 +346,12 @@
         }
 
         function sendToAether(question) {
+            console.log('🚀 Sending to Aether:', question)
             showTypingIndicator()
             setTimeout(() => {
                 hideTypingIndicator()
                 const answer = ai.ask(question)
+                console.log('💬 Aether response:', answer)
                 addMessage('aether', answer)
             }, 300)
         }
@@ -355,6 +359,7 @@
         function handleSend() {
             const question = chatInput.value.trim()
             if (!question) return
+            console.log('📤 User sent:', question)
             chatInput.value = ''
             addMessage('user', question)
             sendToAether(question)
@@ -367,7 +372,8 @@
 
         // Welcome message
         setTimeout(() => {
-            addMessage('aether', "Aether core initialized. Standing by for input.")
+            console.log('✨ Welcome message sent')
+            addMessage('aether', "Aether core initialized. Ask me about: limit, derivative, integral, variable, function, loop, thesdel, aether, or intensity.")
         }, 100)
     </script>
 </body>
