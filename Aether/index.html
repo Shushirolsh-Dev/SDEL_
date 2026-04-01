@@ -4,7 +4,186 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Aether — AI</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        :root {
+            --primary-orange: #FF6600;
+            --bg-dark: #000000;
+            --card-bg: #000000;
+            --border-color: #222;
+            --text-main: #ffffff;
+            --text-secondary: #888888;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body { height: 100%; width: 100%; background: var(--bg-dark); }
+
+        body {
+            font-family: 'Inter', 'Menlo', 'Monaco', 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 100%;
+            background: var(--card-bg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 20px 0;
+            margin: 0 32px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .header-logo { width: 20px; height: 20px; background: var(--primary-orange); border-radius: 2px; }
+
+        .chat-header h1 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary-orange);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            min-height: 0;
+            scroll-behavior: smooth;
+        }
+
+        .message { display: flex; flex-direction: column; gap: 8px; max-width: 100%; }
+
+        .message-username {
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .message.aether .message-username { color: var(--primary-orange); }
+        .message.user .message-username { color: var(--text-main); text-align: right; }
+
+        .message-bubble {
+            line-height: 1.6;
+            font-size: 1rem;
+            max-width: 100%;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            color: var(--text-main);
+        }
+
+        .message.user .message-bubble { text-align: right; color: #cccccc; }
+
+        .typing-active::after {
+            content: "▊";
+            display: inline-block;
+            color: var(--primary-orange);
+            margin-left: 4px;
+            animation: blink-cursor 0.8s step-start infinite;
+        }
+
+        @keyframes blink-cursor { 50% { opacity: 0; } }
+
+        .message-actions {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .actions-visible { opacity: 1; }
+
+        .action-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            cursor: pointer;
+            padding: 4px 0;
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+
+        .action-btn:hover { color: var(--primary-orange); }
+
+        .typing-indicator { display: flex; gap: 6px; padding-top: 4px; }
+
+        .typing-dot {
+            width: 4px;
+            height: 4px;
+            background-color: var(--primary-orange);
+            border-radius: 50%;
+            animation: dot-blink 1.4s infinite both;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dot-blink {
+            0% { opacity: 0.1; }
+            20% { opacity: 1; }
+            100% { opacity: 0.1; }
+        }
+
+        .chat-input-area {
+            padding: 24px 32px;
+            background: var(--bg-dark);
+            flex-shrink: 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            align-items: center;
+        }
+
+        .input-container:focus-within { border-color: var(--primary-orange); }
+
+        .chat-input {
+            flex: 1;
+            padding: 8px 0;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .chat-input::placeholder { color: #444; }
+
+        .send-button {
+            background: transparent;
+            border: none;
+            color: var(--primary-orange);
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+    </style>
 </head>
 <body>
     <div class="chat-container">
@@ -15,18 +194,13 @@
         <div class="chat-messages" id="chatMessages"></div>
         <div class="chat-input-area">
             <div class="input-container">
-                <input type="text" class="chat-input" id="chatInput" placeholder="Ask Aether...">
+                <input type="text" class="chat-input" id="chatInput" placeholder="Ask Aether..." autocomplete="off">
                 <button class="send-button" id="sendButton">Run</button>
             </div>
         </div>
     </div>
 
     <script>
-        // ============================================
-        // AETHER — Calls Supabase Edge Function
-        // ============================================
-        
-        // 🔥 REPLACE WITH YOUR SUPABASE PROJECT REF AND ANON KEY
         const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
         
@@ -34,32 +208,69 @@
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
 
-        // Typewriter effect
-        async function typeEffect(element, text, speed = 18) {
-            element.textContent = '';
-            for (let i = 0; i < text.length; i++) {
-                element.textContent += text[i];
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                await new Promise(r => setTimeout(r, speed));
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // --- THE UNIFIED TYPING ENGINE ---
+        function aetherType(text, showActions = false, originalQuestion = "") {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message aether';
+            
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'message-username';
+            nameDiv.textContent = 'Aether';
+            
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble typing-active';
+            
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+            
+            messageDiv.appendChild(nameDiv);
+            messageDiv.appendChild(bubbleDiv);
+            messageDiv.appendChild(actionsDiv);
+            chatMessages.appendChild(messageDiv);
+
+            let i = 0;
+            const typingSpeed = 30;
+
+            function type() {
+                if (i < text.length) {
+                    bubbleDiv.textContent += text[i];
+                    scrollToBottom();
+                    i++;
+                    setTimeout(type, typingSpeed);
+                } else {
+                    bubbleDiv.classList.remove('typing-active');
+                    if (showActions) {
+                        actionsDiv.classList.add('actions-visible');
+                        actionsDiv.innerHTML = `
+                            <button class="action-btn" id="copyBtn-${Date.now()}">Copy</button>
+                            <button class="action-btn" id="regBtn-${Date.now()}">Regenerate</button>
+                        `;
+                        
+                        // Set up button logic
+                        messageDiv.querySelector('[id^="copyBtn"]').onclick = () => navigator.clipboard.writeText(text);
+                        messageDiv.querySelector('[id^="regBtn"]').onclick = () => {
+                            messageDiv.remove();
+                            sendToAether(originalQuestion);
+                        };
+                    }
+                }
             }
+            type();
         }
 
         function addUserMessage(content) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message user';
-            
-            const nameDiv = document.createElement('div');
-            nameDiv.className = 'message-username';
-            nameDiv.textContent = 'User';
-            
-            const bubbleDiv = document.createElement('div');
-            bubbleDiv.className = 'message-bubble';
-            bubbleDiv.textContent = content;
-            
-            messageDiv.appendChild(nameDiv);
-            messageDiv.appendChild(bubbleDiv);
+            messageDiv.innerHTML = `
+                <div class="message-username">User</div>
+                <div class="message-bubble">${content}</div>
+            `;
             chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            scrollToBottom();
         }
 
         function showTypingIndicator() {
@@ -68,16 +279,10 @@
             typingDiv.id = 'typingIndicator';
             typingDiv.innerHTML = `
                 <div class="message-username">Aether</div>
-                <div class="message-bubble">
-                    <div class="typing-indicator">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
+                <div class="message-bubble"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>
             `;
             chatMessages.appendChild(typingDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            scrollToBottom();
         }
 
         function hideTypingIndicator() {
@@ -87,9 +292,7 @@
 
         async function sendToAether(question) {
             showTypingIndicator();
-            
             try {
-                // Call Supabase Edge Function
                 const response = await fetch(`${SUPABASE_URL}/functions/v1/aether`, {
                     method: 'POST',
                     headers: {
@@ -102,65 +305,12 @@
                 const data = await response.json();
                 hideTypingIndicator();
                 
-                // Create empty Aether message
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'message aether';
-                
-                const nameDiv = document.createElement('div');
-                nameDiv.className = 'message-username';
-                nameDiv.textContent = 'Aether';
-                
-                const bubbleDiv = document.createElement('div');
-                bubbleDiv.className = 'message-bubble';
-                bubbleDiv.style.color = '#ffffff';
-                
-                messageDiv.appendChild(nameDiv);
-                messageDiv.appendChild(bubbleDiv);
-                
-                const actionsDiv = document.createElement('div');
-                actionsDiv.className = 'message-actions';
-                messageDiv.appendChild(actionsDiv);
-                
-                chatMessages.appendChild(messageDiv);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                
-                // Type the answer
-                const answer = data.answer || "I'm having trouble thinking right now.";
-                await typeEffect(bubbleDiv, answer, 15);
-                
-                // Add action buttons
-                actionsDiv.innerHTML = `
-                    <button class="action-btn" data-action="copy">Copy</button>
-                    <button class="action-btn" data-action="regenerate">Regenerate</button>
-                `;
-                actionsDiv.querySelectorAll('.action-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        if (btn.dataset.action === 'copy') {
-                            navigator.clipboard.writeText(answer);
-                        } else if (btn.dataset.action === 'regenerate') {
-                            messageDiv.remove();
-                            const lastUser = document.querySelectorAll('.message.user');
-                            if (lastUser.length) {
-                                const lastQ = lastUser[lastUser.length - 1].querySelector('.message-bubble').textContent;
-                                sendToAether(lastQ);
-                            }
-                        }
-                    });
-                });
-                
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+                const answer = data.answer || "No response data found.";
+                aetherType(answer, true, question);
                 
             } catch (error) {
                 hideTypingIndicator();
-                console.error('Aether error:', error);
-                addUserMessage("System");
-                const errorMsg = "I'm having trouble connecting. Check console for details.";
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'message aether';
-                errorDiv.innerHTML = `<div class="message-username">Aether</div><div class="message-bubble">${errorMsg}</div>`;
-                chatMessages.appendChild(errorDiv);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+                aetherType("Connection error. Please check your network and try again.", false);
             }
         }
 
@@ -175,14 +325,11 @@
         sendButton.addEventListener('click', handleSend);
         chatInput.addEventListener('keypress', e => { if (e.key === 'Enter') handleSend(); });
 
-        // Welcome message
-        setTimeout(() => {
-            const welcomeDiv = document.createElement('div');
-            welcomeDiv.className = 'message aether';
-            welcomeDiv.innerHTML = `<div class="message-username">Aether</div><div class="message-bubble">Aether core initialized. Ask me anything — I'm connected to real AI.</div>`;
-            chatMessages.appendChild(welcomeDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 500);
+        window.onload = () => {
+            setTimeout(() => {
+                aetherType("Aether core initialized. Ask me anything.");
+            }, 500);
+        };
     </script>
 </body>
 </html>
