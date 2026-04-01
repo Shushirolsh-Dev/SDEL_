@@ -21,29 +21,28 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            height: 100%;
+            width: 100%;
+            background: var(--bg-dark);
+        }
+
         body {
             font-family: 'Inter', 'Menlo', 'Monaco', 'Courier New', monospace;
-            background: var(--bg-dark);
-            color: var(--text-main);
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            height: 100vh;
             overflow: hidden;
-            position: fixed;
-            width: 100%;
         }
 
         .chat-container {
             width: 100%;
             max-width: 900px;
-            height: 100vh;
+            height: 100%;
             background: var(--card-bg);
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            position: relative;
         }
 
         .chat-header {
@@ -79,6 +78,7 @@
             flex-direction: column;
             gap: 32px;
             scrollbar-width: thin;
+            min-height: 0;
         }
 
         .chat-messages::-webkit-scrollbar {
@@ -242,7 +242,133 @@
         </div>
     </div>
 
-    <script src="aether.js"></script>
-    <script src="app.js"></script>
+    <script>
+        // Aether AI — Pure, No APIs
+        class AetherAI {
+            constructor() {
+                this.knowledge = {
+                    "limit": "A limit is the value a function approaches as the input approaches some value.",
+                    "derivative": "The derivative is the instantaneous rate of change of a function.",
+                    "integral": "Integration finds the area under a curve, representing accumulation.",
+                    "variable": "A variable is a container for data that can change during execution.",
+                    "thesdel": "Thesdel is the Students Digital Exchange Layer — an ecosystem for students to connect, study, buy/sell, and compete. Built by a student, for students.",
+                    "aether": "I'm Aether. I help students learn without the noise. I remember what you ask so I can get better at helping you.",
+                    "default": "I'm still learning about that. Could you explain what you mean? Or ask me about math, programming, or Thesdel."
+                }
+            }
+            ask(question) {
+                const lower = question.toLowerCase().trim()
+                for (let key in this.knowledge) {
+                    if (lower.includes(key)) return this.knowledge[key]
+                }
+                return this.knowledge.default
+            }
+        }
+
+        const ai = new AetherAI()
+        const chatMessages = document.getElementById('chatMessages')
+        const chatInput = document.getElementById('chatInput')
+        const sendButton = document.getElementById('sendButton')
+        let currentStreamingMessage = null
+
+        function addMessage(role, content) {
+            const messageDiv = document.createElement('div')
+            messageDiv.className = `message ${role}`
+            
+            const nameDiv = document.createElement('div')
+            nameDiv.className = 'message-username'
+            nameDiv.textContent = role === 'aether' ? 'Aether' : 'User'
+            
+            const bubbleDiv = document.createElement('div')
+            bubbleDiv.className = 'message-bubble'
+            bubbleDiv.textContent = content
+            
+            messageDiv.appendChild(nameDiv)
+            messageDiv.appendChild(bubbleDiv)
+            
+            if (role === 'aether') {
+                const actionsDiv = document.createElement('div')
+                actionsDiv.className = 'message-actions'
+                actionsDiv.innerHTML = `
+                    <button class="action-btn" data-action="copy">Copy</button>
+                    <button class="action-btn" data-action="regenerate">Regenerate</button>
+                    <button class="action-btn" data-action="like">Like</button>
+                    <button class="action-btn" data-action="dislike">Dislike</button>
+                `
+                messageDiv.appendChild(actionsDiv)
+                
+                actionsDiv.querySelectorAll('.action-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation()
+                        const action = btn.dataset.action
+                        if (action === 'copy') {
+                            navigator.clipboard.writeText(content)
+                        } else if (action === 'regenerate') {
+                            messageDiv.remove()
+                            const lastUserMsg = document.querySelectorAll('.message.user')
+                            if (lastUserMsg.length) {
+                                const lastQ = lastUserMsg[lastUserMsg.length - 1].querySelector('.message-bubble').textContent
+                                sendToAether(lastQ)
+                            }
+                        }
+                    })
+                })
+            }
+            
+            chatMessages.appendChild(messageDiv)
+            chatMessages.scrollTop = chatMessages.scrollHeight
+            return messageDiv
+        }
+
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div')
+            typingDiv.className = 'message aether'
+            typingDiv.id = 'typingIndicator'
+            typingDiv.innerHTML = `
+                <div class="message-username">Aether</div>
+                <div class="message-bubble">
+                    <div class="typing-indicator">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+            `
+            chatMessages.appendChild(typingDiv)
+            chatMessages.scrollTop = chatMessages.scrollHeight
+        }
+
+        function hideTypingIndicator() {
+            const typing = document.getElementById('typingIndicator')
+            if (typing) typing.remove()
+        }
+
+        function sendToAether(question) {
+            showTypingIndicator()
+            setTimeout(() => {
+                hideTypingIndicator()
+                const answer = ai.ask(question)
+                addMessage('aether', answer)
+            }, 300)
+        }
+
+        function handleSend() {
+            const question = chatInput.value.trim()
+            if (!question) return
+            chatInput.value = ''
+            addMessage('user', question)
+            sendToAether(question)
+        }
+
+        sendButton.addEventListener('click', handleSend)
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSend()
+        })
+
+        // Welcome message
+        setTimeout(() => {
+            addMessage('aether', "Aether core initialized. Standing by for input.")
+        }, 100)
+    </script>
 </body>
 </html>
