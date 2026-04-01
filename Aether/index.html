@@ -183,6 +183,14 @@
             cursor: pointer;
             text-transform: uppercase;
         }
+
+        .error-message {
+            color: #ff4444;
+            font-size: 0.9rem;
+            padding: 12px;
+            background: rgba(255, 68, 68, 0.1);
+            border-radius: 6px;
+        }
     </style>
 </head>
 <body>
@@ -212,7 +220,6 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
-        // --- THE UNIFIED TYPING ENGINE ---
         function aetherType(text, showActions = false, originalQuestion = "") {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message aether';
@@ -233,7 +240,7 @@
             chatMessages.appendChild(messageDiv);
 
             let i = 0;
-            const typingSpeed = 30;
+            const typingSpeed = 25;
 
             function type() {
                 if (i < text.length) {
@@ -246,16 +253,9 @@
                     if (showActions) {
                         actionsDiv.classList.add('actions-visible');
                         actionsDiv.innerHTML = `
-                            <button class="action-btn" id="copyBtn-${Date.now()}">Copy</button>
-                            <button class="action-btn" id="regBtn-${Date.now()}">Regenerate</button>
+                            <button class="action-btn" onclick="navigator.clipboard.writeText('${text.replace(/'/g, "\\'")}')">Copy</button>
+                            <button class="action-btn" onclick="regenerate('${originalQuestion.replace(/'/g, "\\'")}')">Regenerate</button>
                         `;
-                        
-                        // Set up button logic
-                        messageDiv.querySelector('[id^="copyBtn"]').onclick = () => navigator.clipboard.writeText(text);
-                        messageDiv.querySelector('[id^="regBtn"]').onclick = () => {
-                            messageDiv.remove();
-                            sendToAether(originalQuestion);
-                        };
                     }
                 }
             }
@@ -266,7 +266,7 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message user';
             messageDiv.innerHTML = `
-                <div class="message-username">User</div>
+                <div class="message-username">You</div>
                 <div class="message-bubble">${content}</div>
             `;
             chatMessages.appendChild(messageDiv);
@@ -290,8 +290,25 @@
             if (el) el.remove();
         }
 
+        function showError(message) {
+            hideTypingIndicator();
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message aether';
+            errorDiv.innerHTML = `<div class="message-bubble error-message">${message}</div>`;
+            chatMessages.appendChild(errorDiv);
+            scrollToBottom();
+        }
+
+        function regenerate(question) {
+            // Remove last Aether message and retry
+            const lastMessage = chatMessages.lastElementChild;
+            if (lastMessage) lastMessage.remove();
+            sendToAether(question);
+        }
+
         async function sendToAether(question) {
             showTypingIndicator();
+            
             try {
                 const response = await fetch(`${SUPABASE_URL}/functions/v1/aether`, {
                     method: 'POST',
@@ -299,18 +316,31 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
                     },
-                    body: JSON.stringify({ question })
+                    body: JSON.stringify({ question: question.trim() })
                 });
-                
+
                 const data = await response.json();
                 hideTypingIndicator();
-                
-                const answer = data.answer || "No response data found.";
-                aetherType(answer, true, question);
+
+                console.log('Full response from Edge Function:', data);   // ← Check this in browser console!
+
+                if (!response.ok) {
+                    showError(data.error || `Server error (${response.status})`);
+                    return;
+                }
+
+                const answer = data.answer;
+                if (answer && typeof answer === 'string' && answer.trim() !== '') {
+                    aetherType(answer.trim(), true, question);
+                } else {
+                    showError("Aether returned an empty response. Please try again.");
+                    console.error('Empty or invalid answer:', data);
+                }
                 
             } catch (error) {
                 hideTypingIndicator();
-                aetherType("Connection error. Please check your network and try again.", false);
+                console.error('Fetch error:', error);
+                showError("Connection error. Please check your network and try again.");
             }
         }
 
@@ -323,12 +353,15 @@
         }
 
         sendButton.addEventListener('click', handleSend);
-        chatInput.addEventListener('keypress', e => { if (e.key === 'Enter') handleSend(); });
+        chatInput.addEventListener('keypress', e => { 
+            if (e.key === 'Enter') handleSend(); 
+        });
 
+        // Welcome message
         window.onload = () => {
             setTimeout(() => {
-                aetherType("Aether core initialized. Ask me anything.");
-            }, 500);
+                aetherType("Aether core initialized. Ask me anything about Thesdel or your studies!", false);
+            }, 600);
         };
     </script>
 </body>
