@@ -48,7 +48,6 @@
         .original-post-card:active {
             background: rgba(255,102,0,.05);
         }
-        /* sunlight mode */
         .sunlight-mode body{background-color:#f8f8fa;color:#121212}
         .sunlight-mode nav{background-color:rgba(255,255,255,.95)!important;border-color:#e4e4e7!important}
         .sunlight-mode .fixed.bottom-0{background-color:rgba(255,255,255,.95)!important;border-color:#e4e4e7!important}
@@ -61,7 +60,6 @@
         .sunlight-mode .original-post-card{background:rgba(240,240,245,.7);border:1px solid rgba(0,0,0,.05)}
         .sunlight-mode .time-badge{background:rgba(0,0,0,.03);color:#52525b}
         
-        /* Skeleton loading styles */
         .skeleton-card {
             background: rgba(18,18,18,.4);
             border: 1px solid rgba(255,255,255,.05);
@@ -98,12 +96,6 @@
             text-align: center;
             padding: 20px;
             color: #FF6600;
-            font-size: 12px;
-        }
-        .end-message {
-            text-align: center;
-            padding: 24px;
-            color: #71717a;
             font-size: 12px;
         }
         .toast-message {
@@ -153,15 +145,14 @@
         let pressTimer = null;
         let currentPressTarget = null;
         
-        // Pagination state
         const COMMENTS_PER_PAGE = 25;
         let currentPage = 0;
         let isLoading = false;
         let hasMoreComments = true;
         let totalCommentsCount = 0;
         let postData = null;
+        let realtimeChannel = null;
         
-        // --- Optimistic UI + Offline Queue ---
         let pendingComments = [];
         let syncInProgress = false;
         let syncRetryTimeout = null;
@@ -220,14 +211,12 @@
                 if (newCommentEl) newCommentEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 100);
             
-            // Update reply count optimistically AND update database
             const replyCountDisplay = document.getElementById('replyCountDisplay');
             const replyCountHeader = document.getElementById('replyCountHeader');
             const newCount = (parseInt(replyCountDisplay?.innerText) || 0) + 1;
             if (replyCountDisplay) replyCountDisplay.innerText = newCount;
             if (replyCountHeader) replyCountHeader.innerText = newCount;
             
-            // Also update the post's comments_count in database immediately
             supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
             
             triggerSync();
@@ -245,7 +234,7 @@
             const canEdit = (now - commentTime) < 15 * 60 * 1000;
             
             const commentHtml = `
-                <div class="comment-card" data-temp-id="${comment.tempId || comment.id}" data-comment-id="${comment.id}" data-user-id="${comment.user_id}" data-created-at="${comment.created_at}" data-content="${escapeHTML(comment.content)}" oncontextmenu="return false;" ontouchstart="startPressComment(event, '${comment.id}', '${comment.user_id}', '${escapeHTML(comment.content)}', '${comment.created_at}')" ontouchend="endPress()" onmousedown="startPressComment(event, '${comment.id}', '${comment.user_id}', '${escapeHTML(comment.content)}', '${comment.created_at}')" onmouseup="endPress()">
+                <div class="comment-card" data-temp-id="${comment.tempId || ''}" data-comment-id="${comment.id}" data-user-id="${comment.user_id}" data-created-at="${comment.created_at}" data-content="${escapeHTML(comment.content)}" oncontextmenu="return false;" ontouchstart="startPressComment(event, '${comment.id}', '${comment.user_id}', '${escapeHTML(comment.content)}', '${comment.created_at}')" ontouchend="endPress()" onmousedown="startPressComment(event, '${comment.id}', '${comment.user_id}', '${escapeHTML(comment.content)}', '${comment.created_at}')" onmouseup="endPress()">
                     <div class="flex items-center justify-between mb-2">
                         <div class="flex items-center gap-2 flex-wrap">
                             <span onclick="location.href='profile.html?u=${escapeHTML(comment.profile?.username || '')}'" class="username-link text-xs">@${escapeHTML(comment.profile?.username || 'homie')}</span>
@@ -263,6 +252,34 @@
                 commentsContainer.insertAdjacentHTML('beforeend', commentHtml);
             }
             lucide.createIcons();
+        }
+        
+        // NEW: Fetch and append a comment from realtime
+        async function fetchAndAppendNewComment(commentId) {
+            const existing = document.querySelector(`.comment-card[data-comment-id="${commentId}"]`);
+            if (existing) return;
+            
+            const isOurTemp = pendingComments.some(p => p.tempId === commentId);
+            if (isOurTemp) return;
+            
+            const { data: comment, error } = await supabase
+                .from('posts')
+                .select('*, profile:user_id(username, is_official, is_verified)')
+                .eq('id', commentId)
+                .single();
+            
+            if (error || !comment) return;
+            
+            const noRepliesMsg = document.querySelector('.no-replies-placeholder');
+            if (noRepliesMsg) noRepliesMsg.remove();
+            
+            appendCommentToDOM(comment);
+            
+            const replyCountDisplay = document.getElementById('replyCountDisplay');
+            const replyCountHeader = document.getElementById('replyCountHeader');
+            const currentCount = parseInt(replyCountDisplay?.innerText) || 0;
+            if (replyCountDisplay) replyCountDisplay.innerText = currentCount + 1;
+            if (replyCountHeader) replyCountHeader.innerText = currentCount + 1;
         }
         
         function renderSkeletonLoaders(count = 3) {
@@ -322,11 +339,8 @@
                 }
                 
                 if (!hasMoreComments && currentPage > 0) {
-                    const commentsContainer = document.querySelector('.comments-section');
-                    const existingEnd = commentsContainer?.querySelector('.end-message');
-                    if (!existingEnd && commentsContainer && commentsContainer.children.length > 0) {
-                        commentsContainer.insertAdjacentHTML('beforeend', '<div class="end-message">✨ No more replies — you\'ve reached the end ✨</div>');
-                    }
+                    const trigger = document.getElementById('load-more-trigger');
+                    if (trigger) trigger.style.display = 'none';
                 }
             } catch (err) {
                 console.error('Error loading comments:', err);
@@ -343,7 +357,7 @@
             const loadTrigger = document.createElement('div');
             loadTrigger.className = 'loading-trigger';
             loadTrigger.id = 'load-more-trigger';
-            loadTrigger.innerHTML = '<i data-lucide="loader-2" class="spinner inline-block mr-2" size="14"></i> Loading more...';
+            loadTrigger.innerHTML = '<i data-lucide="loader-2" class="spinner inline-block mr-2" size="14"></i>';
             loadTrigger.style.display = 'none';
             
             const commentsContainer = document.querySelector('.comments-section');
@@ -480,42 +494,6 @@
             return date.toLocaleDateString();
         }
         
-        async function init() {
-            if (!postId) return window.location.replace('explore.html');
-            if (!/^[a-zA-Z0-9-]+$/.test(postId)) return window.location.replace('explore.html');
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.replace('login.html');
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
-            userProfile = profile;
-            loadPendingQueue();
-            await loadGist();
-            
-            if (pendingComments.length > 0) {
-                for (const pending of pendingComments) {
-                    const exists = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
-                    if (!exists) {
-                        const optimistic = {
-                            id: pending.tempId,
-                            tempId: pending.tempId,
-                            content: pending.content,
-                            created_at: pending.createdAt,
-                            profile: {
-                                username: pending.username,
-                                is_official: pending.isOfficial,
-                                is_verified: pending.isVerified
-                            }
-                        };
-                        appendCommentToDOM(optimistic);
-                    }
-                }
-                lucide.createIcons();
-                triggerSync();
-            }
-            
-            await loadMoreComments();
-            setupInfiniteScroll();
-        }
-        
         const harmfulPatterns = [/porn/i, /xxx/i, /adult/i, /sex/i, /nude/i, /onlyfans/i, /fansly/i, /gambling/i, /casino/i, /bet/i, /betting/i, /poker/i, /slot/i, /crypto/i, /bitcoin/i, /investment/i, /forex/i, /drug/i, /weed/i, /cannabis/i, /marijuana/i, /hack/i, /cheat/i, /crack/i, /violence/i, /gore/i, /kill/i, /viagra/i, /cialis/i, /free money/i, /work from home/i, /get rich/i];
         
         function sanitizeInput(input) {
@@ -559,7 +537,6 @@
                 .eq('parent_id', postId);
             totalCommentsCount = count || 0;
             
-            // Sync comments_count if out of sync
             if (post.comments_count !== totalCommentsCount) {
                 await supabase.from('posts').update({ comments_count: totalCommentsCount }).eq('id', postId);
                 post.comments_count = totalCommentsCount;
@@ -567,8 +544,6 @@
             
             const profile = post.profile || {};
             const badge = getBadgeHTML(profile.is_official, profile.is_verified);
-            const postTime = new Date(post.created_at).getTime();
-            const canEditOriginal = (Date.now() - postTime) < 15 * 60 * 1000;
             
             let html = `
                 <div class="original-post-card" data-post-id="${post.id}" data-user-id="${post.user_id}" data-created-at="${post.created_at}" oncontextmenu="return false;" ontouchstart="startPressOriginal(event, '${post.id}', '${post.user_id}', '${escapeHTML(post.content)}', '${post.created_at}')" ontouchend="endPress()" onmousedown="startPressOriginal(event, '${post.id}', '${post.user_id}', '${escapeHTML(post.content)}', '${post.created_at}')" onmouseup="endPress()">
@@ -601,7 +576,6 @@
             lucide.createIcons();
         }
         
-        // Long press for original post
         window.startPressOriginal = (e, id, userId, content, createdAt) => {
             if (userProfile?.id !== userId) return;
             e.preventDefault();
@@ -728,7 +702,6 @@
                 if (replyCountDisplay) replyCountDisplay.innerText = newCount;
                 if (replyCountHeader) replyCountHeader.innerText = newCount;
                 
-                // Also update the post's comments_count in database
                 await supabase.from('posts').update({ comments_count: newCount }).eq('id', postId);
             } else {
                 showToastMessage("Failed to burn reply");
@@ -764,13 +737,90 @@
             if (btn) btn.addEventListener('click', (e) => { e.preventDefault(); window.postComment(); });
         });
         
-        // Make functions global
         window.startPressOriginal = startPressOriginal;
         window.startPressComment = startPressComment;
         window.endPress = endPress;
         window.closeSheet = closeSheet;
         window.closeEditModal = closeEditModal;
         window.openEditModal = openEditModal;
+        
+        // MAIN INIT FUNCTION WITH REALTIME
+        async function init() {
+            if (!postId) return window.location.replace('explore.html');
+            if (!/^[a-zA-Z0-9-]+$/.test(postId)) return window.location.replace('explore.html');
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.replace('login.html');
+            
+            const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
+            userProfile = profile;
+            loadPendingQueue();
+            await loadGist();
+            
+            // ============================================
+            // SUPABASE REALTIME SUBSCRIPTION - FIXED
+            // ============================================
+            if (postId) {
+                // Clean up existing channel if any
+                if (realtimeChannel) {
+                    await supabase.removeChannel(realtimeChannel);
+                }
+                
+                // Create new channel
+                realtimeChannel = supabase
+                    .channel(`comments-realtime-${postId}`)
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'posts',
+                            filter: `parent_id=eq.${postId}`
+                        },
+                        (payload) => {
+                            console.log('New comment received:', payload);
+                            // Fetch the full comment and append
+                            fetchAndAppendNewComment(payload.new.id);
+                        }
+                    )
+                    .subscribe((status) => {
+                        console.log('Realtime subscription status:', status);
+                    });
+            }
+            // ============================================
+            
+            if (pendingComments.length > 0) {
+                for (const pending of pendingComments) {
+                    const exists = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
+                    if (!exists) {
+                        const optimistic = {
+                            id: pending.tempId,
+                            tempId: pending.tempId,
+                            content: pending.content,
+                            created_at: pending.createdAt,
+                            profile: {
+                                username: pending.username,
+                                is_official: pending.isOfficial,
+                                is_verified: pending.isVerified
+                            }
+                        };
+                        appendCommentToDOM(optimistic);
+                    }
+                }
+                lucide.createIcons();
+                triggerSync();
+            }
+            
+            await loadMoreComments();
+            setupInfiniteScroll();
+        }
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', async () => {
+            if (realtimeChannel) {
+                await supabase.removeChannel(realtimeChannel);
+            }
+        });
         
         init();
     </script>
