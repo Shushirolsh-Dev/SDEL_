@@ -178,17 +178,24 @@
             localStorage.setItem('gist_pending_comments', JSON.stringify(pendingComments));
         }
         
+        // FIXED: Safer addOptimisticComment with fallbacks
         function addOptimisticComment(content) {
             const tempId = generateTempId();
             const now = new Date().toISOString();
+            
+            // Use fallback values if userProfile isn't ready
+            const username = userProfile?.username || 'homie';
+            const isOfficial = userProfile?.is_official || false;
+            const isVerified = userProfile?.is_verified || false;
+            const userId = userProfile?.id || null;
             
             pendingComments.push({
                 tempId: tempId,
                 content: content,
                 createdAt: now,
-                username: userProfile?.username || 'homie',
-                isOfficial: userProfile?.is_official || false,
-                isVerified: userProfile?.is_verified || false
+                username: username,
+                isOfficial: isOfficial,
+                isVerified: isVerified
             });
             savePendingQueue();
             
@@ -197,11 +204,11 @@
                 tempId: tempId,
                 content: content,
                 created_at: now,
-                user_id: userProfile?.id,
+                user_id: userId,
                 profile: {
-                    username: userProfile?.username || 'homie',
-                    is_official: userProfile?.is_official || false,
-                    is_verified: userProfile?.is_verified || false
+                    username: username,
+                    is_official: isOfficial,
+                    is_verified: isVerified
                 }
             };
             
@@ -218,7 +225,12 @@
             if (replyCountDisplay) replyCountDisplay.innerText = newCount;
             if (replyCountHeader) replyCountHeader.innerText = newCount;
             
-            supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {});
+            // Don't let RPC errors break the UI
+            if (userId) {
+                supabase.rpc('increment_stat', { post_id: postId, field: 'comments_count' }).catch(() => {
+                    console.log('Stats increment will sync later');
+                });
+            }
             
             triggerSync();
             return tempId;
@@ -230,9 +242,6 @@
             
             const badge = getBadgeHTML(comment.profile?.is_official, comment.profile?.is_verified);
             const timeDisplay = formatTimeAgo(comment.created_at);
-            const commentTime = new Date(comment.created_at).getTime();
-            const now = Date.now();
-            const canEdit = (now - commentTime) < 15 * 60 * 1000;
             
             const commentHtml = `
                 <div class="comment-card" data-temp-id="${comment.tempId || ''}" data-comment-id="${comment.id}" data-user-id="${comment.user_id}" data-created-at="${comment.created_at}" data-content="${escapeHTML(comment.content)}" oncontextmenu="return false;" ontouchstart="startPressComment(event, '${comment.id}', '${comment.user_id}', '${escapeHTML(comment.content)}', '${comment.created_at}')" ontouchend="endPress()" onmousedown="startPressComment(event, '${comment.id}', '${comment.user_id}', '${escapeHTML(comment.content)}', '${comment.created_at}')" onmouseup="endPress()">
@@ -418,6 +427,7 @@
                         savePendingQueue();
                         const failedEl = document.querySelector(`.comment-card[data-temp-id="${pending.tempId}"]`);
                         if (failedEl) failedEl.remove();
+                        showToastMessage("Comment failed to sync");
                     } else {
                         const delay = Math.min(60000, 1000 * Math.pow(2, pending.retryCount));
                         if (syncRetryTimeout) clearTimeout(syncRetryTimeout);
@@ -709,7 +719,7 @@
         }
         
         // ============================================
-        // FIXED: postComment with immediate input clearing
+        // FIXED: No false error messages
         // ============================================
         window.postComment = async () => {
             const input = document.getElementById('comment-input');
@@ -733,36 +743,40 @@
                 return;
             }
             
+            // Check if userProfile exists
+            if (!userProfile) {
+                console.error('User profile not loaded');
+                showToastMessage("Please wait, loading profile...");
+                return;
+            }
+            
             // Save the content before clearing
             const commentToSend = content;
             
-            // Clear input bar IMMEDIATELY - THIS IS THE FIX
+            // Clear input bar IMMEDIATELY
             input.value = '';
             input.style.height = 'auto';
             
-            // Disable send button briefly to prevent double-send
+            // Disable send button briefly
             const sendBtn = document.getElementById('sendButton');
             if (sendBtn) {
                 sendBtn.disabled = true;
                 sendBtn.style.opacity = '0.6';
             }
             
-            try {
-                // Add the optimistic comment
-                addOptimisticComment(commentToSend);
-                console.log('Comment posted successfully');
-            } catch (error) {
-                console.error('Error posting comment:', error);
-                showToastMessage("Failed to post. Check connection.");
-            } finally {
-                // Re-enable send button after 1 second
-                if (sendBtn) {
-                    setTimeout(() => {
-                        sendBtn.disabled = false;
-                        sendBtn.style.opacity = '1';
-                    }, 1000);
-                }
+            // Add the optimistic comment (this adds to UI and queue)
+            addOptimisticComment(commentToSend);
+            
+            // Re-enable send button after 1 second
+            if (sendBtn) {
+                setTimeout(() => {
+                    sendBtn.disabled = false;
+                    sendBtn.style.opacity = '1';
+                }, 1000);
             }
+            
+            // NO ERROR MESSAGE - comment is already in UI
+            // Background sync will handle any failures
         };
         
         window.autoResize = (el) => {
@@ -770,11 +784,10 @@
             el.style.height = Math.min(el.scrollHeight, 120) + 'px';
         };
         
-        // Fixed event listener to prevent duplicate handlers
+        // Fixed event listener
         document.addEventListener('DOMContentLoaded', () => {
             const btn = document.getElementById('sendButton');
             if (btn) {
-                // Remove any existing listeners by cloning
                 const newBtn = btn.cloneNode(true);
                 btn.parentNode.replaceChild(newBtn, btn);
                 newBtn.addEventListener('click', (e) => { 
@@ -791,7 +804,6 @@
         window.closeEditModal = closeEditModal;
         window.openEditModal = openEditModal;
         
-        // MAIN INIT FUNCTION WITH REALTIME
         async function init() {
             if (!postId) return window.location.replace('explore.html');
             if (!/^[a-zA-Z0-9-]+$/.test(postId)) return window.location.replace('explore.html');
@@ -804,16 +816,11 @@
             loadPendingQueue();
             await loadGist();
             
-            // ============================================
-            // SUPABASE REALTIME SUBSCRIPTION
-            // ============================================
             if (postId) {
-                // Clean up existing channel if any
                 if (realtimeChannel) {
                     await supabase.removeChannel(realtimeChannel);
                 }
                 
-                // Create new channel
                 realtimeChannel = supabase
                     .channel(`comments-realtime-${postId}`)
                     .on(
@@ -829,11 +836,8 @@
                             fetchAndAppendNewComment(payload.new.id);
                         }
                     )
-                    .subscribe((status) => {
-                        console.log('Realtime subscription status:', status);
-                    });
+                    .subscribe();
             }
-            // ============================================
             
             if (pendingComments.length > 0) {
                 for (const pending of pendingComments) {
@@ -861,7 +865,6 @@
             setupInfiniteScroll();
         }
         
-        // Cleanup on page unload
         window.addEventListener('beforeunload', async () => {
             if (realtimeChannel) {
                 await supabase.removeChannel(realtimeChannel);
