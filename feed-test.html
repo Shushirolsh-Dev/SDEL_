@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sdel | The Gist — Feed Demo (Offline)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background-color: #000;
+            color: #fff;
+        }
+        
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        
+        .feed-post {
+            background: rgba(18, 18, 18, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            padding: 20px;
+            transition: all 0.2s;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+        
+        .feed-post:active {
+            background: rgba(255, 102, 0, 0.05);
+            transform: scale(0.98);
+        }
+        
+        .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #FF6600, #FF9933);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 18px;
+            color: #000;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+        
+        .stat-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 40px;
+            background: rgba(255, 255, 255, 0.03);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .stat-btn:active {
+            background: rgba(255, 102, 0, 0.15);
+            transform: scale(0.95);
+        }
+        
+        .stat-count {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .fab {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            background: #FF6600;
+            border-radius: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(255, 102, 0, 0.4);
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 40;
+        }
+        
+        .fab:active {
+            transform: scale(0.92);
+        }
+        
+        .toast-message {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #FF6600;
+            color: black;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 900;
+            font-size: 12px;
+            text-transform: uppercase;
+            transition: transform 0.4s;
+            z-index: 9999;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        
+        .toast-message.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        
+        /* Share Modal */
+        .share-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            align-items: flex-end;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .share-sheet {
+            background: #111;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 28px;
+            padding: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideUp 0.3s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .share-option {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 16px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .share-option:active {
+            background: rgba(255, 102, 0, 0.15);
+        }
+        
+        .sunlight-mode .share-sheet {
+            background: #fff;
+            border-color: #e4e4e7;
+        }
+        
+        .sunlight-mode .share-option:active {
+            background: rgba(255, 102, 0, 0.1);
+        }
+        
+        /* Repost indicator */
+        .repost-badge {
+            font-size: 10px;
+            color: #FF6600;
+            margin-left: 4px;
+        }
+        
+        .reposted {
+            background: rgba(255, 102, 0, 0.1);
+            border-left: 3px solid #FF6600;
+        }
+        
+        .sunlight-mode body {
+            background-color: #f8f8fa;
+            color: #121212;
+        }
+        
+        .sunlight-mode nav {
+            background-color: rgba(255, 255, 255, 0.95) !important;
+            border-color: #e4e4e7 !important;
+        }
+        
+        .sunlight-mode .feed-post {
+            background: rgba(255, 255, 255, 0.8);
+            border-color: #e4e4e7;
+        }
+        
+        .sunlight-mode .stat-btn {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="toast" class="toast-message"></div>
+    
+    <!-- Share Modal -->
+    <div id="shareModal" class="share-modal" onclick="closeShareModal()">
+        <div class="share-sheet" onclick="event.stopPropagation()">
+            <div class="text-center mb-4">
+                <div class="w-12 h-1 bg-zinc-700 rounded-full mx-auto mb-4"></div>
+                <h3 class="font-bold text-lg">Share this gist</h3>
+            </div>
+            <div class="share-option" onclick="shareToWhatsApp()">
+                <i data-lucide="message-circle" size="24" color="#25D366"></i>
+                <span class="font-medium">WhatsApp</span>
+            </div>
+            <div class="share-option" onclick="shareToTwitter()">
+                <i data-lucide="twitter" size="24" color="#1DA1F2"></i>
+                <span class="font-medium">Twitter (X)</span>
+            </div>
+            <div class="share-option" onclick="copyLink()">
+                <i data-lucide="link" size="24" color="#FF6600"></i>
+                <span class="font-medium">Copy link</span>
+            </div>
+            <div class="share-option" onclick="shareToSystem()">
+                <i data-lucide="share-2" size="24" color="#71717a"></i>
+                <span class="font-medium">Share via...</span>
+            </div>
+            <button onclick="closeShareModal()" class="w-full mt-4 py-3 text-center text-zinc-500 font-medium text-sm">Cancel</button>
+        </div>
+    </div>
+    
+    <nav class="sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/5">
+        <div class="px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-black tracking-tighter">The <span class="text-sdel">Gist</span></h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="themeToggle" class="p-2 rounded-full bg-white/5">
+                    <i data-lucide="sun" size="18"></i>
+                </button>
+                <button id="profileBtn" class="p-2 rounded-full bg-white/5">
+                    <i data-lucide="user" size="18"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+    
+    <main class="p-4 max-w-2xl mx-auto">
+        <div id="posts-list" class="flex flex-col gap-4"></div>
+    </main>
+    
+    <div class="fab" id="fabBtn">
+        <i data-lucide="pen-line" size="24" color="black"></i>
+    </div>
+    
+    <script>
+        // ============================================
+        // DUMMY DATA - NO SUPABASE, NO INTERNET
+        // ============================================
+        
+        let currentUser = {
+            id: 'user_001',
+            username: 'philip',
+            is_official: true,
+            is_verified: false
+        };
+        
+        let posts = [
+            {
+                id: 'post_001',
+                content: "Just launched Thesdel's new Gist feature! Students can now share thoughts and get instant feedback. What do you think? 🔥",
+                created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                likes_count: 47,
+                comments_count: 12,
+                reposts_count: 8,
+                user_liked: false,
+                user_reposted: false,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: 'philip',
+                    is_official: true,
+                    is_verified: false
+                }
+            },
+            {
+                id: 'post_002',
+                content: "Anyone else struggling with Calculus? This integration stuff is driving me crazy. Need study partner ASAP 😭",
+                created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+                likes_count: 89,
+                comments_count: 34,
+                reposts_count: 12,
+                user_liked: true,
+                user_reposted: false,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: 'adeola_23',
+                    is_official: false,
+                    is_verified: true
+                }
+            },
+            {
+                id: 'post_003',
+                content: "Finally finished my project submission! Who else is celebrating this weekend? 🎉",
+                created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+                likes_count: 156,
+                comments_count: 45,
+                reposts_count: 23,
+                user_liked: false,
+                user_reposted: false,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: 'chioma_code',
+                    is_official: false,
+                    is_verified: false
+                }
+            },
+            {
+                id: 'post_004',
+                content: "OAU announced new exam date. Who's ready? 📚✍️",
+                created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                likes_count: 234,
+                comments_count: 89,
+                reposts_count: 45,
+                user_liked: false,
+                user_reposted: true,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: 'oau_news',
+                    is_official: true,
+                    is_verified: false
+                }
+            },
+            {
+                id: 'post_005',
+                content: "Just found out about Thesdel's marketplace. Selling my used textbooks cheap. Hit me up! 📚💰",
+                created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+                likes_count: 23,
+                comments_count: 7,
+                reposts_count: 3,
+                user_liked: false,
+                user_reposted: false,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: 'emeka_john',
+                    is_official: false,
+                    is_verified: false
+                }
+            },
+            {
+                id: 'post_006',
+                content: "The new AI tutor Aether actually helped me understand Physics. Try it if you're struggling! 🤖✨",
+                created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+                likes_count: 312,
+                comments_count: 56,
+                reposts_count: 67,
+                user_liked: true,
+                user_reposted: false,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: 'tech_savvy',
+                    is_official: false,
+                    is_verified: true
+                }
+            },
+            {
+                id: 'post_007',
+                content: "Which is better: WhatsApp or Telegram for study groups? Need opinions!",
+                created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                likes_count: 45,
+                comments_count: 78,
+                reposts_count: 11,
+                user_liked: false,
+                user_reposted: false,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: 'debate_king',
+                    is_official: false,
+                    is_verified: false
+                }
+            },
+            {
+                id: 'post_008',
+                content: "Finally got my internship offer! Never give up guys 💪",
+                created_at: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+                likes_count: 567,
+                comments_count: 123,
+                reposts_count: 89,
+                user_liked: false,
+                user_reposted: false,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: 'destiny_okoro',
+                    is_official: false,
+                    is_verified: false
+                }
+            }
+        ];
+        
+        let currentSharePostId = null;
+        
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        
+        function formatTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffSeconds = Math.floor((now - date) / 1000);
+            if (diffSeconds < 60) return 'just now';
+            const diffMinutes = Math.floor(diffSeconds / 60);
+            if (diffMinutes < 60) return `${diffMinutes}m`;
+            const diffHours = Math.floor(diffMinutes / 60);
+            if (diffHours < 24) return `${diffHours}h`;
+            const diffDays = Math.floor(diffHours / 24);
+            if (diffDays < 7) return `${diffDays}d`;
+            return date.toLocaleDateString();
+        }
+        
+        function escapeHTML(str) {
+            if (!str) return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+        
+        function getBadgeHTML(official, verified) {
+            if (official) {
+                return `<span class="bg-sdel rounded-full p-[2px] w-[14px] h-[14px] inline-flex items-center justify-center ml-1"><i data-lucide="check" class="text-black" size="10" stroke-width="4"></i></span>`;
+            }
+            if (verified) {
+                return `<span class="bg-zinc-500 rounded-full p-[2px] w-[14px] h-[14px] inline-flex items-center justify-center ml-1"><i data-lucide="check" class="text-white" size="10" stroke-width="4"></i></span>`;
+            }
+            return '';
+        }
+        
+        function createPostCard(post) {
+            const profile = post.profile;
+            const badge = getBadgeHTML(profile.is_official, profile.is_verified);
+            const timeAgo = formatTimeAgo(post.created_at);
+            const firstLetter = (profile.username?.[0] || 'U').toUpperCase();
+            const repostClass = post.user_reposted ? 'reposted' : '';
+            const repostIconColor = post.user_reposted ? '#FF6600' : '#71717a';
+            
+            let content = post.content || '';
+            if (content.length > 150) {
+                content = content.substring(0, 150) + '...';
+            }
+            
+            let repostHeader = '';
+            if (post.is_repost && post.original_author) {
+                repostHeader = `<div class="flex items-center gap-1 mb-2 text-xs text-zinc-500"><i data-lucide="repeat" size="12"></i><span>Reposted from @${post.original_author}</span></div>`;
+            }
+            
+            return `
+                <div class="feed-post ${repostClass}" data-post-id="${post.id}" onclick="window.location.href='gist.html?id=${post.id}'">
+                    <div class="flex gap-3">
+                        <div class="avatar">${firstLetter}</div>
+                        <div class="flex-1">
+                            ${repostHeader}
+                            <div class="flex items-center gap-1 flex-wrap mb-1">
+                                <span class="font-bold text-sm">@${escapeHTML(profile.username)}</span>
+                                ${badge}
+                                <span class="text-zinc-500 text-xs ml-auto">${timeAgo}</span>
+                            </div>
+                            <p class="text-sm text-zinc-200 leading-relaxed">${escapeHTML(content)}</p>
+                            <div class="flex items-center justify-between mt-4">
+                                <div class="flex items-center gap-1">
+                                    <div class="stat-btn like-btn" data-post-id="${post.id}" onclick="event.stopPropagation(); toggleLike('${post.id}')">
+                                        <i data-lucide="heart" size="16" class="like-icon-${post.id}" style="color: ${post.user_liked ? '#FF6600' : '#71717a'}; fill: ${post.user_liked ? '#FF6600' : 'none'}"></i>
+                                        <span class="stat-count like-count-${post.id}">${post.likes_count}</span>
+                                    </div>
+                                    <div class="stat-btn" onclick="event.stopPropagation(); window.location.href='gist.html?id=${post.id}'">
+                                        <i data-lucide="message-circle" size="16"></i>
+                                        <span class="stat-count comment-count-${post.id}">${post.comments_count}</span>
+                                    </div>
+                                    <div class="stat-btn repost-btn" data-post-id="${post.id}" onclick="event.stopPropagation(); toggleRepost('${post.id}')">
+                                        <i data-lucide="repeat" size="16" class="repost-icon-${post.id}" style="color: ${repostIconColor}"></i>
+                                        <span class="stat-count repost-count-${post.id}">${post.reposts_count}</span>
+                                    </div>
+                                    <div class="stat-btn" onclick="event.stopPropagation(); openShareModal('${post.id}')">
+                                        <i data-lucide="share-2" size="16"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function renderFeed() {
+            const container = document.getElementById('posts-list');
+            if (!container) return;
+            
+            let html = '';
+            for (const post of posts) {
+                html += createPostCard(post);
+            }
+            container.innerHTML = html;
+            lucide.createIcons();
+        }
+        
+        // Like functionality
+        window.toggleLike = function(postId) {
+            const post = posts.find(p => p.id === postId);
+            if (!post) return;
+            
+            const likeIcon = document.querySelector(`.like-icon-${postId}`);
+            const likeCountSpan = document.querySelector(`.like-count-${postId}`);
+            
+            if (post.user_liked) {
+                post.user_liked = false;
+                post.likes_count--;
+                if (likeIcon) {
+                    likeIcon.setAttribute('fill', 'none');
+                    likeIcon.style.color = '#71717a';
+                }
+                if (likeCountSpan) likeCountSpan.textContent = post.likes_count;
+                showToast("Removed like");
+            } else {
+                post.user_liked = true;
+                post.likes_count++;
+                if (likeIcon) {
+                    likeIcon.setAttribute('fill', '#FF6600');
+                    likeIcon.style.color = '#FF6600';
+                }
+                if (likeCountSpan) likeCountSpan.textContent = post.likes_count;
+                showToast("Liked!");
+            }
+        };
+        
+        // Repost functionality
+        window.toggleRepost = function(postId) {
+            const post = posts.find(p => p.id === postId);
+            if (!post) return;
+            
+            const repostIcon = document.querySelector(`.repost-icon-${postId}`);
+            const repostCountSpan = document.querySelector(`.repost-count-${postId}`);
+            const postElement = document.querySelector(`.feed-post[data-post-id="${postId}"]`);
+            
+            if (post.user_reposted) {
+                // Undo repost
+                post.user_reposted = false;
+                post.reposts_count--;
+                if (repostIcon) {
+                    repostIcon.style.color = '#71717a';
+                }
+                if (repostCountSpan) repostCountSpan.textContent = post.reposts_count;
+                if (postElement) postElement.classList.remove('reposted');
+                showToast("Removed repost");
+                
+                // Remove the reposted version from feed if it exists
+                const repostedVersion = posts.find(p => p.is_repost && p.original_post_id === postId && p.user_id === currentUser.id);
+                if (repostedVersion) {
+                    const index = posts.findIndex(p => p.id === repostedVersion.id);
+                    if (index !== -1) posts.splice(index, 1);
+                    renderFeed();
+                }
+            } else {
+                // Add repost
+                post.user_reposted = true;
+                post.reposts_count++;
+                if (repostIcon) {
+                    repostIcon.style.color = '#FF6600';
+                }
+                if (repostCountSpan) repostCountSpan.textContent = post.reposts_count;
+                if (postElement) postElement.classList.add('reposted');
+                showToast(`Reposted @${post.profile.username}'s gist`);
+                
+                // Create a repost entry in the feed (appears at top)
+                const repostEntry = {
+                    id: 'repost_' + Date.now(),
+                    content: post.content,
+                    created_at: new Date().toISOString(),
+                    likes_count: 0,
+                    comments_count: 0,
+                    reposts_count: 0,
+                    user_liked: false,
+                    user_reposted: false,
+                    is_repost: true,
+                    original_post_id: post.id,
+                    original_author: post.profile.username,
+                    profile: {
+                        username: currentUser.username,
+                        is_official: currentUser.is_official,
+                        is_verified: currentUser.is_verified
+                    }
+                };
+                posts.unshift(repostEntry);
+                renderFeed();
+                showToast("Added to your profile");
+            }
+        };
+        
+        // Share functions
+        window.openShareModal = function(postId) {
+            currentSharePostId = postId;
+            const modal = document.getElementById('shareModal');
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        };
+        
+        window.closeShareModal = function() {
+            const modal = document.getElementById('shareModal');
+            modal.style.display = 'none';
+            currentSharePostId = null;
+        };
+        
+        function getCurrentPost() {
+            return posts.find(p => p.id === currentSharePostId);
+        }
+        
+        function getShareText() {
+            const post = getCurrentPost();
+            if (!post) return "Check out this gist on Thesdel!";
+            return `"${post.content.substring(0, 100)}..." — @${post.profile.username} on Thesdel Gist`;
+        }
+        
+        function getShareUrl() {
+            return `https://thesdel.com/gist.html?id=${currentSharePostId}`;
+        }
+        
+        window.shareToWhatsApp = function() {
+            const text = getShareText();
+            const url = `https://wa.me/?text=${encodeURIComponent(text + ' ' + getShareUrl())}`;
+            window.open(url, '_blank');
+            closeShareModal();
+            showToast("Opening WhatsApp...");
+        };
+        
+        window.shareToTwitter = function() {
+            const text = getShareText();
+            const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(getShareUrl())}`;
+            window.open(url, '_blank');
+            closeShareModal();
+            showToast("Opening Twitter...");
+        };
+        
+        window.copyLink = function() {
+            navigator.clipboard.writeText(getShareUrl());
+            closeShareModal();
+            showToast("Link copied to clipboard!");
+        };
+        
+        window.shareToSystem = function() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Thesdel Gist',
+                    text: getShareText(),
+                    url: getShareUrl()
+                }).catch(() => {});
+            } else {
+                copyLink();
+            }
+            closeShareModal();
+        };
+        
+        // Add new post from FAB
+        function addNewPost() {
+            const newPost = {
+                id: 'post_' + Date.now(),
+                content: "Just posted from the FAB! This is a dummy post to test the feed. 🚀",
+                created_at: new Date().toISOString(),
+                likes_count: 0,
+                comments_count: 0,
+                reposts_count: 0,
+                user_liked: false,
+                user_reposted: false,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: currentUser.username,
+                    is_official: currentUser.is_official,
+                    is_verified: currentUser.is_verified
+                }
+            };
+            
+            posts.unshift(newPost);
+            renderFeed();
+            showToast("New post added! (Demo)");
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Simulate someone else commenting (live comment count update)
+        function simulateNewComment() {
+            const randomPost = posts[Math.floor(Math.random() * posts.length)];
+            if (randomPost && !randomPost.is_repost) {
+                randomPost.comments_count++;
+                const commentSpan = document.querySelector(`.comment-count-${randomPost.id}`);
+                if (commentSpan) {
+                    commentSpan.textContent = randomPost.comments_count;
+                    commentSpan.classList.add('text-sdel');
+                    setTimeout(() => commentSpan.classList.remove('text-sdel'), 500);
+                }
+                showToast(`Someone commented on @${randomPost.profile.username}'s post`);
+            }
+        }
+        
+        // Simulate new post from another user
+        function simulateNewPostFromOther() {
+            const usernames = ['ayo_writes', 'zainab_codes', 'damola_tech', 'folake_ai', 'uche_cyber'];
+            const randomName = usernames[Math.floor(Math.random() * usernames.length)];
+            const messages = [
+                "Just joined Thesdel! This platform is amazing 🔥",
+                "Anyone up for a study session?",
+                "Check out my new project!",
+                "The AI tutor is actually helpful ngl",
+                "Marketplace is lit! Just sold my textbook",
+                "Who else is ready for exams? 📚",
+                "Just dropped a new gist, check my page!"
+            ];
+            const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+            
+            const newPost = {
+                id: 'post_' + Date.now(),
+                content: randomMsg,
+                created_at: new Date().toISOString(),
+                likes_count: 0,
+                comments_count: 0,
+                reposts_count: 0,
+                user_liked: false,
+                user_reposted: false,
+                is_repost: false,
+                original_author: null,
+                profile: {
+                    username: randomName,
+                    is_official: false,
+                    is_verified: Math.random() > 0.7
+                }
+            };
+            
+            posts.unshift(newPost);
+            renderFeed();
+            showToast(`New gist from @${randomName}!`);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Theme toggle
+        function initTheme() {
+            const themeToggle = document.getElementById('themeToggle');
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    const isSunlight = document.documentElement.classList.contains('sunlight-mode');
+                    if (isSunlight) {
+                        document.documentElement.classList.remove('sunlight-mode');
+                        localStorage.setItem('theme', 'dark');
+                    } else {
+                        document.documentElement.classList.add('sunlight-mode');
+                        localStorage.setItem('theme', 'sunlight');
+                    }
+                    lucide.createIcons();
+                });
+            }
+            
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') {
+                document.documentElement.classList.add('sunlight-mode');
+            }
+        }
+        
+        // Initialize
+        function init() {
+            renderFeed();
+            initTheme();
+            lucide.createIcons();
+            
+            document.getElementById('fabBtn')?.addEventListener('click', () => {
+                addNewPost();
+            });
+            
+            document.getElementById('profileBtn')?.addEventListener('click', () => {
+                showToast("Profile page (demo)");
+            });
+            
+            // Close modal when clicking outside
+            document.getElementById('shareModal')?.addEventListener('click', function(e) {
+                if (e.target === this) closeShareModal();
+            });
+            
+            // Demo: Simulate realtime updates every 20 seconds
+            setInterval(() => {
+                simulateNewComment();
+            }, 20000);
+            
+            // Demo: Simulate new post from others every 45 seconds
+            setInterval(() => {
+                simulateNewPostFromOther();
+            }, 45000);
+            
+            setTimeout(() => {
+                showToast("Welcome to The Gist! (Demo Mode)");
+            }, 500);
+        }
+        
+        init();
+    </script>
+</body>
+</html>
