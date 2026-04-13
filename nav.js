@@ -1,18 +1,41 @@
+// Bottom Navigation Component
 // Get current page filename
 const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
 
-document.write(`
-<nav class="fixed bottom-0 inset-x-0 p-5 flex justify-around items-center bg-black/95 border-t border-white/10 z-50">
-    <i data-lucide="home" class="${currentPage === 'dashboard.html' ? 'text-sdel' : 'text-white'}" size="28" onclick="location.href='dashboard.html'"></i>
-    <i data-lucide="compass" class="${currentPage === 'explore.html' ? 'text-sdel' : 'text-white'}" size="28" onclick="location.href='explore.html'"></i>
-    <div class="bg-sdel h-14 w-14 rounded-2xl flex items-center justify-center -mt-12 shadow-2xl border-4 border-black active:scale-90 transition" onclick="location.href='post-story.html'">
-        <i data-lucide="camera" class="text-black" size="28"></i>
-    </div>
-    <i data-lucide="shopping-cart" class="${currentPage === 'market.html' ? 'text-sdel' : 'text-white'}" size="28" onclick="location.href='market.html'"></i>
-    <i data-lucide="user" class="${currentPage === 'profile.html' ? 'text-sdel' : 'text-white'}" size="28" onclick="location.href='profile.html'"></i>
-</nav>
-`);
+// Helper function to determine active class
+const getActiveClass = (pageName) => {
+    return currentPage === pageName ? 'text-[#FF6600]' : 'text-zinc-500';
+};
 
+// Generate navigation HTML
+const renderNavigation = () => {
+    return `
+        <div class="bottom-nav">
+            <div class="bottom-nav-inner">
+                <div class="bottom-nav-item" onclick="location.href='dashboard.html'">
+                    <i data-lucide="home" size="22" class="${getActiveClass('dashboard.html')}"></i>
+                </div>
+                <div class="bottom-nav-item" onclick="location.href='explore.html'">
+                    <i data-lucide="compass" size="22" class="${getActiveClass('explore.html')}"></i>
+                </div>
+                <div class="center-btn" onclick="openPostModal()">
+                    <i data-lucide="plus" size="22" class="text-black" stroke-width="2.5"></i>
+                </div>
+                <div class="bottom-nav-item" onclick="location.href='market.html'">
+                    <i data-lucide="shopping-cart" size="22" class="${getActiveClass('market.html')}"></i>
+                </div>
+                <div class="bottom-nav-item" onclick="location.href='profile.html'">
+                    <i data-lucide="user" size="22" class="${getActiveClass('profile.html')}"></i>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+// Write to document
+document.write(renderNavigation());
+
+// Initialize Lucide icons if available
 if (typeof lucide !== 'undefined') {
     setTimeout(() => lucide.createIcons(), 100);
 }
