@@ -20,17 +20,12 @@
         body {
             background-color: #000;
             color: #fff;
-            overflow-x: hidden;
         }
         
+        /* Light mode - posts stay DARK */
         body.light-mode {
             background-color: #fff;
             color: #000;
-        }
-        
-        body.light-mode .post-card {
-            background: #fff;
-            border-bottom-color: #efefef;
         }
         
         body.light-mode nav,
@@ -39,9 +34,22 @@
             border-color: #efefef;
         }
         
-        /* Post Card - Keep your card style */
+        body.light-mode .post-card {
+            background: #0a0a0a !important;
+            border-bottom-color: rgba(255,255,255,0.08) !important;
+        }
+        
+        body.light-mode .post-card .text-zinc-200 {
+            color: #e5e5e5 !important;
+        }
+        
+        body.light-mode .post-card .text-zinc-500 {
+            color: #a1a1aa !important;
+        }
+        
+        /* Post Card - Dark always */
         .post-card {
-            background: #000;
+            background: #0a0a0a;
             border-bottom: 1px solid rgba(255,255,255,0.08);
             transition: background 0.15s;
             cursor: pointer;
@@ -49,10 +57,10 @@
         }
         
         .post-card:active {
-            background: rgba(255,102,0,0.03);
+            background: rgba(255,102,0,0.05);
         }
         
-        /* Like Button - FIXED fill */
+        /* Like Button */
         .like-btn {
             display: inline-flex;
             align-items: center;
@@ -169,16 +177,22 @@
             scroll-snap-type: x mandatory;
             -webkit-overflow-scrolling: touch;
             scroll-behavior: smooth;
-            height: 100%;
+            flex: 1;
+            scrollbar-width: none;
+        }
+        
+        .swipe-container::-webkit-scrollbar {
+            display: none;
         }
         
         .swipe-page {
             flex: 0 0 100%;
             scroll-snap-align: start;
             overflow-y: auto;
+            height: 100%;
         }
         
-        /* Modal */
+        /* Modal - Light theme specific */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -201,8 +215,22 @@
         }
         
         body.light-mode .modal-content {
-            background: #fff;
-            border-color: #e5e5e5;
+            background: #1a1a1a;
+            border-color: #333;
+        }
+        
+        body.light-mode .modal-content textarea {
+            background: #0a0a0a !important;
+            color: #fff !important;
+            border-color: #333 !important;
+        }
+        
+        body.light-mode .modal-content textarea::placeholder {
+            color: #666 !important;
+        }
+        
+        body.light-mode .modal-content h3 {
+            color: #fff;
         }
         
         /* Action Sheet */
@@ -225,7 +253,12 @@
             transform: translateY(0);
         }
         
-        /* Bottom Nav - YOUR SIZE (preserved) */
+        body.light-mode .action-sheet {
+            background: #1a1a1a;
+            border-top-color: #333;
+        }
+        
+        /* Bottom Nav */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -289,11 +322,16 @@
             text-decoration: none;
         }
         
-        /* Edit indicator */
-        .edit-badge {
-            font-size: 10px;
-            color: #71717a;
-            margin-left: 8px;
+        /* Typing animation for placeholder */
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        
+        .typing-placeholder::after {
+            content: '|';
+            animation: blink 1s infinite;
+            margin-left: 2px;
         }
     </style>
 </head>
@@ -324,20 +362,20 @@
             <div id="search-results" class="mt-2 rounded-xl overflow-hidden hidden bg-[#111] border border-white/10"></div>
         </div>
         
-        <!-- Tabs with swipe indicator -->
-        <div class="tabs-container text-center">
-            <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active">THE CAMPUS</button>
-            <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn">UNIVERSE</button>
+        <!-- Tabs -->
+        <div class="tabs-container text-center" id="tabs-container">
+            <button id="tab-campus" onclick="switchToPage(0)" class="tab-btn tab-active">🏛️ THE CAMPUS</button>
+            <button id="tab-universe" onclick="switchToPage(1)" class="tab-btn">🌍 UNIVERSE</button>
         </div>
     </nav>
     
     <!-- Swipeable Feed Container -->
-    <div class="swipe-container hide-scrollbar" id="swipe-container" style="flex: 1;">
+    <div class="swipe-container hide-scrollbar" id="swipe-container">
         <div id="campus-feed" class="swipe-page"></div>
         <div id="universe-feed" class="swipe-page"></div>
     </div>
     
-    <!-- Bottom Nav - YOUR SIZE (copy this to other pages) -->
+    <!-- Bottom Nav -->
     <div class="bottom-nav">
         <div class="bottom-nav-inner">
             <div class="bottom-nav-item" onclick="location.href='dashboard.html'">
@@ -389,8 +427,83 @@ const supabase = createClient(
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
 );
 
+// Cool placeholder messages
+const placeholderMessages = [
+    "What's happening, homie?",
+    "Spill the tea ☕",
+    "Vibe check... pass?",
+    "Drop a hot take 🔥",
+    "Scream into the void 🌌",
+    "Thoughts? 🤔",
+    "Plot twist?",
+    "Today I learned...",
+    "Unpopular opinion incoming",
+    "Who else feels this?",
+    "Can we talk about...",
+    "This aged well",
+    "No cap 🧢",
+    "Fr fr",
+    "Deadass 💀",
+    "Ratio incoming",
+    "Main character energy",
+    "Touch grass? Nah",
+    "Living rent free",
+    "Core memory unlocked",
+    "I'm the problem, it's me",
+    "And I oop-",
+    "That's crazy",
+    "Who asked?",
+    "L + ratio",
+    "Tell me you're lying",
+    "I'm crying",
+    "This ain't it chief",
+    "We listen and we don't judge",
+    "The way I gasped"
+];
+
+let placeholderIndex = 0;
+let placeholderInterval;
+
+function startTypingAnimation() {
+    const textarea = document.getElementById('modal-post-input');
+    if (!textarea) return;
+    
+    let currentText = '';
+    let isDeleting = false;
+    let currentPhraseIndex = 0;
+    
+    function typeEffect() {
+        const fullText = placeholderMessages[currentPhraseIndex];
+        
+        if (!isDeleting) {
+            currentText = fullText.substring(0, currentText.length + 1);
+            textarea.placeholder = currentText;
+            
+            if (currentText === fullText) {
+                isDeleting = true;
+                setTimeout(typeEffect, 2000);
+                return;
+            }
+        } else {
+            currentText = fullText.substring(0, currentText.length - 1);
+            textarea.placeholder = currentText;
+            
+            if (currentText === '') {
+                isDeleting = false;
+                currentPhraseIndex = (currentPhraseIndex + 1) % placeholderMessages.length;
+                setTimeout(typeEffect, 500);
+                return;
+            }
+        }
+        
+        setTimeout(typeEffect, isDeleting ? 50 : 100);
+    }
+    
+    typeEffect();
+}
+
 let currentUser = null;
-let currentMode = 'campus';
+let currentPageIndex = 0;
 let campusPosts = [];
 let universePosts = [];
 let likedPosts = new Set();
@@ -405,11 +518,6 @@ let currentEditPostId = null;
 const campusFeed = document.getElementById('campus-feed');
 const universeFeed = document.getElementById('universe-feed');
 const swipeContainer = document.getElementById('swipe-container');
-
-function showToast(msg) {
-    // No toast - removed as requested
-    console.log(msg);
-}
 
 function formatNumber(num) {
     if (!num) return '0';
@@ -475,14 +583,16 @@ async function loadPosts(mode, reset = false) {
     try {
         let query = supabase
             .from('posts')
-            .select('*, profile:user_id(username, is_verified, is_official)')
+            .select('*, profile:user_id(username, is_verified, is_official, school_name)')
             .eq('post_type', 'post')
             .order('created_at', { ascending: false })
             .range((page[mode] - 1) * 15, page[mode] * 15 - 1);
         
+        // Campus mode: filter by user's school
         if (mode === 'campus' && currentUser?.school_name) {
             query = query.eq('school_name', currentUser.school_name);
         }
+        // Universe mode: show ALL posts from ALL schools (no filter)
         
         if (searchQuery) {
             query = query.ilike('content', `%${searchQuery}%`);
@@ -550,7 +660,7 @@ function renderFeed(mode) {
         const isLiked = likedPosts.has(post.id);
         const hasReposted = repostedPosts.has(post.id);
         const isEditable = post.user_id === currentUser?.id && (new Date() - new Date(post.created_at) < 15 * 60 * 1000);
-        const editBadge = isEditable ? '<span class="edit-badge">(editable)</span>' : '';
+        const editBadge = isEditable ? '<span class="edit-badge text-zinc-500 text-[10px] ml-2">(editable)</span>' : '';
         
         let badge = '';
         if (profile?.is_official) {
@@ -558,6 +668,10 @@ function renderFeed(mode) {
         } else if (profile?.is_verified) {
             badge = '<span class="bg-[#1da1f2] rounded-full w-4 h-4 inline-flex items-center justify-center ml-1"><i data-lucide="check" size="10" class="text-white"></i></span>';
         }
+        
+        // School tag - only show in universe mode
+        const schoolTag = (mode === 'universe' && post.school_name) ? 
+            `<span class="text-[10px] text-zinc-500 ml-2">🏛️ ${escapeHtml(post.school_name)}</span>` : '';
         
         html += `
             <div class="post-card" data-post-id="${post.id}" data-post='${JSON.stringify(post).replace(/'/g, "&#39;")}'
@@ -577,6 +691,7 @@ function renderFeed(mode) {
                                   class="font-bold text-sm cursor-pointer hover:underline">@${escapeHtml(username)}</span>
                             ${badge}
                             <span class="text-xs text-zinc-500">${timeAgo(post.created_at)}</span>
+                            ${schoolTag}
                             ${editBadge}
                         </div>
                         <div class="text-sm text-zinc-200 leading-relaxed break-words">
@@ -612,7 +727,7 @@ function renderFeed(mode) {
     container.innerHTML = html;
     lucide.createIcons();
     
-    // Infinite scroll for this feed
+    // Infinite scroll
     if (hasMore[mode] && !isLoading[mode]) {
         const sentinel = document.createElement('div');
         sentinel.className = 'h-12 flex items-center justify-center';
@@ -632,10 +747,8 @@ function renderFeed(mode) {
 async function handleLike(postId) {
     const isLiked = likedPosts.has(postId);
     
-    // Update local state
     if (isLiked) {
         likedPosts.delete(postId);
-        // Update count in both feeds
         let post = campusPosts.find(p => p.id === postId);
         if (post) post.likes_count = Math.max(0, (post.likes_count || 0) - 1);
         post = universePosts.find(p => p.id === postId);
@@ -648,11 +761,9 @@ async function handleLike(postId) {
         if (post) post.likes_count = (post.likes_count || 0) + 1;
     }
     
-    // Update UI
     renderFeed('campus');
     renderFeed('universe');
     
-    // Background API
     if (isLiked) {
         await supabase.from('interactions').delete().eq('user_id', currentUser.id).eq('post_id', postId).eq('interaction_type', 'like');
         await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
@@ -663,15 +774,8 @@ async function handleLike(postId) {
 }
 
 async function handleRepost(postId, username) {
-    if (username === currentUser.username) {
-        alert("Can't repost your own post");
-        return;
-    }
-    
-    if (repostedPosts.has(postId)) {
-        alert("Already reposted!");
-        return;
-    }
+    if (username === currentUser.username) return;
+    if (repostedPosts.has(postId)) return;
     
     const originalPost = campusPosts.find(p => p.id === postId) || universePosts.find(p => p.id === postId);
     if (!originalPost) return;
@@ -688,7 +792,6 @@ async function handleRepost(postId, username) {
         await supabase.rpc('increment_stat', { post_id: postId, field: 'reposts_count' });
         repostedPosts.add(postId);
         
-        // Update count
         let post = campusPosts.find(p => p.id === postId);
         if (post) post.reposts_count = (post.reposts_count || 0) + 1;
         post = universePosts.find(p => p.id === postId);
@@ -734,6 +837,7 @@ function openPostModal(editPost = null) {
         title.innerText = 'Create post';
         input.value = '';
         btn.innerText = 'Post';
+        startTypingAnimation();
     }
     
     modal.style.display = 'flex';
@@ -768,50 +872,65 @@ async function submitPost() {
     
     if (!error) {
         closePostModal();
-        loadPosts(currentMode === 'campus' ? 'campus' : 'universe', true);
-        if (currentMode === 'campus') loadPosts('universe', true);
-        else loadPosts('campus', true);
+        if (currentPageIndex === 0) loadPosts('campus', true);
+        else loadPosts('universe', true);
+        loadPosts(currentPageIndex === 0 ? 'universe' : 'campus', true);
     }
 }
 
-function switchTab(mode) {
-    currentMode = mode;
-    document.getElementById('tab-campus').classList.toggle('tab-active', mode === 'campus');
-    document.getElementById('tab-universe').classList.toggle('tab-active', mode === 'universe');
-    
-    // Scroll to page
-    const index = mode === 'campus' ? 0 : 1;
+function switchToPage(index) {
+    currentPageIndex = index;
     swipeContainer.scrollTo({ left: index * window.innerWidth, behavior: 'smooth' });
     
-    // Load if empty
-    if (mode === 'campus' && campusPosts.length === 0) loadPosts('campus');
-    if (mode === 'universe' && universePosts.length === 0) loadPosts('universe');
+    // Update tab styles
+    const campusTab = document.getElementById('tab-campus');
+    const universeTab = document.getElementById('tab-universe');
+    
+    if (index === 0) {
+        campusTab.classList.add('tab-active');
+        universeTab.classList.remove('tab-active');
+        if (campusPosts.length === 0) loadPosts('campus');
+    } else {
+        universeTab.classList.add('tab-active');
+        campusTab.classList.remove('tab-active');
+        if (universePosts.length === 0) loadPosts('universe');
+    }
 }
 
-// Swipe detection
+// Swipe detection - FIXED for both directions
 let touchStartX = 0;
 let touchEndX = 0;
+let isSwiping = false;
 
 swipeContainer.addEventListener('touchstart', (e) => {
     touchStartX = e.changedTouches[0].screenX;
+    isSwiping = true;
+}, { passive: true });
+
+swipeContainer.addEventListener('touchmove', (e) => {
+    if (!isSwiping) return;
+    touchEndX = e.changedTouches[0].screenX;
 });
 
 swipeContainer.addEventListener('touchend', (e) => {
-    touchEndX = e.changedTouches[0].screenX;
-    const diff = touchEndX - touchStartX;
-    const currentScroll = swipeContainer.scrollLeft;
-    const pageWidth = window.innerWidth;
-    const currentPage = Math.round(currentScroll / pageWidth);
+    if (!isSwiping) return;
+    isSwiping = false;
     
-    if (Math.abs(diff) > 50) {
-        if (diff > 0 && currentPage > 0) {
-            // Swipe right - go to previous
-            switchTab(currentPage === 0 ? 'campus' : 'universe');
-        } else if (diff < 0 && currentPage < 1) {
-            // Swipe left - go to next
-            switchTab(currentPage === 0 ? 'universe' : 'campus');
+    const diff = touchEndX - touchStartX;
+    const threshold = 50;
+    
+    if (Math.abs(diff) > threshold) {
+        if (diff > 0 && currentPageIndex > 0) {
+            // Swipe RIGHT - go to previous page (Campus)
+            switchToPage(currentPageIndex - 1);
+        } else if (diff < 0 && currentPageIndex < 1) {
+            // Swipe LEFT - go to next page (Universe)
+            switchToPage(currentPageIndex + 1);
         }
     }
+    
+    touchStartX = 0;
+    touchEndX = 0;
 });
 
 function toggleSearch() {
@@ -857,11 +976,11 @@ function showActionSheet(post) {
     let html = '';
     if (isOwner) {
         if (isEditable) {
-            html += `<button onclick="editPost('${post.id}')" class="w-full py-3 text-center text-[#FF6600] font-semibold text-sm">Edit post (15min left)</button>`;
+            html += `<button onclick="editPost('${post.id}')" class="w-full py-3 text-center text-[#FF6600] font-semibold text-sm">✏️ Edit post (15min left)</button>`;
         }
-        html += `<button onclick="deletePost('${post.id}')" class="w-full py-3 text-center text-red-500 font-semibold text-sm">Delete post</button>`;
+        html += `<button onclick="deletePost('${post.id}')" class="w-full py-3 text-center text-red-500 font-semibold text-sm">🗑️ Delete post</button>`;
     } else {
-        html += `<button onclick="reportPost('${post.id}')" class="w-full py-3 text-center text-red-500 font-semibold text-sm">Report</button>`;
+        html += `<button onclick="reportPost('${post.id}')" class="w-full py-3 text-center text-red-500 font-semibold text-sm">🚩 Report</button>`;
     }
     
     options.innerHTML = html;
@@ -913,7 +1032,7 @@ async function init() {
 window.openPostModal = openPostModal;
 window.closePostModal = closePostModal;
 window.submitPost = submitPost;
-window.switchTab = switchTab;
+window.switchToPage = switchToPage;
 window.toggleSearch = toggleSearch;
 window.handleSearch = handleSearch;
 window.toggleTheme = toggleTheme;
