@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Thesdel Admin | Order Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #f05a28;
+            --primary-dark: #dc4a1a;
+            --bg-dark: #05070a;
+            --bg-surface: #0c0f15;
+            --bg-elevated: #11161f;
+            --border-color: #1e2530;
+            --text-primary: #ffffff;
+            --text-secondary: #a1abb8;
+            --text-muted: #5e6b7c;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --radius-lg: 24px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
+            --transition: all 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        /* Premium Glass Navbar */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(5, 7, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .nav-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.3rem;
+        }
+
+        .brand-name {
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff, var(--primary));
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .admin-badge {
+            background: rgba(240, 90, 40, 0.15);
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--primary);
+            border: 1px solid rgba(240, 90, 40, 0.3);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(240, 90, 40, 0.1);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            background: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            padding: 20px 24px;
+            margin-bottom: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid var(--border-color);
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 20px;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .filter-btn:hover:not(.active) {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 100px;
+            padding: 8px 20px;
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 0.85rem;
+            min-width: 240px;
+            outline: none;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Orders Table */
+        .orders-container {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            padding: 20px 20px;
+            background: var(--bg-elevated);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+
+        tr:hover {
+            background: rgba(240, 90, 40, 0.03);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 100px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            width: fit-content;
+        }
+
+        .status-pending {
+            background: rgba(243, 156, 18, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(243, 156, 18, 0.3);
+        }
+
+        .status-processing {
+            background: rgba(52, 152, 219, 0.15);
+            color: var(--info);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+
+        .status-completed {
+            background: rgba(46, 204, 113, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(46, 204, 113, 0.3);
+        }
+
+        .status-cancelled {
+            background: rgba(231, 76, 60, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 500;
+            transition: var(--transition);
+            color: var(--text-secondary);
+        }
+
+        .action-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .delete-btn:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 7, 10, 0.98);
+            backdrop-filter: blur(12px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            max-width: 500px;
+            width: 90%;
+            padding: 32px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-header h3 {
+            font-size: 1.3rem;
+        }
+
+        .modal-body p {
+            color: var(--text-secondary);
+            margin: 8px 0;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 28px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            font-size: 0.85rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(105deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .refresh-btn {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            padding: 8px 20px;
+            border-radius: 100px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-muted);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px;
+            color: var(--text-muted);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--success);
+            border-radius: 60px;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1100;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        @media (max-width: 768px) {
+            .nav-container { padding: 16px 20px; }
+            .filter-bar { flex-direction: column; align-items: stretch; }
+            .stats-grid { grid-template-columns: 1fr; }
+            th, td { padding: 12px 16px; }
+        }
+    </style>
+</head>
+<body>
+<div class="navbar">
+    <div class="nav-container">
+        <div class="brand">
+            <div class="brand-icon">T</div>
+            <span class="brand-name">THESDEL</span>
+            <span class="admin-badge">ADMIN PANEL</span>
+        </div>
+        <button class="refresh-btn" id="refreshBtn">⟳ Refresh</button>
+    </div>
+</div>
+
+<div class="container" style="max-width: 1600px; margin: 0 auto; padding: 32px;">
+    <!-- Stats Grid -->
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div class="filter-group" id="filterGroup">
+            <button class="filter-btn active" data-status="all">All Orders</button>
+            <button class="filter-btn" data-status="pending">Pending</button>
+            <button class="filter-btn" data-status="processing">Processing</button>
+            <button class="filter-btn" data-status="completed">Completed</button>
+            <button class="filter-btn" data-status="cancelled">Cancelled</button>
+        </div>
+        <div class="search-box">
+            <span>🔍</span>
+            <input type="text" id="searchInput" placeholder="Search by name, phone, or address...">
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="orders-container">
+        <div class="table-wrapper">
+            <table id="ordersTable">
+                <thead>
+                    <tr><th>Order ID</th><th>Customer</th><th>Phone</th><th>Service</th><th>Amount</th><th>Pickup Address</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="ordersBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal" id="statusModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Update Order Status</h3>
+            <button style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;" id="closeModalBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>Order #<span id="modalOrderId"></span></p>
+            <p>Current status: <strong id="modalCurrentStatus"></strong></p>
+            <div style="margin: 20px 0;">
+                <select id="statusSelect" style="width: 100%; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; color: white; font-family: inherit;">
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
+            <button class="btn btn-primary" id="confirmStatusBtn">Update Status</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMessage">✓ Updated!</span></div>
+
+<script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+
+    const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentOrders = [];
+    let currentFilter = 'all';
+    let currentSearch = '';
+    let selectedOrder = null;
+
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMessage');
+        toastMsg.innerHTML = isError ? `❌ ${msg}` : `✓ ${msg}`;
+        toast.style.borderColor = isError ? '#e74c3c' : '#2ecc71';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    async function fetchOrders() {
+        const { data, error } = await supabase
+            .from('laundry_orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            showToast('Failed to fetch orders', true);
+            return [];
+        }
+        return data || [];
+    }
+
+    function filterOrders(orders) {
+        let filtered = orders;
+        
+        if (currentFilter !== 'all') {
+            filtered = filtered.filter(order => order.status === currentFilter);
+        }
+        
+        if (currentSearch) {
+            const search = currentSearch.toLowerCase();
+            filtered = filtered.filter(order => 
+                order.customer_name?.toLowerCase().includes(search) ||
+                order.phone?.toLowerCase().includes(search) ||
+                order.pickup_address?.toLowerCase().includes(search) ||
+                order.service_name?.toLowerCase().includes(search)
+            );
+        }
+        
+        return filtered;
+    }
+
+    function updateStats(orders) {
+        const stats = {
+            total: orders.length,
+            pending: orders.filter(o => o.status === 'pending').length,
+            processing: orders.filter(o => o.status === 'processing').length,
+            completed: orders.filter(o => o.status === 'completed').length,
+            revenue: orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.price || 0), 0)
+        };
+        
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon">📦</div></div><div class="stat-value">${stats.total}</div><div class="stat-label">Total Orders</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon">⏳</div></div><div class="stat-value">${stats.pending}</div><div class="stat-label">Pending</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon">⚙️</div></div><div class="stat-value">${stats.processing}</div><div class="stat-label">Processing</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon">✅</div></div><div class="stat-value">${stats.completed}</div><div class="stat-label">Completed</div></div>
+            <div class="stat-card"><div class="stat-header"><div class="stat-icon">💰</div></div><div class="stat-value">₦${stats.revenue.toLocaleString()}</div><div class="stat-label">Total Revenue</div></div>
+        `;
+    }
+
+    function getStatusBadge(status) {
+        const statusMap = {
+            pending: { class: 'status-pending', icon: '⏳', text: 'Pending' },
+            processing: { class: 'status-processing', icon: '⚙️', text: 'Processing' },
+            completed: { class: 'status-completed', icon: '✅', text: 'Completed' },
+            cancelled: { class: 'status-cancelled', icon: '❌', text: 'Cancelled' }
+        };
+        const s = statusMap[status] || statusMap.pending;
+        return `<span class="status-badge ${s.class}"><span>${s.icon}</span> ${s.text}</span>`;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return 'N/A';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    async function renderOrders() {
+        const filtered = filterOrders(currentOrders);
+        const tbody = document.getElementById('ordersBody');
+        
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state">📭 No orders found</div></td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = filtered.map(order => `
+            <tr>
+                <td style="font-family: monospace;">#${order.id?.slice(0, 8)}</td>
+                <td><strong>${escapeHtml(order.customer_name || 'N/A')}</strong></td>
+                <td>${order.phone || 'N/A'}</td>
+                <td>${order.service_name || 'N/A'}</td>
+                <td style="color: var(--primary); font-weight: 600;">₦${(order.price || 0).toLocaleString()}</td>
+                <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(order.pickup_address || 'N/A')}</td>
+                <td>${getStatusBadge(order.status)}</td>
+                <td>${formatDate(order.created_at)}</td>
+                <td class="action-buttons">
+                    <button class="action-btn update-btn" data-id="${order.id}" data-status="${order.status}">✏️ Update</button>
+                </td>
+            </tr>
+        `).join('');
+        
+        document.querySelectorAll('.update-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const orderId = btn.dataset.id;
+                selectedOrder = currentOrders.find(o => o.id === orderId);
+                if (selectedOrder) {
+                    document.getElementById('modalOrderId').textContent = selectedOrder.id?.slice(0, 8);
+                    document.getElementById('modalCurrentStatus').textContent = selectedOrder.status;
+                    document.getElementById('statusSelect').value = selectedOrder.status;
+                    document.getElementById('statusModal').style.display = 'flex';
+                }
+            });
+        });
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    async function updateOrderStatus(orderId, newStatus) {
+        const { error } = await supabase
+            .from('laundry_orders')
+            .update({ status: newStatus })
+            .eq('id', orderId);
+        
+        if (error) {
+            showToast('Failed to update status', true);
+            return false;
+        }
+        
+        showToast(`Order status updated to ${newStatus}`);
+        await loadAllData();
+        return true;
+    }
+
+    async function loadAllData() {
+        currentOrders = await fetchOrders();
+        updateStats(currentOrders);
+        await renderOrders();
+    }
+
+    // Event Listeners
+    document.getElementById('refreshBtn')?.addEventListener('click', () => loadAllData());
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.dataset.status;
+            renderOrders();
+        });
+    });
+    
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        currentSearch = e.target.value;
+        renderOrders();
+    });
+    
+    document.getElementById('closeModalBtn')?.addEventListener('click', () => {
+        document.getElementById('statusModal').style.display = 'none';
+    });
+    
+    document.getElementById('cancelModalBtn')?.addEventListener('click', () => {
+        document.getElementById('statusModal').style.display = 'none';
+    });
+    
+    document.getElementById('confirmStatusBtn')?.addEventListener('click', async () => {
+        if (selectedOrder) {
+            const newStatus = document.getElementById('statusSelect').value;
+            await updateOrderStatus(selectedOrder.id, newStatus);
+            document.getElementById('statusModal').style.display = 'none';
+        }
+    });
+    
+    document.getElementById('statusModal')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('statusModal')) {
+            document.getElementById('statusModal').style.display = 'none';
+        }
+    });
+    
+    // Initial load
+    loadAllData();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(() => loadAllData(), 30000);
+</script>
+</body>
+</html>
