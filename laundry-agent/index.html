@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Thesdel | Book Laundry Service</title>
+    <title>Thesdel Admin | Order Management</title>
     <style>
         * {
             margin: 0;
@@ -23,10 +23,14 @@
             --text-secondary: #a1abb8;
             --text-muted: #5e6b7c;
             --success: #2ecc71;
-            --radius-xl: 28px;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --radius-xl: 24px;
             --radius-lg: 20px;
             --radius-md: 16px;
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --radius-sm: 12px;
+            --transition: all 0.2s ease;
         }
 
         body {
@@ -36,21 +40,31 @@
             line-height: 1.5;
         }
 
-        .container {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 0 24px;
+        /* Premium Glass Navbar */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(5, 7, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
         }
 
-        /* Header */
-        .header {
+        .nav-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 16px 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px 0 16px;
-            border-bottom: 1px solid var(--border-color);
             flex-wrap: wrap;
             gap: 16px;
+        }
+
+        @media (max-width: 640px) {
+            .nav-container {
+                padding: 12px 20px;
+            }
         }
 
         .brand {
@@ -60,214 +74,360 @@
         }
 
         .brand-icon {
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            border-radius: 14px;
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 1.3rem;
-            color: white;
+            font-size: 1.2rem;
         }
 
         .brand-name {
-            font-size: 1.6rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #fff 30%, var(--primary) 80%);
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff, var(--primary));
             background-clip: text;
             -webkit-background-clip: text;
             color: transparent;
-            letter-spacing: -0.5px;
         }
 
-        .badge {
-            background: rgba(240, 90, 40, 0.12);
+        .admin-badge {
+            background: rgba(240, 90, 40, 0.15);
+            padding: 5px 12px;
+            border-radius: 100px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--primary);
+            border: 1px solid rgba(240, 90, 40, 0.3);
+        }
+
+        .refresh-btn {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            padding: 8px 20px;
+            border-radius: 100px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            transition: var(--transition);
+        }
+
+        .refresh-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 16px;
+            }
+        }
+
+        /* Stats Grid - Responsive Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        @media (min-width: 480px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+
+        .stat-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: var(--transition);
+        }
+
+        .stat-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+            background: rgba(240, 90, 40, 0.1);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stat-value {
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            font-weight: 800;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Filter Bar - Mobile Optimized */
+        .filter-bar {
+            background: var(--bg-surface);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        @media (min-width: 768px) {
+            .filter-bar {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 16px;
+            border-radius: 100px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .filter-btn:hover:not(.active) {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-color);
+            border-radius: 100px;
+            padding: 6px 18px;
+            flex: 1;
+            max-width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .search-box {
+                max-width: 300px;
+            }
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 0.8rem;
+            width: 100%;
+            outline: none;
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Orders Cards - Mobile First (Replaces Table) */
+        .orders-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .order-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: var(--transition);
+        }
+
+        .order-card:hover {
+            border-color: var(--primary);
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .order-id {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--bg-elevated);
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+
+        .order-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 480px) {
+            .order-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 768px) {
+            .order-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        .order-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .field-label {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .field-value {
+            font-size: 0.85rem;
+            font-weight: 500;
+            word-break: break-word;
+        }
+
+        .field-value.amount {
+            color: var(--primary);
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             padding: 5px 12px;
             border-radius: 100px;
             font-size: 0.7rem;
             font-weight: 600;
-            border: 0.5px solid rgba(240, 90, 40, 0.25);
-            color: var(--primary);
+            width: fit-content;
         }
 
-        /* Hero Section */
-        .hero {
-            text-align: center;
-            margin: 48px 0 56px;
+        .status-pending {
+            background: rgba(243, 156, 18, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(243, 156, 18, 0.3);
         }
 
-        .hero h1 {
-            font-size: clamp(2rem, 5vw, 3rem);
-            font-weight: 800;
-            background: linear-gradient(to right, #fff, #cbd5e1);
-            background-clip: text;
-            -webkit-background-clip: text;
-            color: transparent;
-            letter-spacing: -0.02em;
+        .status-processing {
+            background: rgba(52, 152, 219, 0.15);
+            color: var(--info);
+            border: 1px solid rgba(52, 152, 219, 0.3);
         }
 
-        .hero p {
-            color: var(--text-secondary);
-            max-width: 600px;
-            margin: 16px auto 0;
-            font-size: clamp(0.9rem, 3vw, 1rem);
+        .status-completed {
+            background: rgba(46, 204, 113, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(46, 204, 113, 0.3);
         }
 
-        .features {
+        .status-cancelled {
+            background: rgba(231, 76, 60, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+
+        .order-actions {
             display: flex;
-            justify-content: center;
-            gap: 24px;
-            margin-top: 32px;
-            flex-wrap: wrap;
-        }
-
-        .feature {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
-        }
-
-        .feature-dot {
-            width: 6px;
-            height: 6px;
-            background: var(--primary);
-            border-radius: 50%;
-        }
-
-        /* Section Header */
-        .section-header {
-            margin: 40px 0 28px;
-        }
-
-        .section-title {
-            font-size: clamp(1.3rem, 4vw, 1.5rem);
-            font-weight: 600;
-            display: flex;
-            align-items: center;
+            justify-content: flex-end;
             gap: 12px;
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
         }
 
-        .title-bar {
-            width: 40px;
-            height: 3px;
-            background: var(--primary);
-            border-radius: 3px;
-        }
-
-        /* Services Grid - Mobile First */
-        .services-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-            margin-bottom: 64px;
-        }
-
-        @media (min-width: 640px) {
-            .services-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 24px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .services-grid {
-                grid-template-columns: repeat(4, 1fr);
-                gap: 28px;
-            }
-        }
-
-        /* Service Card - Optimized for mobile */
-        .service-card {
-            background: var(--bg-elevated);
+        .action-btn {
+            background: transparent;
             border: 1px solid var(--border-color);
-            border-radius: var(--radius-xl);
-            overflow: hidden;
-            transition: var(--transition);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .service-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-4px);
-        }
-
-        .service-image-wrapper {
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(135deg, #1a1f2a, #0f131a);
-        }
-
-        .service-image {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-            display: block;
-            transition: transform 0.4s ease;
-        }
-
-        .service-card:hover .service-image {
-            transform: scale(1.05);
-        }
-
-        .service-content {
-            padding: 20px;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .service-name {
-            font-size: 1.2rem;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .service-price {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin: 12px 0 4px;
-            line-height: 1;
-        }
-
-        .price-unit {
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
             font-size: 0.75rem;
             font-weight: 500;
-            color: var(--text-muted);
-        }
-
-        .service-desc {
-            color: var(--text-secondary);
-            font-size: 0.8rem;
-            margin: 8px 0 20px;
-            line-height: 1.5;
-            flex: 1;
-        }
-
-        .btn-book {
-            width: 100%;
-            background: rgba(240, 90, 40, 0.08);
-            border: 1px solid var(--primary);
-            color: var(--primary);
-            padding: 12px;
-            border-radius: 60px;
-            font-weight: 600;
-            cursor: pointer;
             transition: var(--transition);
-            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        .btn-book:hover {
-            background: var(--primary);
-            color: #0a0c10;
+        .action-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
         }
 
-        /* Modal - Mobile Optimized */
+        /* Modal */
         .modal {
             display: none;
             position: fixed;
@@ -287,11 +447,9 @@
             background: var(--bg-elevated);
             border: 1px solid var(--border-color);
             border-radius: var(--radius-lg);
-            max-width: 520px;
+            max-width: 500px;
             width: 100%;
             padding: 28px 24px;
-            max-height: 90vh;
-            overflow-y: auto;
         }
 
         @media (max-width: 480px) {
@@ -302,45 +460,48 @@
 
         .modal-header {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 14px;
-            margin-bottom: 24px;
-        }
-
-        .modal-header h2 {
-            font-size: 1.3rem;
-            font-weight: 600;
-        }
-
-        .form-group {
             margin-bottom: 20px;
         }
 
-        .form-group label {
-            display: block;
-            font-size: 0.7rem;
+        .modal-header h3 {
+            font-size: 1.2rem;
             font-weight: 600;
-            text-transform: uppercase;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
         }
 
-        .form-group input, 
-        .form-group textarea {
-            width: 100%;
-            background: #0b0f16;
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            padding: 12px 16px;
-            color: white;
-            font-family: inherit;
-            font-size: 0.9rem;
+        .close-modal {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
             transition: var(--transition);
         }
 
-        .form-group input:focus, 
-        .form-group textarea:focus {
+        .close-modal:hover {
+            color: var(--primary);
+        }
+
+        .modal-body p {
+            color: var(--text-secondary);
+            margin: 8px 0;
+            font-size: 0.85rem;
+        }
+
+        .status-select {
+            width: 100%;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.85rem;
+            margin: 16px 0;
+            cursor: pointer;
+        }
+
+        .status-select:focus {
             outline: none;
             border-color: var(--primary);
         }
@@ -349,39 +510,38 @@
             display: flex;
             justify-content: flex-end;
             gap: 12px;
-            margin-top: 28px;
+            margin-top: 20px;
         }
 
-        .btn-cancel {
-            background: transparent;
-            border: 1px solid var(--border-color);
-            color: var(--text-secondary);
-            padding: 10px 20px;
-            border-radius: 40px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: var(--transition);
-        }
-
-        .btn-cancel:hover {
-            border-color: var(--text-muted);
-            color: white;
-        }
-
-        .btn-confirm {
-            background: linear-gradient(105deg, var(--primary), var(--primary-dark));
-            border: none;
-            color: white;
-            padding: 10px 28px;
+        .btn {
+            padding: 10px 24px;
             border-radius: 40px;
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
+            border: none;
+            font-size: 0.8rem;
         }
 
-        .btn-confirm:hover {
+        .btn-primary {
+            background: linear-gradient(105deg, var(--primary), var(--primary-dark));
+            color: white;
+        }
+
+        .btn-primary:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(240, 90, 40, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--text-muted);
+            color: white;
         }
 
         /* Toast */
@@ -393,14 +553,13 @@
             background: var(--bg-elevated);
             border: 1px solid var(--success);
             border-radius: 60px;
-            padding: 12px 24px;
+            padding: 10px 20px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             transition: transform 0.3s ease;
             z-index: 1100;
-            white-space: nowrap;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
         }
 
         @media (max-width: 480px) {
@@ -415,13 +574,10 @@
             transform: translateX(-50%) translateY(0);
         }
 
-        /* Footer */
-        .footer {
-            border-top: 1px solid var(--border-color);
-            padding: 32px 0;
+        .empty-state {
             text-align: center;
+            padding: 60px 20px;
             color: var(--text-muted);
-            font-size: 0.75rem;
         }
 
         .loading {
@@ -432,8 +588,8 @@
 
         /* SVG Icons */
         .icon-svg {
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             stroke: currentColor;
             stroke-width: 1.5;
             fill: none;
@@ -441,92 +597,83 @@
     </style>
 </head>
 <body>
-<div class="container">
-    <header class="header">
+<div class="navbar">
+    <div class="nav-container">
         <div class="brand">
             <div class="brand-icon">T</div>
             <span class="brand-name">THESDEL</span>
-            <span class="badge">LAUNDRY</span>
+            <span class="admin-badge">ADMIN PANEL</span>
         </div>
-    </header>
-
-    <div class="hero">
-        <h1>Fresh clothes, delivered</h1>
-        <p>Professional laundry and dry cleaning. Same-day pickup, premium care, free delivery.</p>
-        <div class="features">
-            <div class="feature">
-                <svg class="icon-svg" viewBox="0 0 24 24" stroke="currentColor">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="12 6 12 12 16 14"/>
-                </svg>
-                <span>Same-day service</span>
-            </div>
-            <div class="feature">
-                <svg class="icon-svg" viewBox="0 0 24 24" stroke="currentColor">
-                    <path d="M22 12h-4l-3 9-4-18-3 9H2"/>
-                </svg>
-                <span>Free pickup & delivery</span>
-            </div>
-            <div class="feature">
-                <svg class="icon-svg" viewBox="0 0 24 24" stroke="currentColor">
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                </svg>
-                <span>Eco-friendly</span>
-            </div>
-        </div>
+        <button class="refresh-btn" id="refreshBtn">
+            <svg class="icon-svg" viewBox="0 0 24 24" stroke="currentColor">
+                <path d="M23 4v6h-6M1 20v-6h6"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Refresh
+        </button>
     </div>
-
-    <div class="section-header">
-        <div class="section-title">
-            <div class="title-bar"></div>
-            Choose your service
-        </div>
-    </div>
-
-    <div class="services-grid" id="servicesGrid"></div>
-
-    <footer class="footer">
-        <p>© 2025 Thesdel — Professional laundry service</p>
-    </footer>
 </div>
 
-<div class="modal" id="bookingModal">
+<div class="container">
+    <!-- Stats Grid -->
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <div class="filter-group" id="filterGroup">
+            <button class="filter-btn active" data-status="all">All</button>
+            <button class="filter-btn" data-status="pending">Pending</button>
+            <button class="filter-btn" data-status="processing">Processing</button>
+            <button class="filter-btn" data-status="completed">Completed</button>
+            <button class="filter-btn" data-status="cancelled">Cancelled</button>
+        </div>
+        <div class="search-box">
+            <svg class="icon-svg" viewBox="0 0 24 24" stroke="currentColor">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" id="searchInput" placeholder="Search orders...">
+        </div>
+    </div>
+
+    <!-- Orders Cards Container -->
+    <div class="orders-container" id="ordersContainer"></div>
+</div>
+
+<!-- Status Update Modal -->
+<div class="modal" id="statusModal">
     <div class="modal-content">
         <div class="modal-header">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-            </svg>
-            <h2 id="modalTitle">Request pickup</h2>
+            <h3>Update Order Status</h3>
+            <button class="close-modal" id="closeModalBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
         </div>
-        <div class="form-group">
-            <label>Full name</label>
-            <input type="text" id="customerName" placeholder="Enter your full name">
-        </div>
-        <div class="form-group">
-            <label>Pickup address</label>
-            <input type="text" id="pickupAddress" placeholder="Hostel, room number, or full address">
-        </div>
-        <div class="form-group">
-            <label>Phone number</label>
-            <input type="tel" id="phoneNumber" placeholder="For order updates">
-        </div>
-        <div class="form-group">
-            <label>Notes (optional)</label>
-            <textarea id="notes" rows="2" placeholder="Special instructions"></textarea>
+        <div class="modal-body">
+            <p>Order <strong id="modalOrderId"></strong></p>
+            <p>Current status: <strong id="modalCurrentStatus"></strong></p>
+            <select class="status-select" id="statusSelect">
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+            </select>
         </div>
         <div class="modal-actions">
-            <button class="btn-cancel" id="closeModalBtn">Cancel</button>
-            <button class="btn-confirm" id="confirmOrderBtn">Confirm booking →</button>
+            <button class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
+            <button class="btn btn-primary" id="confirmStatusBtn">Update Status</button>
         </div>
     </div>
 </div>
 
 <div class="toast" id="toast">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2">
         <polyline points="20 6 9 17 4 12"/>
     </svg>
-    <span id="toastMessage">✓ Order placed!</span>
+    <span id="toastMessage">Updated!</span>
 </div>
 
 <script type="module">
@@ -536,15 +683,10 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let currentService = null;
-    const UNIFIED_IMAGE = "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=800&h=600&fit=crop";
-
-    const FIXED_SERVICES = [
-        { id: 1, name: "Wash & Fold", price: 550, unit: "kg", description: "Washed, dried, and neatly folded. Perfect for everyday clothes.", image: UNIFIED_IMAGE },
-        { id: 2, name: "Ironing Only", price: 350, unit: "kg", description: "Professional steam ironing. Wrinkle-free finish on hangers.", image: UNIFIED_IMAGE },
-        { id: 3, name: "Dry Cleaning", price: 1200, unit: "item", description: "Premium care for suits, dresses, and delicate fabrics.", image: UNIFIED_IMAGE },
-        { id: 4, name: "Wash & Iron", price: 750, unit: "kg", description: "Complete care: wash, dry, iron, and fold. Ready to wear.", image: UNIFIED_IMAGE }
-    ];
+    let currentOrders = [];
+    let currentFilter = 'all';
+    let currentSearch = '';
+    let selectedOrder = null;
 
     function showToast(msg, isError = false) {
         const toast = document.getElementById('toast');
@@ -555,85 +697,276 @@
         setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
-    async function seedServicesToDatabase() {
-        const { data: existing, error: checkError } = await supabase.from('laundry_services').select('id').limit(1);
-        if (checkError || (existing && existing.length > 0)) return true;
+    async function fetchOrders() {
+        const { data, error } = await supabase
+            .from('laundry_orders')
+            .select('*')
+            .order('created_at', { ascending: false });
         
-        const { error: insertError } = await supabase.from('laundry_services').insert(
-            FIXED_SERVICES.map(s => ({ name: s.name, price: s.price, unit: s.unit, description: s.description, image_url: s.image, is_active: true, sort_order: s.id }))
-        );
-        return !insertError;
+        if (error) {
+            showToast('Failed to fetch orders', true);
+            return [];
+        }
+        return data || [];
     }
 
-    async function loadServices() {
-        const grid = document.getElementById('servicesGrid');
-        grid.innerHTML = '<div class="loading">Loading services...</div>';
-        await seedServicesToDatabase();
+    function filterOrders(orders) {
+        let filtered = orders;
         
-        let { data, error } = await supabase.from('laundry_services').select('*').eq('is_active', true).order('sort_order');
-        if (error || !data || data.length === 0) data = FIXED_SERVICES;
+        if (currentFilter !== 'all') {
+            filtered = filtered.filter(order => order.status === currentFilter);
+        }
         
-        grid.innerHTML = data.map(service => `
-            <div class="service-card">
-                <div class="service-image-wrapper">
-                    <img src="${UNIFIED_IMAGE}" class="service-image" alt="${service.name}" loading="lazy">
+        if (currentSearch) {
+            const search = currentSearch.toLowerCase();
+            filtered = filtered.filter(order => 
+                (order.customer_name || '').toLowerCase().includes(search) ||
+                (order.phone || '').toLowerCase().includes(search) ||
+                (order.pickup_address || '').toLowerCase().includes(search) ||
+                (order.service_name || '').toLowerCase().includes(search)
+            );
+        }
+        
+        return filtered;
+    }
+
+    function updateStats(orders) {
+        const stats = {
+            total: orders.length,
+            pending: orders.filter(o => o.status === 'pending').length,
+            processing: orders.filter(o => o.status === 'processing').length,
+            completed: orders.filter(o => o.status === 'completed').length,
+            revenue: orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.price || 0), 0)
+        };
+        
+        document.getElementById('statsGrid').innerHTML = `
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                        </svg>
+                    </div>
                 </div>
-                <div class="service-content">
-                    <div class="service-name">${service.name}</div>
-                    <div class="service-price">₦${service.price.toLocaleString()}<span class="price-unit"> / ${service.unit}</span></div>
-                    <div class="service-desc">${service.description}</div>
-                    <button class="btn-book" data-id="${service.id}" data-name="${service.name}" data-price="${service.price}" data-unit="${service.unit}">Book now →</button>
+                <div class="stat-value">${stats.total}</div>
+                <div class="stat-label">Total Orders</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.5">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value">${stats.pending}</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="1.5">
+                            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value">${stats.processing}</div>
+                <div class="stat-label">Processing</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="1.5">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value">${stats.completed}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div class="stat-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5">
+                            <line x1="12" y1="1" x2="12" y2="23"/>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-value">₦${stats.revenue.toLocaleString()}</div>
+                <div class="stat-label">Revenue</div>
+            </div>
+        `;
+    }
+
+    function getStatusBadge(status) {
+        const statusMap = {
+            pending: { class: 'status-pending', icon: '⏳', text: 'Pending' },
+            processing: { class: 'status-processing', icon: '⚙️', text: 'Processing' },
+            completed: { class: 'status-completed', icon: '✓', text: 'Completed' },
+            cancelled: { class: 'status-cancelled', icon: '✗', text: 'Cancelled' }
+        };
+        const s = statusMap[status] || statusMap.pending;
+        return `<span class="status-badge ${s.class}"><span>${s.icon}</span> ${s.text}</span>`;
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return 'N/A';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    async function renderOrders() {
+        const filtered = filterOrders(currentOrders);
+        const container = document.getElementById('ordersContainer');
+        
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="empty-state">📋 No orders found</div>';
+            return;
+        }
+        
+        container.innerHTML = filtered.map(order => `
+            <div class="order-card">
+                <div class="order-header">
+                    <span class="order-id">#${(order.id || '').slice(0, 8)}</span>
+                    ${getStatusBadge(order.status)}
+                </div>
+                <div class="order-grid">
+                    <div class="order-field">
+                        <span class="field-label">Customer</span>
+                        <span class="field-value"><strong>${escapeHtml(order.customer_name || 'N/A')}</strong></span>
+                    </div>
+                    <div class="order-field">
+                        <span class="field-label">Phone</span>
+                        <span class="field-value">${order.phone || 'N/A'}</span>
+                    </div>
+                    <div class="order-field">
+                        <span class="field-label">Service</span>
+                        <span class="field-value">${order.service_name || 'N/A'}</span>
+                    </div>
+                    <div class="order-field">
+                        <span class="field-label">Amount</span>
+                        <span class="field-value amount">₦${(order.price || 0).toLocaleString()}</span>
+                    </div>
+                    <div class="order-field">
+                        <span class="field-label">Pickup Address</span>
+                        <span class="field-value">${escapeHtml(order.pickup_address || 'N/A')}</span>
+                    </div>
+                    <div class="order-field">
+                        <span class="field-label">Date</span>
+                        <span class="field-value">${formatDate(order.created_at)}</span>
+                    </div>
+                    ${order.instructions ? `
+                    <div class="order-field">
+                        <span class="field-label">Notes</span>
+                        <span class="field-value">${escapeHtml(order.instructions)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+                <div class="order-actions">
+                    <button class="action-btn update-btn" data-id="${order.id}" data-status="${order.status}">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34"/>
+                            <polygon points="18 2 22 6 12 16 8 16 8 12 18 2"/>
+                        </svg>
+                        Update Status
+                    </button>
                 </div>
             </div>
         `).join('');
         
-        document.querySelectorAll('.btn-book').forEach(btn => {
+        document.querySelectorAll('.update-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                currentService = {
-                    id: parseInt(btn.dataset.id),
-                    name: btn.dataset.name,
-                    price: parseInt(btn.dataset.price),
-                    unit: btn.dataset.unit
-                };
-                document.getElementById('modalTitle').innerHTML = `${currentService.name} — ₦${currentService.price}/${currentService.unit}`;
-                document.getElementById('customerName').value = localStorage.getItem('thesdel_name') || '';
-                document.getElementById('pickupAddress').value = '';
-                document.getElementById('phoneNumber').value = '';
-                document.getElementById('notes').value = '';
-                document.getElementById('bookingModal').style.display = 'flex';
+                const orderId = btn.dataset.id;
+                selectedOrder = currentOrders.find(o => o.id === orderId);
+                if (selectedOrder) {
+                    document.getElementById('modalOrderId').textContent = (selectedOrder.id || '').slice(0, 8);
+                    document.getElementById('modalCurrentStatus').textContent = selectedOrder.status || 'pending';
+                    document.getElementById('statusSelect').value = selectedOrder.status || 'pending';
+                    document.getElementById('statusModal').style.display = 'flex';
+                }
             });
         });
     }
 
-    async function submitOrder() {
-        if (!currentService) return;
-        const name = document.getElementById('customerName').value.trim();
-        const address = document.getElementById('pickupAddress').value.trim();
-        const phone = document.getElementById('phoneNumber').value.trim();
-        const notes = document.getElementById('notes').value.trim();
+    async function updateOrderStatus(orderId, newStatus) {
+        const { error } = await supabase
+            .from('laundry_orders')
+            .update({ status: newStatus })
+            .eq('id', orderId);
         
-        if (!name || !address || !phone) { showToast('Please fill all required fields', true); return; }
-        localStorage.setItem('thesdel_name', name);
-        
-        const { error } = await supabase.from('laundry_orders').insert([{
-            customer_name: name, phone, service_id: currentService.id, service_name: currentService.name,
-            price: currentService.price, unit: currentService.unit, pickup_address: address, instructions: notes || null,
-            status: 'pending', created_at: new Date().toISOString()
-        }]);
-        
-        if (error) { 
-            showToast('Failed to place order', true); 
-        } else { 
-            showToast(`Order confirmed! Pickup from ${address.substring(0, 30)}...`); 
-            document.getElementById('bookingModal').style.display = 'none'; 
+        if (error) {
+            showToast('Failed to update status', true);
+            return false;
         }
+        
+        showToast(`Order status updated to ${newStatus}`);
+        await loadAllData();
+        return true;
     }
+
+    async function loadAllData() {
+        currentOrders = await fetchOrders();
+        updateStats(currentOrders);
+        await renderOrders();
+    }
+
+    // Event Listeners
+    document.getElementById('refreshBtn')?.addEventListener('click', () => loadAllData());
     
-    document.getElementById('closeModalBtn')?.addEventListener('click', () => { document.getElementById('bookingModal').style.display = 'none'; });
-    document.getElementById('confirmOrderBtn')?.addEventListener('click', submitOrder);
-    document.getElementById('bookingModal')?.addEventListener('click', (e) => { if (e.target === document.getElementById('bookingModal')) document.getElementById('bookingModal').style.display = 'none'; });
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentFilter = btn.dataset.status;
+            renderOrders();
+        });
+    });
     
-    loadServices();
+    document.getElementById('searchInput')?.addEventListener('input', (e) => {
+        currentSearch = e.target.value;
+        renderOrders();
+    });
+    
+    document.getElementById('closeModalBtn')?.addEventListener('click', () => {
+        document.getElementById('statusModal').style.display = 'none';
+    });
+    
+    document.getElementById('cancelModalBtn')?.addEventListener('click', () => {
+        document.getElementById('statusModal').style.display = 'none';
+    });
+    
+    document.getElementById('confirmStatusBtn')?.addEventListener('click', async () => {
+        if (selectedOrder) {
+            const newStatus = document.getElementById('statusSelect').value;
+            await updateOrderStatus(selectedOrder.id, newStatus);
+            document.getElementById('statusModal').style.display = 'none';
+        }
+    });
+    
+    document.getElementById('statusModal')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('statusModal')) {
+            document.getElementById('statusModal').style.display = 'none';
+        }
+    });
+    
+    // Initial load
+    loadAllData();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(() => loadAllData(), 30000);
 </script>
 </body>
 </html>
