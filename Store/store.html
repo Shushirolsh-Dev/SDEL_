@@ -81,9 +81,9 @@
         
         .toast-notification {
             position: fixed;
-            bottom: 80px;
+            top: 20px;
             left: 50%;
-            transform: translateX(-50%) translateY(100px);
+            transform: translateX(-50%) translateY(-100px);
             background: #FF6600;
             color: black;
             padding: 12px 24px;
@@ -144,7 +144,6 @@
         <div class="modal-content" id="review-modal-content"></div>
     </div>
 
-    <!-- Followers Modal -->
     <div id="followers-modal" class="modal" onclick="if(event.target === this) closeFollowersModal()">
         <div class="modal-content" id="followers-modal-content"></div>
     </div>
@@ -273,14 +272,19 @@
             return num.toString();
         }
 
-        function showToast(message, duration = 4000) {
+        function showToast(message, duration = 3000) {
             const toast = document.getElementById('toast');
             if (toastTimeout) clearTimeout(toastTimeout);
             toast.innerText = message;
             toast.classList.add('show');
             toastTimeout = setTimeout(() => {
                 toast.classList.remove('show');
+                // Completely hide after animation
+                setTimeout(() => {
+                    toast.style.visibility = 'hidden';
+                }, 300);
             }, duration);
+            toast.style.visibility = 'visible';
         }
 
         async function init() {
@@ -363,10 +367,14 @@
             document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
             document.getElementById('rating-value').innerText = storeInfo.rating.toFixed(1);
             
+            // Only show verified badge if status is 'verified'
             if (storeInfo.verified) {
                 const badge = document.getElementById('verified-badge');
                 badge.classList.remove('hidden');
                 lucide.createIcons();
+            } else {
+                const badge = document.getElementById('verified-badge');
+                badge.classList.add('hidden');
             }
         }
 
@@ -435,7 +443,6 @@
             modal.style.display = 'flex';
             lucide.createIcons();
             
-            // Fetch followers
             const { data: followers } = await supabase
                 .from('store_followers')
                 .select('user_id')
@@ -448,7 +455,6 @@
                 return;
             }
             
-            // Only show usernames if current user is the store owner
             if (currentUserId === storeOwnerId) {
                 const { data: profiles } = await supabase
                     .from('profile')
@@ -693,13 +699,13 @@
             }
             const product = storeProducts.find(p => p.id === productId);
             if (!product || (product.stock || 0) < 1) {
-                showToast("Out of stock!", 4000);
+                showToast("Out of stock!", 3000);
                 return;
             }
             
             userCart[productId] = 1;
             await supabase.from('cart').insert([{ user_id: currentUserId, product_id: productId, quantity: 1 }]);
-            showToast("Added to cart! 🛒", 4000);
+            showToast("Added to cart! 🛒", 3000);
             renderProducts();
         }
 
@@ -733,7 +739,7 @@
             if (isFollowing) {
                 const { error } = await supabase.from('store_followers').delete().eq('vendor_id', storeOwnerId).eq('user_id', currentUserId);
                 if (!error) {
-                    showToast(`Unfollowed ${storeInfo?.business_name}`, 4000);
+                    showToast(`Unfollowed ${storeInfo?.business_name}`, 3000);
                     isFollowing = false;
                     storeInfo.followerCount--;
                     document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
@@ -742,7 +748,7 @@
             } else {
                 const { error } = await supabase.from('store_followers').insert({ vendor_id: storeOwnerId, user_id: currentUserId });
                 if (!error) {
-                    showToast(`Following ${storeInfo?.business_name} ✨`, 4000);
+                    showToast(`Following ${storeInfo?.business_name} ✨`, 3000);
                     isFollowing = true;
                     storeInfo.followerCount++;
                     document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
@@ -753,11 +759,17 @@
 
         async function shareStore() {
             const url = `${window.location.origin}/Store/store.html?vendor_id=${storeOwnerId}`;
+            const shareMessage = `🛍️ Check out ${storeInfo?.business_name} on Sdel Market! Great products, amazing deals. Shop now: ${url}`;
+            
             try {
-                await navigator.share({ title: storeInfo?.business_name, url: url });
+                await navigator.share({ 
+                    title: `${storeInfo?.business_name} | Sdel Market`,
+                    text: `Check out this store on Sdel Market! 🛍️`,
+                    url: url
+                });
             } catch {
-                navigator.clipboard.writeText(url);
-                showToast("Store link copied! 📋", 4000);
+                navigator.clipboard.writeText(shareMessage);
+                showToast("Store link with message copied! 📋", 3000);
             }
         }
 
@@ -766,7 +778,7 @@
                 window.location.href = 'login.html';
                 return;
             }
-            window.location.href = `dm.html?user_id=${storeOwnerId}`;
+            window.location.href = `contactseller/dm.html?user_id=${storeOwnerId}`;
         }
 
         function openWriteReview() {
@@ -776,7 +788,7 @@
             }
             
             if (currentUserId === storeOwnerId) {
-                showToast("You cannot review your own store", 4000);
+                showToast("You cannot review your own store", 3000);
                 return;
             }
             
@@ -837,7 +849,7 @@
             
             document.getElementById('submit-review').addEventListener('click', async () => {
                 if (selectedRating === 0) {
-                    showToast("Please select a rating", 4000);
+                    showToast("Please select a rating", 3000);
                     return;
                 }
                 
@@ -863,12 +875,12 @@
                         .eq('id', userReview.id);
                     
                     if (!error) {
-                        showToast("Review updated! ✏️", 4000);
+                        showToast("Review updated! ✏️", 3000);
                         closeReviewModal();
                         await loadReviews();
                         await loadStoreInfo();
                     } else {
-                        showToast("Error updating review", 4000);
+                        showToast("Error updating review", 3000);
                     }
                 } else {
                     const { error } = await supabase
@@ -882,14 +894,14 @@
                         });
                     
                     if (!error) {
-                        showToast("Review posted! 🌟", 4000);
+                        showToast("Review posted! 🌟", 3000);
                         closeReviewModal();
                         await loadReviews();
                         await loadStoreInfo();
                     } else if (error.code === '23505') {
-                        showToast("You already reviewed this store", 4000);
+                        showToast("You already reviewed this store", 3000);
                     } else {
-                        showToast("Error posting review", 4000);
+                        showToast("Error posting review", 3000);
                     }
                 }
             });
