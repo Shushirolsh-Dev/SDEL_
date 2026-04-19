@@ -11,6 +11,7 @@
         body { background: #000; color: #fff; font-family: 'Poppins', sans-serif; }
         .input-box { background: #121212; border: 1px solid #262626; border-radius: 15px; padding: 15px; width: 100%; outline: none; color: white; font-weight: bold; font-size: 13px; transition: 0.3s; }
         .input-box:focus { border-color: #FF6600; box-shadow: 0 0 10px rgba(255,102,0,0.1); }
+        .input-box:disabled { opacity: 0.5; cursor: not-allowed; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
@@ -26,6 +27,9 @@
         .stock-badge { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 30px; }
         .stock-high { background: rgba(34,197,94,0.1); color: #22c55e; }
         .stock-low { background: rgba(239,68,68,0.1); color: #ef4444; }
+        
+        /* Status message */
+        .status-banner { background: rgba(255,102,0,0.1); border: 1px solid rgba(255,102,0,0.3); border-radius: 16px; padding: 12px; margin-bottom: 20px; }
     </style>
 </head>
 <body class="p-6 pb-24">
@@ -37,6 +41,17 @@
         <h1 class="text-xl font-black uppercase italic tracking-tighter">Inventory <span class="text-sdel">Manager</span></h1>
         <div class="w-10"></div>
     </nav>
+
+    <!-- Vendor Status Banner -->
+    <div id="vendor-status-banner" class="status-banner hidden">
+        <div class="flex items-center gap-3">
+            <i data-lucide="alert-circle" size="20" class="text-sdel"></i>
+            <div>
+                <p id="vendor-status-text" class="text-[10px] font-black uppercase">Verifying vendor status...</p>
+                <p id="vendor-school-text" class="text-[8px] text-zinc-400 font-bold mt-1"></p>
+            </div>
+        </div>
+    </div>
 
     <section class="space-y-6 mb-12" id="form-section">
         <h2 id="form-title" class="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">List New Item</h2>
@@ -53,7 +68,7 @@
                 <input type="number" id="p-price" placeholder="Price (₦)" class="input-box">
                 <select id="p-category" class="input-box text-zinc-400"><option value="">Loading Categories...</option></select>
             </div>
-            <!-- STOCK FIELD ADDED HERE -->
+            <!-- STOCK FIELD -->
             <div class="grid grid-cols-2 gap-4">
                 <input type="number" id="p-stock" placeholder="Stock Quantity" value="0" min="0" class="input-box">
                 <div class="flex items-center gap-2 text-[10px] text-zinc-500 font-bold">
@@ -85,14 +100,83 @@
 
         let inventoryData = [];
         let currentUserId = null;
+        let currentVendorStatus = null;
+        let currentUserSchool = null;
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) { window.location.href = 'login.html'; return; }
             currentUserId = session.user.id;
-            loadCategories();
-            loadInventory();
+            
+            // Check vendor status first
+            await checkVendorStatus();
+            await loadUserSchool();
+            await loadCategories();
+            await loadInventory();
             lucide.createIcons();
+        }
+        
+        // Check if user is a verified vendor
+        async function checkVendorStatus() {
+            const { data: vendor } = await supabase
+                .from('vendors')
+                .select('status')
+                .eq('user_id', currentUserId)
+                .single();
+            
+            const banner = document.getElementById('vendor-status-banner');
+            const statusText = document.getElementById('vendor-status-text');
+            
+            if (!vendor) {
+                banner.classList.remove('hidden');
+                statusText.innerHTML = '❌ NO VENDOR ACCOUNT FOUND';
+                document.getElementById('save-btn').disabled = true;
+                document.getElementById('save-btn').style.opacity = '0.5';
+                document.getElementById('save-btn').style.cursor = 'not-allowed';
+                return;
+            }
+            
+            currentVendorStatus = vendor.status;
+            
+            if (vendor.status !== 'verified') {
+                banner.classList.remove('hidden');
+                if (vendor.status === 'pending') {
+                    statusText.innerHTML = '⏳ YOUR SHOP IS PENDING APPROVAL';
+                } else if (vendor.status === 'fraud') {
+                    statusText.innerHTML = '🚫 FRAUD DETECTED - SHOP LOCKED';
+                } else if (vendor.status === 'suspended') {
+                    statusText.innerHTML = '⚠️ SHOP SUSPENDED';
+                } else if (vendor.status === 'declined') {
+                    statusText.innerHTML = '❌ SHOP APPLICATION DECLINED';
+                } else {
+                    statusText.innerHTML = '🔒 SHOP NOT VERIFIED';
+                }
+                document.getElementById('save-btn').disabled = true;
+                document.getElementById('save-btn').style.opacity = '0.5';
+                document.getElementById('save-btn').style.cursor = 'not-allowed';
+            } else {
+                banner.classList.add('hidden');
+                document.getElementById('save-btn').disabled = false;
+                document.getElementById('save-btn').style.opacity = '1';
+                document.getElementById('save-btn').style.cursor = 'pointer';
+            }
+        }
+        
+        // Load user's school from profile
+        async function loadUserSchool() {
+            const { data: profile } = await supabase
+                .from('profile')
+                .select('school_name')
+                .eq('id', currentUserId)
+                .single();
+            
+            if (profile && profile.school_name) {
+                currentUserSchool = profile.school_name;
+                const schoolText = document.getElementById('vendor-school-text');
+                if (schoolText) {
+                    schoolText.innerHTML = `🏫 Selling to: ${currentUserSchool} students only`;
+                }
+            }
         }
 
         window.loadCategories = async () => {
@@ -127,7 +211,7 @@
         async function runAIScan(file) {
             const formData = new FormData();
             formData.append('media', file);
-            formData.append('models', 'nudity-2.0,wad,offensive'); // wad covers Weapons, Alcohol, Drugs
+            formData.append('models', 'nudity-2.0,wad,offensive');
             formData.append('api_user', '351772232'); 
             formData.append('api_secret', 'XpUucJxcrXRGGGWWpM7Akh6jAi8vAwKZ');
 
@@ -140,7 +224,6 @@
                 
                 if (result.status === 'failure') return { safe: false, error: result.error.message };
 
-                // Define triggers
                 const weapon = result.weapon > 0.5;
                 const drugs = result.drugs > 0.5;
                 const explicit = result.nudity.sexual_explicit > 0.5;
@@ -151,16 +234,22 @@
                 return { safe: true };
             } catch (err) {
                 console.error("AI Scan Error:", err);
-                return { safe: true }; // Fallback to allow if API fails, or set to false for max safety
+                return { safe: true };
             }
         }
 
         window.saveProduct = async () => {
+            // Double-check vendor status before saving
+            if (currentVendorStatus !== 'verified') {
+                alert("Only verified vendors can add products. Please complete merchant registration.");
+                return;
+            }
+            
             const name = document.getElementById('p-name').value;
             const price = document.getElementById('p-price').value;
             const category = document.getElementById('p-category').value;
             const desc = document.getElementById('p-desc').value;
-            const stock = parseInt(document.getElementById('p-stock').value) || 0; // GET STOCK VALUE
+            const stock = parseInt(document.getElementById('p-stock').value) || 0;
             const file = document.getElementById('p-image').files[0];
             const editId = document.getElementById('edit-id').value;
 
@@ -171,7 +260,7 @@
             btn.disabled = true; 
             btn.innerText = "AI SCANNING...";
 
-            // 1. AI Safety Scan (Only for new files)
+            // AI Safety Scan (Only for new files)
             if (file) {
                 const scan = await runAIScan(file);
                 if (!scan.safe) {
@@ -189,11 +278,11 @@
                 price: parseFloat(price), 
                 category, 
                 description: desc,
-                stock: stock, // ADD STOCK TO PAYLOAD
+                stock: stock,
                 vendor_id: currentUserId 
             };
 
-            // 2. Storage Upload
+            // Storage Upload
             if(file) {
                 const fileName = `${currentUserId}/${Date.now()}.jpg`;
                 const { data, error: uploadError } = await supabase.storage.from('market-assets').upload(fileName, file);
@@ -208,17 +297,17 @@
                 }
             }
 
-            // 3. Database Save
+            // Database Save
             const action = editId ? 
                 supabase.from('products').update(productPayload).eq('id', editId).eq('vendor_id', currentUserId) : 
                 supabase.from('products').insert([productPayload]);
 
             const { error } = await action;
             if(!error) {
-                alert("Shop Updated, Homie!");
+                alert("Product saved! It will now appear in the market for your school.");
                 location.reload();
             } else { 
-                alert("Permission Denied: Only verified vendors can post.");
+                alert("Error: " + error.message);
                 btn.disabled = false; btn.innerText = "Launch";
             }
         };
@@ -227,6 +316,10 @@
             const { data } = await supabase.from('products').select('*').eq('vendor_id', currentUserId).order('created_at', { ascending: false });
             inventoryData = data || [];
             const list = document.getElementById('inventory-list');
+            if (inventoryData.length === 0) {
+                list.innerHTML = '';
+                return;
+            }
             list.innerHTML = inventoryData.map(p => {
                 const stock = p.stock || 0;
                 const stockClass = stock > 0 ? 'stock-high' : 'stock-low';
@@ -239,7 +332,6 @@
                         <div>
                             <h4 class="text-[11px] font-black uppercase italic text-white">${p.name}</h4>
                             <p class="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">₦${p.price.toLocaleString()}</p>
-                            <!-- STOCK DISPLAY ADDED HERE -->
                             <span class="stock-badge ${stockClass} mt-1 inline-block">${stockText}</span>
                         </div>
                     </div>
@@ -259,7 +351,7 @@
             document.getElementById('p-price').value = p.price;
             document.getElementById('p-category').value = p.category;
             document.getElementById('p-desc').value = p.description;
-            document.getElementById('p-stock').value = p.stock || 0; // SET STOCK VALUE FOR EDIT
+            document.getElementById('p-stock').value = p.stock || 0;
             if(p.image_url) {
                 document.getElementById('image-preview').src = p.image_url;
                 document.getElementById('image-preview-container').style.display = 'block';
