@@ -133,6 +133,35 @@
         .product-image {
             height: 160px;
         }
+        
+        /* Skeleton styles */
+        .skeleton-card {
+            background: rgba(18, 18, 18, 0.7);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .skeleton-image {
+            height: 160px;
+            background: rgba(255,255,255,0.05);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        .skeleton-line {
+            height: 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        .sunlight-mode .skeleton-card,
+        .sunlight-mode .skeleton-image,
+        .sunlight-mode .skeleton-line {
+            background: #e4e4e7;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 0.4; }
+        }
     </style>
 </head>
 <body class="pb-24">
@@ -181,36 +210,36 @@
     <!-- Product Grid -->
     <main class="px-4 grid grid-cols-2 gap-3" id="product-list">
         <!-- Loading skeletons -->
-        <div class="skeleton-card rounded-xl overflow-hidden">
-            <div class="skeleton-image h-32"></div>
+        <div class="skeleton-card">
+            <div class="skeleton-image"></div>
             <div class="p-3 space-y-2">
-                <div class="skeleton-line h-3 w-2/3"></div>
-                <div class="skeleton-line h-3 w-1/2"></div>
-                <div class="skeleton-line h-3 w-full"></div>
+                <div class="skeleton-line w-2/3"></div>
+                <div class="skeleton-line w-1/2"></div>
+                <div class="skeleton-line w-full"></div>
             </div>
         </div>
-        <div class="skeleton-card rounded-xl overflow-hidden">
-            <div class="skeleton-image h-32"></div>
+        <div class="skeleton-card">
+            <div class="skeleton-image"></div>
             <div class="p-3 space-y-2">
-                <div class="skeleton-line h-3 w-2/3"></div>
-                <div class="skeleton-line h-3 w-1/2"></div>
-                <div class="skeleton-line h-3 w-full"></div>
+                <div class="skeleton-line w-2/3"></div>
+                <div class="skeleton-line w-1/2"></div>
+                <div class="skeleton-line w-full"></div>
             </div>
         </div>
-        <div class="skeleton-card rounded-xl overflow-hidden">
-            <div class="skeleton-image h-32"></div>
+        <div class="skeleton-card">
+            <div class="skeleton-image"></div>
             <div class="p-3 space-y-2">
-                <div class="skeleton-line h-3 w-2/3"></div>
-                <div class="skeleton-line h-3 w-1/2"></div>
-                <div class="skeleton-line h-3 w-full"></div>
+                <div class="skeleton-line w-2/3"></div>
+                <div class="skeleton-line w-1/2"></div>
+                <div class="skeleton-line w-full"></div>
             </div>
         </div>
-        <div class="skeleton-card rounded-xl overflow-hidden">
-            <div class="skeleton-image h-32"></div>
+        <div class="skeleton-card">
+            <div class="skeleton-image"></div>
             <div class="p-3 space-y-2">
-                <div class="skeleton-line h-3 w-2/3"></div>
-                <div class="skeleton-line h-3 w-1/2"></div>
-                <div class="skeleton-line h-3 w-full"></div>
+                <div class="skeleton-line w-2/3"></div>
+                <div class="skeleton-line w-1/2"></div>
+                <div class="skeleton-line w-full"></div>
             </div>
         </div>
     </main>
@@ -225,7 +254,6 @@
         let allProducts = [];
         let filteredProducts = [];
         let userCart = {};
-        let vendorSchools = {};
         
         let visitorSessionId = localStorage.getItem('visitor_session_id');
         if (!visitorSessionId) {
@@ -238,6 +266,10 @@
             if (session) { 
                 currentUserId = session.user.id;
                 await fetchUserSchool();
+            } else {
+                // Show message for non-logged in users
+                document.getElementById('product-list').innerHTML = `<div class="col-span-full text-center py-20 opacity-30"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">Please login to view products</p></div>`;
+                return;
             }
             
             await fetchUserCart();
@@ -255,11 +287,12 @@
                 .eq('id', currentUserId)
                 .single();
             
-            if (data && !error) {
+            if (data && !error && data.school_name) {
                 currentUserSchool = data.school_name;
                 console.log("User's school:", currentUserSchool);
             } else {
                 console.log("No school found for user");
+                // Show message that no products will show
             }
         }
 
@@ -291,40 +324,43 @@
             const { data: productsData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
             allProducts = productsData || [];
             
-            // Get unique vendor IDs
+            if (!currentUserSchool) {
+                // No school found for user - show no products
+                renderProducts([]);
+                return;
+            }
+            
+            // Get unique vendor IDs from products
             const vendorIds = [...new Set(allProducts.map(p => p.vendor_id).filter(id => id))];
             
+            if (vendorIds.length === 0) {
+                renderProducts([]);
+                return;
+            }
+            
             // Fetch school_name from profile table for each vendor
-            if (vendorIds.length > 0) {
-                const { data: profileData } = await supabase
-                    .from('profile')
-                    .select('id, school_name')
-                    .in('id', vendorIds);
-                
-                if (profileData) {
-                    profileData.forEach(profile => {
-                        vendorSchools[profile.id] = profile.school_name || null;
-                    });
-                }
-            }
+            const { data: profileData } = await supabase
+                .from('profile')
+                .select('id, school_name')
+                .in('id', vendorIds);
             
-            // Filter products by user's school
-            applySchoolFilter();
-        }
-        
-        function applySchoolFilter() {
-            if (currentUserSchool) {
-                // Only show products from vendors with same school_name
-                filteredProducts = allProducts.filter(product => {
-                    const vendorSchool = vendorSchools[product.vendor_id];
-                    return vendorSchool === currentUserSchool;
+            // Create a map of vendor_id -> school_name
+            const vendorSchoolMap = {};
+            if (profileData) {
+                profileData.forEach(profile => {
+                    vendorSchoolMap[profile.id] = profile.school_name;
                 });
-            } else {
-                // If no user or no school, show nothing or you can show all
-                filteredProducts = [];
             }
             
-            // Re-apply current category filter
+            // Filter products: only show products where vendor's school matches user's school
+            filteredProducts = allProducts.filter(product => {
+                const vendorSchool = vendorSchoolMap[product.vendor_id];
+                return vendorSchool === currentUserSchool;
+            });
+            
+            console.log(`Showing ${filteredProducts.length} products for school: ${currentUserSchool}`);
+            
+            // Apply current category filter
             const activeCategory = document.querySelector('.category-pill.active')?.innerText || 'All';
             applyCategoryFilter(activeCategory);
         }
@@ -478,7 +514,7 @@
         function renderProducts(items) {
             const list = document.getElementById('product-list');
             if (items.length === 0) {
-                list.innerHTML = `<div class="col-span-full text-center py-20 opacity-30"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">No Items Found</p></div>`;
+                list.innerHTML = `<div class="col-span-full text-center py-20 opacity-30"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">No Items Found in Your School</p></div>`;
                 return;
             }
             
