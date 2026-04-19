@@ -8,546 +8,441 @@
         })();
     </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel | Merchant Hub</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Store</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        :root { --bg: #000; --surface: #0a0a0a; --card: #121212; --border: rgba(255,255,255,0.08); --text: #fff; --dim: #71717a; }
-        .sunlight-mode { --bg: #fff; --surface: #f4f4f5; --card: #ffffff; --border: #e4e4e7; --text: #09090b; --dim: #71717a; }
-        
-        body { background: var(--bg); color: var(--text); font-family: 'Poppins', sans-serif; transition: 0.3s; }
-        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 2.5rem; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; transition: background-color 0.3s; }
         .text-sdel { color: #FF6600; }
-        .input-zinc { background: rgba(120,120,120,0.05); border: 1px solid var(--border); color: var(--text); padding: 16px; border-radius: 16px; font-size: 13px; font-weight: 600; outline: none; width: 100%; }
-        .input-zinc:focus { border-color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
         
-        .plan-card { border: 2px solid var(--border); transition: 0.3s; cursor: pointer; border-radius: 20px; }
-        .plan-card.active { border-color: #FF6600; background: rgba(255,102,0,0.05); }
-
-        #custom-alert { display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 100; min-width: 300px; animation: slideDown 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes slideDown { from { top: -100px; opacity: 0; } to { top: 20px; opacity: 1; } }
-
-        /* Violation message styles */
-        .violation-card {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid #ef4444;
-            border-radius: 1.5rem;
-            padding: 1.5rem;
-            text-align: center;
+        .sunlight-mode body { background-color: #ffffff; color: #121212; }
+        .sunlight-mode .card-zinc { background: #f4f4f5; border-color: #e4e4e7; }
+        .sunlight-mode .bg-black\/50 { background: rgba(0,0,0,0.05); }
+        
+        .product-card { cursor: pointer; transition: transform 0.2s; }
+        .product-card:active { transform: scale(0.98); }
+        
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .star { position: absolute; background-color: rgba(255,255,255,0.3); border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(110vh); } }
+        .sunlight-mode .star { background-color: rgba(0,0,0,0.1); }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(20px);
         }
-        .violation-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
+        .sunlight-mode .modal { background: rgba(255,255,255,0.95); }
+        .modal-content { max-width: 400px; width: 100%; max-height: 85vh; overflow-y: auto; border-radius: 32px; }
+        .modal::-webkit-scrollbar { display: none; }
+        
+        .share-btn {
+            background: rgba(255, 102, 0, 0.1);
+            border: 1px solid rgba(255, 102, 0, 0.3);
+            color: #FF6600;
+            width: 36px;
+            height: 36px;
+            border-radius: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 1rem;
-        }
-        .fraud-icon { background: #8b5cf620; color: #8b5cf6; }
-        .suspended-icon { background: #ef444420; color: #ef4444; }
-        .deleted-icon { background: #ef444420; color: #ef4444; }
-        .violation-title {
-            font-size: 1.5rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            letter-spacing: -0.05em;
-            margin-bottom: 0.5rem;
-        }
-        .violation-message {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            color: var(--dim);
-            margin-bottom: 1.5rem;
-        }
-        .rules-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #FF6600;
-            font-size: 0.7rem;
-            font-weight: 900;
-            text-transform: uppercase;
-            text-decoration: underline;
             cursor: pointer;
-            margin-bottom: 1.5rem;
         }
-
-        * { font-style: normal !important; }
+        
+        .rating-star { color: #FF6600; }
+        .rating-star.empty { color: #3f3f46; }
+        .sunlight-mode .rating-star.empty { color: #d4d4d8; }
+        
+        .skeleton-card {
+            background: rgba(18, 18, 18, 0.7);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .skeleton-image { height: 160px; background: rgba(255,255,255,0.05); animation: pulse 1.5s infinite; }
+        .skeleton-line { height: 12px; background: rgba(255,255,255,0.05); border-radius: 6px; margin-bottom: 8px; animation: pulse 1.5s infinite; }
+        .sunlight-mode .skeleton-image, .sunlight-mode .skeleton-line { background: #e4e4e7; }
+        @keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.4; } }
     </style>
 </head>
-<body class="p-6 pb-20">
+<body class="pb-24">
+    <div class="stars" id="stars"></div>
 
-    <div id="custom-alert" class="glass-card p-5 shadow-2xl flex items-center gap-4">
-        <div class="p-2 bg-sdel/20 rounded-lg text-sdel"><i data-lucide="bell" size="20"></i></div>
-        <p id="alert-msg" class="text-xs font-black uppercase tracking-tight"></p>
+    <!-- Product Modal -->
+    <div id="product-modal" class="modal" onclick="if(event.target === this) closeModal()">
+        <div class="modal-content" id="modal-content"></div>
     </div>
 
-    <!-- Rules Modal -->
-    <div id="rulesModal" class="fixed inset-0 bg-black/90 flex items-center justify-center p-6 z-50 hidden">
-        <div class="glass-card p-8 max-w-md w-full max-h-[80vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-sm font-black uppercase text-sdel">Marketplace Rules</h2>
-                <button onclick="hideRulesModal()" class="text-[var(--dim)]"><i data-lucide="x" size="20"></i></button>
-            </div>
-            <div class="space-y-4 text-[10px] font-medium">
-                <p class="text-sdel font-black">1. VALID PAYMENT REFERENCES</p>
-                <p>Submitting fake or invalid payment references will result in immediate suspension and fraud labeling.</p>
-                
-                <p class="text-sdel font-black mt-4">2. PROHIBITED PRODUCTS</p>
-                <p>No counterfeit, illegal, or harmful products. Violations lead to permanent deletion.</p>
-                
-                <p class="text-sdel font-black mt-4">3. SHOP SUSPENSION</p>
-                <p>Shops can be suspended for policy violations. Contact support for review.</p>
-                
-                <p class="text-sdel font-black mt-4">4. FRAUD PENALTIES</p>
-                <p>Fraudulent activity results in permanent fraud status. Must create new shop after review.</p>
-                
-                <p class="text-sdel font-black mt-4">5. PAYMENT TIMELY</p>
-                <p>Monthly fees must be paid on time. Overdue shops are locked until payment is reset.</p>
-                
-                <div class="mt-6 pt-4 border-t border-[var(--border)]">
-                    <label class="flex items-center gap-3">
-                        <input type="checkbox" id="agreeRules" class="w-4 h-4 accent-sdel">
-                        <span class="text-[9px] font-bold">I have read and agree to the rules</span>
-                    </label>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <nav class="flex items-center justify-between mb-10">
-        <button onclick="window.history.back()" class="p-3 bg-zinc-900/10 rounded-2xl border border-[var(--border)]">
+    <!-- Navigation -->
+    <nav class="p-4 flex items-center justify-between border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
+        <button onclick="window.history.back()" class="text-gray-400 p-2">
             <i data-lucide="arrow-left" size="20"></i>
         </button>
-        <h1 class="text-[10px] font-black uppercase tracking-[0.3em]">Merchant Hub</h1>
+        <h1 class="text-base font-black uppercase tracking-tighter italic">Store <span class="text-sdel">Profile</span></h1>
         <div class="w-10"></div>
     </nav>
 
-    <div id="main-content" class="space-y-8">
-        <div class="glass-card p-6 flex items-center gap-4">
-            <div id="shopIcon" class="w-16 h-16 rounded-2xl bg-sdel/10 flex items-center justify-center text-sdel border border-sdel/20">
-                <i data-lucide="store" size="28"></i>
-            </div>
-            <div>
-                <h3 id="previewName" class="font-black uppercase text-sm tracking-tight">Your Business Name</h3>
-                <p id="previewCat" class="text-[10px] text-[var(--dim)] font-bold uppercase tracking-widest">Select Category</p>
-            </div>
-        </div>
-
-        <!-- SCHOOL NAME SECTION -->
-        <div class="glass-card p-5 space-y-3">
-            <div class="flex items-center gap-2 border-b border-[var(--border)] pb-2">
-                <i data-lucide="graduation-cap" size="18" class="text-sdel"></i>
-                <span class="font-black uppercase text-xs">Your School Name</span>
-            </div>
-            <div>
-                <input type="text" id="schoolName" placeholder="Enter your school name (e.g., University of Lagos)" class="input-zinc" oninput="updatePreview()">
-                <p class="text-[8px] text-[var(--dim)] font-bold uppercase mt-2 tracking-wider">
-                    ⚡ Products you list will only be visible to students from this school
-                </p>
-            </div>
-        </div>
-
-        <!-- Rules Link Card (for new users) -->
-        <div class="glass-card p-4 flex items-center justify-between cursor-pointer" onclick="showRulesModal()">
-            <div class="flex items-center gap-3">
-                <i data-lucide="scroll-text" size="20" class="text-sdel"></i>
-                <span class="text-[10px] font-black uppercase">Marketplace Rules & Guidelines</span>
-            </div>
-            <i data-lucide="chevron-right" size="16" class="text-[var(--dim)]"></i>
-        </div>
-
-        <!-- Registration Form (shown only for new/pending/declined) -->
-        <div id="reg-form" class="space-y-4">
-            <div>
-                <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Business Identity</label>
-                <input type="text" id="bizName" placeholder="Shop Name" class="input-zinc" oninput="updatePreview()">
-            </div>
-            <div>
-                <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Category</label>
-                <select id="bizCat" class="input-zinc appearance-none" onchange="handleCategoryChange()">
-                    <option value="">Select Niche</option>
-                    <option value="Fashion">Fashion & Style</option>
-                    <option value="Electronics">Tech & Gadgets</option>
-                    <option value="Food">Food & Groceries</option>
-                    <option value="Services">Professional Services</option>
-                    <option value="Health">Health & Beauty</option>
-                    <option value="Home">Home & Decor</option>
-                    <option value="Education">Educational Materials</option>
-                    <option value="Other">Other (Type below)</option>
-                </select>
-            </div>
-            <div id="customCatDiv" class="hidden">
-                <input type="text" id="customCat" placeholder="Type your category..." class="input-zinc" oninput="updatePreview()">
-            </div>
-            <div class="space-y-3">
-                <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 block">Choose Merchant Plan</label>
-                <div id="plan-container" class="grid grid-cols-1 gap-3">
-                    <p class="text-xs opacity-50 p-4 font-bold uppercase">Fetching rates...</p>
+    <!-- Store Header (Dynamic) -->
+    <div id="store-header" class="relative">
+        <div class="h-32 bg-gradient-to-r from-sdel/20 to-transparent"></div>
+        <div class="px-6 -mt-12">
+            <div class="flex items-end justify-between">
+                <div class="w-24 h-24 rounded-2xl bg-sdel/20 border-4 border-black flex items-center justify-center text-sdel">
+                    <i data-lucide="store" size="40"></i>
                 </div>
-            </div>
-
-            <!-- MANUAL PAYMENT METHOD -->
-            <div class="glass-card p-6 space-y-4 mt-4">
-                <div class="flex items-center gap-3 border-b border-[var(--border)] pb-3">
-                    <i data-lucide="credit-card" size="18" class="text-sdel"></i>
-                    <span class="font-black uppercase text-xs">Manual Payment (OPay)</span>
-                </div>
-                <div class="bg-black/20 p-4 rounded-2xl border border-[var(--border)] space-y-2">
-                    <p class="text-sm font-bold flex justify-between"><span>Account name:</span> <span class="text-sdel">PETER PHILIP</span></p>
-                    <p class="text-sm font-bold flex justify-between"><span>Account number:</span> <span class="text-sdel">7084174994</span></p>
-                    <p class="text-sm font-bold flex justify-between"><span>Bank name:</span> <span class="text-sdel">OPay</span></p>
-                    <p class="text-sm font-bold flex justify-between"><span>Amount:</span> <span class="text-sdel" id="displayAmount">₦0</span></p>
-                </div>
-
-                <!-- Payment ID field -->
-                <div>
-                    <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Payment ID / Reference</label>
-                    <input type="text" id="paymentRef" placeholder="e.g., OPay transaction ID" class="input-zinc">
-                </div>
-
-                <!-- Confirmation checkbox -->
-                <label class="flex items-center gap-3 cursor-pointer mt-2">
-                    <input type="checkbox" id="payConfirmCheck" class="w-5 h-5 accent-sdel">
-                    <span class="text-xs font-bold uppercase">I confirm that I have paid</span>
-                </label>
-
-                <!-- Button to open banking app -->
-                <button onclick="openBankingApp()" class="w-full bg-[#0A5CFF] text-white py-4 rounded-2xl font-black uppercase text-xs tracking-widest shadow-lg flex items-center justify-center gap-2">
-                    <i data-lucide="smartphone" size="16"></i> Pay with Bank
+                <button id="follow-btn" onclick="toggleFollow()" class="px-4 py-2 rounded-xl bg-zinc-900 text-[10px] font-black uppercase tracking-wider">
+                    <i data-lucide="heart" size="14" class="inline mr-1"></i> Follow
                 </button>
             </div>
-
-            <button onclick="registerVendor()" id="regBtn" class="w-full bg-[#FF6600] text-white py-6 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-2xl shadow-sdel/30 active:scale-95 transition-all mt-6">
-                Launch My Shop
-            </button>
-        </div>
-
-        <!-- Status View (shown when user has a shop) -->
-        <div id="status-view" class="hidden space-y-6">
-            <!-- This will be dynamically filled based on status -->
+            <div class="mt-3">
+                <h2 id="store-name" class="text-xl font-black uppercase italic tracking-tighter">Loading...</h2>
+                <p id="store-category" class="text-[9px] text-sdel font-black uppercase tracking-widest mt-1">Loading</p>
+                <div class="flex items-center gap-4 mt-2">
+                    <div class="flex items-center gap-1">
+                        <i data-lucide="star" size="12" class="text-sdel fill-sdel"></i>
+                        <span id="store-rating" class="text-[10px] font-bold">0.0</span>
+                        <span class="text-[8px] text-zinc-500">(0 reviews)</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <i data-lucide="package" size="12" class="text-zinc-500"></i>
+                        <span id="product-count" class="text-[10px] font-bold">0</span>
+                        <span class="text-[8px] text-zinc-500">products</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <i data-lucide="users" size="12" class="text-zinc-500"></i>
+                        <span id="follower-count" class="text-[10px] font-bold">0</span>
+                        <span class="text-[8px] text-zinc-500">followers</span>
+                    </div>
+                </div>
+                <p id="store-bio" class="text-[10px] text-zinc-400 mt-3 leading-relaxed">Loading store information...</p>
+                <div id="contact-info" class="flex gap-3 mt-3">
+                    <button onclick="contactSeller()" class="flex-1 bg-sdel text-black py-2 rounded-xl font-black uppercase text-[9px] tracking-wider">Contact Seller</button>
+                    <button onclick="shareStore()" class="px-4 py-2 rounded-xl border border-white/10 text-[9px] font-black uppercase">Share</button>
+                </div>
+            </div>
         </div>
     </div>
+
+    <!-- Category Tabs -->
+    <div class="px-6 mt-6 flex space-x-2 overflow-x-auto no-scrollbar border-b border-white/10 pb-2">
+        <button onclick="filterStoreProducts('All', event)" class="store-filter active px-3 py-1.5 rounded-xl text-[9px] font-black uppercase whitespace-nowrap">All Products</button>
+    </div>
+
+    <!-- Products Grid -->
+    <main class="px-4 mt-4 grid grid-cols-2 gap-3" id="products-list">
+        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="skeleton-line w-2/3"></div><div class="skeleton-line w-1/2"></div></div></div>
+        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="skeleton-line w-2/3"></div><div class="skeleton-line w-1/2"></div></div></div>
+        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="skeleton-line w-2/3"></div><div class="skeleton-line w-1/2"></div></div></div>
+        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="skeleton-line w-2/3"></div><div class="skeleton-line w-1/2"></div></div></div>
+    </main>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        let selectedPrice = 0;
-        let selectedTierId = "";
+        let currentUserId = null;
+        let storeOwnerId = null;
+        let storeProducts = [];
+        let storeInfo = null;
+        let userCart = {};
+        let isFollowing = false;
 
-        // Rules Modal Functions
-        window.showRulesModal = () => {
-            document.getElementById('rulesModal').classList.remove('hidden');
-            lucide.createIcons();
-        }
-
-        window.hideRulesModal = () => {
-            document.getElementById('rulesModal').classList.add('hidden');
-        }
-
-        // GLOBAL FUNCTION TO OPEN BANKING APP
-        window.openBankingApp = () => {
-            const amount = selectedPrice || 0;
-            if (amount === 0) {
-                showAlert("Please select a plan first");
-                return;
-            }
-            const account = "7084174994";
-            const accountName = "PETER PHILIP";
-            const bank = "OPay";
-            const note = encodeURIComponent("Sdel merchant fee payment");
-            
-            const deepLink = `intent://pay?account=${account}&amount=${amount}&bank=${bank}&note=${note}#Intent;scheme=bank;package=com.opay.agent;end;`;
-            
-            navigator.clipboard.writeText(`Account Name: PETER PHILIP\nAccount: 7084174994\nAmount: ₦${amount}\nBank: OPay`).then(() => {
-                showAlert("Account details copied! Opening banking apps...");
-            }).catch(() => {});
-
-            window.location.href = deepLink;
-            
-            setTimeout(() => {
-                showAlert("If bank app didn't open, paste details manually.");
-            }, 500);
-        };
-
-        // CHECK VENDOR STATUS AND SHOW APPROPRIATE MESSAGE
-        async function checkVendorStatus() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                return false;
-            }
-
-            const { data: vendor } = await supabase.from('vendors').select('*').eq('user_id', session.user.id).single();
-
-            if (vendor) {
-                // Hide form
-                document.getElementById('reg-form').classList.add('hidden');
-                
-                const statusView = document.getElementById('status-view');
-                statusView.classList.remove('hidden');
-
-            // Clear and set appropriate status message
-                if (vendor.status === 'verified') {
-                    statusView.innerHTML = `
-                        <div class="glass-card p-10 space-y-4">
-                            <div class="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto text-green-500">
-                                <i data-lucide="check-circle" size="40"></i>
-                            </div>
-                            <h2 class="text-2xl font-black uppercase tracking-tighter">Verified!</h2>
-                            <p class="text-xs text-[var(--dim)] font-bold uppercase tracking-widest leading-relaxed">
-                                Your shop is live! Redirecting to dashboard...
-                            </p>
-                        </div>
-                    `;
-                    lucide.createIcons();
-                    setTimeout(() => {
-                        window.location.href = 'vendor_dashboard.html';
-                    }, 1500);
-                    
-                } else if (vendor.status === 'fraud') {
-                    statusView.innerHTML = `
-                        <div class="violation-card">
-                            <div class="violation-icon fraud-icon">
-                                <i data-lucide="alert-octagon" size="30"></i>
-                            </div>
-                            <h2 class="violation-title">Fraud Detected</h2>
-                            <p class="violation-message">You've been penalized for submitting an invalid payment reference.</p>
-                            <div onclick="showRulesModal()" class="rules-link">
-                                <i data-lucide="scroll-text" size="14"></i>
-                                <span>View Marketplace Rules</span>
-                            </div>
-                            <button onclick="location.reload()" class="w-full bg-sdel/10 text-sdel py-4 rounded-2xl font-black uppercase text-xs">
-                                Contact Support
-                            </button>
-                        </div>
-                    `;
-                    
-                } else if (vendor.status === 'suspended') {
-                    statusView.innerHTML = `
-                        <div class="violation-card">
-                            <div class="violation-icon suspended-icon">
-                                <i data-lucide="alert-circle" size="30"></i>
-                            </div>
-                            <h2 class="violation-title">Shop Suspended</h2>
-                            <p class="violation-message">Your shop has been suspended for violating marketplace rules.</p>
-                            <div onclick="showRulesModal()" class="rules-link">
-                                <i data-lucide="scroll-text" size="14"></i>
-                                <span>View Violation Details</span>
-                            </div>
-                            <button onclick="location.reload()" class="w-full bg-sdel/10 text-sdel py-4 rounded-2xl font-black uppercase text-xs">
-                                Appeal Suspension
-                            </button>
-                        </div>
-                    `;
-                    
-                } else if (vendor.status === 'deleted_permanently') {
-                    statusView.innerHTML = `
-                        <div class="violation-card">
-                            <div class="violation-icon deleted-icon">
-                                <i data-lucide="trash-2" size="30"></i>
-                            </div>
-                            <h2 class="violation-title">Shop Deleted</h2>
-                            <p class="violation-message">Your shop violated our terms and has been permanently removed.</p>
-                            <div onclick="showRulesModal()" class="rules-link">
-                                <i data-lucide="scroll-text" size="14"></i>
-                                <span>Read Terms & Conditions</span>
-                            </div>
-                            <button onclick="reapply()" class="w-full bg-sdel text-white py-4 rounded-2xl font-black uppercase text-xs mt-4">
-                                Apply for New Shop
-                            </button>
-                        </div>
-                    `;
-                    
-                } else if (vendor.status === 'declined') {
-                    statusView.innerHTML = `
-                        <div class="glass-card p-10 space-y-4">
-                            <div class="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mx-auto text-red-500">
-                                <i data-lucide="x-circle" size="40"></i>
-                            </div>
-                            <h2 class="text-2xl font-black uppercase tracking-tighter">Shop Rejected</h2>
-                            <p class="text-xs text-[var(--dim)] font-bold uppercase tracking-widest leading-relaxed">
-                                Your application was declined. Please review your details and try again.
-                            </p>
-                            <button onclick="reapply()" class="w-full border border-sdel text-sdel py-4 rounded-2xl font-black uppercase text-[10px]">
-                                Try Again
-                            </button>
-                        </div>
-                    `;
-                    
-                } else if (vendor.status === 'pending') {
-                    statusView.innerHTML = `
-                        <div class="glass-card p-10 space-y-4">
-                            <div class="w-20 h-20 bg-sdel/10 rounded-full flex items-center justify-center mx-auto text-sdel">
-                                <i data-lucide="clock-4" size="40"></i>
-                            </div>
-                            <h2 class="text-2xl font-black uppercase tracking-tighter">Under Review</h2>
-                            <p class="text-xs text-[var(--dim)] font-bold uppercase tracking-widest leading-relaxed">
-                                We'll review your application and payment reference: ${vendor.payment_ref || 'N/A'}
-                            </p>
-                            <div class="bg-black/20 p-3 rounded-xl text-[9px] font-bold">
-                                Payment ID: <span class="text-sdel">${vendor.payment_ref || 'Not provided'}</span>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                lucide.createIcons();
-                return true;
-            }
-            return false;
-        }
-
-        window.reapply = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            const { error } = await supabase.from('vendors').delete().eq('user_id', session.user.id);
-            if (!error) location.reload();
-            else showAlert("Action failed. Try again later.");
-        }
-
-        async function loadPlans() {
-            const { data: configs } = await supabase.from('app_config').select('*').filter('id', 'ilike', 'vendor_%').order('price', { ascending: true });
-            const cont = document.getElementById('plan-container');
-            if (configs && configs.length > 0) {
-                cont.innerHTML = configs.map(c => `
-                    <div class="plan-card p-5 flex justify-between items-center" id="card-${c.id}" onclick="selectPlan('${c.id}', ${c.price})">
-                        <div><p class="font-black uppercase text-xs tracking-tight">${c.description}</p></div>
-                        <p class="text-sdel font-black text-sm">₦${c.price.toLocaleString()}</p>
-                    </div>
-                `).join('');
-                selectPlan(configs[0].id, configs[0].price);
-                document.getElementById('displayAmount').innerText = '₦' + configs[0].price.toLocaleString();
-            }
-        }
-
-        window.showAlert = (msg) => {
-            const box = document.getElementById('custom-alert');
-            document.getElementById('alert-msg').innerText = msg;
-            box.style.display = 'flex';
-            setTimeout(() => { box.style.display = 'none'; }, 3500);
-        }
-
-        window.handleCategoryChange = () => {
-            const val = document.getElementById('bizCat').value;
-            const customDiv = document.getElementById('customCatDiv');
-            if (val === 'Other') customDiv.classList.remove('hidden');
-            else customDiv.classList.add('hidden');
-            updatePreview();
-        }
-
-        window.selectPlan = (id, price) => {
-            selectedPrice = price;
-            selectedTierId = id;
-            document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('active'));
-            document.getElementById(`card-${id}`).classList.add('active');
-            document.getElementById('displayAmount').innerText = '₦' + price.toLocaleString();
-        }
-
-        window.updatePreview = () => {
-            document.getElementById('previewName').innerText = document.getElementById('bizName').value || "Your Business Name";
-            const mainCat = document.getElementById('bizCat').value;
-            const customCat = document.getElementById('customCat').value;
-            document.getElementById('previewCat').innerText = (mainCat === 'Other' ? customCat : mainCat) || "Select Category";
-        }
-
-        window.registerVendor = async () => {
-            const btn = document.getElementById('regBtn');
-            const biz = document.getElementById('bizName').value;
-            let cat = document.getElementById('bizCat').value;
-            if(cat === 'Other') cat = document.getElementById('customCat').value;
-            const schoolName = document.getElementById('schoolName').value;
-            
-            if(!biz || !cat) return showAlert("Missing shop details, homie!");
-            if(!schoolName) return showAlert("Please enter your school name!");
-            
-            const paymentRef = document.getElementById('paymentRef').value;
-            const confirmPaid = document.getElementById('payConfirmCheck').checked;
-            
-            if (!confirmPaid) {
-                showAlert("Please confirm you have paid (checkbox)");
-                return;
-            }
-            if (!paymentRef) {
-                showAlert("Please enter payment reference ID");
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerText = "Connecting...";
-            const { data: { session } } = await supabase.auth.getSession();
-            if(!session) return window.location.href = 'login.html';
-            
-            // First, update or insert into profile table with school_name
-            const { error: profileError } = await supabase
-                .from('profile')
-                .upsert({
-                    id: session.user.id,
-                    school_name: schoolName,
-                    updated_at: new Date()
-                }, { onConflict: 'id' });
-            
-            if (profileError) {
-                console.error("Profile update error:", profileError);
-                showAlert("Failed to save school info. Try again.");
-                btn.disabled = false;
-                btn.innerText = "Launch My Shop";
-                return;
-            }
-            
-            // Then insert vendor
-            const { error } = await supabase.from('vendors').insert({
-                user_id: session.user.id,
-                business_name: biz,
-                category: cat,
-                tier_id: selectedTierId,
-                fee_paid: selectedPrice,
-                status: 'pending',
-                payment_ref: paymentRef,
-                school_name: schoolName
-            });
-            
-            if(!error) {
-                showAlert("Application Sent Successfully");
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                if(error.code === '23505') showAlert("You already have a shop registered!");
-                else if(error.message.includes('payment_ref')) showAlert("Payment ref column missing. Contact admin.");
-                else showAlert(error.message);
-                btn.disabled = false;
-                btn.innerText = "Launch My Shop";
-            }
-        };
-
-        // Load existing school name if user already has profile
-        async function loadExistingSchool() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                const { data: profile } = await supabase
-                    .from('profile')
-                    .select('school_name')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                if (profile && profile.school_name) {
-                    document.getElementById('schoolName').value = profile.school_name;
-                }
-            }
-        }
+        // Get vendor ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        storeOwnerId = urlParams.get('vendor_id');
 
         async function init() {
-            await loadPlans();
-            await loadExistingSchool();
-            const hasShop = await checkVendorStatus();
-            if (!hasShop) {
-                document.getElementById('reg-form').classList.remove('hidden');
-                document.getElementById('status-view').classList.add('hidden');
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) currentUserId = session.user.id;
+            
+            await fetchUserCart();
+            await loadStoreInfo();
+            await loadStoreProducts();
+            await checkFollowStatus();
+            createStars();
+            lucide.createIcons();
+        }
+
+        async function fetchUserCart() {
+            if (!currentUserId) return;
+            const { data } = await supabase.from('cart').select('product_id, quantity').eq('user_id', currentUserId);
+            userCart = {};
+            if (data) data.forEach(item => userCart[item.product_id] = item.quantity);
+        }
+
+        async function loadStoreInfo() {
+            if (!storeOwnerId) {
+                window.location.href = 'market.html';
+                return;
+            }
+
+            // Get vendor info
+            const { data: vendor } = await supabase
+                .from('vendors')
+                .select('*')
+                .eq('user_id', storeOwnerId)
+                .single();
+
+            if (!vendor || vendor.status !== 'verified') {
+                document.getElementById('products-list').innerHTML = `<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase text-zinc-500">Store not found or not verified</p></div>`;
+                return;
+            }
+
+            // Get profile info (school, name)
+            const { data: profile } = await supabase
+                .from('profile')
+                .select('school_name, full_name, avatar_url')
+                .eq('id', storeOwnerId)
+                .single();
+
+            // Get product count
+            const { count: productCount } = await supabase
+                .from('products')
+                .select('*', { count: 'exact', head: true })
+                .eq('vendor_id', storeOwnerId);
+
+            // Get follower count
+            const { count: followerCount } = await supabase
+                .from('store_followers')
+                .select('*', { count: 'exact', head: true })
+                .eq('vendor_id', storeOwnerId);
+
+            storeInfo = {
+                business_name: vendor.business_name,
+                category: vendor.category,
+                school: profile?.school_name || 'Unknown School',
+                bio: `${vendor.business_name} sells ${vendor.category} items on Sdel Campus Market.`,
+                productCount: productCount || 0,
+                followerCount: followerCount || 0,
+                rating: 4.5 // Placeholder - can implement reviews later
+            };
+
+            document.getElementById('store-name').innerText = storeInfo.business_name;
+            document.getElementById('store-category').innerText = storeInfo.category;
+            document.getElementById('store-bio').innerHTML = `🏫 Selling to <span class="text-sdel">${storeInfo.school}</span> students only<br>📦 ${storeInfo.productCount} products available`;
+            document.getElementById('product-count').innerText = storeInfo.productCount;
+            document.getElementById('follower-count').innerText = storeInfo.followerCount;
+            document.getElementById('store-rating').innerText = storeInfo.rating;
+        }
+
+        async function loadStoreProducts() {
+            const { data } = await supabase
+                .from('products')
+                .select('*')
+                .eq('vendor_id', storeOwnerId)
+                .order('created_at', { ascending: false });
+
+            storeProducts = data || [];
+            renderProducts(storeProducts);
+            
+            // Load categories from products
+            const categories = [...new Set(storeProducts.map(p => p.category))];
+            const container = document.querySelector('#products-list').parentElement.querySelector('.store-filter');
+            if (container && categories.length > 0) {
+                const tabContainer = document.querySelector('.flex.space-x-2');
+                tabContainer.innerHTML = `<button onclick="filterStoreProducts('All', event)" class="store-filter active px-3 py-1.5 rounded-xl text-[9px] font-black uppercase whitespace-nowrap">All Products</button>` +
+                    categories.map(cat => `<button onclick="filterStoreProducts('${cat}', event)" class="store-filter px-3 py-1.5 rounded-xl text-[9px] font-black uppercase whitespace-nowrap">${cat}</button>`).join('');
+            }
+        }
+
+        async function checkFollowStatus() {
+            if (!currentUserId) return;
+            const { data } = await supabase
+                .from('store_followers')
+                .select('*')
+                .eq('vendor_id', storeOwnerId)
+                .eq('user_id', currentUserId)
+                .single();
+            
+            isFollowing = !!data;
+            const btn = document.getElementById('follow-btn');
+            if (isFollowing) {
+                btn.innerHTML = '<i data-lucide="heart" size="14" class="inline mr-1 fill-sdel"></i> Following';
+                btn.classList.add('bg-sdel/20', 'text-sdel');
+            } else {
+                btn.innerHTML = '<i data-lucide="heart" size="14" class="inline mr-1"></i> Follow';
+                btn.classList.remove('bg-sdel/20', 'text-sdel');
             }
             lucide.createIcons();
         }
+
+        window.toggleFollow = async () => {
+            if (!currentUserId) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            if (isFollowing) {
+                await supabase.from('store_followers').delete().eq('vendor_id', storeOwnerId).eq('user_id', currentUserId);
+                showToast("Unfollowed store");
+            } else {
+                await supabase.from('store_followers').insert({ vendor_id: storeOwnerId, user_id: currentUserId });
+                showToast("Following store");
+            }
+            isFollowing = !isFollowing;
+            await loadStoreInfo();
+            checkFollowStatus();
+        };
+
+        window.contactSeller = () => {
+            if (!currentUserId) {
+                window.location.href = 'login.html';
+                return;
+            }
+            window.location.href = `chat.html?user_id=${storeOwnerId}`;
+        };
+
+        window.shareStore = () => {
+            const url = `${window.location.origin}/store.html?vendor_id=${storeOwnerId}`;
+            navigator.clipboard.writeText(url);
+            showToast("Store link copied!");
+        };
+
+        window.filterStoreProducts = (cat, e) => {
+            document.querySelectorAll('.store-filter').forEach(p => p.classList.remove('active', 'bg-sdel', 'text-black'));
+            e.currentTarget.classList.add('active', 'bg-sdel', 'text-black');
+            const filtered = cat === 'All' ? storeProducts : storeProducts.filter(p => p.category === cat);
+            renderProducts(filtered);
+        };
+
+        function renderProducts(items) {
+            const list = document.getElementById('products-list');
+            if (items.length === 0) {
+                list.innerHTML = `<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase text-zinc-500">No products in this category</p></div>`;
+                return;
+            }
+
+            list.innerHTML = items.map(item => {
+                const inCart = userCart[item.id];
+                const stock = item.stock || 0;
+                let stockText = stock > 0 ? `${stock} left` : 'Out';
+                let stockColor = stock > 0 ? 'text-green-500' : 'text-red-500';
+                
+                return `
+                    <div class="card-zinc rounded-xl overflow-hidden product-card" onclick="openProductModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                        <div class="relative h-32">
+                            <img src="${item.image_url}" class="object-cover w-full h-full" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Preview'">
+                            <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg">
+                                <p class="text-[6px] text-sdel font-black uppercase">${item.category}</p>
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-black text-[11px] uppercase truncate">${item.name}</h3>
+                            <p class="font-black text-xs text-sdel mt-1">₦${item.price.toLocaleString()}</p>
+                            <p class="text-[8px] ${stockColor} font-bold mt-1">${stockText}</p>
+                            ${!inCart && stock > 0 ? `
+                                <button onclick="event.stopPropagation(); addToCart('${item.id}')" class="w-full bg-white text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2">Add to Cart</button>
+                            ` : inCart ? `
+                                <button onclick="event.stopPropagation(); window.location.href='cart.html'" class="w-full bg-sdel text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2">In Cart</button>
+                            ` : `
+                                <button disabled class="w-full bg-zinc-800 text-zinc-500 py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2">Out of Stock</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        window.openProductModal = (product) => {
+            const modal = document.getElementById('product-modal');
+            const modalContent = document.getElementById('modal-content');
+            const inCart = userCart[product.id];
+            const stock = product.stock || 0;
+            
+            modalContent.innerHTML = `
+                <div class="card-zinc rounded-3xl overflow-hidden">
+                    <div class="relative">
+                        <img src="${product.image_url}" class="w-full h-64 object-cover">
+                        <button onclick="closeModal()" class="absolute top-3 right-3 bg-black/50 p-2 rounded-full"><i data-lucide="x" size="18"></i></button>
+                    </div>
+                    <div class="p-5">
+                        <div class="flex justify-between items-start">
+                            <h2 class="font-black text-xl uppercase">${product.name}</h2>
+                            <p class="font-black text-2xl text-sdel">₦${product.price.toLocaleString()}</p>
+                        </div>
+                        <p class="text-xs text-zinc-400 mt-2">${product.description || 'No description'}</p>
+                        <p class="text-[9px] text-zinc-500 mt-2">🏫 Sold by: ${storeInfo?.business_name}</p>
+                        <div class="mt-4">
+                            ${inCart ? `
+                                <div class="flex gap-2">
+                                    <div class="flex items-center bg-zinc-900 rounded-2xl flex-1">
+                                        <button onclick="updateQty('${product.id}', -1)" class="px-4 py-3"><i data-lucide="minus" size="14"></i></button>
+                                        <span class="text-sm font-black w-8 text-center">${inCart}</span>
+                                        <button onclick="updateQty('${product.id}', 1)" class="px-4 py-3"><i data-lucide="plus" size="14"></i></button>
+                                    </div>
+                                    <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-3 rounded-2xl font-black text-[10px]">View Cart</button>
+                                </div>
+                            ` : stock > 0 ? `
+                                <button onclick="addToCart('${product.id}')" class="w-full bg-sdel text-black py-3 rounded-2xl font-black text-[10px]">Add to Cart</button>
+                            ` : `
+                                <button disabled class="w-full bg-zinc-800 text-zinc-500 py-3 rounded-2xl font-black text-[10px]">Out of Stock</button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        };
+
+        window.addToCart = async (id) => {
+            if (!currentUserId) { window.location.href = 'login.html'; return; }
+            const product = storeProducts.find(p => p.id === id);
+            if (!product || (product.stock || 0) < 1) return showToast("Out of stock!");
+            
+            userCart[id] = 1;
+            await supabase.from('cart').insert([{ user_id: currentUserId, product_id: id, quantity: 1 }]);
+            showToast("Added to cart!");
+            renderProducts(document.querySelector('.store-filter.active')?.innerText === 'All Products' ? storeProducts : storeProducts.filter(p => p.category === document.querySelector('.store-filter.active')?.innerText));
+        };
+
+        window.updateQty = async (id, change) => {
+            let newQty = (userCart[id] || 0) + change;
+            if (newQty < 1) return;
+            userCart[id] = newQty;
+            await supabase.from('cart').update({ quantity: newQty }).eq('user_id', currentUserId).eq('product_id', id);
+            closeModal();
+            renderProducts(document.querySelector('.store-filter.active')?.innerText === 'All Products' ? storeProducts : storeProducts.filter(p => p.category === document.querySelector('.store-filter.active')?.innerText));
+        };
+
+        window.closeModal = () => document.getElementById('product-modal').style.display = 'none';
+
+        function showToast(msg) {
+            let toast = document.getElementById('toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast';
+                toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(100px);background:#FF6600;color:black;padding:10px 20px;border-radius:30px;font-weight:700;font-size:12px;z-index:9999;transition:transform .3s';
+                document.body.appendChild(toast);
+            }
+            toast.innerText = msg;
+            setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(0)', 10);
+            setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(100px)', 2000);
+        }
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 60; i++) {
+                const star = document.createElement('div'); star.classList.add('star');
+                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
+                star.style.left = (Math.random() * 100) + 'vw';
+                star.style.top = (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 20) + 's';
+                container.appendChild(star);
+            }
+        }
+
         init();
     </script>
 </body>
