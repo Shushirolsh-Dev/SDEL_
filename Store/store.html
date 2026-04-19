@@ -345,7 +345,8 @@
                 avgRating = sum / reviews.length;
             }
 
-            const isVerified = vendor.status === 'verified';
+            // FIX: Use has_badge for badge visibility, not status
+            const hasBadge = vendor.has_badge === true;
             
             storeInfo = {
                 business_name: vendor.business_name,
@@ -355,7 +356,7 @@
                 productCount: productCount || 0,
                 followerCount: followerCount || 0,
                 rating: avgRating,
-                verified: isVerified
+                hasBadge: hasBadge
             };
 
             document.getElementById('store-name').innerText = storeInfo.business_name;
@@ -366,7 +367,8 @@
             document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
             document.getElementById('rating-value').innerText = storeInfo.rating.toFixed(1);
             
-            if (storeInfo.verified) {
+            // Show badge only if has_badge is true
+            if (storeInfo.hasBadge) {
                 const badge = document.getElementById('verified-badge');
                 badge.classList.remove('hidden');
                 lucide.createIcons();
@@ -662,7 +664,7 @@
                         <div class="flex items-center gap-2 mt-4 p-3 bg-white/5 rounded-xl">
                             <i data-lucide="store" size="14" class="text-sdel"></i>
                             <span class="text-[9px] font-bold">Sold by: ${storeInfo?.business_name}</span>
-                            ${storeInfo?.verified ? '<span class="text-[8px] text-sdel">✓ Verified</span>' : ''}
+                            ${storeInfo?.hasBadge ? '<span class="text-[8px] text-sdel">✓ Verified</span>' : ''}
                         </div>
                         
                         <div class="mt-6">
@@ -901,7 +903,7 @@
                         });
                     
                     if (!error) {
-                        showToast("Review posted! 🌟", 3000);
+                        showToast("Review posted! ", 3000);
                         closeReviewModal();
                         await loadReviews();
                         await loadStoreInfo();
