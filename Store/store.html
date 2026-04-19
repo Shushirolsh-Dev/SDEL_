@@ -51,6 +51,25 @@
         .modal-content { max-width: 450px; width: 100%; max-height: 85vh; overflow-y: auto; border-radius: 32px; }
         .modal::-webkit-scrollbar { display: none; }
         
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal-back-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
         .follow-btn { transition: all 0.2s; }
         .follow-btn.following { background: rgba(255,102,0,0.2); color: #FF6600; border-color: #FF6600; }
         
@@ -131,6 +150,20 @@
             border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         .sunlight-mode .follower-item { border-color: #e4e4e7; }
+        
+        .qty-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .qty-btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -345,7 +378,6 @@
                 avgRating = sum / reviews.length;
             }
 
-            // FIX: Use has_badge for badge visibility, not status
             const hasBadge = vendor.has_badge === true;
             
             storeInfo = {
@@ -367,7 +399,6 @@
             document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
             document.getElementById('rating-value').innerText = storeInfo.rating.toFixed(1);
             
-            // Show badge only if has_badge is true
             if (storeInfo.hasBadge) {
                 const badge = document.getElementById('verified-badge');
                 badge.classList.remove('hidden');
@@ -572,6 +603,30 @@
             });
         }
 
+        function setupQuantitySelectors() {
+            document.querySelectorAll('.qty-btn').forEach(btn => {
+                btn.removeEventListener('click', handleQuantityChange);
+                btn.addEventListener('click', handleQuantityChange);
+            });
+        }
+
+        function handleQuantityChange(e) {
+            e.stopPropagation();
+            const productId = e.currentTarget.dataset.id;
+            const change = parseInt(e.currentTarget.dataset.change);
+            const qtySpan = document.getElementById(`qty-${productId}`);
+            let currentQty = parseInt(qtySpan.innerText);
+            let newQty = currentQty + change;
+            
+            if (newQty < 1) newQty = 1;
+            if (newQty > (storeProducts.find(p => p.id === productId)?.stock || 0)) {
+                showToast(`Only ${storeProducts.find(p => p.id === productId)?.stock} available`, 2000);
+                return;
+            }
+            
+            qtySpan.innerText = newQty;
+        }
+
         function renderProducts() {
             const grid = document.getElementById('products-grid');
             let filtered = storeProducts;
@@ -607,7 +662,14 @@
                                 <p class="text-[7px] font-black ${stockColor}">${stockBadge}</p>
                             </div>
                             ${!inCart && stock > 0 ? `
-                                <button data-id="${product.id}" class="add-to-cart-btn w-full bg-white text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2">Add to Cart</button>
+                                <div class="flex gap-1 mt-2">
+                                    <div class="flex items-center bg-zinc-800 rounded-lg overflow-hidden">
+                                        <button data-id="${product.id}" data-change="-1" class="qty-btn w-7 h-7 text-white text-[10px] font-black">-</button>
+                                        <span id="qty-${product.id}" class="text-[9px] font-black w-6 text-center">1</span>
+                                        <button data-id="${product.id}" data-change="1" class="qty-btn w-7 h-7 text-white text-[10px] font-black">+</button>
+                                    </div>
+                                    <button data-id="${product.id}" class="add-to-cart-btn flex-1 bg-white text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider">Add</button>
+                                </div>
                             ` : inCart ? `
                                 <button onclick="window.location.href='cart.html'" class="w-full bg-sdel text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2">View Cart</button>
                             ` : `
@@ -620,7 +682,7 @@
             
             document.querySelectorAll('.product-card').forEach(card => {
                 card.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('add-to-cart-btn')) return;
+                    if (e.target.classList.contains('add-to-cart-btn') || e.target.classList.contains('qty-btn')) return;
                     const product = JSON.parse(card.dataset.product.replace(/&#39;/g, "'"));
                     openProductModal(product);
                 });
@@ -633,6 +695,7 @@
                 });
             });
             
+            setupQuantitySelectors();
             lucide.createIcons();
         }
 
@@ -641,25 +704,32 @@
             const modalContent = document.getElementById('modal-content');
             const inCart = userCart[product.id];
             const stock = product.stock || 0;
+            let selectedQty = 1;
             
             modalContent.innerHTML = `
                 <div class="card-glass rounded-3xl overflow-hidden">
-                    <div class="relative">
-                        <img src="${product.image_url}" class="w-full h-72 object-cover" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Image'">
-                        <button onclick="closeModal()" class="absolute top-3 right-3 bg-black/50 backdrop-blur-md p-2 rounded-full">
+                    <div class="modal-header">
+                        <button onclick="closeModal()" class="modal-back-btn">
+                            <i data-lucide="arrow-left" size="18"></i>
+                        </button>
+                        <h3 class="font-black text-sm uppercase tracking-tighter flex-1">Product Details</h3>
+                        <button onclick="closeModal()" class="modal-back-btn">
                             <i data-lucide="x" size="18"></i>
                         </button>
                     </div>
-                    <div class="p-6">
+                    <div class="relative">
+                        <img src="${product.image_url}" class="w-full h-64 object-cover" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Image'">
+                    </div>
+                    <div class="p-5">
                         <div class="flex justify-between items-start">
                             <div>
                                 <span class="text-[8px] text-sdel font-black uppercase bg-sdel/10 px-2 py-1 rounded-lg">${product.category}</span>
-                                <h2 class="font-black text-2xl mt-2">${product.name}</h2>
+                                <h2 class="font-black text-xl mt-2">${product.name}</h2>
                             </div>
-                            <p class="font-black text-3xl text-sdel">₦${product.price.toLocaleString()}</p>
+                            <p class="font-black text-2xl text-sdel">₦${product.price.toLocaleString()}</p>
                         </div>
                         
-                        <p class="text-xs text-zinc-400 leading-relaxed mt-4">${product.description || 'No description available. Contact seller for more details.'}</p>
+                        <p class="text-xs text-zinc-400 leading-relaxed mt-3">${product.description || 'No description available. Contact seller for more details.'}</p>
                         
                         <div class="flex items-center gap-2 mt-4 p-3 bg-white/5 rounded-xl">
                             <i data-lucide="store" size="14" class="text-sdel"></i>
@@ -667,7 +737,16 @@
                             ${storeInfo?.hasBadge ? '<span class="text-[8px] text-sdel">✓ Verified</span>' : ''}
                         </div>
                         
-                        <div class="mt-6">
+                        <div class="flex items-center justify-between mt-4">
+                            <span class="text-[9px] font-black uppercase text-zinc-500">Quantity</span>
+                            <div class="flex items-center gap-3">
+                                <button onclick="changeModalQty(-1)" id="modal-qty-minus" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black">-</button>
+                                <span id="modal-qty" class="text-base font-black w-8 text-center">1</span>
+                                <button onclick="changeModalQty(1)" id="modal-qty-plus" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black">+</button>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-5">
                             ${inCart ? `
                                 <div class="flex gap-3">
                                     <div class="flex items-center bg-zinc-800 rounded-2xl flex-1">
@@ -678,35 +757,80 @@
                                     <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-3 rounded-2xl font-black text-[11px]">Checkout</button>
                                 </div>
                             ` : stock > 0 ? `
-                                <button onclick="addToCart('${product.id}')" class="w-full bg-sdel text-black py-4 rounded-2xl font-black text-[11px] tracking-wider flex items-center justify-center gap-2">
+                                <button onclick="addToCartWithQty('${product.id}')" class="w-full bg-sdel text-black py-3.5 rounded-2xl font-black text-[11px] tracking-wider flex items-center justify-center gap-2">
                                     <i data-lucide="shopping-cart" size="16"></i> Add to Cart
                                 </button>
                             ` : `
-                                <button disabled class="w-full bg-zinc-800 text-zinc-500 py-4 rounded-2xl font-black text-[11px] cursor-not-allowed">Out of Stock</button>
+                                <button disabled class="w-full bg-zinc-800 text-zinc-500 py-3.5 rounded-2xl font-black text-[11px] cursor-not-allowed">Out of Stock</button>
                             `}
                         </div>
                     </div>
                 </div>
             `;
+            
             modal.style.display = 'flex';
             lucide.createIcons();
+            
+            window.changeModalQty = (change) => {
+                let newQty = selectedQty + change;
+                if (newQty < 1) newQty = 1;
+                if (newQty > stock) {
+                    showToast(`Only ${stock} available`, 2000);
+                    return;
+                }
+                selectedQty = newQty;
+                document.getElementById('modal-qty').innerText = selectedQty;
+            };
+            
+            window.addToCartWithQty = async (id) => {
+                await addToCartWithQuantity(id, selectedQty);
+            };
         }
 
-        async function addToCart(productId) {
+        async function addToCartWithQuantity(productId, quantity) {
             if (!currentUserId) {
                 window.location.href = 'login.html';
                 return;
             }
             const product = storeProducts.find(p => p.id === productId);
-            if (!product || (product.stock || 0) < 1) {
-                showToast("Out of stock!", 3000);
+            if (!product || (product.stock || 0) < quantity) {
+                showToast("Insufficient stock!", 3000);
                 return;
             }
             
-            userCart[productId] = 1;
-            await supabase.from('cart').insert([{ user_id: currentUserId, product_id: productId, quantity: 1 }]);
-            showToast("Added to cart! 🛒", 3000);
+            const existingQty = userCart[productId] || 0;
+            const newQty = existingQty + quantity;
+            
+            userCart[productId] = newQty;
+            
+            const { data: existing } = await supabase
+                .from('cart')
+                .select('id')
+                .eq('user_id', currentUserId)
+                .eq('product_id', productId)
+                .single();
+            
+            if (existing) {
+                await supabase
+                    .from('cart')
+                    .update({ quantity: newQty })
+                    .eq('user_id', currentUserId)
+                    .eq('product_id', productId);
+            } else {
+                await supabase
+                    .from('cart')
+                    .insert([{ user_id: currentUserId, product_id: productId, quantity: newQty }]);
+            }
+            
+            showToast(`Added ${quantity} to cart! 🛒`, 3000);
+            closeModal();
             renderProducts();
+        }
+
+        async function addToCart(productId) {
+            const qtySpan = document.getElementById(`qty-${productId}`);
+            const quantity = qtySpan ? parseInt(qtySpan.innerText) : 1;
+            await addToCartWithQuantity(productId, quantity);
         }
 
         window.updateQty = async (id, change) => {
@@ -903,7 +1027,7 @@
                         });
                     
                     if (!error) {
-                        showToast("Review posted! ", 3000);
+                        showToast("Review posted! 🌟", 3000);
                         closeReviewModal();
                         await loadReviews();
                         await loadStoreInfo();
