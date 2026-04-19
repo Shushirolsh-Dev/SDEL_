@@ -19,11 +19,9 @@
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .card-glass { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
-        .card-white { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
         
         .sunlight-mode body { background-color: #f5f5f5; color: #121212; }
         .sunlight-mode .card-glass { background: rgba(255,255,255,0.9); border-color: #e4e4e7; }
-        .sunlight-mode .card-white { background: white; border-color: #e4e4e7; }
         
         .category-pill {
             transition: all 0.3s ease;
@@ -35,10 +33,7 @@
         }
         .category-pill.active { background-color: #FF6600; color: black !important; border-color: #FF6600; }
         
-        .product-card {
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
+        .product-card { transition: all 0.3s ease; cursor: pointer; }
         .product-card:active { transform: scale(0.98); }
         
         .modal {
@@ -59,14 +54,18 @@
         .follow-btn { transition: all 0.2s; }
         .follow-btn.following { background: rgba(255,102,0,0.2); color: #FF6600; border-color: #FF6600; }
         
-        .skeleton-card { background: rgba(18, 18, 18, 0.7); border-radius: 16px; overflow: hidden; }
-        .skeleton-image { height: 180px; background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-        .sunlight-mode .skeleton-image { background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%); background-size: 200% 100%; }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-        
-        .rating-star { color: #FF6600; font-size: 14px; }
-        .rating-star.empty { color: #3f3f46; }
-        .sunlight-mode .rating-star.empty { color: #d4d4d8; }
+        .verified-badge {
+            background: #FF6600;
+            color: black;
+            font-size: 8px;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: 8px;
+        }
         
         .stats-card {
             background: rgba(255,255,255,0.03);
@@ -74,25 +73,90 @@
             padding: 12px;
             text-align: center;
             border: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer;
+            transition: all 0.2s;
         }
-        .sunlight-mode .stats-card { background: white; border-color: #e4e4e7; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .stats-card:active { transform: scale(0.96); }
+        .sunlight-mode .stats-card { background: white; border-color: #e4e4e7; }
+        
+        .toast-notification {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #FF6600;
+            color: black;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 12px;
+            z-index: 9999;
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+        .toast-notification.show { transform: translateX(-50%) translateY(0); }
+        
+        .review-card { transition: all 0.2s; }
+        .verified-purchase {
+            background: rgba(34,197,94,0.15);
+            color: #22c55e;
+            font-size: 7px;
+            font-weight: 900;
+            padding: 2px 6px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+        }
+        .rating-star { color: #FF6600; font-size: 12px; }
+        .rating-star.empty { color: #3f3f46; }
+        .sunlight-mode .rating-star.empty { color: #d4d4d8; }
+        
+        .write-review-btn {
+            background: rgba(255,102,0,0.1);
+            border: 1px solid rgba(255,102,0,0.3);
+            transition: all 0.2s;
+        }
+        .write-review-btn:hover {
+            background: #FF6600;
+            color: black;
+        }
+        
+        .follower-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .sunlight-mode .follower-item { border-color: #e4e4e7; }
     </style>
 </head>
 <body>
-    <!-- Product Modal -->
+    <div id="toast" class="toast-notification"></div>
+
     <div id="product-modal" class="modal" onclick="if(event.target === this) closeModal()">
         <div class="modal-content" id="modal-content"></div>
     </div>
 
-    <!-- Store Header -->
+    <div id="review-modal" class="modal" onclick="if(event.target === this) closeReviewModal()">
+        <div class="modal-content" id="review-modal-content"></div>
+    </div>
+
+    <!-- Followers Modal -->
+    <div id="followers-modal" class="modal" onclick="if(event.target === this) closeFollowersModal()">
+        <div class="modal-content" id="followers-modal-content"></div>
+    </div>
+
     <div class="relative">
-        <!-- Cover Image -->
-        <div class="h-48 w-full bg-gradient-to-r from-sdel/30 via-sdel/10 to-transparent relative overflow-hidden">
-            <div class="absolute inset-0 bg-black/40"></div>
-            <div id="cover-pattern" class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 25% 40%, rgba(255,102,0,0.3) 2%, transparent 2.5%); background-size: 40px 40px;"></div>
+        <div class="h-48 w-full bg-gradient-to-r from-sdel via-orange-600 to-sdel relative overflow-hidden">
+            <div class="absolute inset-0 bg-black/30"></div>
+            <div class="absolute inset-0 flex items-center justify-center opacity-20">
+                <i data-lucide="store" size="80"></i>
+            </div>
         </div>
         
-        <!-- Avatar & Actions -->
         <div class="px-6 -mt-14 relative z-10">
             <div class="flex items-end justify-between">
                 <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-sdel to-orange-600 flex items-center justify-center shadow-2xl border-4 border-black">
@@ -109,9 +173,11 @@
             </div>
         </div>
         
-        <!-- Store Info -->
         <div class="px-6 mt-4">
-            <h1 id="store-name" class="text-2xl font-black uppercase italic tracking-tighter">Loading...</h1>
+            <div class="flex items-center flex-wrap gap-2">
+                <h1 id="store-name" class="text-2xl font-black tracking-tighter">Loading...</h1>
+                <span id="verified-badge" class="verified-badge hidden"><i data-lucide="check-circle" size="10"></i> Verified</span>
+            </div>
             <div class="flex flex-wrap items-center gap-3 mt-2">
                 <span id="store-category" class="text-[9px] font-black uppercase tracking-widest text-sdel bg-sdel/10 px-3 py-1 rounded-full">Loading</span>
                 <div class="flex items-center gap-1">
@@ -120,14 +186,13 @@
                 </div>
             </div>
             
-            <!-- Stats Row -->
             <div class="grid grid-cols-3 gap-3 mt-5">
                 <div class="stats-card">
                     <i data-lucide="package" size="16" class="text-sdel mx-auto mb-1"></i>
                     <p id="product-count" class="text-lg font-black">0</p>
                     <p class="text-[8px] font-black uppercase tracking-wider text-zinc-500">Products</p>
                 </div>
-                <div class="stats-card">
+                <div id="followers-stats" class="stats-card" style="cursor: pointer;">
                     <i data-lucide="users" size="16" class="text-sdel mx-auto mb-1"></i>
                     <p id="follower-count" class="text-lg font-black">0</p>
                     <p class="text-[8px] font-black uppercase tracking-wider text-zinc-500">Followers</p>
@@ -139,10 +204,8 @@
                 </div>
             </div>
             
-            <!-- Bio -->
             <p id="store-bio" class="text-[11px] text-zinc-400 mt-4 leading-relaxed">Loading store information...</p>
             
-            <!-- Action Buttons -->
             <div class="flex gap-3 mt-5">
                 <button id="contact-seller" class="flex-1 bg-sdel text-black py-3 rounded-xl font-black uppercase text-[9px] tracking-wider flex items-center justify-center gap-2">
                     <i data-lucide="message-circle" size="14"></i> Contact Seller
@@ -154,21 +217,33 @@
         </div>
     </div>
 
-    <!-- Category Tabs -->
     <div class="px-6 mt-8">
         <div class="flex space-x-2 overflow-x-auto no-scrollbar pb-2" id="category-tabs">
             <button data-cat="All" class="category-pill active px-4 py-2 rounded-full text-[9px] font-black uppercase">All Products</button>
         </div>
     </div>
 
-    <!-- Products Grid -->
     <main class="px-4 mt-4 grid grid-cols-2 gap-3 pb-24" id="products-grid">
-        <!-- Skeletons -->
-        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
-        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
-        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
-        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
+        <div class="card-glass rounded-2xl overflow-hidden"><div class="h-36 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
+        <div class="card-glass rounded-2xl overflow-hidden"><div class="h-36 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
+        <div class="card-glass rounded-2xl overflow-hidden"><div class="h-36 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
+        <div class="card-glass rounded-2xl overflow-hidden"><div class="h-36 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
     </main>
+
+    <div class="px-6 mt-8 mb-24">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <i data-lucide="message-circle" size="18" class="text-sdel"></i>
+                <h2 class="text-[11px] font-black uppercase tracking-wider">Customer Reviews</h2>
+            </div>
+            <button id="write-review-btn" class="write-review-btn px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1">
+                <i data-lucide="edit-3" size="10"></i> Write Review
+            </button>
+        </div>
+        <div id="reviews-container" class="space-y-3">
+            <div class="text-center py-8 text-[9px] text-zinc-500">Loading reviews...</div>
+        </div>
+    </div>
 
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -181,12 +256,31 @@
         let userCart = {};
         let isFollowing = false;
         let currentCategory = 'All';
+        let toastTimeout = null;
+        let userReview = null;
 
         const urlParams = new URLSearchParams(window.location.search);
         storeOwnerId = urlParams.get('vendor_id');
 
         if (!storeOwnerId) {
             window.location.href = 'market.html';
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
+            if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        function showToast(message, duration = 4000) {
+            const toast = document.getElementById('toast');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toast.innerText = message;
+            toast.classList.add('show');
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
         }
 
         async function init() {
@@ -197,6 +291,7 @@
             await loadStoreInfo();
             await loadStoreProducts();
             await checkFollowStatus();
+            await loadReviews();
             setupEventListeners();
             lucide.createIcons();
         }
@@ -215,14 +310,14 @@
                 .eq('user_id', storeOwnerId)
                 .single();
 
-            if (!vendor || vendor.status !== 'verified') {
+            if (!vendor) {
                 document.getElementById('products-grid').innerHTML = `<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase text-zinc-500">Store not found</p></div>`;
                 return;
             }
 
             const { data: profile } = await supabase
                 .from('profile')
-                .select('school_name, full_name')
+                .select('school_name')
                 .eq('id', storeOwnerId)
                 .single();
 
@@ -236,23 +331,43 @@
                 .select('*', { count: 'exact', head: true })
                 .eq('vendor_id', storeOwnerId);
 
+            const { data: reviews } = await supabase
+                .from('store_reviews')
+                .select('rating')
+                .eq('vendor_id', storeOwnerId);
+            
+            let avgRating = 0;
+            if (reviews && reviews.length > 0) {
+                const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+                avgRating = sum / reviews.length;
+            }
+
+            const isVerified = vendor.status === 'verified';
+            
             storeInfo = {
                 business_name: vendor.business_name,
                 category: vendor.category,
-                school: profile?.school_name || 'Unknown School',
-                bio: `${vendor.business_name} sells premium ${vendor.category} items on Sdel Campus Market. Quality guaranteed.`,
+                school: profile?.school_name || 'School not specified',
+                bio: `${vendor.business_name} sells ${vendor.category} items on Sdel Campus Market.`,
                 productCount: productCount || 0,
                 followerCount: followerCount || 0,
-                rating: (Math.random() * 2 + 3.5).toFixed(1)
+                rating: avgRating,
+                verified: isVerified
             };
 
             document.getElementById('store-name').innerText = storeInfo.business_name;
             document.getElementById('store-category').innerText = storeInfo.category;
-            document.getElementById('store-location').innerHTML = `${storeInfo.school} <span class="text-[8px]">(Verified)</span>`;
+            document.getElementById('store-location').innerHTML = storeInfo.school;
             document.getElementById('store-bio').innerText = storeInfo.bio;
             document.getElementById('product-count').innerText = storeInfo.productCount;
-            document.getElementById('follower-count').innerText = storeInfo.followerCount;
-            document.getElementById('rating-value').innerText = storeInfo.rating;
+            document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
+            document.getElementById('rating-value').innerText = storeInfo.rating.toFixed(1);
+            
+            if (storeInfo.verified) {
+                const badge = document.getElementById('verified-badge');
+                badge.classList.remove('hidden');
+                lucide.createIcons();
+            }
         }
 
         async function loadStoreProducts() {
@@ -302,6 +417,155 @@
             lucide.createIcons();
         }
 
+        async function openFollowersModal() {
+            const modal = document.getElementById('followers-modal');
+            const modalContent = document.getElementById('followers-modal-content');
+            
+            modalContent.innerHTML = `
+                <div class="card-glass rounded-3xl overflow-hidden">
+                    <div class="p-5 border-b border-white/10 flex justify-between items-center">
+                        <h2 class="text-sm font-black uppercase">Followers</h2>
+                        <button onclick="closeFollowersModal()" class="text-zinc-500"><i data-lucide="x" size="18"></i></button>
+                    </div>
+                    <div class="max-h-96 overflow-y-auto" id="followers-list">
+                        <div class="text-center py-8"><div class="loading-spinner w-6 h-6 border-2 border-sdel border-t-transparent rounded-full animate-spin mx-auto"></div></div>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+            lucide.createIcons();
+            
+            // Fetch followers
+            const { data: followers } = await supabase
+                .from('store_followers')
+                .select('user_id')
+                .eq('vendor_id', storeOwnerId);
+            
+            const followerIds = followers?.map(f => f.user_id) || [];
+            
+            if (followerIds.length === 0) {
+                document.getElementById('followers-list').innerHTML = '<div class="text-center py-8 text-[10px] text-zinc-500">No followers yet</div>';
+                return;
+            }
+            
+            // Only show usernames if current user is the store owner
+            if (currentUserId === storeOwnerId) {
+                const { data: profiles } = await supabase
+                    .from('profile')
+                    .select('full_name')
+                    .in('id', followerIds);
+                
+                const followerNames = profiles || [];
+                document.getElementById('followers-list').innerHTML = followerNames.map(p => `
+                    <div class="follower-item">
+                        <div class="w-10 h-10 rounded-full bg-sdel/20 flex items-center justify-center">
+                            <i data-lucide="user" size="16" class="text-sdel"></i>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-black">${escapeHtml(p.full_name || 'Anonymous')}</p>
+                            <p class="text-[7px] text-zinc-500">Follower</p>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                document.getElementById('followers-list').innerHTML = `
+                    <div class="text-center py-8">
+                        <i data-lucide="lock" size="24" class="mx-auto text-zinc-500 mb-2"></i>
+                        <p class="text-[9px] text-zinc-500">${formatNumber(followerIds.length)} followers</p>
+                        <p class="text-[8px] text-zinc-600 mt-1">Only the store owner can see who follows them</p>
+                    </div>
+                `;
+                lucide.createIcons();
+            }
+        }
+
+        async function loadReviews() {
+            const { data: reviews } = await supabase
+                .from('store_reviews')
+                .select(`
+                    *,
+                    profiles:user_id (full_name)
+                `)
+                .eq('vendor_id', storeOwnerId)
+                .order('created_at', { ascending: false });
+
+            const container = document.getElementById('reviews-container');
+            
+            if (!reviews || reviews.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-[9px] text-zinc-500">No reviews yet. Be the first to review!</div>`;
+                return;
+            }
+
+            if (currentUserId) {
+                userReview = reviews.find(r => r.user_id === currentUserId);
+            }
+
+            container.innerHTML = reviews.map(review => {
+                const userName = review.profiles?.full_name || 'Anonymous User';
+                const verifiedBadge = review.verified_purchase ? 
+                    '<span class="verified-purchase"><i data-lucide="check-circle" size="8"></i> Verified Purchase</span>' : '';
+                
+                return `
+                    <div class="card-glass rounded-2xl p-4 review-card">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-full bg-sdel/20 flex items-center justify-center">
+                                    <i data-lucide="user" size="14" class="text-sdel"></i>
+                                </div>
+                                <div>
+                                    <p class="text-[10px] font-black">${escapeHtml(userName)}</p>
+                                    <div class="flex items-center gap-2 mt-0.5">
+                                        <div class="flex items-center gap-0.5">
+                                            ${renderStars(review.rating)}
+                                        </div>
+                                        ${verifiedBadge}
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-[7px] text-zinc-500">${formatDate(review.created_at)}</p>
+                        </div>
+                        ${review.review ? `<p class="text-[9px] text-zinc-400 leading-relaxed mt-2">${escapeHtml(review.review)}</p>` : ''}
+                        ${review.edited_at ? `<p class="text-[6px] text-zinc-600 mt-1">Edited</p>` : ''}
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function renderStars(rating) {
+            let stars = '';
+            for (let i = 1; i <= 5; i++) {
+                if (i <= rating) {
+                    stars += '<i data-lucide="star" size="10" class="rating-star fill-sdel"></i>';
+                } else {
+                    stars += '<i data-lucide="star" size="10" class="rating-star empty"></i>';
+                }
+            }
+            return stars;
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return `${days} days ago`;
+            return date.toLocaleDateString();
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
         function renderProducts() {
             const grid = document.getElementById('products-grid');
             let filtered = storeProducts;
@@ -331,7 +595,7 @@
                             ${stock < 5 && stock > 0 ? `<div class="absolute top-2 right-2 bg-orange-500/90 text-black px-1.5 py-0.5 rounded-md text-[7px] font-black">🔥 HOT</div>` : ''}
                         </div>
                         <div class="p-3">
-                            <h3 class="font-black text-[11px] uppercase leading-tight">${product.name}</h3>
+                            <h3 class="font-black text-[11px] leading-tight">${product.name}</h3>
                             <div class="flex justify-between items-center mt-2">
                                 <p class="font-black text-sm text-sdel">₦${product.price.toLocaleString()}</p>
                                 <p class="text-[7px] font-black ${stockColor}">${stockBadge}</p>
@@ -348,7 +612,6 @@
                 `;
             }).join('');
             
-            // Add click listeners for product cards
             document.querySelectorAll('.product-card').forEach(card => {
                 card.addEventListener('click', (e) => {
                     if (e.target.classList.contains('add-to-cart-btn')) return;
@@ -357,7 +620,6 @@
                 });
             });
             
-            // Add to cart listeners
             document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -386,7 +648,7 @@
                         <div class="flex justify-between items-start">
                             <div>
                                 <span class="text-[8px] text-sdel font-black uppercase bg-sdel/10 px-2 py-1 rounded-lg">${product.category}</span>
-                                <h2 class="font-black text-2xl uppercase italic mt-2">${product.name}</h2>
+                                <h2 class="font-black text-2xl mt-2">${product.name}</h2>
                             </div>
                             <p class="font-black text-3xl text-sdel">₦${product.price.toLocaleString()}</p>
                         </div>
@@ -396,13 +658,7 @@
                         <div class="flex items-center gap-2 mt-4 p-3 bg-white/5 rounded-xl">
                             <i data-lucide="store" size="14" class="text-sdel"></i>
                             <span class="text-[9px] font-bold">Sold by: ${storeInfo?.business_name}</span>
-                        </div>
-                        
-                        <div class="flex items-center gap-2 mt-3">
-                            <div class="flex items-center gap-1">
-                                ${renderStars(storeInfo?.rating || 4.5)}
-                            </div>
-                            <span class="text-[8px] text-zinc-500">${storeInfo?.followerCount} followers</span>
+                            ${storeInfo?.verified ? '<span class="text-[8px] text-sdel">✓ Verified</span>' : ''}
                         </div>
                         
                         <div class="mt-6">
@@ -430,16 +686,6 @@
             lucide.createIcons();
         }
 
-        function renderStars(rating) {
-            const fullStars = Math.floor(rating);
-            const hasHalf = rating % 1 >= 0.5;
-            let stars = '';
-            for (let i = 0; i < fullStars; i++) stars += '<i data-lucide="star" size="12" class="rating-star fill-sdel"></i>';
-            if (hasHalf) stars += '<i data-lucide="star-half" size="12" class="rating-star fill-sdel"></i>';
-            while (stars.length / 42 < 5) stars += '<i data-lucide="star" size="12" class="rating-star empty"></i>';
-            return stars;
-        }
-
         async function addToCart(productId) {
             if (!currentUserId) {
                 window.location.href = 'login.html';
@@ -447,13 +693,13 @@
             }
             const product = storeProducts.find(p => p.id === productId);
             if (!product || (product.stock || 0) < 1) {
-                showToast("Out of stock!");
+                showToast("Out of stock!", 4000);
                 return;
             }
             
             userCart[productId] = 1;
             await supabase.from('cart').insert([{ user_id: currentUserId, product_id: productId, quantity: 1 }]);
-            showToast("Added to cart!");
+            showToast("Added to cart! 🛒", 4000);
             renderProducts();
         }
 
@@ -470,6 +716,14 @@
             document.getElementById('product-modal').style.display = 'none';
         };
 
+        window.closeReviewModal = () => {
+            document.getElementById('review-modal').style.display = 'none';
+        };
+
+        window.closeFollowersModal = () => {
+            document.getElementById('followers-modal').style.display = 'none';
+        };
+
         async function toggleFollow() {
             if (!currentUserId) {
                 window.location.href = 'login.html';
@@ -477,24 +731,33 @@
             }
             
             if (isFollowing) {
-                await supabase.from('store_followers').delete().eq('vendor_id', storeOwnerId).eq('user_id', currentUserId);
-                showToast(`Unfollowed ${storeInfo?.business_name}`);
+                const { error } = await supabase.from('store_followers').delete().eq('vendor_id', storeOwnerId).eq('user_id', currentUserId);
+                if (!error) {
+                    showToast(`Unfollowed ${storeInfo?.business_name}`, 4000);
+                    isFollowing = false;
+                    storeInfo.followerCount--;
+                    document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
+                    await checkFollowStatus();
+                }
             } else {
-                await supabase.from('store_followers').insert({ vendor_id: storeOwnerId, user_id: currentUserId });
-                showToast(`Following ${storeInfo?.business_name}`);
+                const { error } = await supabase.from('store_followers').insert({ vendor_id: storeOwnerId, user_id: currentUserId });
+                if (!error) {
+                    showToast(`Following ${storeInfo?.business_name} ✨`, 4000);
+                    isFollowing = true;
+                    storeInfo.followerCount++;
+                    document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
+                    await checkFollowStatus();
+                }
             }
-            isFollowing = !isFollowing;
-            await loadStoreInfo();
-            await checkFollowStatus();
         }
 
         async function shareStore() {
-            const url = `${window.location.origin}/store.html?vendor_id=${storeOwnerId}`;
+            const url = `${window.location.origin}/Store/store.html?vendor_id=${storeOwnerId}`;
             try {
                 await navigator.share({ title: storeInfo?.business_name, url: url });
             } catch {
                 navigator.clipboard.writeText(url);
-                showToast("Store link copied!");
+                showToast("Store link copied! 📋", 4000);
             }
         }
 
@@ -503,20 +766,133 @@
                 window.location.href = 'login.html';
                 return;
             }
-            window.location.href = `chat.html?user_id=${storeOwnerId}`;
+            window.location.href = `dm.html?user_id=${storeOwnerId}`;
         }
 
-        function showToast(msg) {
-            let toast = document.getElementById('toast');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'toast';
-                toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(100px);background:#FF6600;color:black;padding:12px 24px;border-radius:30px;font-weight:800;font-size:12px;z-index:9999;transition:transform .3s;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
-                document.body.appendChild(toast);
+        function openWriteReview() {
+            if (!currentUserId) {
+                window.location.href = 'login.html';
+                return;
             }
-            toast.innerText = msg;
-            setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(0)', 10);
-            setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(100px)', 2000);
+            
+            if (currentUserId === storeOwnerId) {
+                showToast("You cannot review your own store", 4000);
+                return;
+            }
+            
+            const modal = document.getElementById('review-modal');
+            const modalContent = document.getElementById('review-modal-content');
+            
+            modalContent.innerHTML = `
+                <div class="card-glass rounded-3xl overflow-hidden p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-base font-black uppercase">${userReview ? 'Edit Your Review' : 'Write a Review'}</h2>
+                        <button onclick="closeReviewModal()" class="text-zinc-500"><i data-lucide="x" size="18"></i></button>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-[9px] font-black uppercase mb-2">Rating</p>
+                        <div id="rating-stars" class="flex gap-2">
+                            ${[1,2,3,4,5].map(i => `
+                                <button data-rating="${i}" class="review-star text-2xl ${userReview && userReview.rating >= i ? 'text-sdel' : 'text-zinc-600'}">★</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <p class="text-[9px] font-black uppercase mb-2">Your Review (Optional)</p>
+                        <textarea id="review-text" rows="4" class="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-[11px] outline-none focus:border-sdel" placeholder="Share your experience with this store...">${userReview?.review || ''}</textarea>
+                    </div>
+                    
+                    <div class="text-[8px] text-zinc-500 mb-4 p-3 bg-white/5 rounded-xl">
+                        <i data-lucide="info" size="10" class="inline mr-1"></i>
+                        Only users who have purchased from this store can leave verified reviews. Fake reviews will be removed.
+                    </div>
+                    
+                    <button id="submit-review" class="w-full bg-sdel text-black py-3 rounded-xl font-black uppercase text-[10px] tracking-wider">
+                        ${userReview ? 'Update Review' : 'Submit Review'}
+                    </button>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+            lucide.createIcons();
+            
+            let selectedRating = userReview?.rating || 0;
+            
+            document.querySelectorAll('.review-star').forEach(star => {
+                star.addEventListener('click', () => {
+                    selectedRating = parseInt(star.dataset.rating);
+                    document.querySelectorAll('.review-star').forEach((s, idx) => {
+                        if (idx < selectedRating) {
+                            s.classList.add('text-sdel');
+                            s.classList.remove('text-zinc-600');
+                        } else {
+                            s.classList.add('text-zinc-600');
+                            s.classList.remove('text-sdel');
+                        }
+                    });
+                });
+            });
+            
+            document.getElementById('submit-review').addEventListener('click', async () => {
+                if (selectedRating === 0) {
+                    showToast("Please select a rating", 4000);
+                    return;
+                }
+                
+                const reviewText = document.getElementById('review-text').value;
+                
+                const { data: orders } = await supabase
+                    .from('orders')
+                    .select('id')
+                    .eq('buyer_id', currentUserId)
+                    .eq('vendor_id', storeOwnerId)
+                    .limit(1);
+                
+                const verifiedPurchase = orders && orders.length > 0;
+                
+                if (userReview) {
+                    const { error } = await supabase
+                        .from('store_reviews')
+                        .update({ 
+                            rating: selectedRating, 
+                            review: reviewText,
+                            edited_at: new Date()
+                        })
+                        .eq('id', userReview.id);
+                    
+                    if (!error) {
+                        showToast("Review updated! ✏️", 4000);
+                        closeReviewModal();
+                        await loadReviews();
+                        await loadStoreInfo();
+                    } else {
+                        showToast("Error updating review", 4000);
+                    }
+                } else {
+                    const { error } = await supabase
+                        .from('store_reviews')
+                        .insert({
+                            vendor_id: storeOwnerId,
+                            user_id: currentUserId,
+                            rating: selectedRating,
+                            review: reviewText,
+                            verified_purchase: verifiedPurchase
+                        });
+                    
+                    if (!error) {
+                        showToast("Review posted! 🌟", 4000);
+                        closeReviewModal();
+                        await loadReviews();
+                        await loadStoreInfo();
+                    } else if (error.code === '23505') {
+                        showToast("You already reviewed this store", 4000);
+                    } else {
+                        showToast("Error posting review", 4000);
+                    }
+                }
+            });
         }
 
         function setupEventListeners() {
@@ -526,6 +902,8 @@
             document.getElementById('view-products').addEventListener('click', () => {
                 document.getElementById('products-grid').scrollIntoView({ behavior: 'smooth' });
             });
+            document.getElementById('write-review-btn').addEventListener('click', openWriteReview);
+            document.getElementById('followers-stats').addEventListener('click', openFollowersModal);
         }
 
         init();
