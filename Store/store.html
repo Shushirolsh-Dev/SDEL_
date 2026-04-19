@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') document.documentElement.classList.add('sunlight-mode');
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Store</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; transition: background-color 0.3s; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-glass { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+        .card-white { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+        
+        .sunlight-mode body { background-color: #f5f5f5; color: #121212; }
+        .sunlight-mode .card-glass { background: rgba(255,255,255,0.9); border-color: #e4e4e7; }
+        .sunlight-mode .card-white { background: white; border-color: #e4e4e7; }
+        
+        .category-pill {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: #6b7280;
+            user-select: none;
+            white-space: nowrap;
+        }
+        .category-pill.active { background-color: #FF6600; color: black !important; border-color: #FF6600; }
+        
+        .product-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .product-card:active { transform: scale(0.98); }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+        }
+        .sunlight-mode .modal { background: rgba(255,255,255,0.95); }
+        .modal-content { max-width: 450px; width: 100%; max-height: 85vh; overflow-y: auto; border-radius: 32px; }
+        .modal::-webkit-scrollbar { display: none; }
+        
+        .follow-btn { transition: all 0.2s; }
+        .follow-btn.following { background: rgba(255,102,0,0.2); color: #FF6600; border-color: #FF6600; }
+        
+        .skeleton-card { background: rgba(18, 18, 18, 0.7); border-radius: 16px; overflow: hidden; }
+        .skeleton-image { height: 180px; background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        .sunlight-mode .skeleton-image { background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%); background-size: 200% 100%; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        
+        .rating-star { color: #FF6600; font-size: 14px; }
+        .rating-star.empty { color: #3f3f46; }
+        .sunlight-mode .rating-star.empty { color: #d4d4d8; }
+        
+        .stats-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 20px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .sunlight-mode .stats-card { background: white; border-color: #e4e4e7; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+    <!-- Product Modal -->
+    <div id="product-modal" class="modal" onclick="if(event.target === this) closeModal()">
+        <div class="modal-content" id="modal-content"></div>
+    </div>
+
+    <!-- Store Header -->
+    <div class="relative">
+        <!-- Cover Image -->
+        <div class="h-48 w-full bg-gradient-to-r from-sdel/30 via-sdel/10 to-transparent relative overflow-hidden">
+            <div class="absolute inset-0 bg-black/40"></div>
+            <div id="cover-pattern" class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 25% 40%, rgba(255,102,0,0.3) 2%, transparent 2.5%); background-size: 40px 40px;"></div>
+        </div>
+        
+        <!-- Avatar & Actions -->
+        <div class="px-6 -mt-14 relative z-10">
+            <div class="flex items-end justify-between">
+                <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-sdel to-orange-600 flex items-center justify-center shadow-2xl border-4 border-black">
+                    <i data-lucide="store" size="44" class="text-white"></i>
+                </div>
+                <div class="flex gap-2">
+                    <button id="share-store" class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center">
+                        <i data-lucide="share-2" size="18"></i>
+                    </button>
+                    <button id="follow-btn" class="follow-btn px-5 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-[11px] font-black uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="heart" size="14"></i> Follow
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Store Info -->
+        <div class="px-6 mt-4">
+            <h1 id="store-name" class="text-2xl font-black uppercase italic tracking-tighter">Loading...</h1>
+            <div class="flex flex-wrap items-center gap-3 mt-2">
+                <span id="store-category" class="text-[9px] font-black uppercase tracking-widest text-sdel bg-sdel/10 px-3 py-1 rounded-full">Loading</span>
+                <div class="flex items-center gap-1">
+                    <i data-lucide="map-pin" size="12" class="text-zinc-500"></i>
+                    <span id="store-location" class="text-[9px] font-bold text-zinc-400">Loading school...</span>
+                </div>
+            </div>
+            
+            <!-- Stats Row -->
+            <div class="grid grid-cols-3 gap-3 mt-5">
+                <div class="stats-card">
+                    <i data-lucide="package" size="16" class="text-sdel mx-auto mb-1"></i>
+                    <p id="product-count" class="text-lg font-black">0</p>
+                    <p class="text-[8px] font-black uppercase tracking-wider text-zinc-500">Products</p>
+                </div>
+                <div class="stats-card">
+                    <i data-lucide="users" size="16" class="text-sdel mx-auto mb-1"></i>
+                    <p id="follower-count" class="text-lg font-black">0</p>
+                    <p class="text-[8px] font-black uppercase tracking-wider text-zinc-500">Followers</p>
+                </div>
+                <div class="stats-card">
+                    <i data-lucide="star" size="16" class="text-sdel mx-auto mb-1"></i>
+                    <p id="rating-value" class="text-lg font-black">0.0</p>
+                    <p class="text-[8px] font-black uppercase tracking-wider text-zinc-500">Rating</p>
+                </div>
+            </div>
+            
+            <!-- Bio -->
+            <p id="store-bio" class="text-[11px] text-zinc-400 mt-4 leading-relaxed">Loading store information...</p>
+            
+            <!-- Action Buttons -->
+            <div class="flex gap-3 mt-5">
+                <button id="contact-seller" class="flex-1 bg-sdel text-black py-3 rounded-xl font-black uppercase text-[9px] tracking-wider flex items-center justify-center gap-2">
+                    <i data-lucide="message-circle" size="14"></i> Contact Seller
+                </button>
+                <button id="view-products" class="flex-1 bg-white/10 border border-white/20 py-3 rounded-xl font-black uppercase text-[9px] tracking-wider">
+                    View All Products
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Tabs -->
+    <div class="px-6 mt-8">
+        <div class="flex space-x-2 overflow-x-auto no-scrollbar pb-2" id="category-tabs">
+            <button data-cat="All" class="category-pill active px-4 py-2 rounded-full text-[9px] font-black uppercase">All Products</button>
+        </div>
+    </div>
+
+    <!-- Products Grid -->
+    <main class="px-4 mt-4 grid grid-cols-2 gap-3 pb-24" id="products-grid">
+        <!-- Skeletons -->
+        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
+        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
+        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
+        <div class="skeleton-card"><div class="skeleton-image"></div><div class="p-3"><div class="h-3 bg-white/10 rounded w-2/3 mb-2"></div><div class="h-3 bg-white/10 rounded w-1/2"></div></div></div>
+    </main>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let currentUserId = null;
+        let storeOwnerId = null;
+        let storeProducts = [];
+        let storeInfo = null;
+        let userCart = {};
+        let isFollowing = false;
+        let currentCategory = 'All';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        storeOwnerId = urlParams.get('vendor_id');
+
+        if (!storeOwnerId) {
+            window.location.href = 'market.html';
+        }
+
+        async function init() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) currentUserId = session.user.id;
+            
+            await fetchUserCart();
+            await loadStoreInfo();
+            await loadStoreProducts();
+            await checkFollowStatus();
+            setupEventListeners();
+            lucide.createIcons();
+        }
+
+        async function fetchUserCart() {
+            if (!currentUserId) return;
+            const { data } = await supabase.from('cart').select('product_id, quantity').eq('user_id', currentUserId);
+            userCart = {};
+            if (data) data.forEach(item => userCart[item.product_id] = item.quantity);
+        }
+
+        async function loadStoreInfo() {
+            const { data: vendor } = await supabase
+                .from('vendors')
+                .select('*')
+                .eq('user_id', storeOwnerId)
+                .single();
+
+            if (!vendor || vendor.status !== 'verified') {
+                document.getElementById('products-grid').innerHTML = `<div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase text-zinc-500">Store not found</p></div>`;
+                return;
+            }
+
+            const { data: profile } = await supabase
+                .from('profile')
+                .select('school_name, full_name')
+                .eq('id', storeOwnerId)
+                .single();
+
+            const { count: productCount } = await supabase
+                .from('products')
+                .select('*', { count: 'exact', head: true })
+                .eq('vendor_id', storeOwnerId);
+
+            const { count: followerCount } = await supabase
+                .from('store_followers')
+                .select('*', { count: 'exact', head: true })
+                .eq('vendor_id', storeOwnerId);
+
+            storeInfo = {
+                business_name: vendor.business_name,
+                category: vendor.category,
+                school: profile?.school_name || 'Unknown School',
+                bio: `${vendor.business_name} sells premium ${vendor.category} items on Sdel Campus Market. Quality guaranteed.`,
+                productCount: productCount || 0,
+                followerCount: followerCount || 0,
+                rating: (Math.random() * 2 + 3.5).toFixed(1)
+            };
+
+            document.getElementById('store-name').innerText = storeInfo.business_name;
+            document.getElementById('store-category').innerText = storeInfo.category;
+            document.getElementById('store-location').innerHTML = `${storeInfo.school} <span class="text-[8px]">(Verified)</span>`;
+            document.getElementById('store-bio').innerText = storeInfo.bio;
+            document.getElementById('product-count').innerText = storeInfo.productCount;
+            document.getElementById('follower-count').innerText = storeInfo.followerCount;
+            document.getElementById('rating-value').innerText = storeInfo.rating;
+        }
+
+        async function loadStoreProducts() {
+            const { data } = await supabase
+                .from('products')
+                .select('*')
+                .eq('vendor_id', storeOwnerId)
+                .order('created_at', { ascending: false });
+
+            storeProducts = data || [];
+            renderProducts();
+            
+            const categories = ['All', ...new Set(storeProducts.map(p => p.category))];
+            const tabsContainer = document.getElementById('category-tabs');
+            tabsContainer.innerHTML = categories.map(cat => `
+                <button data-cat="${cat}" class="category-pill ${cat === 'All' ? 'active' : ''} px-4 py-2 rounded-full text-[9px] font-black uppercase whitespace-nowrap">${cat}</button>
+            `).join('');
+            
+            document.querySelectorAll('.category-pill').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.category-pill').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentCategory = btn.dataset.cat;
+                    renderProducts();
+                });
+            });
+        }
+
+        async function checkFollowStatus() {
+            if (!currentUserId) return;
+            const { data } = await supabase
+                .from('store_followers')
+                .select('*')
+                .eq('vendor_id', storeOwnerId)
+                .eq('user_id', currentUserId)
+                .single();
+            
+            isFollowing = !!data;
+            const btn = document.getElementById('follow-btn');
+            if (isFollowing) {
+                btn.innerHTML = '<i data-lucide="heart" size="14" class="fill-sdel"></i> Following';
+                btn.classList.add('following');
+            } else {
+                btn.innerHTML = '<i data-lucide="heart" size="14"></i> Follow';
+                btn.classList.remove('following');
+            }
+            lucide.createIcons();
+        }
+
+        function renderProducts() {
+            const grid = document.getElementById('products-grid');
+            let filtered = storeProducts;
+            if (currentCategory !== 'All') {
+                filtered = storeProducts.filter(p => p.category === currentCategory);
+            }
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-20"><i data-lucide="package-x" size="40" class="mx-auto text-zinc-600 mb-3"></i><p class="text-[10px] font-black uppercase text-zinc-500">No products in ${currentCategory}</p></div>`;
+                lucide.createIcons();
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(product => {
+                const inCart = userCart[product.id];
+                const stock = product.stock || 0;
+                const stockBadge = stock === 0 ? 'Out of Stock' : (stock < 5 ? `Only ${stock} left` : 'In Stock');
+                const stockColor = stock === 0 ? 'text-red-500' : (stock < 5 ? 'text-orange-500' : 'text-green-500');
+                
+                return `
+                    <div class="card-glass rounded-2xl overflow-hidden product-card" data-product='${JSON.stringify(product).replace(/'/g, "&#39;")}'>
+                        <div class="relative h-36">
+                            <img src="${product.image_url}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Image'">
+                            <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg">
+                                <p class="text-[6px] text-sdel font-black uppercase">${product.category}</p>
+                            </div>
+                            ${stock < 5 && stock > 0 ? `<div class="absolute top-2 right-2 bg-orange-500/90 text-black px-1.5 py-0.5 rounded-md text-[7px] font-black">🔥 HOT</div>` : ''}
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-black text-[11px] uppercase leading-tight">${product.name}</h3>
+                            <div class="flex justify-between items-center mt-2">
+                                <p class="font-black text-sm text-sdel">₦${product.price.toLocaleString()}</p>
+                                <p class="text-[7px] font-black ${stockColor}">${stockBadge}</p>
+                            </div>
+                            ${!inCart && stock > 0 ? `
+                                <button data-id="${product.id}" class="add-to-cart-btn w-full bg-white text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2">Add to Cart</button>
+                            ` : inCart ? `
+                                <button onclick="window.location.href='cart.html'" class="w-full bg-sdel text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2">View Cart</button>
+                            ` : `
+                                <button disabled class="w-full bg-zinc-800 text-zinc-500 py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2 cursor-not-allowed">Out of Stock</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add click listeners for product cards
+            document.querySelectorAll('.product-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('add-to-cart-btn')) return;
+                    const product = JSON.parse(card.dataset.product.replace(/&#39;/g, "'"));
+                    openProductModal(product);
+                });
+            });
+            
+            // Add to cart listeners
+            document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    addToCart(btn.dataset.id);
+                });
+            });
+            
+            lucide.createIcons();
+        }
+
+        function openProductModal(product) {
+            const modal = document.getElementById('product-modal');
+            const modalContent = document.getElementById('modal-content');
+            const inCart = userCart[product.id];
+            const stock = product.stock || 0;
+            
+            modalContent.innerHTML = `
+                <div class="card-glass rounded-3xl overflow-hidden">
+                    <div class="relative">
+                        <img src="${product.image_url}" class="w-full h-72 object-cover" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Image'">
+                        <button onclick="closeModal()" class="absolute top-3 right-3 bg-black/50 backdrop-blur-md p-2 rounded-full">
+                            <i data-lucide="x" size="18"></i>
+                        </button>
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-[8px] text-sdel font-black uppercase bg-sdel/10 px-2 py-1 rounded-lg">${product.category}</span>
+                                <h2 class="font-black text-2xl uppercase italic mt-2">${product.name}</h2>
+                            </div>
+                            <p class="font-black text-3xl text-sdel">₦${product.price.toLocaleString()}</p>
+                        </div>
+                        
+                        <p class="text-xs text-zinc-400 leading-relaxed mt-4">${product.description || 'No description available. Contact seller for more details.'}</p>
+                        
+                        <div class="flex items-center gap-2 mt-4 p-3 bg-white/5 rounded-xl">
+                            <i data-lucide="store" size="14" class="text-sdel"></i>
+                            <span class="text-[9px] font-bold">Sold by: ${storeInfo?.business_name}</span>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 mt-3">
+                            <div class="flex items-center gap-1">
+                                ${renderStars(storeInfo?.rating || 4.5)}
+                            </div>
+                            <span class="text-[8px] text-zinc-500">${storeInfo?.followerCount} followers</span>
+                        </div>
+                        
+                        <div class="mt-6">
+                            ${inCart ? `
+                                <div class="flex gap-3">
+                                    <div class="flex items-center bg-zinc-800 rounded-2xl flex-1">
+                                        <button onclick="updateQty('${product.id}', -1)" class="px-5 py-3"><i data-lucide="minus" size="16"></i></button>
+                                        <span class="text-base font-black w-10 text-center">${inCart}</span>
+                                        <button onclick="updateQty('${product.id}', 1)" class="px-5 py-3"><i data-lucide="plus" size="16"></i></button>
+                                    </div>
+                                    <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-3 rounded-2xl font-black text-[11px]">Checkout</button>
+                                </div>
+                            ` : stock > 0 ? `
+                                <button onclick="addToCart('${product.id}')" class="w-full bg-sdel text-black py-4 rounded-2xl font-black text-[11px] tracking-wider flex items-center justify-center gap-2">
+                                    <i data-lucide="shopping-cart" size="16"></i> Add to Cart
+                                </button>
+                            ` : `
+                                <button disabled class="w-full bg-zinc-800 text-zinc-500 py-4 rounded-2xl font-black text-[11px] cursor-not-allowed">Out of Stock</button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        function renderStars(rating) {
+            const fullStars = Math.floor(rating);
+            const hasHalf = rating % 1 >= 0.5;
+            let stars = '';
+            for (let i = 0; i < fullStars; i++) stars += '<i data-lucide="star" size="12" class="rating-star fill-sdel"></i>';
+            if (hasHalf) stars += '<i data-lucide="star-half" size="12" class="rating-star fill-sdel"></i>';
+            while (stars.length / 42 < 5) stars += '<i data-lucide="star" size="12" class="rating-star empty"></i>';
+            return stars;
+        }
+
+        async function addToCart(productId) {
+            if (!currentUserId) {
+                window.location.href = 'login.html';
+                return;
+            }
+            const product = storeProducts.find(p => p.id === productId);
+            if (!product || (product.stock || 0) < 1) {
+                showToast("Out of stock!");
+                return;
+            }
+            
+            userCart[productId] = 1;
+            await supabase.from('cart').insert([{ user_id: currentUserId, product_id: productId, quantity: 1 }]);
+            showToast("Added to cart!");
+            renderProducts();
+        }
+
+        window.updateQty = async (id, change) => {
+            let newQty = (userCart[id] || 0) + change;
+            if (newQty < 1) return;
+            userCart[id] = newQty;
+            await supabase.from('cart').update({ quantity: newQty }).eq('user_id', currentUserId).eq('product_id', id);
+            closeModal();
+            renderProducts();
+        };
+
+        window.closeModal = () => {
+            document.getElementById('product-modal').style.display = 'none';
+        };
+
+        async function toggleFollow() {
+            if (!currentUserId) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            if (isFollowing) {
+                await supabase.from('store_followers').delete().eq('vendor_id', storeOwnerId).eq('user_id', currentUserId);
+                showToast(`Unfollowed ${storeInfo?.business_name}`);
+            } else {
+                await supabase.from('store_followers').insert({ vendor_id: storeOwnerId, user_id: currentUserId });
+                showToast(`Following ${storeInfo?.business_name}`);
+            }
+            isFollowing = !isFollowing;
+            await loadStoreInfo();
+            await checkFollowStatus();
+        }
+
+        async function shareStore() {
+            const url = `${window.location.origin}/store.html?vendor_id=${storeOwnerId}`;
+            try {
+                await navigator.share({ title: storeInfo?.business_name, url: url });
+            } catch {
+                navigator.clipboard.writeText(url);
+                showToast("Store link copied!");
+            }
+        }
+
+        function contactSeller() {
+            if (!currentUserId) {
+                window.location.href = 'login.html';
+                return;
+            }
+            window.location.href = `chat.html?user_id=${storeOwnerId}`;
+        }
+
+        function showToast(msg) {
+            let toast = document.getElementById('toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast';
+                toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(100px);background:#FF6600;color:black;padding:12px 24px;border-radius:30px;font-weight:800;font-size:12px;z-index:9999;transition:transform .3s;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+                document.body.appendChild(toast);
+            }
+            toast.innerText = msg;
+            setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(0)', 10);
+            setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(100px)', 2000);
+        }
+
+        function setupEventListeners() {
+            document.getElementById('follow-btn').addEventListener('click', toggleFollow);
+            document.getElementById('share-store').addEventListener('click', shareStore);
+            document.getElementById('contact-seller').addEventListener('click', contactSeller);
+            document.getElementById('view-products').addEventListener('click', () => {
+                document.getElementById('products-grid').scrollIntoView({ behavior: 'smooth' });
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html>
