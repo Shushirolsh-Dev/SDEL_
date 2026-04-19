@@ -22,6 +22,7 @@
         .text-sdel { color: #FF6600; }
         .input-zinc { background: rgba(120,120,120,0.05); border: 1px solid var(--border); color: var(--text); padding: 16px; border-radius: 16px; font-size: 13px; font-weight: 600; outline: none; width: 100%; }
         .input-zinc:focus { border-color: #FF6600; }
+        input:disabled { opacity: 0.6; cursor: not-allowed; }
         
         .plan-card { border: 2px solid var(--border); transition: 0.3s; cursor: pointer; border-radius: 20px; }
         .plan-card.active { border-color: #FF6600; background: rgba(255,102,0,0.05); }
@@ -138,6 +139,20 @@
             </div>
         </div>
 
+        <!-- SCHOOL NAME SECTION - READ ONLY (LOCKED FROM SIGNUP) -->
+        <div class="glass-card p-5 space-y-3">
+            <div class="flex items-center gap-2 border-b border-[var(--border)] pb-2">
+                <i data-lucide="graduation-cap" size="18" class="text-sdel"></i>
+                <span class="font-black uppercase text-xs">Your Verified School</span>
+            </div>
+            <div>
+                <input type="text" id="schoolName" placeholder="Loading your school..." class="input-zinc" readonly disabled>
+                <p class="text-[8px] text-[var(--dim)] font-bold uppercase mt-2 tracking-wider">
+                    🔒 This matches your signup school. Cannot be changed to prevent fraud.
+                </p>
+            </div>
+        </div>
+
         <!-- Rules Link Card (for new users) -->
         <div class="glass-card p-4 flex items-center justify-between cursor-pointer" onclick="showRulesModal()">
             <div class="flex items-center gap-3">
@@ -149,7 +164,6 @@
 
         <!-- Registration Form (shown only for new/pending/declined) -->
         <div id="reg-form" class="space-y-4">
-            <!-- ... existing form fields ... -->
             <div>
                 <label class="text-[8px] font-black uppercase text-[var(--dim)] ml-2 mb-1 block">Business Identity</label>
                 <input type="text" id="bizName" placeholder="Shop Name" class="input-zinc" oninput="updatePreview()">
@@ -446,7 +460,10 @@
             const biz = document.getElementById('bizName').value;
             let cat = document.getElementById('bizCat').value;
             if(cat === 'Other') cat = document.getElementById('customCat').value;
+            const schoolName = document.getElementById('schoolName').value;
+            
             if(!biz || !cat) return showAlert("Missing shop details, homie!");
+            if(!schoolName) return showAlert("School not found. Please re-login.");
             
             const paymentRef = document.getElementById('paymentRef').value;
             const confirmPaid = document.getElementById('payConfirmCheck').checked;
@@ -465,6 +482,7 @@
             const { data: { session } } = await supabase.auth.getSession();
             if(!session) return window.location.href = 'login.html';
             
+            // Insert vendor with school_name from profile (locked)
             const { error } = await supabase.from('vendors').insert({
                 user_id: session.user.id,
                 business_name: biz,
@@ -472,7 +490,8 @@
                 tier_id: selectedTierId,
                 fee_paid: selectedPrice,
                 status: 'pending',
-                payment_ref: paymentRef
+                payment_ref: paymentRef,
+                school_name: schoolName
             });
             
             if(!error) {
@@ -487,8 +506,27 @@
             }
         };
 
+        // Load existing school name from profile (READ ONLY)
+        async function loadExistingSchool() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const { data: profile } = await supabase
+                    .from('profile')
+                    .select('school_name')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (profile && profile.school_name) {
+                    document.getElementById('schoolName').value = profile.school_name;
+                } else {
+                    document.getElementById('schoolName').value = "No school found - Please update profile";
+                }
+            }
+        }
+
         async function init() {
             await loadPlans();
+            await loadExistingSchool();
             const hasShop = await checkVendorStatus();
             if (!hasShop) {
                 document.getElementById('reg-form').classList.remove('hidden');
