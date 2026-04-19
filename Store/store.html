@@ -277,14 +277,13 @@
             if (toastTimeout) clearTimeout(toastTimeout);
             toast.innerText = message;
             toast.classList.add('show');
+            toast.style.visibility = 'visible';
             toastTimeout = setTimeout(() => {
                 toast.classList.remove('show');
-                // Completely hide after animation
                 setTimeout(() => {
                     toast.style.visibility = 'hidden';
                 }, 300);
             }, duration);
-            toast.style.visibility = 'visible';
         }
 
         async function init() {
@@ -367,7 +366,6 @@
             document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
             document.getElementById('rating-value').innerText = storeInfo.rating.toFixed(1);
             
-            // Only show verified badge if status is 'verified'
             if (storeInfo.verified) {
                 const badge = document.getElementById('verified-badge');
                 badge.classList.remove('hidden');
@@ -748,7 +746,7 @@
             } else {
                 const { error } = await supabase.from('store_followers').insert({ vendor_id: storeOwnerId, user_id: currentUserId });
                 if (!error) {
-                    showToast(`Following ${storeInfo?.business_name} `, 3000);
+                    showToast(`Following ${storeInfo?.business_name} ✨`, 3000);
                     isFollowing = true;
                     storeInfo.followerCount++;
                     document.getElementById('follower-count').innerText = formatNumber(storeInfo.followerCount);
@@ -758,18 +756,27 @@
         }
 
         async function shareStore() {
+            if (!storeInfo) {
+                showToast("Loading store info...", 2000);
+                return;
+            }
+            
             const url = `${window.location.origin}/Store/store.html?vendor_id=${storeOwnerId}`;
-            const shareMessage = `🛍️ Check out ${storeInfo?.business_name} on Sdel Market! Great products, amazing deals. Shop now: ${url}`;
+            const storeName = storeInfo.business_name;
+            const shareText = `🛍️ Check out ${storeName} on Sdel Market!`;
+            const fullMessage = `${shareText}\n\n${url}`;
             
             try {
                 await navigator.share({ 
-                    title: `${storeInfo?.business_name} | Sdel Market`,
-                    text: `Check out this store on Sdel Market! 🛍️`,
+                    title: `${storeName} | Sdel Market`,
+                    text: shareText,
                     url: url
                 });
-            } catch {
-                navigator.clipboard.writeText(shareMessage);
-                showToast("Store link with message copied! 📋", 3000);
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    navigator.clipboard.writeText(fullMessage);
+                    showToast(`✨ ${storeName} link copied!`, 3000);
+                }
             }
         }
 
