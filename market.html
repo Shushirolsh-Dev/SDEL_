@@ -173,7 +173,7 @@
 
         let currentUserId = "GUEST_USER";
         let currentUserSchool = null;
-        let allFilteredProducts = []; // All products after school filter
+        let allFilteredProducts = [];
         let displayedProducts = [];
         let userCart = {};
         let currentCategory = 'All';
@@ -261,7 +261,6 @@
                 return;
             }
             
-            // Fetch all products once and cache
             const { data: productsData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
             const allProducts = productsData || [];
             
@@ -290,7 +289,6 @@
                 return vendorSchool === currentUserSchool;
             });
             
-            // Reset pagination
             currentPage = 0;
             displayedProducts = [];
             hasMore = true;
@@ -301,7 +299,6 @@
         function renderProductsPage() {
             const list = document.getElementById('product-list');
             
-            // Apply category filter
             let productsToShow = [...allFilteredProducts];
             if (currentCategory !== 'All') {
                 productsToShow = productsToShow.filter(p => 
@@ -309,7 +306,6 @@
                 );
             }
             
-            // Load next batch
             const start = currentPage * PAGE_SIZE;
             const end = start + PAGE_SIZE;
             const newProducts = productsToShow.slice(start, end);
@@ -329,7 +325,6 @@
             displayedProducts = [...displayedProducts, ...newProducts];
             hasMore = end < productsToShow.length;
             
-            // Render all displayed products
             list.innerHTML = displayedProducts.map(item => {
                 const inCart = userCart[item.id];
                 const stock = item.stock || 0;
@@ -354,7 +349,7 @@
                 }
                 
                 return `
-                    <div class="card-zinc rounded-xl overflow-hidden product-card" onclick="openProductModal(${JSON.stringify(item).replace(/"/g, '&quot;')})">
+                    <div class="card-zinc rounded-xl overflow-hidden product-card" onclick="goToStore('${item.vendor_id}')">
                         <div class="relative product-image">
                             <img src="${item.image_url}" class="object-cover w-full h-full" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Preview'">
                             <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg">
@@ -387,13 +382,17 @@
             
             lucide.createIcons();
             
-            // Show/hide loading sentinel
             if (hasMore) {
                 document.getElementById('loading-sentinel').classList.remove('hidden');
             } else {
                 document.getElementById('loading-sentinel').classList.add('hidden');
             }
         }
+        
+        // NEW: Navigate to store page
+        window.goToStore = (vendorId) => {
+            window.location.href = `Store/store.html?vendor_id=${vendorId}`;
+        };
         
         function loadMoreProducts() {
             if (isLoading || !hasMore) return;
@@ -559,7 +558,7 @@
         window.runSearch = (val) => {
             const container = document.getElementById('search-results-list');
             if(!val.trim()) { container.innerHTML = ""; return; }
-            const filtered = allFilteredProducts.filter(p => p.name.toLowerCase().includes(val.toLowerCase()));
+            let filtered = allFilteredProducts.filter(p => p.name.toLowerCase().includes(val.toLowerCase()));
             if (currentCategory !== 'All') {
                 filtered = filtered.filter(p => p.category === currentCategory);
             }
@@ -579,7 +578,9 @@
 
         window.viewFromSearch = (id) => { 
             const product = allFilteredProducts.find(p => p.id === id);
-            if (product) openProductModal(product);
+            if (product) {
+                window.location.href = `Store/store.html?vendor_id=${product.vendor_id}`;
+            }
             closeSearch();
         };
 
