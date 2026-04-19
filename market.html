@@ -106,18 +106,37 @@
         .product-card { cursor: pointer; }
         .product-image { height: 160px; }
         
+        /* SHINY HORIZONTAL SKELETON LOADER */
         .skeleton-card {
             background: rgba(18, 18, 18, 0.7);
             border: 1px solid rgba(255,255,255,0.08);
             border-radius: 12px;
             overflow: hidden;
         }
-        .skeleton-image { height: 160px; background: rgba(255,255,255,0.05); animation: pulse 1.5s ease-in-out infinite; }
-        .skeleton-line { height: 12px; background: rgba(255,255,255,0.05); border-radius: 6px; margin-bottom: 8px; animation: pulse 1.5s ease-in-out infinite; }
+        .skeleton-image {
+            height: 160px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        .skeleton-line {
+            height: 12px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            animation: shimmer 1.5s infinite;
+        }
         .sunlight-mode .skeleton-card,
         .sunlight-mode .skeleton-image,
-        .sunlight-mode .skeleton-line { background: #e4e4e7; }
-        @keyframes pulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 0.4; } }
+        .sunlight-mode .skeleton-line {
+            background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+            background-size: 200% 100%;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
         
         .loading-trigger { height: 60px; display: flex; align-items: center; justify-content: center; }
         .loading-spinner { width: 24px; height: 24px; border: 2px solid #FF6600; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
@@ -338,14 +357,14 @@
                     dotClass = 'low';
                 } else if (stock < 5) {
                     stockClass = 'stock-low';
-                    stockText = stock + ' left';
+                    stockText = `${stock} left`;
                     dotClass = 'low';
                 } else if (stock < 10) {
                     stockClass = 'stock-medium';
-                    stockText = stock + ' left';
+                    stockText = `${stock} left`;
                     dotClass = 'medium';
                 } else {
-                    stockText = 'In Stock';
+                    stockText = `${stock} in stock`;
                 }
                 
                 return `
@@ -389,7 +408,6 @@
             }
         }
         
-        // NEW: Navigate to store page
         window.goToStore = (vendorId) => {
             window.location.href = `Store/store.html?vendor_id=${vendorId}`;
         };
@@ -435,15 +453,48 @@
             if (!currentUserId) { window.location.href = 'login.html'; return; }
             const product = allFilteredProducts.find(p => p.id === id);
             if (!product || (product.stock || 0) < 1) {
-                showToast("Out of stock!");
+                showToast("Out of stock!", 3000);
+                return;
+            }
+            
+            // Check if product already in cart
+            if (userCart[id]) {
+                showToast("Already in cart! View cart to update quantity.", 3000);
                 return;
             }
             
             userCart[id] = 1;
-            await supabase.from('cart').insert([{ user_id: currentUserId, product_id: id, quantity: 1 }]);
+            
+            // Insert into cart database
+            const { error } = await supabase
+                .from('cart')
+                .insert([{ user_id: currentUserId, product_id: id, quantity: 1 }]);
+            
+            if (error) {
+                // If duplicate error, just update
+                if (error.code === '23505') {
+                    await supabase
+                        .from('cart')
+                        .update({ quantity: 1 })
+                        .eq('user_id', currentUserId)
+                        .eq('product_id', id);
+                } else {
+                    showToast("Error adding to cart", 3000);
+                    return;
+                }
+            }
+            
             updateCartCountDisplay();
-            showToast("Added to cart!");
-            renderProductsPage();
+            showToast("Added to cart! 🛒", 3000);
+            
+            // Update just this button instead of re-rendering everything
+            const buttons = document.querySelectorAll(`button[onclick*="addToCart('${id}')"]`);
+            buttons.forEach(btn => {
+                btn.innerText = "In Cart";
+                btn.onclick = () => window.location.href = 'cart.html';
+                btn.classList.remove('bg-white', 'text-black');
+                btn.classList.add('bg-sdel', 'text-black');
+            });
         };
 
         window.updateQty = async (id, change) => {
@@ -465,14 +516,14 @@
                 };
                 if (navigator.share) {
                     await navigator.share(shareData);
-                    showToast("Shared!");
+                    showToast("Shared!", 2000);
                 } else {
                     navigator.clipboard.writeText(shareData.url);
-                    showToast("Link copied!");
+                    showToast("Link copied!", 2000);
                 }
             } catch (error) {
                 navigator.clipboard.writeText(`${window.location.origin}/market.html?id=${product.id}`);
-                showToast("Link copied!");
+                showToast("Link copied!", 2000);
             }
         };
         
@@ -534,17 +585,21 @@
         
         window.closeModal = () => document.getElementById('product-modal').style.display = 'none';
 
-        function showToast(msg) {
+        function showToast(msg, duration = 3000) {
             let toast = document.getElementById('toast');
             if (!toast) {
                 toast = document.createElement('div');
                 toast.id = 'toast';
-                toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(100px);background:#FF6600;color:black;padding:10px 20px;border-radius:30px;font-weight:700;font-size:12px;z-index:9999;transition:transform .3s';
+                toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:#FF6600;color:black;padding:12px 24px;border-radius:30px;font-weight:800;font-size:12px;z-index:9999;transition:transform 0.3s;box-shadow:0 4px 20px rgba(0,0,0,0.3);white-space:nowrap;';
                 document.body.appendChild(toast);
             }
             toast.innerText = msg;
-            setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(0)', 10);
-            setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(100px)', 2000);
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+            toast.style.visibility = 'visible';
+            setTimeout(() => {
+                toast.style.transform = 'translateX(-50%) translateY(-100px)';
+                setTimeout(() => toast.style.visibility = 'hidden', 300);
+            }, duration);
         }
 
         window.openSearch = () => { 
