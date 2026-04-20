@@ -2,541 +2,326 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Thesdel CBT - Student Exam Portal</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thesdel CBT - Take Exam</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>
-        * { font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: #0a0a0a; color: #fff; }
-        .glass-card { background: rgba(18, 18, 18, 0.95); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); border-radius: 28px; }
-        .option-btn { padding: 14px 18px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; cursor: pointer; transition: 0.2s; }
-        .option-btn:hover { background: rgba(255,102,0,0.1); border-color: #ff6600; transform: translateX(4px); }
-        .option-selected { background: #ff6600 !important; border-color: #ff6600 !important; color: #000 !important; font-weight: bold; }
-        .timer-box { font-family: monospace; font-size: 32px; font-weight: 800; letter-spacing: 2px; }
-        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(150%); background: #1a1a1a; border: 1px solid #ff6600; padding: 12px 24px; border-radius: 60px; z-index: 1000; transition: 0.3s; }
-        .toast.show { transform: translateX(-50%) translateY(0); }
-        .loading-spinner { width: 40px; height: 40px; border: 3px solid rgba(255,102,0,0.2); border-top-color: #ff6600; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 15px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .skeleton { background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 16px; }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-    </style>
 </head>
-<body class="min-h-screen p-5">
+<body class="bg-black text-white p-6">
 
-    <div id="toast" class="toast"><span id="toastMsg"></span></div>
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold text-center mb-8">Thesdel <span class="text-orange-500">CBT</span></h1>
 
-    <div class="max-w-4xl mx-auto">
+    <!-- SETUP -->
+    <div id="setup" class="bg-gray-900/50 p-6 rounded-2xl border border-white/10">
+        <h2 class="text-xl font-bold mb-4">Exam Setup</h2>
         
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-black tracking-tighter uppercase">Thesdel <span class="text-orange-500">CBT</span></h1>
-            <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Computer Based Test Portal</p>
-        </div>
+        <select id="subject" class="w-full p-3 bg-black border border-white/10 rounded-xl mb-4">
+            <option value="">-- Select Subject --</option>
+        </select>
+        
+        <input type="number" id="numQuestions" placeholder="Number of questions" value="5" class="w-full p-3 bg-black border border-white/10 rounded-xl mb-4">
+        
+        <input type="text" id="studentName" placeholder="Your name" class="w-full p-3 bg-black border border-white/10 rounded-xl mb-4">
+        
+        <input type="number" id="timeLimit" placeholder="Time limit (minutes)" value="30" class="w-full p-3 bg-black border border-white/10 rounded-xl mb-4">
+        
+        <button onclick="startExam()" class="w-full bg-orange-600 py-3 rounded-xl font-bold">Start Exam</button>
+        
+        <!-- Status messages -->
+        <div id="status" class="mt-4 text-sm"></div>
+    </div>
 
-        <!-- SETUP PANEL -->
-        <div id="setupPanel" class="glass-card p-8 space-y-6">
-            <h2 class="text-xl font-black uppercase">📋 Exam Setup</h2>
+    <!-- EXAM -->
+    <div id="exam" class="hidden">
+        <div class="bg-gray-900/50 p-4 rounded-2xl mb-4 flex justify-between">
+            <span id="subjectName" class="text-orange-500 font-bold"></span>
+            <span id="timer" class="font-mono text-xl">00:00</span>
+        </div>
+        
+        <div class="bg-gray-900/50 p-6 rounded-2xl">
+            <p class="text-gray-400 text-sm mb-2" id="qNum">Question 1</p>
+            <p class="text-xl font-bold mb-6" id="qText"></p>
             
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase block mb-2">Select Subject</label>
-                <select id="subjectSelect" class="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white outline-none focus:border-orange-500">
-                    <option value="">-- Select Subject --</option>
-                </select>
+            <div id="options" class="space-y-3 mb-8"></div>
+            
+            <div class="flex gap-3">
+                <button onclick="prevQ()" class="flex-1 bg-gray-800 py-3 rounded-xl">Previous</button>
+                <button onclick="nextQ()" id="nextBtn" class="flex-1 bg-orange-600 py-3 rounded-xl">Next</button>
             </div>
-
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase block mb-2">Number of Questions</label>
-                <input type="number" id="questionCount" min="1" max="100" value="10" class="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white outline-none focus:border-orange-500">
-                <p id="maxHint" class="text-[9px] text-gray-500 mt-1"></p>
-            </div>
-
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase block mb-2">Your Name</label>
-                <input type="text" id="studentName" placeholder="Enter your full name" class="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white outline-none focus:border-orange-500">
-            </div>
-
-            <div>
-                <label class="text-[10px] font-black text-gray-400 uppercase block mb-2">Time Limit (minutes)</label>
-                <input type="number" id="timeLimit" min="5" max="180" value="30" class="w-full p-4 bg-black/50 border border-white/10 rounded-2xl text-white outline-none focus:border-orange-500">
-            </div>
-
-            <button id="startBtn" onclick="startExam()" class="w-full bg-orange-600 hover:bg-orange-500 py-4 rounded-2xl font-black uppercase text-sm transition-all">
-                🎯 Start Exam
-            </button>
-        </div>
-
-        <!-- LOADING PANEL -->
-        <div id="loadingPanel" class="hidden glass-card p-12 text-center">
-            <div class="loading-spinner"></div>
-            <p class="text-sm font-bold text-orange-500 uppercase tracking-wider">Loading your exam...</p>
-            <p class="text-[10px] text-gray-500 mt-2">Please don't close this window</p>
-        </div>
-
-        <!-- EXAM PANEL -->
-        <div id="examPanel" class="hidden space-y-6">
-            <div class="glass-card p-6 flex justify-between items-center flex-wrap gap-4">
-                <div>
-                    <p id="examSubject" class="text-orange-500 font-black text-[10px] uppercase tracking-wider"></p>
-                    <p id="studentNameDisplay" class="text-xs text-gray-400 mt-1"></p>
-                </div>
-                <div class="text-right">
-                    <p class="text-[8px] text-gray-500 uppercase">Time Remaining</p>
-                    <p id="timerDisplay" class="timer-box text-orange-500">00:00</p>
-                </div>
-            </div>
-
-            <div class="flex justify-between items-center text-[10px] font-black">
-                <span id="questionCounter" class="text-gray-400">Question 0/0</span>
-                <span id="progressText" class="text-orange-500">0% Complete</span>
-            </div>
-            <div class="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <div id="progressBar" class="h-full bg-orange-500 transition-all duration-300" style="width: 0%"></div>
-            </div>
-
-            <div class="glass-card p-8 space-y-6">
-                <p id="questionText" class="text-xl font-bold leading-relaxed"></p>
-                <div id="optionsContainer" class="space-y-3"></div>
-                <div class="flex gap-3 pt-4">
-                    <button onclick="prevQuestion()" class="flex-1 bg-white/5 hover:bg-white/10 py-4 rounded-xl font-black text-sm transition">◀ Previous</button>
-                    <button onclick="nextQuestion()" id="nextBtn" class="flex-1 bg-orange-600 hover:bg-orange-500 py-4 rounded-xl font-black text-sm transition">Next ▶</button>
-                </div>
-                <button onclick="submitExam()" id="submitExamBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black uppercase text-sm transition-all mt-4">
-                    ✅ Submit Exam
-                </button>
-            </div>
-        </div>
-
-        <!-- RESULTS PANEL -->
-        <div id="resultsPanel" class="hidden glass-card p-8 space-y-6">
-            <h2 class="text-2xl font-black uppercase text-orange-500">📊 Exam Results</h2>
-            <div class="text-center p-6 bg-black/30 rounded-2xl">
-                <p id="finalScore" class="text-4xl font-black text-white">0/0</p>
-                <p id="percentageScore" class="text-sm text-gray-400 mt-2"></p>
-            </div>
-            <div id="reviewArea" class="space-y-4 max-h-96 overflow-y-auto"></div>
-            <button onclick="resetToSetup()" class="w-full bg-white/10 hover:bg-white/20 py-4 rounded-2xl font-black uppercase text-sm transition-all">
-                📝 Take Another Exam
-            </button>
         </div>
     </div>
 
-    <script>
-        const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <!-- RESULTS -->
+    <div id="results" class="hidden bg-gray-900/50 p-6 rounded-2xl">
+        <h2 class="text-2xl font-bold mb-4">Results</h2>
+        <p id="score" class="text-3xl font-bold text-orange-500 mb-6"></p>
+        <div id="review" class="space-y-3 max-h-96 overflow-y-auto mb-6"></div>
+        <button onclick="location.reload()" class="w-full bg-gray-800 py-3 rounded-xl">Take Another Exam</button>
+    </div>
+</div>
 
-        let currentQuestions = [];
-        let userAnswers = {};
-        let currentIndex = 0;
-        let examSubmitted = false;
-        let timerInterval = null;
-        let timeRemaining = 0;
-        let sessionId = null;
-        let currentSubjectId = null;
+<script>
+const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        function showToast(msg, isError = false) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toastMsg').textContent = msg;
-            toast.style.background = isError ? '#330000' : '#1a1a1a';
-            toast.style.borderColor = isError ? '#ff3333' : '#ff6600';
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+let questions = [];
+let answers = {};
+let currentQ = 0;
+let timer = null;
+let timeLeft = 0;
+let sessionId = null;
+
+function setStatus(msg, isError = false) {
+    const statusDiv = document.getElementById('status');
+    statusDiv.innerHTML = `<div class="${isError ? 'text-red-500' : 'text-green-500'}">${msg}</div>`;
+    console.log(msg);
+}
+
+async function loadSubjects() {
+    setStatus("Loading subjects...");
+    
+    const { data, error } = await supabase.from('subjects').select('*');
+    
+    if (error) {
+        setStatus("Error: " + error.message, true);
+        return;
+    }
+    
+    setStatus(`Found ${data.length} subject(s)`);
+    
+    if (data.length === 0) {
+        setStatus("No subjects found! Please add subjects to database.", true);
+        return;
+    }
+    
+    const select = document.getElementById('subject');
+    select.innerHTML = '<option value="">-- Select Subject --</option>';
+    data.forEach(s => {
+        select.innerHTML += `<option value="${s.id}">${s.subject_name}</option>`;
+    });
+}
+
+async function startExam() {
+    const subjectId = document.getElementById('subject').value;
+    const numQ = parseInt(document.getElementById('numQuestions').value);
+    const studentName = document.getElementById('studentName').value.trim();
+    const timeMins = parseInt(document.getElementById('timeLimit').value);
+    
+    if (!subjectId) { setStatus("Please select a subject", true); return; }
+    if (!studentName) { setStatus("Please enter your name", true); return; }
+    
+    setStatus(`Loading questions for subject ID ${subjectId}...`);
+    
+    // Fetch questions
+    const { data, error } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('subject_id', parseInt(subjectId));
+    
+    if (error) {
+        setStatus("Error loading questions: " + error.message, true);
+        return;
+    }
+    
+    setStatus(`Found ${data.length} question(s)`);
+    
+    if (!data || data.length === 0) {
+        setStatus("No questions found for this subject! Please add questions first.", true);
+        return;
+    }
+    
+    // Shuffle and take requested number
+    for (let i = data.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [data[i], data[j]] = [data[j], data[i]];
+    }
+    
+    questions = data.slice(0, Math.min(numQ, data.length));
+    answers = {};
+    currentQ = 0;
+    
+    setStatus(`Loaded ${questions.length} question(s) for exam`);
+    
+    // Create session
+    const { data: session, error: sessionError } = await supabase
+        .from('exam_sessions')
+        .insert({
+            session_code: 'EXAM-' + Date.now(),
+            student_name: studentName,
+            subject_id: parseInt(subjectId),
+            total_questions: questions.length,
+            status: 'in-progress'
+        })
+        .select()
+        .single();
+    
+    if (sessionError) {
+        setStatus("Warning: Could not save session - " + sessionError.message, true);
+    } else {
+        sessionId = session.id;
+    }
+    
+    // Setup timer
+    timeLeft = timeMins * 60;
+    startTimer();
+    
+    // Show exam
+    document.getElementById('setup').classList.add('hidden');
+    document.getElementById('exam').classList.remove('hidden');
+    
+    const subjectName = document.getElementById('subject').options[document.getElementById('subject').selectedIndex].text;
+    document.getElementById('subjectName').innerHTML = subjectName;
+    
+    renderQuestion();
+}
+
+function startTimer() {
+    if (timer) clearInterval(timer);
+    timer = setInterval(() => {
+        if (timeLeft > 0) {
+            timeLeft--;
+            const mins = Math.floor(timeLeft / 60);
+            const secs = timeLeft % 60;
+            document.getElementById('timer').innerHTML = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            if (timeLeft === 0) submitExam();
         }
+    }, 1000);
+}
 
-        async function loadSubjects() {
-            try {
-                console.log("Loading subjects...");
-                const { data, error } = await supabase.from('subjects').select('id, subject_name');
-                
-                if (error) {
-                    console.error("Subjects error:", error);
-                    showToast("Database error: " + error.message, true);
-                    document.getElementById('subjectSelect').innerHTML = '<option value="">-- Error loading subjects --</option>';
-                    return;
-                }
-                
-                console.log("Subjects loaded:", data);
-                
-                if (!data || data.length === 0) {
-                    document.getElementById('subjectSelect').innerHTML = '<option value="">-- No subjects found --</option>';
-                    showToast("No subjects found. Please add subjects to database.", true);
-                    return;
-                }
-                
-                const select = document.getElementById('subjectSelect');
-                select.innerHTML = '<option value="">-- Select Subject --</option>';
-                
-                data.forEach(sub => {
-                    select.innerHTML += `<option value="${sub.id}">${sub.subject_name}</option>`;
-                });
-                
-                // Add change event
-                select.onchange = async () => {
-                    if (select.value) {
-                        const subjectId = parseInt(select.value);
-                        const { count, error: countError } = await supabase
-                            .from('questions')
-                            .select('*', { count: 'exact', head: true })
-                            .eq('subject_id', subjectId);
-                        
-                        if (!countError) {
-                            const availableCount = count || 0;
-                            const hint = document.getElementById('maxHint');
-                            const qCount = document.getElementById('questionCount');
-                            
-                            if (availableCount === 0) {
-                                hint.innerHTML = `⚠️ No questions available for this subject. Please add questions first.`;
-                                hint.classList.add('text-red-500');
-                                qCount.disabled = true;
-                                document.getElementById('startBtn').disabled = true;
-                                document.getElementById('startBtn').classList.add('opacity-50');
-                            } else {
-                                hint.innerHTML = `📚 ${availableCount} questions available in this subject`;
-                                hint.classList.remove('text-red-500');
-                                qCount.disabled = false;
-                                qCount.max = availableCount;
-                                if (parseInt(qCount.value) > availableCount) {
-                                    qCount.value = Math.min(availableCount, 10);
-                                }
-                                document.getElementById('startBtn').disabled = false;
-                                document.getElementById('startBtn').classList.remove('opacity-50');
-                            }
-                        }
-                    }
-                };
-                
-                // Trigger initial check if a subject is preselected
-                if (select.value) {
-                    select.dispatchEvent(new Event('change'));
-                }
-                
-            } catch (err) {
-                console.error("Load subjects error:", err);
-                showToast("Failed to load subjects: " + err.message, true);
-            }
-        }
+function renderQuestion() {
+    const q = questions[currentQ];
+    document.getElementById('qNum').innerHTML = `Question ${currentQ + 1} of ${questions.length}`;
+    document.getElementById('qText').innerHTML = escapeHtml(q.question_text);
+    
+    const options = [
+        { letter: 'A', text: q.option_a },
+        { letter: 'B', text: q.option_b },
+        { letter: 'C', text: q.option_c },
+        { letter: 'D', text: q.option_d }
+    ];
+    
+    let html = '';
+    options.forEach(opt => {
+        const isSelected = answers[q.id] === opt.letter;
+        html += `
+            <div onclick="selectAnswer(${q.id}, '${opt.letter}')" 
+                class="p-4 rounded-xl border ${isSelected ? 'border-orange-500 bg-orange-500/20' : 'border-white/10 bg-white/5'} cursor-pointer hover:border-orange-500">
+                <span class="font-bold mr-3">${opt.letter}.</span> ${escapeHtml(opt.text)}
+            </div>
+        `;
+    });
+    document.getElementById('options').innerHTML = html;
+    
+    const nextBtn = document.getElementById('nextBtn');
+    if (currentQ === questions.length - 1) {
+        nextBtn.innerHTML = 'SUBMIT';
+        nextBtn.classList.add('bg-green-600');
+        nextBtn.classList.remove('bg-orange-600');
+    } else {
+        nextBtn.innerHTML = 'Next';
+        nextBtn.classList.remove('bg-green-600');
+        nextBtn.classList.add('bg-orange-600');
+    }
+}
 
-        async function startExam() {
-            const subjectId = document.getElementById('subjectSelect').value;
-            const numQ = parseInt(document.getElementById('questionCount').value);
-            const studentName = document.getElementById('studentName').value.trim();
-            const timeLimit = parseInt(document.getElementById('timeLimit').value);
-            
-            // Validation
-            if (!subjectId) { showToast("Please select a subject", true); return; }
-            if (!studentName) { showToast("Please enter your name", true); return; }
-            if (studentName.length < 2) { showToast("Please enter a valid name", true); return; }
-            if (isNaN(numQ) || numQ < 1) { showToast("Invalid number of questions", true); return; }
-            
-            currentSubjectId = parseInt(subjectId);
-            
-            // Show loading
-            document.getElementById('setupPanel').classList.add('hidden');
-            document.getElementById('loadingPanel').classList.remove('hidden');
-            
-            try {
-                console.log("Fetching questions for subject:", currentSubjectId);
-                
-                const { data: questions, error } = await supabase
-                    .from('questions')
-                    .select('id, question_text, option_a, option_b, option_c, option_d')
-                    .eq('subject_id', currentSubjectId);
-                
-                console.log("Questions fetched:", questions?.length || 0);
-                
-                if (error) {
-                    throw new Error("Database error: " + error.message);
-                }
-                
-                if (!questions || questions.length === 0) {
-                    throw new Error("No questions found for this subject. Please add questions first.");
-                }
-                
-                // Shuffle questions
-                for (let i = questions.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [questions[i], questions[j]] = [questions[j], questions[i]];
-                }
-                
-                currentQuestions = questions.slice(0, Math.min(numQ, questions.length));
-                userAnswers = {};
-                currentIndex = 0;
-                examSubmitted = false;
-                
-                console.log("Questions loaded:", currentQuestions.length);
-                
-                // Create exam session
-                const sessionCode = `EXAM-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-                
-                const { data: session, error: sessionError } = await supabase
-                    .from('exam_sessions')
-                    .insert({
-                        session_code: sessionCode,
-                        student_name: studentName,
-                        subject_id: currentSubjectId,
-                        total_questions: currentQuestions.length,
-                        status: 'in-progress'
-                    })
-                    .select()
-                    .single();
-                
-                if (sessionError) {
-                    console.error("Session error:", sessionError);
-                    throw new Error("Failed to create session: " + sessionError.message);
-                }
-                
-                sessionId = session.id;
-                timeRemaining = timeLimit * 60;
-                
-                // Update UI
-                document.getElementById('examSubject').innerHTML = document.getElementById('subjectSelect').options[document.getElementById('subjectSelect').selectedIndex]?.text || 'Exam';
-                document.getElementById('studentNameDisplay').innerHTML = `👤 ${studentName}`;
-                
-                // Hide loading, show exam
-                document.getElementById('loadingPanel').classList.add('hidden');
-                document.getElementById('examPanel').classList.remove('hidden');
-                
-                // Start timer and render
-                startTimer();
-                renderQuestion();
-                
-                showToast(`✅ Exam started! ${currentQuestions.length} questions loaded`);
-                
-            } catch (err) {
-                console.error("Start exam error:", err);
-                showToast(err.message, true);
-                document.getElementById('loadingPanel').classList.add('hidden');
-                document.getElementById('setupPanel').classList.remove('hidden');
-            }
-        }
+function selectAnswer(qId, answer) {
+    answers[qId] = answer;
+    renderQuestion();
+}
 
-        function startTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-            
-            updateTimerDisplay();
-            
-            timerInterval = setInterval(() => {
-                if (!examSubmitted && timeRemaining > 0) {
-                    timeRemaining--;
-                    updateTimerDisplay();
-                    
-                    if (timeRemaining === 0) {
-                        clearInterval(timerInterval);
-                        showToast("⏰ Time's up! Submitting your exam...");
-                        setTimeout(() => submitExam(), 1000);
-                    }
-                }
-            }, 1000);
-        }
+function nextQ() {
+    if (currentQ < questions.length - 1) {
+        currentQ++;
+        renderQuestion();
+    } else {
+        submitExam();
+    }
+}
 
-        function updateTimerDisplay() {
-            const mins = Math.floor(timeRemaining / 60);
-            const secs = timeRemaining % 60;
-            const timerDisplay = document.getElementById('timerDisplay');
-            timerDisplay.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            
-            if (timeRemaining < 60) {
-                timerDisplay.classList.add('text-red-500');
-                timerDisplay.classList.remove('text-orange-500');
-            } else {
-                timerDisplay.classList.remove('text-red-500');
-                timerDisplay.classList.add('text-orange-500');
-            }
-        }
+function prevQ() {
+    if (currentQ > 0) {
+        currentQ--;
+        renderQuestion();
+    }
+}
 
-        function renderQuestion() {
-            if (!currentQuestions.length || currentIndex >= currentQuestions.length) return;
-            
-            const q = currentQuestions[currentIndex];
-            document.getElementById('questionText').innerHTML = escapeHtml(q.question_text);
-            document.getElementById('questionCounter').innerHTML = `Question ${currentIndex + 1} of ${currentQuestions.length}`;
-            
-            const progressPercent = ((currentIndex + 1) / currentQuestions.length) * 100;
-            document.getElementById('progressBar').style.width = `${progressPercent}%`;
-            document.getElementById('progressText').innerHTML = `${Math.round(progressPercent)}% Complete`;
-            
-            const options = [
-                { letter: 'A', text: q.option_a },
-                { letter: 'B', text: q.option_b },
-                { letter: 'C', text: q.option_c },
-                { letter: 'D', text: q.option_d }
-            ];
-            
-            let html = '';
-            options.forEach(opt => {
-                const isSelected = userAnswers[q.id] === opt.letter;
-                html += `
-                    <div class="option-btn ${isSelected ? 'option-selected' : ''}" onclick="selectAnswer(${q.id}, '${opt.letter}')">
-                        <div class="flex items-center gap-4">
-                            <span class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center font-black text-sm">${opt.letter}</span>
-                            <span class="flex-1">${escapeHtml(opt.text || '')}</span>
-                        </div>
-                    </div>
-                `;
-            });
-            document.getElementById('optionsContainer').innerHTML = html;
-            
-            // Update next button
-            const nextBtn = document.getElementById('nextBtn');
-            if (currentIndex === currentQuestions.length - 1) {
-                nextBtn.innerHTML = '✅ SUBMIT EXAM';
-                nextBtn.classList.add('bg-emerald-600');
-                nextBtn.classList.remove('bg-orange-600');
-            } else {
-                nextBtn.innerHTML = 'Next Question ▶';
-                nextBtn.classList.remove('bg-emerald-600');
-                nextBtn.classList.add('bg-orange-600');
-            }
-        }
-
-        function selectAnswer(questionId, answer) {
-            if (examSubmitted) return;
-            userAnswers[questionId] = answer;
-            renderQuestion();
-        }
-
-        function nextQuestion() {
-            if (examSubmitted) return;
-            if (currentIndex < currentQuestions.length - 1) {
-                currentIndex++;
-                renderQuestion();
-            } else {
-                submitExam();
-            }
-        }
-
-        function prevQuestion() {
-            if (examSubmitted) return;
-            if (currentIndex > 0) {
-                currentIndex--;
-                renderQuestion();
-            }
-        }
-
-        async function submitExam() {
-            if (examSubmitted) return;
-            examSubmitted = true;
-            
-            if (timerInterval) clearInterval(timerInterval);
-            
-            const submitBtn = document.getElementById('submitExamBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = "⏳ MARKING YOUR EXAM...";
-            
-            try {
-                // Get correct answers
-                const questionIds = currentQuestions.map(q => q.id);
-                const { data: correctData, error: correctError } = await supabase
-                    .from('questions')
-                    .select('id, correct_answer')
-                    .in('id', questionIds);
-                
-                if (correctError) throw correctError;
-                
-                const correctMap = {};
-                correctData.forEach(c => { correctMap[c.id] = c.correct_answer; });
-                
-                // Calculate score
-                let correctCount = 0;
-                const responses = [];
-                
-                for (const q of currentQuestions) {
-                    const userAnswer = userAnswers[q.id];
-                    const isCorrect = userAnswer === correctMap[q.id];
-                    if (isCorrect) correctCount++;
-                    
-                    responses.push({
-                        session_id: sessionId,
-                        question_id: q.id,
-                        question_text: q.question_text,
-                        selected_answer: userAnswer || null,
-                        is_correct: isCorrect
-                    });
-                }
-                
-                // Save responses
-                const { error: respError } = await supabase
-                    .from('exam_responses')
-                    .insert(responses);
-                
-                if (respError) throw respError;
-                
-                // Update session
-                const percentage = (correctCount / currentQuestions.length) * 100;
-                await supabase
-                    .from('exam_sessions')
-                    .update({
-                        score: correctCount,
-                        percentage: percentage,
-                        status: 'completed',
-                        completed_at: new Date().toISOString()
-                    })
-                    .eq('id', sessionId);
-                
-                // Show results
-                document.getElementById('finalScore').innerHTML = `${correctCount}<span class="text-lg text-gray-400">/${currentQuestions.length}</span>`;
-                document.getElementById('percentageScore').innerHTML = `${percentage.toFixed(1)}% - ${percentage >= 70 ? '🎉 PASSED!' : '📚 Keep Practicing'}`;
-                
-                // Build review
-                let reviewHtml = '<h3 class="font-black text-sm uppercase mb-4">📝 Detailed Review</h3>';
-                for (let i = 0; i < currentQuestions.length; i++) {
-                    const q = currentQuestions[i];
-                    const userAnswer = userAnswers[q.id] || 'Not answered';
-                    const isCorrect = userAnswer === correctMap[q.id];
-                    reviewHtml += `
-                        <div class="p-4 rounded-xl ${isCorrect ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-red-500/10 border border-red-500/30'}">
-                            <p class="font-bold text-sm mb-2">${i + 1}. ${escapeHtml(q.question_text)}</p>
-                            <p class="text-xs">Your answer: <span class="${isCorrect ? 'text-emerald-400' : 'text-red-400'} font-bold">${userAnswer}</span></p>
-                            ${!isCorrect ? `<p class="text-xs text-gray-400 mt-1">Correct answer: <span class="text-emerald-400 font-bold">${correctMap[q.id]}</span></p>` : '<p class="text-xs text-emerald-400 mt-1">✓ Correct!</p>'}
-                        </div>
-                    `;
-                }
-                document.getElementById('reviewArea').innerHTML = reviewHtml;
-                
-                document.getElementById('examPanel').classList.add('hidden');
-                document.getElementById('resultsPanel').classList.remove('hidden');
-                
-                showToast(`✅ Exam submitted! Score: ${correctCount}/${currentQuestions.length}`);
-                
-            } catch (err) {
-                console.error("Submit error:", err);
-                showToast("Error submitting exam: " + err.message, true);
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = "✅ Submit Exam";
-                examSubmitted = false;
-            }
-        }
-
-        function resetToSetup() {
-            currentQuestions = [];
-            userAnswers = {};
-            examSubmitted = false;
-            if (timerInterval) clearInterval(timerInterval);
-            
-            document.getElementById('resultsPanel').classList.add('hidden');
-            document.getElementById('examPanel').classList.add('hidden');
-            document.getElementById('setupPanel').classList.remove('hidden');
-            
-            // Reset form
-            document.getElementById('subjectSelect').value = "";
-            document.getElementById('questionCount').value = "10";
-            document.getElementById('studentName').value = "";
-            document.getElementById('timeLimit').value = "30";
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            return text.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        }
+async function submitExam() {
+    if (timer) clearInterval(timer);
+    
+    setStatus("Submitting exam...");
+    
+    // Get correct answers
+    const { data: correctData } = await supabase
+        .from('questions')
+        .select('id, correct_answer')
+        .in('id', questions.map(q => q.id));
+    
+    const correctMap = {};
+    correctData.forEach(c => { correctMap[c.id] = c.correct_answer; });
+    
+    let correct = 0;
+    const responses = [];
+    
+    for (const q of questions) {
+        const userAnswer = answers[q.id];
+        const isCorrect = userAnswer === correctMap[q.id];
+        if (isCorrect) correct++;
         
-        // Initialize
-        loadSubjects();
-    </script>
+        responses.push({
+            session_id: sessionId,
+            question_id: q.id,
+            question_text: q.question_text,
+            selected_answer: userAnswer,
+            is_correct: isCorrect
+        });
+    }
+    
+    // Save responses
+    await supabase.from('exam_responses').insert(responses);
+    
+    // Update session
+    await supabase.from('exam_sessions').update({
+        score: correct,
+        percentage: (correct / questions.length) * 100,
+        status: 'completed',
+        completed_at: new Date().toISOString()
+    }).eq('id', sessionId);
+    
+    // Show results
+    document.getElementById('exam').classList.add('hidden');
+    document.getElementById('results').classList.remove('hidden');
+    
+    document.getElementById('score').innerHTML = `${correct}/${questions.length} (${Math.round((correct/questions.length)*100)}%)`;
+    
+    let reviewHtml = '';
+    for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        const userAnswer = answers[q.id] || 'Not answered';
+        const isCorrect = userAnswer === correctMap[q.id];
+        reviewHtml += `
+            <div class="p-3 rounded-xl ${isCorrect ? 'bg-green-500/20' : 'bg-red-500/20'}">
+                <p class="font-bold text-sm">${i+1}. ${escapeHtml(q.question_text)}</p>
+                <p class="text-sm">Your answer: ${userAnswer}</p>
+                ${!isCorrect ? `<p class="text-sm text-gray-400">Correct: ${correctMap[q.id]}</p>` : ''}
+            </div>
+        `;
+    }
+    document.getElementById('review').innerHTML = reviewHtml;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+loadSubjects();
+</script>
 </body>
 </html>
