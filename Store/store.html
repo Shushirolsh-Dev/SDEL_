@@ -286,6 +286,8 @@
         let currentCategory = 'All';
         let toastTimeout = null;
         let userReview = null;
+        let currentModalProduct = null;
+        let currentModalInCart = false;
 
         const urlParams = new URLSearchParams(window.location.search);
         storeOwnerId = urlParams.get('vendor_id');
@@ -663,11 +665,105 @@
             lucide.createIcons();
         }
 
+        async function updateModalButton() {
+            const inCart = userCart[currentModalProduct?.id] || false;
+            const stock = currentModalProduct?.stock || 0;
+            const modalContent = document.getElementById('modal-content');
+            
+            if (!modalContent) return;
+            
+            const buttonContainer = modalContent.querySelector('.modal-add-container');
+            if (buttonContainer) {
+                if (inCart) {
+                    buttonContainer.innerHTML = `
+                        <div class="flex gap-3">
+                            <div class="flex items-center bg-zinc-800 rounded-2xl flex-1">
+                                <button onclick="updateQtyFromModal(-1)" class="px-5 py-3"><i data-lucide="minus" size="16"></i></button>
+                                <span class="text-base font-black w-10 text-center">${inCart}</span>
+                                <button onclick="updateQtyFromModal(1)" class="px-5 py-3"><i data-lucide="plus" size="16"></i></button>
+                            </div>
+                            <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-3 rounded-2xl font-black text-[11px]">Checkout</button>
+                        </div>
+                    `;
+                } else if (stock > 0) {
+                    buttonContainer.innerHTML = `
+                        <button onclick="addToCartFromModal()" class="w-full bg-sdel text-black py-3.5 rounded-2xl font-black text-[11px] tracking-wider flex items-center justify-center gap-2">
+                            <i data-lucide="shopping-cart" size="16"></i> Add to Cart
+                        </button>
+                    `;
+                } else {
+                    buttonContainer.innerHTML = `
+                        <button disabled class="w-full bg-zinc-800 text-zinc-500 py-3.5 rounded-2xl font-black text-[11px] cursor-not-allowed">Out of Stock</button>
+                    `;
+                }
+                lucide.createIcons();
+            }
+        }
+
+        window.addToCartFromModal = async () => {
+            if (!currentUserId) {
+                window.location.href = 'login.html';
+                return;
+            }
+            if (!currentModalProduct) return;
+            
+            const product = currentModalProduct;
+            if (!product || (product.stock || 0) < 1) {
+                showToast("Out of stock!", 3000);
+                return;
+            }
+            
+            const existingQty = userCart[product.id] || 0;
+            const newQty = existingQty + 1;
+            
+            userCart[product.id] = newQty;
+            
+            const { data: existing } = await supabase
+                .from('cart')
+                .select('id')
+                .eq('user_id', currentUserId)
+                .eq('product_id', product.id)
+                .single();
+            
+            if (existing) {
+                await supabase
+                    .from('cart')
+                    .update({ quantity: newQty })
+                    .eq('user_id', currentUserId)
+                    .eq('product_id', product.id);
+            } else {
+                await supabase
+                    .from('cart')
+                    .insert([{ user_id: currentUserId, product_id: product.id, quantity: 1 }]);
+            }
+            
+            showToast("Added to cart! 🛒", 3000);
+            await updateModalButton();
+            renderProducts();
+        };
+
+        window.updateQtyFromModal = async (change) => {
+            if (!currentUserId) return;
+            if (!currentModalProduct) return;
+            
+            const product = currentModalProduct;
+            let newQty = (userCart[product.id] || 0) + change;
+            if (newQty < 1) return;
+            
+            userCart[product.id] = newQty;
+            await supabase.from('cart').update({ quantity: newQty }).eq('user_id', currentUserId).eq('product_id', product.id);
+            
+            await updateModalButton();
+            renderProducts();
+        };
+
         function openProductModal(product) {
             const modal = document.getElementById('product-modal');
             const modalContent = document.getElementById('modal-content');
-            const inCart = userCart[product.id];
+            const inCart = userCart[product.id] || false;
             const stock = product.stock || 0;
+            
+            currentModalProduct = product;
             
             modalContent.innerHTML = `
                 <div class="card-glass rounded-3xl overflow-hidden">
@@ -700,18 +796,18 @@
                             ${storeInfo?.hasBadge ? '<span class="text-[8px] text-sdel">✓ Verified</span>' : ''}
                         </div>
                         
-                        <div class="mt-5">
+                        <div class="mt-5 modal-add-container">
                             ${inCart ? `
                                 <div class="flex gap-3">
                                     <div class="flex items-center bg-zinc-800 rounded-2xl flex-1">
-                                        <button onclick="updateQty('${product.id}', -1)" class="px-5 py-3"><i data-lucide="minus" size="16"></i></button>
+                                        <button onclick="updateQtyFromModal(-1)" class="px-5 py-3"><i data-lucide="minus" size="16"></i></button>
                                         <span class="text-base font-black w-10 text-center">${inCart}</span>
-                                        <button onclick="updateQty('${product.id}', 1)" class="px-5 py-3"><i data-lucide="plus" size="16"></i></button>
+                                        <button onclick="updateQtyFromModal(1)" class="px-5 py-3"><i data-lucide="plus" size="16"></i></button>
                                     </div>
                                     <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-3 rounded-2xl font-black text-[11px]">Checkout</button>
                                 </div>
                             ` : stock > 0 ? `
-                                <button onclick="addToCart('${product.id}')" class="w-full bg-sdel text-black py-3.5 rounded-2xl font-black text-[11px] tracking-wider flex items-center justify-center gap-2">
+                                <button onclick="addToCartFromModal()" class="w-full bg-sdel text-black py-3.5 rounded-2xl font-black text-[11px] tracking-wider flex items-center justify-center gap-2">
                                     <i data-lucide="shopping-cart" size="16"></i> Add to Cart
                                 </button>
                             ` : `
@@ -737,7 +833,6 @@
                 return;
             }
             
-            // Add 1 quantity at a time
             const existingQty = userCart[productId] || 0;
             const newQty = existingQty + 1;
             
@@ -763,8 +858,12 @@
             }
             
             showToast("Added to cart! 🛒", 3000);
-            closeModal();
             renderProducts();
+            
+            // If modal is open for this product, update it
+            if (currentModalProduct && currentModalProduct.id === productId) {
+                await updateModalButton();
+            }
         }
 
         window.updateQty = async (id, change) => {
@@ -772,12 +871,17 @@
             if (newQty < 1) return;
             userCart[id] = newQty;
             await supabase.from('cart').update({ quantity: newQty }).eq('user_id', currentUserId).eq('product_id', id);
-            closeModal();
+            
+            // If modal is open for this product, update it
+            if (currentModalProduct && currentModalProduct.id === id) {
+                await updateModalButton();
+            }
             renderProducts();
         };
 
         window.closeModal = () => {
             document.getElementById('product-modal').style.display = 'none';
+            currentModalProduct = null;
         };
 
         window.closeReviewModal = () => {
