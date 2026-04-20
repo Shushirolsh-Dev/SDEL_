@@ -2,668 +2,921 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>CBT Practice Hub | Computer-Based Test Simulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sdel | Feed</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: system-ui, 'Segoe UI', 'Inter', 'Roboto', sans-serif;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
-
+        
         body {
-            background: linear-gradient(145deg, #e0eafc 0%, #cfdef3 100%);
-            min-height: 100vh;
-            padding: 1.5rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background-color: #000;
+            color: #fff;
+            padding-bottom: 70px;
         }
-
-        /* main card container */
-        .cbt-container {
-            max-width: 950px;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(0px);
-            border-radius: 2rem;
-            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.35), 0 4px 12px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            transition: all 0.2s ease;
+        
+        /* Light mode */
+        body.light-mode {
+            background-color: #fff;
+            color: #000;
         }
-
-        /* header section */
-        .cbt-header {
-            background: #0f2b3d;
-            color: white;
-            padding: 1.5rem 2rem;
-            text-align: center;
+        
+        body.light-mode nav,
+        body.light-mode .bottom-nav {
+            background: rgba(255,255,255,0.98);
+            border-color: #e5e5e5;
         }
-
-        .cbt-header h1 {
-            font-size: 1.9rem;
-            font-weight: 700;
-            letter-spacing: -0.3px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
+        
+        body.light-mode .post-card {
+            background: #fff;
+            border-bottom-color: #efefef;
         }
-
-        .cbt-header h1 span {
-            background: #ffb347;
-            font-size: 1.3rem;
-            padding: 4px 12px;
-            border-radius: 40px;
-            color: #1e2f3a;
+        
+        body.light-mode .post-card .text-zinc-200 {
+            color: #1a1a1a;
         }
-
-        .sub {
-            margin-top: 8px;
-            opacity: 0.85;
-            font-weight: 500;
+        
+        body.light-mode .action-btn:active {
+            background: rgba(0,0,0,0.05);
         }
-
-        /* control bar */
-        .quiz-controls {
-            background: #f8fafc;
-            padding: 1rem 2rem;
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 15px;
-            border-bottom: 1px solid #cbd5e1;
+        
+        body.light-mode .tab-btn {
+            color: #000;
         }
-
-        .question-pool-badge {
-            background: #e2e8f0;
-            padding: 5px 12px;
-            border-radius: 40px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: #0f3b4f;
+        
+        body.light-mode .tab-active {
+            color: #FF6600;
         }
-
-        .fetch-area {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
+        
+        body.light-mode .mention-link {
+            color: #FF6600;
         }
-
-        .fetch-area label {
-            font-weight: 600;
-            color: #1e293b;
-        }
-
-        #numQuestions {
-            width: 80px;
-            padding: 8px 10px;
-            border-radius: 28px;
-            border: 1px solid #cbd5e1;
-            font-weight: 600;
-            text-align: center;
-            background: white;
-            font-size: 1rem;
-        }
-
-        button {
-            background: #2c5f8a;
-            border: none;
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-weight: 600;
-            color: white;
+        
+        /* Post Card */
+        .post-card {
+            background: #0a0a0a;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            transition: background 0.15s;
+            padding: 16px;
             cursor: pointer;
-            transition: 0.2s;
-            font-size: 0.9rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-
-        button:hover {
-            background: #1e405e;
-            transform: scale(0.97);
+        
+        .post-card:hover {
+            background: rgba(255,255,255,0.03);
         }
-
-        .reset-btn {
-            background: #475569;
-        }
-
-        .reset-btn:hover {
-            background: #1e293b;
-        }
-
-        /* question area */
-        .quiz-main {
-            padding: 2rem 2rem 1.5rem;
-        }
-
-        .progress {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            margin-bottom: 1.8rem;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .q-counter {
-            background: #eef2ff;
-            padding: 6px 16px;
+        
+        /* Like Button */
+        .like-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
             border-radius: 40px;
-            font-weight: 700;
-            color: #0c4e6e;
+            transition: all 0.15s ease;
+            background: transparent;
+            cursor: pointer;
+            min-width: 52px;
         }
-
-        .score-badge {
-            background: #d9f0ec;
-            padding: 6px 16px;
-            border-radius: 40px;
-            font-weight: 700;
-            color: #1f6e5c;
+        
+        .like-btn i {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.12s cubic-bezier(0.34, 1.2, 0.64, 1);
+            flex-shrink: 0;
         }
-
-        .question-text {
-            font-size: 1.55rem;
+        
+        .like-btn:active i {
+            transform: scale(1.2);
+        }
+        
+        .like-btn.liked i {
+            color: #FF6600;
+            fill: #FF6600;
+        }
+        
+        .like-btn span {
+            font-size: 13px;
             font-weight: 600;
-            line-height: 1.4;
-            margin-bottom: 2rem;
-            color: #0a1927;
-            background: #fefce8;
-            padding: 1rem 1.5rem;
-            border-radius: 1.5rem;
-            border-left: 7px solid #ffb347;
+            min-width: 28px;
+            color: #71717a;
         }
-
-        .options-list {
+        
+        .like-btn.liked span {
+            color: #FF6600;
+        }
+        
+        /* Action buttons */
+        .action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 40px;
+            transition: background 0.15s;
+            cursor: pointer;
+            background: transparent;
+        }
+        
+        .action-btn:active {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .action-btn i {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+            color: #71717a;
+        }
+        
+        .action-btn span {
+            font-size: 13px;
+            font-weight: 500;
+            color: #71717a;
+        }
+        
+        /* Tabs */
+        .tabs-container {
+            display: flex;
+            justify-content: center;
+            gap: 0;
+        }
+        
+        .tab-btn {
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+            opacity: 0.6;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            padding: 12px 24px;
+        }
+        
+        .tab-active {
+            color: #FF6600;
+            border-bottom: 2px solid #FF6600;
+            opacity: 1;
+        }
+        
+        /* Feed Container */
+        .feed-container {
+            height: calc(100vh - 120px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .feed-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .feed-container::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .feed-container::-webkit-scrollbar-thumb {
+            background: #FF6600;
+            border-radius: 10px;
+        }
+        
+        /* Post Image */
+        .post-image {
+            border-radius: 16px;
+            max-height: 300px;
+            width: 100%;
+            object-fit: cover;
+            margin-top: 12px;
+            cursor: pointer;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .modal-content {
+            background: #111;
+            border-radius: 24px;
+            width: 100%;
+            max-width: 500px;
+            padding: 24px;
+            border: 1px solid #222;
+        }
+        
+        body.light-mode .modal-content {
+            background: #fff;
+            border-color: #e5e5e5;
+        }
+        
+        body.light-mode .modal-content textarea {
+            background: #f5f5f5 !important;
+            color: #000 !important;
+            border-color: #e5e5e5 !important;
+        }
+        
+        /* Action Sheet */
+        .action-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(17,17,17,0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px 24px 0 0;
+            transform: translateY(100%);
+            transition: transform 0.25s ease;
+            z-index: 3000;
+            padding: 20px;
+            border-top: 1px solid #222;
+        }
+        
+        .action-sheet.open {
+            transform: translateY(0);
+        }
+        
+        body.light-mode .action-sheet {
+            background: #fff;
+            border-top-color: #e5e5e5;
+        }
+        
+        /* Bottom Nav - Same as Dashboard */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+            z-index: 100;
+        }
+        
+        .bottom-nav-inner {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        
+        .bottom-nav-item {
             display: flex;
             flex-direction: column;
-            gap: 14px;
-            margin-bottom: 2rem;
-        }
-
-        .option {
-            background: white;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 1rem;
-            padding: 14px 18px;
-            display: flex;
             align-items: center;
-            gap: 18px;
+            gap: 2px;
             cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            transition: opacity 0.15s;
+            padding: 4px 12px;
         }
-
-        .option:hover {
-            background: #f1f5f9;
-            border-color: #94a3b8;
-            transform: translateX(4px);
+        
+        .bottom-nav-item:active {
+            opacity: 0.6;
         }
-
-        .option.selected {
-            background: #e6f7ff;
-            border-color: #2c5f8a;
-            box-shadow: 0 5px 12px rgba(44,95,138,0.15);
+        
+        .mention-link {
+            color: #FF6600;
+            font-weight: 600;
+            text-decoration: none;
         }
-
-        .prefix {
-            font-weight: 800;
-            background: #eef2ff;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        
+        .loading-spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #FF6600;
+            border-top-color: transparent;
             border-radius: 50%;
-            color: #1e4a76;
+            animation: spin 0.8s linear infinite;
+            margin: 20px auto;
         }
-
-        .option-text {
-            font-size: 1.05rem;
-            font-weight: 500;
-            color: #1e2a3a;
-        }
-
-        .nav-buttons {
-            display: flex;
-            justify-content: space-between;
-            gap: 15px;
-            margin-top: 25px;
-        }
-
-        .nav-btn {
-            background: #cbd5e1;
-            color: #1e293b;
-            flex: 1;
-            text-align: center;
-        }
-
-        .nav-btn.primary {
-            background: #2c5f8a;
-            color: white;
-        }
-
-        .submit-area {
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .submit-test {
-            background: #e67e22;
-            padding: 12px 28px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            width: 80%;
-        }
-
-        .result-card {
-            margin-top: 25px;
-            background: #f0f9f4;
-            border-radius: 1.5rem;
-            padding: 1.2rem;
-            text-align: center;
-            border: 1px solid #b9e0cf;
-        }
-
-        .result-card h3 {
-            color: #2b6e4e;
-        }
-
-        .feedback {
-            font-size: 0.9rem;
-            margin-top: 12px;
-            color: #2c3e50;
-        }
-
-        footer {
-            background: #f1f5f9;
-            text-align: center;
-            padding: 1rem;
-            font-size: 0.75rem;
-            color: #475569;
-            border-top: 1px solid #d1dbe8;
-        }
-
-        @media (max-width: 620px) {
-            body { padding: 0.8rem; }
-            .question-text { font-size: 1.2rem; }
-            .option-text { font-size: 0.9rem; }
-            .quiz-controls { flex-direction: column; align-items: stretch; }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-<div class="cbt-container" id="cbtApp">
-    <div class="cbt-header">
-        <h1>📋 CBT Simulator <span>smart drill</span></h1>
-        <div class="sub">adaptive question pool • random fetch • track your score</div>
-    </div>
 
-    <div class="quiz-controls">
-        <div class="question-pool-badge" id="poolSizeDisplay">📚 Pool: 12 questions</div>
-        <div class="fetch-area">
-            <label>🔢 Fetch questions:</label>
-            <input type="number" id="numQuestions" min="1" max="20" value="5" step="1">
-            <button id="fetchBtn">🔄 FETCH & START</button>
-            <button id="resetBtn" class="reset-btn">⟳ Reset Session</button>
+<!-- Header -->
+<nav class="sticky top-0 bg-black/95 backdrop-blur-xl border-b border-white/10 z-50">
+    <div class="px-4 py-3 flex items-center justify-between">
+        <h1 class="text-xl font-black tracking-tight">
+            sdel<span class="text-[#FF6600]">.</span>
+        </h1>
+        <div class="flex items-center gap-4">
+            <i data-lucide="sun" size="20" onclick="toggleTheme()" style="cursor: pointer;"></i>
+            <i data-lucide="search" size="20" onclick="toggleSearch()" style="cursor: pointer;"></i>
+            <i data-lucide="bell" size="20" onclick="location.href='messages.html'" style="cursor: pointer;"></i>
         </div>
     </div>
+    
+    <!-- Search Bar -->
+    <div id="search-bar" class="px-4 pb-3 hidden">
+        <div class="bg-[#111] rounded-full px-4 py-2 flex items-center gap-3 border border-white/10">
+            <i data-lucide="search" size="18" class="text-zinc-500"></i>
+            <input type="text" id="search-input" placeholder="Search users or posts..." class="bg-transparent flex-1 outline-none text-sm" oninput="handleSearch(this.value)">
+            <i data-lucide="x" size="18" class="text-zinc-500 cursor-pointer" onclick="toggleSearch()"></i>
+        </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="tabs-container">
+        <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active">CAMPUS</button>
+        <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn">UNIVERSE</button>
+    </div>
+</nav>
 
-    <div class="quiz-main" id="quizMain">
-        <div class="progress">
-            <div class="q-counter" id="questionCounter">Question 0 / 0</div>
-            <div class="score-badge" id="liveScore">⭐ Score: 0 / 0</div>
-        </div>
-        <div id="questionArea">
-            <!-- dynamic question and options injected -->
-            <div class="question-text" id="questionText">Select number of questions and click FETCH</div>
-            <div class="options-list" id="optionsContainer"></div>
-            <div class="nav-buttons">
-                <button id="prevBtn" class="nav-btn">◀ PREV</button>
-                <button id="nextBtn" class="nav-btn primary">NEXT ▶</button>
-            </div>
-            <div class="submit-area">
-                <button id="submitQuizBtn" class="submit-test">✅ SUBMIT TEST & VIEW RESULT</button>
-            </div>
-            <div id="resultPanel" class="result-card" style="display: none;"></div>
-        </div>
-    </div>
-    <footer>
-        💡 CBT pool mode — each fetch picks random subset. Answer all, then submit to see detailed score & review.
-    </footer>
+<!-- Feed Container -->
+<div id="feed-container" class="feed-container">
+    <div id="feed-content"></div>
 </div>
 
-<script>
-    // ---------- MASTER QUESTION POOL (12 high-quality QA pairs) ----------
-    const MASTER_POOL = [
-        { id: 1, text: "What is the capital of France?", options: ["Berlin", "Madrid", "Paris", "Lisbon"], correct: "Paris" },
-        { id: 2, text: "Which planet is known as the Red Planet?", options: ["Mars", "Jupiter", "Venus", "Saturn"], correct: "Mars" },
-        { id: 3, text: "Who wrote 'Romeo and Juliet'?", options: ["Charles Dickens", "Jane Austen", "William Shakespeare", "Mark Twain"], correct: "William Shakespeare" },
-        { id: 4, text: "What is the square root of 64?", options: ["6", "7", "8", "9"], correct: "8" },
-        { id: 5, text: "Which HTML tag is used to define an unordered list?", options: ["<ol>", "<ul>", "<li>", "<list>"], correct: "<ul>" },
-        { id: 6, text: "What does CPU stand for?", options: ["Central Processing Unit", "Computer Personal Unit", "Central Program Utility", "Core Processing Unit"], correct: "Central Processing Unit" },
-        { id: 7, text: "Who painted the Mona Lisa?", options: ["Van Gogh", "Picasso", "Da Vinci", "Rembrandt"], correct: "Da Vinci" },
-        { id: 8, text: "Which ocean is the deepest?", options: ["Atlantic", "Indian", "Arctic", "Pacific"], correct: "Pacific" },
-        { id: 9, text: "What is the chemical symbol for Gold?", options: ["Go", "Gd", "Au", "Ag"], correct: "Au" },
-        { id: 10, text: "Which country gifted the Statue of Liberty to the USA?", options: ["England", "Spain", "France", "Germany"], correct: "France" },
-        { id: 11, text: "What is the largest mammal on Earth?", options: ["Elephant", "Blue Whale", "Giraffe", "Great White Shark"], correct: "Blue Whale" },
-        { id: 12, text: "Which programming language is known for web development & 'npm'?", options: ["Python", "Java", "JavaScript", "C++"], correct: "JavaScript" }
-    ];
+<!-- Bottom Navigation - Same as Dashboard (No Center Button) -->
+<div class="bottom-nav">
+    <div class="bottom-nav-inner">
+        <div class="bottom-nav-item" onclick="location.href='dashboard.html'">
+            <i data-lucide="home" size="22" class="text-zinc-500"></i>
+        </div>
+        <div class="bottom-nav-item" onclick="location.href='explore.html'">
+            <i data-lucide="compass" size="22" class="text-[#FF6600]"></i>
+        </div>
+        <div class="bottom-nav-item" onclick="openPostModal()">
+            <i data-lucide="plus" size="22" class="text-sdel"></i>
+        </div>
+        <div class="bottom-nav-item" onclick="location.href='market.html'">
+            <i data-lucide="shopping-cart" size="22" class="text-zinc-500"></i>
+        </div>
+        <div class="bottom-nav-item" onclick="location.href='profile.html'">
+            <i data-lucide="user" size="22" class="text-zinc-500"></i>
+        </div>
+    </div>
+</div>
 
-    // ---------- APP STATE ----------
-    let currentQuestions = [];       // array of question objects (subset from pool)
-    let userAnswers = [];            // array of strings (selected answer text) same length as currentQuestions
-    let currentIndex = 0;            // 0-based index
-    let quizSubmitted = false;        // flag to disable changes after final submit? we'll allow re-submit after reset or refetch
-    let totalPoolSize = MASTER_POOL.length;
-
-    // DOM elements
-    const numQuestionsInput = document.getElementById("numQuestions");
-    const fetchBtn = document.getElementById("fetchBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const prevBtn = document.getElementById("prevBtn");
-    const nextBtn = document.getElementById("nextBtn");
-    const submitQuizBtn = document.getElementById("submitQuizBtn");
-    const questionTextDiv = document.getElementById("questionText");
-    const optionsContainer = document.getElementById("optionsContainer");
-    const questionCounterSpan = document.getElementById("questionCounter");
-    const liveScoreSpan = document.getElementById("liveScore");
-    const resultPanel = document.getElementById("resultPanel");
-    const poolSizeDisplay = document.getElementById("poolSizeDisplay");
-
-    // helper: update pool display
-    function updatePoolDisplay() {
-        poolSizeDisplay.innerText = `📚 Pool: ${totalPoolSize} questions`;
-    }
-
-    // fetch random subset from master pool, based on desired count (max pool length)
-    function fetchRandomQuestions(count) {
-        let desired = Math.min(count, MASTER_POOL.length);
-        if (desired <= 0) desired = 1;
-        // shuffle copy of master pool (Fisher-Yates)
-        const shuffled = [...MASTER_POOL];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        return shuffled.slice(0, desired);
-    }
-
-    // reset session state: clear answers, reset index, hide result, set quizSubmitted false
-    function resetSessionState(questionsArray) {
-        currentQuestions = [...questionsArray];
-        const qlen = currentQuestions.length;
-        // init userAnswers with null / empty string for each question
-        userAnswers = new Array(qlen).fill("");
-        currentIndex = 0;
-        quizSubmitted = false;
-        resultPanel.style.display = "none";
-        resultPanel.innerHTML = "";
-        // remove any global submission styles
-        renderCurrentQuestion();
-        updateProgressAndScore();
-    }
-
-    // update score display (how many correctly answered among answered questions)
-    function computeCurrentScore() {
-        if (!currentQuestions.length) return { correct: 0, total: 0 };
-        let correctCount = 0;
-        for (let i = 0; i < currentQuestions.length; i++) {
-            const userAns = userAnswers[i];
-            if (userAns && userAns !== "") {
-                if (userAns === currentQuestions[i].correct) {
-                    correctCount++;
-                }
-            }
-        }
-        return { correct: correctCount, total: currentQuestions.length };
-    }
-
-    function updateProgressAndScore() {
-        if (!currentQuestions.length) {
-            questionCounterSpan.innerText = `Question 0 / 0`;
-            liveScoreSpan.innerText = `⭐ Score: 0 / 0`;
-            return;
-        }
-        const qlen = currentQuestions.length;
-        questionCounterSpan.innerText = `Question ${currentIndex+1} / ${qlen}`;
-        const scoreObj = computeCurrentScore();
-        liveScoreSpan.innerText = `⭐ Score: ${scoreObj.correct} / ${scoreObj.total}`;
-    }
-
-    // render current question + highlight selected option
-    function renderCurrentQuestion() {
-        if (!currentQuestions.length) {
-            questionTextDiv.innerText = "⚠️ No questions loaded. Click FETCH to begin.";
-            optionsContainer.innerHTML = "";
-            return;
-        }
-        const q = currentQuestions[currentIndex];
-        questionTextDiv.innerText = q.text;
-        // generate options
-        const letters = ["A", "B", "C", "D"];
-        const currentSelected = userAnswers[currentIndex] || "";
-        let optionsHtml = "";
-        q.options.forEach((opt, idx) => {
-            const isSelected = (currentSelected === opt);
-            const selectedClass = isSelected ? "selected" : "";
-            optionsHtml += `
-                <div class="option ${selectedClass}" data-opt-value="${escapeHtml(opt)}">
-                    <div class="prefix">${letters[idx]}</div>
-                    <div class="option-text">${escapeHtml(opt)}</div>
-                </div>
-            `;
-        });
-        optionsContainer.innerHTML = optionsHtml;
+<!-- Post Modal -->
+<div id="post-modal" class="modal-overlay" onclick="closePostModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-lg" id="post-modal-title">Create post</h3>
+            <i data-lucide="x" size="20" onclick="closePostModal()" style="cursor: pointer;"></i>
+        </div>
+        <textarea id="modal-post-input" placeholder="What's happening?" class="w-full bg-black border border-white/10 rounded-xl p-4 outline-none resize-none min-h-[120px] text-sm"></textarea>
         
-        // attach event listeners to each option div
-        const optionDivs = document.querySelectorAll(".option");
-        optionDivs.forEach(div => {
-            div.addEventListener("click", (e) => {
-                if (quizSubmitted) {
-                    // tiny feedback: cannot change after submission, but we also allow reset/fetch anyway
-                    showTemporaryMessage("Test already submitted! Press FETCH or RESET for new session.", 1500);
-                    return;
-                }
-                const selectedValue = div.getAttribute("data-opt-value");
-                // update answers array for current question
-                userAnswers[currentIndex] = selectedValue;
-                // re-render to update selection style
-                renderCurrentQuestion();   // re-render to reflect selected option
-                updateProgressAndScore();
-                // auto-save, no further action
-            });
-        });
-        updateProgressAndScore();
-    }
+        <!-- Image Upload -->
+        <div class="mt-3">
+            <input type="file" id="post-image-input" accept="image/*" class="hidden" onchange="previewImage()">
+            <button onclick="document.getElementById('post-image-input').click()" class="text-sdel text-sm font-medium flex items-center gap-2">
+                <i data-lucide="image" size="18"></i> Add image
+            </button>
+            <div id="image-preview-container" class="mt-2 hidden relative">
+                <img id="image-preview" class="rounded-xl max-h-48 w-full object-cover">
+                <button onclick="removeImage()" class="absolute top-2 right-2 bg-black/70 rounded-full p-1">
+                    <i data-lucide="x" size="14" class="text-white"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="flex gap-3 mt-4">
+            <button onclick="closePostModal()" class="flex-1 py-2.5 rounded-full border border-white/10 font-medium text-sm">Cancel</button>
+            <button id="modal-post-btn" onclick="submitPost()" class="flex-1 py-2.5 rounded-full bg-[#FF6600] text-black font-bold text-sm">Post</button>
+        </div>
+    </div>
+</div>
 
-    // small helper for escape html
-    function escapeHtml(str) {
-        if (!str) return "";
-        return str.replace(/[&<>]/g, function(m) {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
-            return c;
-        });
-    }
+<!-- Image Preview Modal -->
+<div id="image-modal" class="modal-overlay" onclick="closeImageModal()">
+    <div class="flex items-center justify-center w-full h-full" onclick="event.stopPropagation()">
+        <img id="fullscreen-image" class="max-w-full max-h-full rounded-2xl">
+        <button onclick="closeImageModal()" class="absolute top-5 right-5 bg-black/50 rounded-full p-2">
+            <i data-lucide="x" size="24" class="text-white"></i>
+        </button>
+    </div>
+</div>
 
-    // show temporary message inside result panel without breaking UI
-    let tempTimeout;
-    function showTemporaryMessage(msg, duration = 1800) {
-        if (tempTimeout) clearTimeout(tempTimeout);
-        const originalDisplay = resultPanel.style.display;
-        const originalHTML = resultPanel.innerHTML;
-        resultPanel.style.display = "block";
-        resultPanel.innerHTML = `<div class="feedback">💬 ${msg}</div>`;
-        tempTimeout = setTimeout(() => {
-            if (!quizSubmitted) {
-                resultPanel.style.display = "none";
-                resultPanel.innerHTML = "";
-            } else {
-                // if submitted, keep final result; don't overwrite unless new fetch/reset
-                if (!quizSubmitted) {
-                    resultPanel.style.display = "none";
-                    resultPanel.innerHTML = "";
-                }
-            }
-        }, duration);
-    }
+<!-- Action Sheet -->
+<div id="action-sheet" class="action-sheet" onclick="event.stopPropagation()">
+    <div class="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-5"></div>
+    <div id="action-options" class="space-y-2"></div>
+    <button onclick="closeActionSheet()" class="w-full mt-3 py-3 text-zinc-500 font-medium text-sm">Cancel</button>
+</div>
 
-    // handle navigation
-    function goPrev() {
-        if (quizSubmitted) {
-            showTemporaryMessage("Test already finished. Click FETCH or RESET to start new quiz.", 1500);
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+const supabase = createClient(
+    'https://lgfyrlfjoazedwymjpfc.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
+);
+
+let currentUser = null;
+let currentTab = 'campus';
+let campusPosts = [];
+let universePosts = [];
+let likedPosts = new Set();
+let repostedPosts = new Set();
+let isLoading = false;
+let hasMore = true;
+let page = 0;
+let searchQuery = '';
+let currentEditPostId = null;
+let selectedImageFile = null;
+
+const feedContent = document.getElementById('feed-content');
+
+function formatNumber(num) {
+    if (!num) return '0';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+function timeAgo(date) {
+    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d`;
+    return new Date(date).toLocaleDateString();
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatContent(text) {
+    if (!text) return '';
+    let formatted = escapeHtml(text);
+    formatted = formatted.replace(/@(\w+)/g, '<span class="mention-link">@$1</span>');
+    formatted = formatted.replace(/(https?:\/\/[^\s]+)/g, '<a href="#" onclick="event.stopPropagation(); window.open(\'$1\', \'_blank\')" class="mention-link">$1</a>');
+    return formatted;
+}
+
+async function getCurrentUser() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+        window.location.href = 'login.html';
+        return null;
+    }
+    const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
+    if (profile?.is_banned) {
+        window.location.href = 'banned.html';
+        return null;
+    }
+    return profile;
+}
+
+async function loadPosts(reset = false) {
+    if (isLoading) return;
+    
+    if (reset) {
+        page = 0;
+        if (currentTab === 'campus') campusPosts = [];
+        else universePosts = [];
+        hasMore = true;
+    }
+    
+    if (!hasMore) return;
+    
+    isLoading = true;
+    page++;
+    
+    try {
+        let query = supabase
+            .from('posts')
+            .select('*, profile:user_id(username, is_verified, is_official, school_name, avatar_url)')
+            .eq('post_type', 'post')
+            .order('created_at', { ascending: false })
+            .range((page - 1) * 15, page * 15 - 1);
+        
+        if (currentTab === 'campus' && currentUser?.school_name) {
+            query = query.eq('school_name', currentUser.school_name);
+        }
+        
+        if (searchQuery) {
+            query = query.ilike('content', `%${searchQuery}%`);
+        }
+        
+        const { data: newPosts, error } = await query;
+        
+        if (error) throw error;
+        
+        if (!newPosts || newPosts.length === 0) {
+            hasMore = false;
+            isLoading = false;
+            renderFeed();
             return;
         }
-        if (!currentQuestions.length) return;
-        if (currentIndex > 0) {
-            currentIndex--;
-            renderCurrentQuestion();
-        } else {
-            showTemporaryMessage("🔙 Already at first question", 800);
+        
+        if (currentUser) {
+            const { data: likes } = await supabase
+                .from('interactions')
+                .select('post_id')
+                .eq('user_id', currentUser.id)
+                .eq('interaction_type', 'like');
+            likedPosts = new Set(likes?.map(l => l.post_id) || []);
+            
+            const { data: reposts } = await supabase
+                .from('interactions')
+                .select('post_id')
+                .eq('user_id', currentUser.id)
+                .eq('interaction_type', 'repost');
+            repostedPosts = new Set(reposts?.map(r => r.post_id) || []);
         }
+        
+        if (currentTab === 'campus') campusPosts = [...campusPosts, ...newPosts];
+        else universePosts = [...universePosts, ...newPosts];
+        
+        renderFeed();
+        
+    } catch (error) {
+        console.error(error);
     }
+    
+    isLoading = false;
+}
 
-    function goNext() {
-        if (quizSubmitted) {
-            showTemporaryMessage("Test already submitted. Use FETCH for a new set.", 1500);
-            return;
-        }
-        if (!currentQuestions.length) return;
-        if (currentIndex < currentQuestions.length - 1) {
-            currentIndex++;
-            renderCurrentQuestion();
-        } else {
-            showTemporaryMessage("📌 This is the last question. Press SUBMIT to see your score!", 1200);
-        }
+function openImageModal(imageUrl) {
+    const modal = document.getElementById('image-modal');
+    const fullImg = document.getElementById('fullscreen-image');
+    fullImg.src = imageUrl;
+    modal.style.display = 'flex';
+}
+
+function closeImageModal() {
+    document.getElementById('image-modal').style.display = 'none';
+}
+
+function renderFeed() {
+    const posts = currentTab === 'campus' ? campusPosts : universePosts;
+    
+    if (posts.length === 0 && !isLoading) {
+        feedContent.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-80 px-6 text-center">
+                <i data-lucide="inbox" size="48" class="text-zinc-700 mb-3"></i>
+                <p class="text-zinc-500 text-sm">No posts yet</p>
+                <button onclick="openPostModal()" class="mt-4 px-5 py-2 bg-[#FF6600] text-black rounded-full font-bold text-sm">Create first post</button>
+            </div>
+        `;
+        lucide.createIcons();
+        return;
     }
-
-    // submit quiz: compute final detailed result and show analysis
-    function submitQuiz() {
-        if (!currentQuestions.length) {
-            showTemporaryMessage("No active questions! Please fetch questions first.", 1500);
-            return;
+    
+    feedContent.innerHTML = posts.map(post => {
+        const profile = post.profile;
+        const username = profile?.username || 'anon';
+        const isLiked = likedPosts.has(post.id);
+        const hasReposted = repostedPosts.has(post.id);
+        
+        let badge = '';
+        if (profile?.is_official) {
+            badge = '<span class="bg-[#FF6600] rounded-full w-4 h-4 inline-flex items-center justify-center ml-1"><i data-lucide="check" size="10" class="text-white"></i></span>';
+        } else if (profile?.is_verified) {
+            badge = '<span class="bg-[#1da1f2] rounded-full w-4 h-4 inline-flex items-center justify-center ml-1"><i data-lucide="check" size="10" class="text-white"></i></span>';
         }
-        if (quizSubmitted) {
-            showTemporaryMessage("Quiz already submitted! Reset or fetch new questions to retake.", 1500);
-            return;
-        }
-        // check if any unanswered questions, but we don't force mandatory; we just compute final
-        let totalAnswered = 0;
-        for (let i = 0; i < userAnswers.length; i++) {
-            if (userAnswers[i] && userAnswers[i] !== "") totalAnswered++;
-        }
-        const unansweredCount = currentQuestions.length - totalAnswered;
-        let finalCorrect = 0;
-        const details = [];
-        for (let i = 0; i < currentQuestions.length; i++) {
-            const q = currentQuestions[i];
-            const userChoice = userAnswers[i] || "(Not answered)";
-            const isCorrect = (userChoice === q.correct);
-            if (isCorrect) finalCorrect++;
-            details.push({
-                questionText: q.text,
-                userAnswer: userChoice,
-                correctAnswer: q.correct,
-                isCorrect: isCorrect
-            });
-        }
-        const percentage = Math.round((finalCorrect / currentQuestions.length) * 100);
-        // build result HTML
-        let resultHtml = `<h3>📊 Final Score: ${finalCorrect} / ${currentQuestions.length} (${percentage}%)</h3>`;
-        if (unansweredCount > 0) {
-            resultHtml += `<div class="feedback">⚠️ You left ${unansweredCount} question(s) unanswered.</div>`;
-        } else {
-            resultHtml += `<div class="feedback">✅ All questions answered! Great job.</div>`;
-        }
-        resultHtml += `<div style="margin-top: 12px; text-align: left; max-height: 220px; overflow-y: auto; border-top: 1px solid #cbd5e1; padding-top: 12px;">`;
-        details.forEach((det, idx) => {
-            const statusIcon = det.isCorrect ? "✅" : "❌";
-            const userShow = det.userAnswer === "(Not answered)" ? "<i>no answer</i>" : escapeHtml(det.userAnswer);
-            resultHtml += `
-                <div style="margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
-                    <strong>${idx+1}. ${escapeHtml(det.questionText)}</strong><br>
-                    <span style="color: #334155;">Your answer: ${userShow}</span><br>
-                    <span style="color: #2c5f8a;">✔ Correct: ${escapeHtml(det.correctAnswer)}</span> ${statusIcon}
+        
+        const schoolTag = (currentTab === 'universe' && post.school_name) ? 
+            `<span class="text-[10px] text-zinc-500 ml-2">🏛️ ${escapeHtml(post.school_name)}</span>` : '';
+        
+        const imageHtml = post.image_url ? 
+            `<img src="${post.image_url}" class="post-image" onclick="event.stopPropagation(); openImageModal('${post.image_url}')">` : '';
+        
+        return `
+            <div class="post-card" data-post-id="${post.id}" ondblclick="handleLike('${post.id}')">
+                <div class="flex gap-3">
+                    <div onclick="event.stopPropagation(); location.href='profile.html?u=${username}'" 
+                         class="w-11 h-11 rounded-full bg-gradient-to-br from-[#FF6600] to-[#FF9940] flex items-center justify-center text-white font-bold text-base cursor-pointer flex-shrink-0">
+                        ${username.charAt(0).toUpperCase()}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center flex-wrap gap-1 mb-1">
+                            <span onclick="event.stopPropagation(); location.href='profile.html?u=${username}'" 
+                                  class="font-bold text-sm cursor-pointer hover:underline">${escapeHtml(username)}</span>
+                            ${badge}
+                            <span class="text-xs text-zinc-500">${timeAgo(post.created_at)}</span>
+                            ${schoolTag}
+                        </div>
+                        <div class="text-sm text-zinc-200 leading-relaxed break-words">
+                            ${formatContent(post.content)}
+                        </div>
+                        ${imageHtml}
+                        <div class="action-buttons">
+                            <button onclick="event.stopPropagation(); handleLike('${post.id}')" 
+                                    class="action-btn like-btn ${isLiked ? 'liked' : ''}">
+                                <i data-lucide="heart" size="18" ${isLiked ? 'fill="#FF6600"' : ''}></i>
+                                <span>${formatNumber(post.likes_count)}</span>
+                            </button>
+                            <button onclick="event.stopPropagation(); location.href='gist.html?id=${post.id}'" 
+                                    class="action-btn">
+                                <i data-lucide="message-circle" size="18"></i>
+                                <span>${formatNumber(post.comments_count)}</span>
+                            </button>
+                            <button onclick="event.stopPropagation(); handleRepost('${post.id}', '${username}')" 
+                                    class="action-btn ${hasReposted ? 'opacity-50' : ''}">
+                                <i data-lucide="repeat" size="18"></i>
+                                <span>${formatNumber(post.reposts_count)}</span>
+                            </button>
+                            <button onclick="event.stopPropagation(); handleShare('${post.id}', '${username}')" 
+                                    class="action-btn">
+                                <i data-lucide="share-2" size="18"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            `;
+            </div>
+        `;
+    }).join('');
+    
+    lucide.createIcons();
+    
+    // Infinite scroll
+    if (hasMore && !isLoading) {
+        const sentinel = document.createElement('div');
+        sentinel.className = 'loading-spinner';
+        feedContent.appendChild(sentinel);
+        
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && hasMore && !isLoading) {
+                observer.disconnect();
+                loadPosts();
+            }
         });
-        resultHtml += `</div><button id="closeResultBtn" style="margin-top: 15px; background:#2c5f8a;">Close & Keep</button>`;
-        resultPanel.innerHTML = resultHtml;
-        resultPanel.style.display = "block";
-        quizSubmitted = true;
+        observer.observe(sentinel);
+    }
+}
 
-        // attach close button event after render
-        const closeBtn = document.getElementById("closeResultBtn");
-        if (closeBtn) {
-            closeBtn.addEventListener("click", () => {
-                resultPanel.style.display = "none";
-            });
+async function handleLike(postId) {
+    const isLiked = likedPosts.has(postId);
+    
+    if (isLiked) {
+        likedPosts.delete(postId);
+        let post = campusPosts.find(p => p.id === postId);
+        if (post) post.likes_count = Math.max(0, (post.likes_count || 0) - 1);
+        post = universePosts.find(p => p.id === postId);
+        if (post) post.likes_count = Math.max(0, (post.likes_count || 0) - 1);
+    } else {
+        likedPosts.add(postId);
+        let post = campusPosts.find(p => p.id === postId);
+        if (post) post.likes_count = (post.likes_count || 0) + 1;
+        post = universePosts.find(p => p.id === postId);
+        if (post) post.likes_count = (post.likes_count || 0) + 1;
+    }
+    
+    renderFeed();
+    
+    if (isLiked) {
+        await supabase.from('interactions').delete().eq('user_id', currentUser.id).eq('post_id', postId).eq('interaction_type', 'like');
+        await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
+    } else {
+        await supabase.from('interactions').upsert({ user_id: currentUser.id, post_id: postId, interaction_type: 'like' });
+        await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
+    }
+}
+
+async function handleRepost(postId, username) {
+    if (username === currentUser?.username) return;
+    if (repostedPosts.has(postId)) return;
+    
+    const originalPost = campusPosts.find(p => p.id === postId) || universePosts.find(p => p.id === postId);
+    if (!originalPost) return;
+    
+    const { error } = await supabase.from('posts').insert({
+        user_id: currentUser.id,
+        content: `Reposted from @${username}: ${originalPost.content.substring(0, 100)}`,
+        school_name: currentUser.school_name || 'Global',
+        post_type: 'repost'
+    });
+    
+    if (!error) {
+        await supabase.from('interactions').insert({ user_id: currentUser.id, post_id: postId, interaction_type: 'repost' });
+        await supabase.rpc('increment_stat', { post_id: postId, field: 'reposts_count' });
+        repostedPosts.add(postId);
+        
+        let post = campusPosts.find(p => p.id === postId);
+        if (post) post.reposts_count = (post.reposts_count || 0) + 1;
+        post = universePosts.find(p => p.id === postId);
+        if (post) post.reposts_count = (post.reposts_count || 0) + 1;
+        
+        renderFeed();
+    }
+}
+
+async function handleShare(postId, username) {
+    const url = `${window.location.origin}/gist.html?id=${postId}`;
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: 'Sdel', text: `@${username}`, url });
+        } catch(e) { copyToClipboard(url); }
+    } else {
+        copyToClipboard(url);
+    }
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text);
+    showToast('Link copied!');
+}
+
+function showToast(msg) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(100px);background:#FF6600;color:black;padding:10px 20px;border-radius:30px;font-weight:700;font-size:12px;z-index:9999;transition:transform .3s';
+        document.body.appendChild(toast);
+    }
+    toast.innerText = msg;
+    setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(0)', 10);
+    setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(100px)', 2000);
+}
+
+function openPostModal(editPost = null) {
+    const modal = document.getElementById('post-modal');
+    const input = document.getElementById('modal-post-input');
+    const title = document.getElementById('post-modal-title');
+    const btn = document.getElementById('modal-post-btn');
+    
+    if (editPost) {
+        currentEditPostId = editPost.id;
+        title.innerText = 'Edit post';
+        input.value = editPost.content;
+        btn.innerText = 'Update';
+    } else {
+        currentEditPostId = null;
+        title.innerText = 'Create post';
+        input.value = '';
+        btn.innerText = 'Post';
+    }
+    
+    modal.style.display = 'flex';
+    input.focus();
+}
+
+function closePostModal() {
+    document.getElementById('post-modal').style.display = 'none';
+    currentEditPostId = null;
+    removeImage();
+}
+
+function previewImage() {
+    const file = document.getElementById('post-image-input').files[0];
+    if (file) {
+        selectedImageFile = file;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.getElementById('image-preview');
+            const container = document.getElementById('image-preview-container');
+            preview.src = e.target.result;
+            container.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeImage() {
+    selectedImageFile = null;
+    document.getElementById('post-image-input').value = '';
+    document.getElementById('image-preview-container').classList.add('hidden');
+}
+
+async function submitPost() {
+    const content = document.getElementById('modal-post-input').value.trim();
+    if (!content && !selectedImageFile) return;
+    
+    let imageUrl = null;
+    
+    if (selectedImageFile) {
+        const fileName = `${currentUser.id}/${Date.now()}.jpg`;
+        const { data, error } = await supabase.storage
+            .from('post-images')
+            .upload(fileName, selectedImageFile);
+        
+        if (!error) {
+            imageUrl = supabase.storage.from('post-images').getPublicUrl(fileName).data.publicUrl;
         }
-        updateProgressAndScore();
     }
-
-    // main fetch routine: get number from input, fetch random subset, reset state, render
-    function handleFetch() {
-        let requested = parseInt(numQuestionsInput.value, 10);
-        if (isNaN(requested) || requested < 1) requested = 1;
-        const maxFetch = MASTER_POOL.length;
-        if (requested > maxFetch) {
-            showTemporaryMessage(`⚠️ Pool has only ${maxFetch} questions. Using max available.`, 1500);
-            requested = maxFetch;
-            numQuestionsInput.value = maxFetch;
+    
+    if (currentEditPostId) {
+        const { error } = await supabase.from('posts').update({ content, image_url: imageUrl }).eq('id', currentEditPostId);
+        if (!error) {
+            closePostModal();
+            loadPosts(true);
         }
-        const freshQuestions = fetchRandomQuestions(requested);
-        resetSessionState(freshQuestions);
-        // after reset, also scroll to top gently
-        document.querySelector(".quiz-main")?.scrollIntoView({ behavior: "smooth", block: "start" });
-        showTemporaryMessage(`✨ Loaded ${freshQuestions.length} random questions from pool!`, 1500);
+        return;
     }
-
-    function handleReset() {
-        if (currentQuestions.length === 0) {
-            // if empty, fetch default 5 questions
-            handleFetch();
-            return;
-        }
-        // reset current session without refetching (preserve same question set but clear answers)
-        const sameQuestions = [...currentQuestions];
-        userAnswers = new Array(sameQuestions.length).fill("");
-        currentIndex = 0;
-        quizSubmitted = false;
-        resultPanel.style.display = "none";
-        resultPanel.innerHTML = "";
-        renderCurrentQuestion();
-        showTemporaryMessage("🔄 Session reset. All answers cleared. You can reattempt same set.", 1200);
+    
+    const { error } = await supabase.from('posts').insert({
+        user_id: currentUser.id,
+        content: content,
+        image_url: imageUrl,
+        school_name: currentUser.school_name || 'Global',
+        post_type: 'post'
+    });
+    
+    if (!error) {
+        closePostModal();
+        loadPosts(true);
     }
+}
 
-    // init event listeners
-    function bindEvents() {
-        fetchBtn.addEventListener("click", handleFetch);
-        resetBtn.addEventListener("click", handleReset);
-        prevBtn.addEventListener("click", goPrev);
-        nextBtn.addEventListener("click", goNext);
-        submitQuizBtn.addEventListener("click", submitQuiz);
+function switchTab(tab) {
+    if (tab === currentTab) return;
+    currentTab = tab;
+    page = 0;
+    hasMore = true;
+    
+    const campusTab = document.getElementById('tab-campus');
+    const universeTab = document.getElementById('tab-universe');
+    
+    if (tab === 'campus') {
+        campusTab.classList.add('tab-active');
+        universeTab.classList.remove('tab-active');
+    } else {
+        universeTab.classList.add('tab-active');
+        campusTab.classList.remove('tab-active');
     }
+    
+    renderFeed();
+    loadPosts(true);
+}
 
-    // initial load: default fetch 5 questions on page load
-    function init() {
-        updatePoolDisplay();
-        bindEvents();
-        // default fetch 5 random questions from pool as initial state
-        const defaultQuestions = fetchRandomQuestions(5);
-        resetSessionState(defaultQuestions);
-        renderCurrentQuestion();
+function toggleSearch() {
+    const bar = document.getElementById('search-bar');
+    bar.classList.toggle('hidden');
+    if (!bar.classList.contains('hidden')) {
+        document.getElementById('search-input').focus();
+    } else {
+        searchQuery = '';
+        loadPosts(true);
     }
+}
 
-    init();
+function handleSearch(val) {
+    searchQuery = val;
+    loadPosts(true);
+}
+
+function toggleTheme() {
+    document.body.classList.toggle('light-mode');
+    localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+}
+
+async function init() {
+    currentUser = await getCurrentUser();
+    if (!currentUser) return;
+    
+    if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
+    
+    await loadPosts();
+    
+    supabase.channel('posts').on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
+        loadPosts(true);
+    }).subscribe();
+}
+
+// Make functions global
+window.openPostModal = openPostModal;
+window.closePostModal = closePostModal;
+window.submitPost = submitPost;
+window.switchTab = switchTab;
+window.toggleSearch = toggleSearch;
+window.handleSearch = handleSearch;
+window.toggleTheme = toggleTheme;
+window.handleLike = handleLike;
+window.handleRepost = handleRepost;
+window.handleShare = handleShare;
+window.openImageModal = openImageModal;
+window.closeImageModal = closeImageModal;
+
+init();
 </script>
 </body>
 </html>
