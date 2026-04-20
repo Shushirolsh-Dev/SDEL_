@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <script>
-        // ANTI-FLICKER: Apply theme immediately from global setting
         (function() {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'sunlight') {
@@ -11,13 +10,13 @@
         })();
     </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sdel | Your Cart</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; font-style: normal; }
         body { background-color: #000; color: white; overflow-x: hidden; transition: background-color 0.3s; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
@@ -41,19 +40,99 @@
         .sunlight-mode .star { background-color: rgba(0,0,0,0.1); }
         .sunlight-mode .custom-checkbox { border-color: #d4d4d8; }
         .sunlight-mode #checkout-btn { background-color: #121212; color: #ffffff; }
+        
+        /* Skeleton Loader */
+        .skeleton-cart-item {
+            background: rgba(18, 18, 18, 0.7);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .skeleton-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        .skeleton-text {
+            flex: 1;
+        }
+        .skeleton-line {
+            height: 12px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            animation: shimmer 1.5s infinite;
+        }
+        .skeleton-line.short { width: 60px; }
+        .skeleton-line.medium { width: 100px; }
+        .skeleton-line.long { width: 150px; }
+        .sunlight-mode .skeleton-cart-item,
+        .sunlight-mode .skeleton-image,
+        .sunlight-mode .skeleton-line {
+            background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+            background-size: 200% 100%;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: #FF6600;
+            color: black;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 12px;
+            z-index: 9999;
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+        .toast-notification.show { transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body class="pb-40">
+    <div id="toast" class="toast-notification"></div>
     <div class="stars" id="stars"></div>
 
     <nav class="p-6 flex items-center justify-between border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
-        <a href="market.html" class="text-white"><i data-lucide="chevron-left"></i></a>
-        <h1 class="text-lg font-black uppercase tracking-tighter italic">Shopping <span class="text-sdel">Bag</span></h1>
+        <a href="market.html" class="text-white"><i data-lucide="chevron-left" size="20"></i></a>
+        <h1 class="text-lg font-black uppercase tracking-tighter">Shopping <span class="text-sdel">Bag</span></h1>
         <button onclick="clearCart()" class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Clear</button>
     </nav>
 
     <main class="p-6 space-y-4" id="cart-list">
-        <div class="col-span-full text-center py-20"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-700 animate-pulse">Loading Bag...</p></div>
+        <!-- Skeletons will show here -->
+        <div class="skeleton-cart-item">
+            <div class="skeleton-image"></div>
+            <div class="skeleton-text">
+                <div class="skeleton-line short"></div>
+                <div class="skeleton-line medium mt-2"></div>
+                <div class="skeleton-line long mt-2"></div>
+            </div>
+            <div class="skeleton-line short"></div>
+        </div>
+        <div class="skeleton-cart-item">
+            <div class="skeleton-image"></div>
+            <div class="skeleton-text">
+                <div class="skeleton-line short"></div>
+                <div class="skeleton-line medium mt-2"></div>
+                <div class="skeleton-line long mt-2"></div>
+            </div>
+            <div class="skeleton-line short"></div>
+        </div>
     </main>
 
     <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-2xl border-t border-white/10 p-6 z-50">
@@ -61,7 +140,7 @@
             <div class="flex justify-between items-end">
                 <div>
                     <p class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Selected Total</p>
-                    <h2 class="text-3xl font-black italic tracking-tighter" id="total-price">₦0</h2>
+                    <h2 class="text-3xl font-black tracking-tighter" id="total-price">₦0</h2>
                 </div>
                 <p class="text-[10px] font-bold text-zinc-400" id="item-count">0 Items selected</p>
             </div>
@@ -78,6 +157,19 @@
         let currentUserId = "GUEST_USER";
         let cartItems = [];
         let selectedItems = new Set();
+        let toastTimeout = null;
+
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toast.innerText = message;
+            toast.classList.add('show');
+            toast.style.visibility = 'visible';
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.style.visibility = 'hidden', 300);
+            }, duration);
+        }
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -130,7 +222,7 @@
                     
                     <div class="flex-1 min-w-0">
                         <p class="text-[8px] text-sdel font-black uppercase tracking-widest mb-1">${item.products.category}</p>
-                        <h3 class="font-black text-xs uppercase italic tracking-tighter truncate">${item.products.name}</h3>
+                        <h3 class="font-black text-xs uppercase tracking-tighter truncate">${item.products.name}</h3>
                         <p class="font-black text-sm mt-1">₦${item.products.price.toLocaleString()}</p>
                     </div>
 
@@ -166,7 +258,8 @@
 
             document.getElementById('total-price').innerText = `₦${total.toLocaleString()}`;
             document.getElementById('item-count').innerText = `${count} Item${count !== 1 ? 's' : ''} selected`;
-            document.getElementById('checkout-btn').disabled = count === 0;
+            const checkoutBtn = document.getElementById('checkout-btn');
+            if (checkoutBtn) checkoutBtn.disabled = count === 0;
         };
 
         window.removeItem = async (id) => {
@@ -177,20 +270,27 @@
                 if (cartItems.length === 0) showEmptyState();
                 else renderCart();
                 updateTotal();
+                showToast("Item removed from cart", 2000);
             }
         };
 
         window.clearCart = async () => {
-            if (confirm("Clear your entire bag?")) {
-                await supabase.from('cart').delete().eq('user_id', currentUserId);
+            if (!confirm("Clear your entire bag?")) return;
+            const { error } = await supabase.from('cart').delete().eq('user_id', currentUserId);
+            if (!error) {
                 cartItems = [];
                 selectedItems.clear();
                 showEmptyState();
+                showToast("Cart cleared", 2000);
             }
         };
 
         window.proceedToCheckout = () => {
             const toBuy = cartItems.filter(item => selectedItems.has(item.id));
+            if (toBuy.length === 0) {
+                showToast("Select items to checkout", 2000);
+                return;
+            }
             localStorage.setItem('checkout_items', JSON.stringify(toBuy));
             window.location.href = 'checkout.html';
         };
