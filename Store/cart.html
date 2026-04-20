@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') {
+                document.documentElement.classList.add('sunlight-mode');
+            }
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Your Cart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; font-style: normal; }
+        body { background-color: #000; color: white; overflow-x: hidden; transition: background-color 0.3s; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; }
+        
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(110vh); } }
+
+        .custom-checkbox { width: 20px; height: 20px; border: 2px solid rgba(255,255,255,0.2); border-radius: 6px; appearance: none; cursor: pointer; transition: all 0.2s; position: relative; }
+        .custom-checkbox:checked { background-color: #FF6600; border-color: #FF6600; }
+        .custom-checkbox:checked::after { content: '✓'; position: absolute; color: black; font-size: 12px; font-weight: 900; left: 3px; top: -1px; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* Sunlight Mode Overrides */
+        .sunlight-mode body { background-color: #ffffff; color: #121212; }
+        .sunlight-mode nav, .sunlight-mode .fixed.bottom-0 { background-color: rgba(255, 255, 255, 0.9); border-color: #e4e4e7; }
+        .sunlight-mode .text-white { color: #121212; }
+        .sunlight-mode .card-zinc { background: #f4f4f5; border-color: #e4e4e7; }
+        .sunlight-mode .star { background-color: rgba(0,0,0,0.1); }
+        .sunlight-mode .custom-checkbox { border-color: #d4d4d8; }
+        .sunlight-mode #checkout-btn { background-color: #121212; color: #ffffff; }
+        
+        /* Skeleton Loader */
+        .skeleton-cart-item {
+            background: rgba(18, 18, 18, 0.7);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 24px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .skeleton-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        .skeleton-text {
+            flex: 1;
+        }
+        .skeleton-line {
+            height: 12px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            animation: shimmer 1.5s infinite;
+        }
+        .skeleton-line.short { width: 60px; }
+        .skeleton-line.medium { width: 100px; }
+        .skeleton-line.long { width: 150px; }
+        .sunlight-mode .skeleton-cart-item,
+        .sunlight-mode .skeleton-image,
+        .sunlight-mode .skeleton-line {
+            background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+            background-size: 200% 100%;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: #FF6600;
+            color: black;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 12px;
+            z-index: 9999;
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            white-space: nowrap;
+        }
+        .toast-notification.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body class="pb-40">
+    <div id="toast" class="toast-notification"></div>
+    <div class="stars" id="stars"></div>
+
+    <nav class="p-6 flex items-center justify-between border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
+        <a href="market.html" class="text-white"><i data-lucide="chevron-left" size="20"></i></a>
+        <h1 class="text-lg font-black uppercase tracking-tighter">Shopping <span class="text-sdel">Bag</span></h1>
+        <button onclick="clearCart()" class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Clear</button>
+    </nav>
+
+    <main class="p-6 space-y-4" id="cart-list">
+        <!-- Skeletons will show here -->
+        <div class="skeleton-cart-item">
+            <div class="skeleton-image"></div>
+            <div class="skeleton-text">
+                <div class="skeleton-line short"></div>
+                <div class="skeleton-line medium mt-2"></div>
+                <div class="skeleton-line long mt-2"></div>
+            </div>
+            <div class="skeleton-line short"></div>
+        </div>
+        <div class="skeleton-cart-item">
+            <div class="skeleton-image"></div>
+            <div class="skeleton-text">
+                <div class="skeleton-line short"></div>
+                <div class="skeleton-line medium mt-2"></div>
+                <div class="skeleton-line long mt-2"></div>
+            </div>
+            <div class="skeleton-line short"></div>
+        </div>
+    </main>
+
+    <div class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-2xl border-t border-white/10 p-6 z-50">
+        <div class="max-w-xl mx-auto space-y-4">
+            <div class="flex justify-between items-end">
+                <div>
+                    <p class="text-[10px] font-black uppercase text-zinc-500 tracking-widest">Selected Total</p>
+                    <h2 class="text-3xl font-black tracking-tighter" id="total-price">₦0</h2>
+                </div>
+                <p class="text-[10px] font-bold text-zinc-400" id="item-count">0 Items selected</p>
+            </div>
+            <button onclick="proceedToCheckout()" id="checkout-btn" class="w-full bg-white text-black py-5 rounded-2xl font-black uppercase text-xs tracking-[0.2em] active:scale-95 transition disabled:opacity-30 disabled:pointer-events-none">
+                Proceed to Checkout
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let currentUserId = "GUEST_USER";
+        let cartItems = [];
+        let selectedItems = new Set();
+        let toastTimeout = null;
+
+        function showToast(message, duration = 3000) {
+            const toast = document.getElementById('toast');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toast.innerText = message;
+            toast.classList.add('show');
+            toast.style.visibility = 'visible';
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.style.visibility = 'hidden', 300);
+            }, duration);
+        }
+
+        async function init() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) currentUserId = session.user.id;
+
+            await loadCart();
+            createStars();
+            lucide.createIcons();
+        }
+
+        async function loadCart() {
+            const { data, error } = await supabase
+                .from('cart')
+                .select(`*, products (*)`)
+                .eq('user_id', currentUserId);
+
+            if (error || !data || data.length === 0) {
+                showEmptyState();
+                return;
+            }
+
+            cartItems = data;
+            cartItems.forEach(item => selectedItems.add(item.id));
+            renderCart();
+            updateTotal();
+        }
+
+        function showEmptyState() {
+            document.getElementById('cart-list').innerHTML = `
+                <div class="text-center py-32 space-y-6">
+                    <div class="flex justify-center opacity-20"><i data-lucide="shopping-bag" size="64"></i></div>
+                    <p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">Your bag is empty</p>
+                    <a href="market.html" class="inline-block bg-white text-black px-8 py-4 rounded-xl font-black uppercase text-[10px] tracking-widest">Start Shopping</a>
+                </div>
+            `;
+            updateTotal();
+            lucide.createIcons();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-list');
+            container.innerHTML = cartItems.map(item => `
+                <div class="card-zinc p-4 rounded-3xl flex items-center gap-4">
+                    <input type="checkbox" 
+                           ${selectedItems.has(item.id) ? 'checked' : ''} 
+                           onchange="toggleSelect('${item.id}')"
+                           class="custom-checkbox">
+                    
+                    <img src="${item.products.image_url}" class="w-20 h-20 object-cover rounded-2xl bg-zinc-900 border border-white/5">
+                    
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[8px] text-sdel font-black uppercase tracking-widest mb-1">${item.products.category}</p>
+                        <h3 class="font-black text-xs uppercase tracking-tighter truncate">${item.products.name}</h3>
+                        <p class="font-black text-sm mt-1">₦${item.products.price.toLocaleString()}</p>
+                    </div>
+
+                    <div class="flex flex-col items-end gap-3">
+                        <button onclick="removeItem('${item.id}')" class="text-zinc-600 hover:text-red-500 transition">
+                            <i data-lucide="trash-2" size="16"></i>
+                        </button>
+                        <div class="bg-black/40 px-2 py-1 rounded-lg border border-white/5 font-black text-[10px]">
+                            x${item.quantity}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        window.toggleSelect = (id) => {
+            if (selectedItems.has(id)) selectedItems.delete(id);
+            else selectedItems.add(id);
+            updateTotal();
+        };
+
+        window.updateTotal = () => {
+            let total = 0;
+            let count = 0;
+
+            cartItems.forEach(item => {
+                if (selectedItems.has(item.id)) {
+                    total += item.products.price * item.quantity;
+                    count++;
+                }
+            });
+
+            document.getElementById('total-price').innerText = `₦${total.toLocaleString()}`;
+            document.getElementById('item-count').innerText = `${count} Item${count !== 1 ? 's' : ''} selected`;
+            const checkoutBtn = document.getElementById('checkout-btn');
+            if (checkoutBtn) checkoutBtn.disabled = count === 0;
+        };
+
+        window.removeItem = async (id) => {
+            const { error } = await supabase.from('cart').delete().eq('id', id);
+            if (!error) {
+                cartItems = cartItems.filter(item => item.id !== id);
+                selectedItems.delete(id);
+                if (cartItems.length === 0) showEmptyState();
+                else renderCart();
+                updateTotal();
+                showToast("Item removed from cart", 2000);
+            }
+        };
+
+        window.clearCart = async () => {
+            if (!confirm("Clear your entire bag?")) return;
+            const { error } = await supabase.from('cart').delete().eq('user_id', currentUserId);
+            if (!error) {
+                cartItems = [];
+                selectedItems.clear();
+                showEmptyState();
+                showToast("Cart cleared", 2000);
+            }
+        };
+
+        window.proceedToCheckout = () => {
+            const toBuy = cartItems.filter(item => selectedItems.has(item.id));
+            if (toBuy.length === 0) {
+                showToast("Select items to checkout", 2000);
+                return;
+            }
+            localStorage.setItem('checkout_items', JSON.stringify(toBuy));
+            window.location.href = 'checkout.html';
+        };
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 60; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
+                star.style.left = (Math.random() * 100) + 'vw';
+                star.style.top = (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 20) + 's';
+                container.appendChild(star);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
