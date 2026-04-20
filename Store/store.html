@@ -167,6 +167,16 @@
         <div class="modal-content" id="followers-modal-content"></div>
     </div>
 
+    <!-- Navigation with history back button -->
+    <div class="p-4 sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-white/10">
+        <div class="flex items-center gap-3">
+            <button onclick="history.back()" class="text-white p-2">
+                <i data-lucide="chevron-left" size="20"></i>
+            </button>
+            <h1 class="text-base font-black uppercase tracking-tighter">Store <span class="text-sdel">Profile</span></h1>
+        </div>
+    </div>
+
     <div class="relative">
         <div class="h-48 w-full bg-gradient-to-r from-sdel via-orange-600 to-sdel relative overflow-hidden">
             <div class="absolute inset-0 bg-black/30"></div>
@@ -658,7 +668,6 @@
             const modalContent = document.getElementById('modal-content');
             const inCart = userCart[product.id];
             const stock = product.stock || 0;
-            let selectedQty = 1;
             
             modalContent.innerHTML = `
                 <div class="card-glass rounded-3xl overflow-hidden">
@@ -691,15 +700,6 @@
                             ${storeInfo?.hasBadge ? '<span class="text-[8px] text-sdel">✓ Verified</span>' : ''}
                         </div>
                         
-                        <div class="flex items-center justify-between mt-4">
-                            <span class="text-[9px] font-black uppercase text-zinc-500">Quantity</span>
-                            <div class="flex items-center gap-3">
-                                <button onclick="changeModalQty(-1)" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black">-</button>
-                                <span id="modal-qty" class="text-base font-black w-8 text-center">1</span>
-                                <button onclick="changeModalQty(1)" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black">+</button>
-                            </div>
-                        </div>
-                        
                         <div class="mt-5">
                             ${inCart ? `
                                 <div class="flex gap-3">
@@ -711,8 +711,8 @@
                                     <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-3 rounded-2xl font-black text-[11px]">Checkout</button>
                                 </div>
                             ` : stock > 0 ? `
-                                <button onclick="addToCartWithQty('${product.id}')" class="w-full bg-sdel text-black py-3.5 rounded-2xl font-black text-[11px] tracking-wider flex items-center justify-center gap-2">
-                                    <i data-lucide="shopping-cart" size="16"></i> Add to Cart (Qty: <span id="modal-final-qty">1</span>)
+                                <button onclick="addToCart('${product.id}')" class="w-full bg-sdel text-black py-3.5 rounded-2xl font-black text-[11px] tracking-wider flex items-center justify-center gap-2">
+                                    <i data-lucide="shopping-cart" size="16"></i> Add to Cart
                                 </button>
                             ` : `
                                 <button disabled class="w-full bg-zinc-800 text-zinc-500 py-3.5 rounded-2xl font-black text-[11px] cursor-not-allowed">Out of Stock</button>
@@ -724,38 +724,22 @@
             
             modal.style.display = 'flex';
             lucide.createIcons();
-            
-            window.changeModalQty = (change) => {
-                let newQty = selectedQty + change;
-                if (newQty < 1) newQty = 1;
-                if (newQty > stock) {
-                    showToast(`Only ${stock} available`, 2000);
-                    return;
-                }
-                selectedQty = newQty;
-                document.getElementById('modal-qty').innerText = selectedQty;
-                const finalQtySpan = document.getElementById('modal-final-qty');
-                if (finalQtySpan) finalQtySpan.innerText = selectedQty;
-            };
-            
-            window.addToCartWithQty = async (id) => {
-                await addToCartWithQuantity(id, selectedQty);
-            };
         }
 
-        async function addToCartWithQuantity(productId, quantity) {
+        async function addToCart(productId) {
             if (!currentUserId) {
                 window.location.href = 'login.html';
                 return;
             }
             const product = storeProducts.find(p => p.id === productId);
-            if (!product || (product.stock || 0) < quantity) {
-                showToast("Insufficient stock!", 3000);
+            if (!product || (product.stock || 0) < 1) {
+                showToast("Out of stock!", 3000);
                 return;
             }
             
+            // Add 1 quantity at a time
             const existingQty = userCart[productId] || 0;
-            const newQty = existingQty + quantity;
+            const newQty = existingQty + 1;
             
             userCart[productId] = newQty;
             
@@ -775,16 +759,12 @@
             } else {
                 await supabase
                     .from('cart')
-                    .insert([{ user_id: currentUserId, product_id: productId, quantity: newQty }]);
+                    .insert([{ user_id: currentUserId, product_id: productId, quantity: 1 }]);
             }
             
-            showToast(`Added ${quantity} to cart! 🛒`, 3000);
+            showToast("Added to cart! 🛒", 3000);
             closeModal();
             renderProducts();
-        }
-
-        async function addToCart(productId) {
-            await addToCartWithQuantity(productId, 1);
         }
 
         window.updateQty = async (id, change) => {
