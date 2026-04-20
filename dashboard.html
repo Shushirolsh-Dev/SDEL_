@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <script>
-        // ANTI-FLICKER: Apply theme immediately from global setting
         (function() {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'sunlight') {
@@ -12,11 +11,196 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sdel | Global Feed</title>
+    <title>Sdel | Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <style>
+        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #000; color: #fff; transition: background-color 0.3s; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-glass { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+        .header-text { font-weight: 900; letter-spacing: -0.02em; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        /* Story Rings */
+        .ring-blue-rotate { border-color: transparent !important; background: linear-gradient(#000, #000) padding-box, conic-gradient(#3b82f6, transparent) border-box; border: 2px solid transparent; animation: spin 2s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes gold-glow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
+        .sdel-pulse { animation: gold-glow 2s infinite; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        ::-webkit-scrollbar-thumb { background: #FF6600; border-radius: 10px; }
+        
+        /* Sunlight Mode */
+        .sunlight-mode body { background-color: #f5f5f5; color: #121212; }
+        .sunlight-mode .card-glass { background: rgba(255,255,255,0.9); border-color: #e4e4e7; }
+        .sunlight-mode .bg-black\/90 { background-color: rgba(255,255,255,0.9); }
+        .sunlight-mode .border-white\/10 { border-color: #e4e4e7; }
+        .sunlight-mode .text-white { color: #121212; }
+        .sunlight-mode .bg-white\/5 { background-color: #e4e4e7; }
+        .sunlight-mode .text-zinc-500 { color: #71717a; }
+        
+        /* Stats Card */
+        .stat-card {
+            background: rgba(255,255,255,0.03);
+            border-radius: 20px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .sunlight-mode .stat-card { background: white; border-color: #e4e4e7; }
+        
+        /* Ad Banner */
+        #ad-banner {
+            transition: opacity 0.5s ease;
+        }
+        
+        /* Order Items */
+        .order-item {
+            transition: all 0.2s;
+        }
+        .order-item:active { transform: scale(0.98); }
+        
+        /* Modal */
+        .modal-overlay {
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+        }
+        .sunlight-mode .modal-overlay { background: rgba(255,255,255,0.95); }
+    </style>
+</head>
+<body class="pb-24">
+    
+    <!-- Navigation -->
+    <nav class="px-5 py-4 flex justify-between items-center sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/10">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-sdel/30 shadow-lg">
+                <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase text-zinc-500 tracking-wider">Welcome back,</p>
+                <h1 class="text-lg font-black tracking-tighter"><span id="user-name" class="text-sdel">...</span></h1>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="location.href='homies.html'" class="p-2 rounded-full bg-white/5">
+                <i data-lucide="users" size="20" class="text-sdel"></i>
+            </button>
+            <div class="relative cursor-pointer" onclick="location.href='messages.html'">
+                <button class="p-2 rounded-full bg-white/5">
+                    <i data-lucide="bell" size="20" class="text-sdel"></i>
+                </button>
+                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-[9px] font-black text-white w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">0</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Wallet & XP Row -->
+    <div class="px-5 pt-5">
+        <div class="grid grid-cols-2 gap-3">
+            <div class="card-glass rounded-2xl p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="wallet" size="16" class="text-sdel"></i>
+                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">Balance</span>
+                </div>
+                <p id="wallet-pill" class="text-2xl font-black tracking-tighter">₦0</p>
+            </div>
+            <div class="card-glass rounded-2xl p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="award" size="16" class="text-sdel"></i>
+                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">XP Points</span>
+                </div>
+                <p id="xp-count" class="text-2xl font-black tracking-tighter">0</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stories Section -->
+    <section class="px-5 mt-6">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="circle-play" size="16" class="text-sdel"></i>
+                <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Stories</h2>
+            </div>
+            <button onclick="location.href='post-story.html'" class="text-[8px] font-black uppercase text-sdel">Post Story</button>
+        </div>
+        <div class="flex space-x-4 overflow-x-auto no-scrollbar pb-2" id="story-rail-content">
+            <div class="flex-shrink-0 flex flex-col items-center gap-2">
+                <div class="w-16 h-16 rounded-full bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center">
+                    <i data-lucide="plus" size="24" class="text-sdel"></i>
+                </div>
+                <span class="text-[8px] font-black uppercase text-zinc-500">Your Story</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Rank Card -->
+    <section class="px-5 mt-6">
+        <div class="card-glass rounded-2xl p-4">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="trophy" size="16" class="text-sdel"></i>
+                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">Current Rank</span>
+                </div>
+                <span id="rank-badge" class="px-3 py-1 rounded-full text-[9px] font-black uppercase bg-sdel/20 text-sdel">CITIZEN</span>
+            </div>
+            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div id="xp-progress-bar" class="h-full bg-sdel rounded-full transition-all duration-700" style="width: 0%"></div>
+            </div>
+            <p class="text-[8px] text-zinc-500 mt-2 text-right">Next level: More XP</p>
+        </div>
+    </section>
+
+    <!-- Sponsored Ad -->
+    <section class="px-5 mt-6">
+        <a id="ad-link" href="#" target="_blank" class="block">
+            <div id="ad-banner" class="w-full h-[200px] rounded-2xl bg-cover bg-center relative overflow-hidden" style="display: none; background-image: url('');">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                <div class="absolute bottom-0 left-0 right-0 p-4">
+                    <span class="text-[7px] font-black uppercase bg-sdel text-black px-2 py-0.5 rounded mb-2 inline-block">Sponsored</span>
+                    <p id="ad-text" class="text-sm font-black text-white tracking-tighter">Loading...</p>
+                </div>
+            </div>
+        </a>
+    </section>
+
+    <!-- Order History -->
+    <section class="px-5 mt-6">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="package" size="16" class="text-sdel"></i>
+                <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Recent Orders</h2>
+            </div>
+            <button onclick="toggleAllOrders(true)" class="text-[8px] font-black uppercase text-sdel">View All</button>
+        </div>
+        <div class="space-y-2" id="order-history-list"></div>
+    </section>
+
+    <!-- Global Feed -->
+    <section class="px-5 mt-6">
+        <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="radio" size="16" class="text-sdel"></i>
+            <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Global Feed</h2>
+        </div>
+        <div id="global-feed" class="space-y-4 pb-4"></div>
+    </section>
+
+    <!-- All Orders Modal -->
+    <div id="all-orders-modal" class="fixed inset-0 z-[100] hidden modal-overlay p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6 sticky top-0 bg-black/90 backdrop-blur-md py-4 -mt-2">
+            <h2 class="text-lg font-black tracking-tighter">Order History</h2>
+            <button onclick="toggleAllOrders(false)" class="p-2 rounded-full bg-white/5">
+                <i data-lucide="x" size="20" class="text-sdel"></i>
+            </button>
+        </div>
+        <div id="full-order-list" class="space-y-3 pb-20"></div>
+    </div>
+
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
@@ -33,7 +217,6 @@
 
             const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
             
-            // FIX: Name priority (Profile Table > Metadata > CHAMP)
             const displayName = profile?.first_name || session.user.user_metadata?.first_name || "CHAMP";
             document.getElementById('user-name').innerText = displayName;
 
@@ -54,15 +237,12 @@
         async function loadStories() {
             const now = new Date().toISOString();
             
-            // 1. Get Homies (Followers)
             const { data: follows } = await supabase.from('followers').select('following_id').eq('follower_id', currentUserId);
             const homieIds = follows ? follows.map(f => f.following_id) : [];
 
-            // 2. Get Viewed History
             const { data: viewed } = await supabase.from('story_views').select('story_id').eq('user_id', currentUserId);
             const viewedSet = new Set(viewed?.map(v => v.story_id));
 
-            // 3. Fetch Stories (Official + Me + Homies)
             const { data: stories } = await supabase
                 .from('stories')
                 .select('*, profile:profile(first_name, is_official)')
@@ -70,15 +250,13 @@
                 .or(`is_official_post.eq.true,author_id.eq.${currentUserId},author_id.in.(${homieIds.join(',') || '00000000-0000-0000-0000-000000000000'})`);
 
             const rail = document.getElementById('story-rail-content');
-            if (stories) {
-                // Group by user
+            if (stories && stories.length > 0) {
                 const userLatestMap = new Map();
                 stories.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).forEach(s => {
                     if(!userLatestMap.has(s.author_id)) userLatestMap.set(s.author_id, s);
                 });
                 let uniqueStories = Array.from(userLatestMap.values());
 
-                // 4. SMART SORTING
                 uniqueStories.sort((a, b) => {
                     const aIsSdel = a.is_official_post || a.profile?.is_official;
                     const bIsSdel = b.is_official_post || b.profile?.is_official;
@@ -87,32 +265,37 @@
                     const aWatched = viewedSet.has(a.id);
                     const bWatched = viewedSet.has(b.id);
 
-                    if (aIsSdel && !bIsSdel) return -1; if (!aIsSdel && bIsSdel) return 1;
-                    if (aIsMe && !bIsMe) return -1; if (!aIsMe && bIsMe) return 1;
-                    if (!aWatched && bWatched) return -1; if (aWatched && !bWatched) return 1;
+                    if (aIsSdel && !bIsSdel) return -1;
+                    if (!aIsSdel && bIsSdel) return 1;
+                    if (aIsMe && !bIsMe) return -1;
+                    if (!aIsMe && bIsMe) return 1;
+                    if (!aWatched && bWatched) return -1;
+                    if (aWatched && !bWatched) return 1;
                     return new Date(b.created_at) - new Date(a.created_at);
                 });
 
-                rail.innerHTML = uniqueStories.map(s => {
+                const extraStories = uniqueStories.map(s => {
                     const isSdel = s.is_official_post || s.profile?.is_official;
                     const isMe = s.author_id === currentUserId;
                     const isWatched = viewedSet.has(s.id);
                     
                     let ringStyle = "";
-                    if (isSdel) ringStyle = isWatched ? "border-green-500" : "border-yellow-400 sdel-pulse";
+                    if (isSdel) ringStyle = isWatched ? "border-green-500" : "sdel-pulse";
                     else if (isMe) ringStyle = "border-zinc-600";
                     else ringStyle = isWatched ? "border-zinc-600" : "ring-blue-rotate";
 
                     return `
-                        <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="watchStory('${s.id}')">
-                            <div class="w-16 h-16 p-[2px] border-2 ${ringStyle} rounded-full flex items-center justify-center">
-                                <img src="${s.media_url}" class="w-full h-full rounded-full object-cover bg-zinc-900">
+                        <div class="flex-shrink-0 flex flex-col items-center gap-2" onclick="watchStory('${s.id}')">
+                            <div class="w-16 h-16 rounded-full border-2 ${ringStyle} overflow-hidden">
+                                <img src="${s.media_url}" class="w-full h-full object-cover bg-zinc-900">
                             </div>
-                            <span class="text-[9px] font-black uppercase ${isSdel ? 'text-yellow-400' : 'text-white story-label'} truncate w-16 text-center">
+                            <span class="text-[8px] font-black uppercase truncate w-16 text-center ${isSdel ? 'text-sdel' : 'text-zinc-400'}">
                                 ${isSdel ? 'SDEL' : (s.profile?.first_name || 'HOMIE')}
                             </span>
                         </div>`;
                 }).join('');
+                
+                rail.innerHTML += extraStories;
             }
         }
 
@@ -180,158 +363,96 @@
 
         function renderOrderList(data, targetId) {
             const container = document.getElementById(targetId);
+            if (!container) return;
+            if (data.length === 0) {
+                container.innerHTML = `<div class="card-glass rounded-xl p-6 text-center"><i data-lucide="package-x" size="24" class="mx-auto text-zinc-600 mb-2"></i><p class="text-[9px] font-black uppercase text-zinc-500">No orders yet</p></div>`;
+                lucide.createIcons();
+                return;
+            }
             container.innerHTML = data.map(o => {
                 const displayId = o.order_code || `ID: ${o.id.slice(0,8)}`;
                 const itemNames = o.items ? JSON.parse(JSON.stringify(o.items)).map(i => i.name).join(', ') : 'Market Item';
-                let statusColor = 'bg-zinc-500/20 text-zinc-400';
-                if(o.status === 'accepted') statusColor = 'bg-emerald-500/20 text-emerald-500';
-                if(o.status === 'rejected') statusColor = 'bg-red-500/20 text-red-500';
-                return `<div class="flex justify-between items-center p-3 order-item-bg rounded-xl border border-white/10"><div class="max-w-[70%]"><p class="text-[9px] font-black text-white/50 uppercase">${displayId}</p><p class="text-[11px] font-bold feed-text truncate">${itemNames}</p></div><span class="px-2 py-1 rounded text-[8px] font-black uppercase ${statusColor}">${o.status}</span></div>`;
+                let statusColor = 'bg-zinc-500/20 text-zinc-400 border-zinc-500/20';
+                let statusText = o.status?.toUpperCase() || 'PENDING';
+                if(o.status === 'accepted') { statusColor = 'bg-green-500/20 text-green-500 border-green-500/20'; statusText = 'ACCEPTED'; }
+                if(o.status === 'rejected') { statusColor = 'bg-red-500/20 text-red-500 border-red-500/20'; statusText = 'REJECTED'; }
+                if(o.status === 'pending') { statusColor = 'bg-sdel/20 text-sdel border-sdel/20'; statusText = 'PENDING'; }
+                return `
+                    <div class="order-item card-glass rounded-xl p-3 flex justify-between items-center">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[8px] font-black text-zinc-500 uppercase mb-1">${displayId}</p>
+                            <p class="text-[10px] font-bold truncate">${itemNames}</p>
+                        </div>
+                        <span class="px-2 py-1 rounded-full text-[7px] font-black uppercase border ${statusColor} ml-2 flex-shrink-0">${statusText}</span>
+                    </div>
+                `;
             }).join('');
+            lucide.createIcons();
         }
 
         window.toggleAllOrders = (show) => {
             const modal = document.getElementById('all-orders-modal');
-            if(show) { renderOrderList(allOrdersData, 'full-order-list'); modal.classList.remove('hidden'); }
-            else { modal.classList.add('hidden'); }
+            if(show) { 
+                renderOrderList(allOrdersData, 'full-order-list'); 
+                modal.classList.remove('hidden'); 
+            } else { 
+                modal.classList.add('hidden'); 
+            }
         }
 
         function updatePrestige(xp) {
             const badge = document.getElementById('rank-badge');
             const progress = document.getElementById('xp-progress-bar');
-            let rank = { n: "CITIZEN", c: "bg-zinc-700", p: (xp/500)*100 };
-            if (xp >= 10000) rank = { n: "OVERLORD", c: "bg-gradient-to-r from-red-600 to-black animate-pulse", p: 100 };
-            else if (xp >= 5000) rank = { n: "MYTHIC", c: "bg-purple-600", p: (xp/10000)*100 };
-            else if (xp >= 2500) rank = { n: "ELITE", c: "bg-blue-600", p: (xp/5000)*100 };
-            else if (xp >= 1000) rank = { n: "WRAITH", c: "bg-emerald-600", p: (xp/2500)*100 };
-            else if (xp >= 500) rank = { n: "SCOUT", c: "bg-orange-600", p: (xp/1000)*100 };
+            let rank = { n: "CITIZEN", p: (xp/500)*100 };
+            if (xp >= 10000) rank = { n: "OVERLORD", p: 100 };
+            else if (xp >= 5000) rank = { n: "MYTHIC", p: (xp/10000)*100 };
+            else if (xp >= 2500) rank = { n: "ELITE", p: (xp/5000)*100 };
+            else if (xp >= 1000) rank = { n: "WRAITH", p: (xp/2500)*100 };
+            else if (xp >= 500) rank = { n: "SCOUT", p: (xp/1000)*100 };
             badge.innerText = rank.n;
-            badge.className = `px-3 py-1 rounded text-[10px] font-black italic text-white ${rank.c}`;
-            progress.style.width = `${rank.p}%`;
+            progress.style.width = `${Math.min(rank.p, 100)}%`;
         }
 
         async function loadFeed() {
             const { data: posts } = await supabase.from('posts').select('*, profile(first_name, avatar_url, xp)').order('created_at', { ascending: false });
             const feed = document.getElementById('global-feed');
-            if (posts?.length > 0) {
+            if (posts && posts.length > 0) {
                 feed.innerHTML = posts.map(p => `
-                    <div class="card-glass rounded-[2.5rem] overflow-hidden mb-6">
-                        <div class="p-4 flex justify-between items-center border-b border-white/5">
-                            <div class="flex items-center space-x-3">
-                                <img src="${p.profile?.avatar_url || 'https://api.dicebear.com/7.x/initials/svg?seed='+p.profile?.first_name}" class="w-8 h-8 rounded-full border border-white/20">
-                                <div><p class="header-text text-[11px]">${p.profile?.first_name || 'Scholar'}</p></div>
+                    <div class="card-glass rounded-2xl overflow-hidden">
+                        ${p.media_url ? `<img src="${p.media_url}" class="w-full h-64 object-cover">` : ''}
+                        <div class="p-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <img src="${p.profile?.avatar_url || 'https://api.dicebear.com/7.x/initials/svg?seed='+p.profile?.first_name}" class="w-8 h-8 rounded-full border border-white/10">
+                                <div>
+                                    <p class="text-[10px] font-black">${p.profile?.first_name || 'Scholar'}</p>
+                                    <p class="text-[7px] text-zinc-500 uppercase">${formatDate(p.created_at)}</p>
+                                </div>
                             </div>
+                            <p class="text-[11px] font-medium leading-relaxed">${p.content}</p>
                         </div>
-                        ${p.media_url ? `<img src="${p.media_url}" class="w-full object-cover">` : ''}
-                        <div class="p-5"><p class="text-[13px] feed-text font-bold leading-snug">${p.content}</p></div>
-                    </div>`).join('');
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            } else {
+                feed.innerHTML = `<div class="card-glass rounded-2xl p-8 text-center"><i data-lucide="image" size="32" class="mx-auto text-zinc-600 mb-3"></i><p class="text-[9px] font-black uppercase text-zinc-500">No posts yet</p></div>`;
                 lucide.createIcons();
             }
         }
+        
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return `${days} days ago`;
+            return date.toLocaleDateString();
+        }
+
         init();
     </script>
-    
-    <style>
-        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #000; color: #fff; transition: background-color 0.3s; }
-        .text-sdel { color: #FF6600; }
-        .bg-sdel { background-color: #FF6600; }
-        .card-glass { background: #111; border: 1px solid rgba(255,255,255,0.15); }
-        .header-text { font-weight: 900; color: #FFFFFF; text-transform: uppercase; letter-spacing: -0.02em; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .feed-text { color: white; }
-        .order-item-bg { background: rgba(255,255,255,0.05); }
-
-        .ring-blue-rotate { border-color: transparent !important; background: linear-gradient(#000, #000) padding-box, conic-gradient(#3b82f6, transparent) border-box; border: 2px solid transparent; animation: spin 2s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes gold-glow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
-        .sdel-pulse { animation: gold-glow 2s infinite; }
-
-        /* Sunlight Mode Overrides */
-        .sunlight-mode body, .sunlight-mode #all-orders-modal { background-color: #ffffff; color: #121212; }
-        .sunlight-mode nav, .sunlight-mode .fixed.bottom-0 { background-color: rgba(255, 255, 255, 0.9); border-color: #e4e4e7; }
-        .sunlight-mode .header-text, .sunlight-mode .feed-text { color: #121212; }
-        .sunlight-mode .card-glass { background: #f4f4f5; border-color: #e4e4e7; }
-        .sunlight-mode .story-label { color: #121212; }
-        .sunlight-mode .order-item-bg { background: #e4e4e7; border-color: transparent; }
-        .sunlight-mode .text-white { color: #121212; }
-        .sunlight-mode .bg-white.text-black { background-color: #121212; color: #ffffff; }
-    </style>
-</head>
-<body class="pb-24">
-    <nav class="p-5 flex justify-between items-center sticky top-0 bg-black/90 z-50 border-b border-white/10 backdrop-blur-xl">
-        <div class="flex items-center space-x-3">
-            <div class="w-12 h-12 rounded-full border-2 border-white overflow-hidden shadow-lg shadow-white/10">
-                <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
-            </div>
-            <div>
-                <p class="header-text text-lg italic">HI, <span id="user-name" class="text-sdel">...</span></p>
-                <span id="wallet-pill" class="bg-white text-black text-[9px] font-black px-2 py-0.5 rounded italic">₦0.00</span>
-            </div>
-        </div>
-        <div class="flex items-center space-x-5">
-            <i data-lucide="refresh-cw" size="24" class="text-white" onclick="location.href='homies.html'"></i>
-            <div class="relative cursor-pointer" onclick="location.href='messages.html'">
-                <i data-lucide="bell" size="24" class="text-white"></i>
-                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-600 text-[8px] font-black text-white w-4 h-4 rounded-full flex items-center justify-center border border-black z-10" style="display: none;">0</span>
-            </div>
-        </div>
-    </nav>
-
-    <section class="p-4 border-b border-white/5">
-        <div class="flex space-x-4 overflow-x-auto no-scrollbar py-2">
-            <div class="flex-shrink-0 flex flex-col items-center space-y-2" onclick="location.href='post-story.html'">
-                <div class="w-16 h-16 rounded-full bg-zinc-900 border-2 border-dashed border-white/40 flex items-center justify-center">
-                    <i data-lucide="plus" size="24" class="text-white"></i>
-                </div>
-                <span class="text-[9px] font-black uppercase story-label">Post</span>
-            </div>
-            <div id="story-rail-content" class="flex space-x-4"></div>
-        </div>
-    </section>
-
-    <section class="p-4">
-        <a id="ad-link" href="#" target="_blank" class="block w-full">
-            <div id="ad-banner" class="w-full h-[400px] rounded-[2.5rem] bg-zinc-900 bg-cover bg-center flex items-end p-6 border border-white/10 transition-opacity duration-500" style="display: none;">
-                <div class="bg-black/70 backdrop-blur-md p-4 rounded-2xl w-full border border-white/5">
-                    <span class="text-[8px] bg-white text-black px-2 py-0.5 font-black rounded mb-2 inline-block">SPONSORED</span>
-                    <p id="ad-text" class="text-sm font-bold text-white uppercase italic">Loading...</p>
-                </div>
-            </div>
-        </a>
-    </section>
-
-    <section class="p-4">
-        <div class="card-glass rounded-[2rem] p-5">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="header-text text-[10px] text-zinc-500 italic">Order History</h3>
-                <button onclick="toggleAllOrders(true)" class="text-[9px] font-black text-sdel uppercase italic">Show All</button>
-            </div>
-            <div id="order-history-list" class="space-y-3"></div>
-        </div>
-    </section>
-
-    <div id="all-orders-modal" class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md hidden p-6 overflow-y-auto">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="header-text text-xl italic">Full History</h2>
-            <i data-lucide="x" class="text-white" onclick="toggleAllOrders(false)"></i>
-        </div>
-        <div id="full-order-list" class="space-y-4"></div>
-    </div>
-
-    <section class="p-4">
-        <div class="card-glass rounded-[2rem] p-5">
-            <div class="flex justify-between items-center mb-4">
-                <div><p class="text-[8px] font-black text-zinc-500 uppercase mb-1">Status</p><div id="rank-badge">...</div></div>
-                <div class="text-right"><p class="header-text text-xl italic" id="xp-count">0</p><p class="text-[8px] font-black text-sdel uppercase">XP</p></div>
-            </div>
-            <div class="h-1 w-full bg-white/5 rounded-full overflow-hidden"><div id="xp-progress-bar" class="h-full bg-sdel transition-all duration-1000" style="width: 0%"></div></div>
-        </div>
-    </section>
-
-    <main id="global-feed" class="p-4"></main>
-
-    <script src="nav.js"></script>
     <script>lucide.createIcons();</script>
+    <script src="nav.js"></script>
 </body>
 </html>
