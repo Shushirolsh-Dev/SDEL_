@@ -32,7 +32,7 @@
             <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Computer Based Test Portal</p>
         </div>
 
-        <!-- SETUP PANEL - Students choose subject and number of questions -->
+        <!-- SETUP PANEL -->
         <div id="setupPanel" class="glass-card p-8 space-y-6">
             <h2 class="text-xl font-black uppercase">📋 Exam Setup</h2>
             
@@ -64,7 +64,7 @@
             </button>
         </div>
 
-        <!-- EXAM PANEL - Hidden until exam starts -->
+        <!-- EXAM PANEL -->
         <div id="examPanel" class="hidden space-y-6">
             <div class="glass-card p-6 flex justify-between items-center flex-wrap gap-4">
                 <div>
@@ -142,36 +142,58 @@
         }
 
         async function loadSubjects() {
-            const { data, error } = await supabase
-                .from('subjects')
-                .select('id, subject_name, subject_code')
-                .eq('is_active', true);
-            
-            if (error) {
-                showToast("Error loading subjects", true);
-                return;
-            }
-            
-            const select = document.getElementById('subjectSelect');
-            select.innerHTML = '<option value="">-- Select Subject --</option>';
-            data.forEach(sub => {
-                select.innerHTML += `<option value="${sub.id}">${sub.subject_name} (${sub.subject_code || 'Available'})</option>`;
-            });
-            
-            select.onchange = async () => {
-                if (select.value) {
-                    const { count } = await supabase
-                        .from('public_questions')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('subject_id', parseInt(select.value));
-                    
-                    document.getElementById('maxHint').innerHTML = `📚 ${count} questions available in this subject`;
-                    document.getElementById('questionCount').max = count;
-                    if (parseInt(document.getElementById('questionCount').value) > count) {
-                        document.getElementById('questionCount').value = count;
-                    }
+            try {
+                // Simple query without is_active filter first
+                const { data, error } = await supabase
+                    .from('subjects')
+                    .select('id, subject_name, subject_code');
+                
+                if (error) {
+                    console.error("Subjects error:", error);
+                    showToast("Error loading subjects: " + error.message, true);
+                    return;
                 }
-            };
+                
+                console.log("Loaded subjects:", data);
+                
+                if (!data || data.length === 0) {
+                    document.getElementById('subjectSelect').innerHTML = '<option value="">-- No subjects found --</option>';
+                    showToast("No subjects found. Please add subjects to the database.", true);
+                    return;
+                }
+                
+                const select = document.getElementById('subjectSelect');
+                select.innerHTML = '<option value="">-- Select Subject --</option>';
+                data.forEach(sub => {
+                    select.innerHTML += `<option value="${sub.id}">${sub.subject_name} (${sub.subject_code || 'Available'})</option>`;
+                });
+                
+                // Add change event to update question count
+                select.onchange = async () => {
+                    if (select.value) {
+                        const { count, error: countError } = await supabase
+                            .from('questions')
+                            .select('*', { count: 'exact', head: true })
+                            .eq('subject_id', parseInt(select.value));
+                        
+                        if (!countError) {
+                            const availableCount = count || 0;
+                            document.getElementById('maxHint').innerHTML = `📚 ${availableCount} questions available in this subject`;
+                            document.getElementById('questionCount').max = availableCount;
+                            if (parseInt(document.getElementById('questionCount').value) > availableCount) {
+                                document.getElementById('questionCount').value = Math.min(availableCount, 10);
+                            }
+                            if (availableCount === 0) {
+                                showToast("No questions available for this subject. Ask admin to add questions.", true);
+                            }
+                        }
+                    }
+                };
+                
+            } catch (err) {
+                console.error("Load subjects error:", err);
+                showToast("Failed to load subjects", true);
+            }
         }
 
         async function startExam() {
@@ -187,15 +209,22 @@
             currentSubjectId = parseInt(subjectId);
             currentSubjectName = document.getElementById('subjectSelect').options[document.getElementById('subjectSelect').selectedIndex].text;
             
+            showToast("Loading questions...");
+            
             // Fetch random questions
             const { data: questions, error } = await supabase
-                .from('public_questions')
+                .from('questions')
                 .select('id, question_text, option_a, option_b, option_c, option_d')
-                .eq('subject_id', currentSubjectId)
-                .limit(numQ * 2); // Fetch extra then shuffle
+                .eq('subject_id', currentSubjectId);
             
-            if (error || !questions || questions.length === 0) {
-                showToast("No questions available for this subject", true);
+            if (error) {
+                console.error("Questions error:", error);
+                showToast("Error loading questions: " + error.message, true);
+                return;
+            }
+            
+            if (!questions || questions.length === 0) {
+                showToast("No questions available for this subject. Please add questions first.", true);
                 return;
             }
             
@@ -204,7 +233,7 @@
                 const j = Math.floor(Math.random() * (i + 1));
                 [questions[i], questions[j]] = [questions[j], questions[i]];
             }
-            currentQuestions = questions.slice(0, numQ);
+            currentQuestions = questions.slice(0, Math.min(numQ, questions.length));
             userAnswers = {};
             currentIndex = 0;
             examSubmitted = false;
@@ -223,7 +252,11 @@
                 .select()
                 .single();
             
-            if (sessionError) { showToast("Failed to create session", true); return; }
+            if (sessionError) { 
+                console.error("Session error:", sessionError);
+                showToast("Failed to create session: " + sessionError.message, true); 
+                return; 
+            }
             sessionId = session.id;
             
             // Setup timer
@@ -451,6 +484,7 @@
             return div.innerHTML;
         }
 
+        // Initialize
         loadSubjects();
     </script>
 </body>
