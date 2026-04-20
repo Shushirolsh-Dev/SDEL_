@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') {
+                document.documentElement.classList.add('sunlight-mode');
+            }
+        })();
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Market</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; transition: background-color 0.3s; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); position: relative; z-index: 10; transition: transform 0.2s; }
+        .card-zinc:active { transform: scale(0.98); }
+        
+        .category-pill { 
+            transition: all 0.3s ease; 
+            cursor: pointer; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            position: relative; 
+            z-index: 10; 
+            color: #6b7280; 
+            user-select: none; 
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .category-pill.active { background-color: #FF6600; color: black !important; border-color: #FF6600; }
+        .category-pill:active { transform: scale(0.95); }
+
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        .star { position: absolute; background-color: rgba(255,255,255,0.6); border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(110vh); } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        #search-view { display: none; position: fixed; inset: 0; background: #000; z-index: 100; padding: 24px; }
+        .search-item { border-bottom: 1px solid rgba(255,255,255,0.05); padding: 15px 0; display: flex; justify-content: space-between; align-items: center; }
+
+        .sunlight-mode body, .sunlight-mode #search-view { background-color: #ffffff; color: #121212; }
+        .sunlight-mode nav, .sunlight-mode .fixed.bottom-0 { background-color: rgba(255, 255, 255, 0.9); border-color: #e4e4e7; }
+        .sunlight-mode .text-white { color: #121212; }
+        .sunlight-mode .card-zinc { background: #f4f4f5; border-color: #e4e4e7; }
+        .sunlight-mode .category-pill { border-color: #e4e4e7; }
+        .sunlight-mode .star { background-color: rgba(0,0,0,0.1); }
+        .sunlight-mode .search-item { border-color: #f4f4f5; }
+        .sunlight-mode #search-input { color: #121212; }
+        .sunlight-mode .bg-zinc-900 { background-color: #e4e4e7; }
+
+        .stock-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stock-high { background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .stock-low { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .stock-medium { background: rgba(255, 102, 0, 0.15); color: #FF6600; border: 1px solid rgba(255, 102, 0, 0.3); }
+        .stock-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+        .stock-dot.high { background: #22c55e; }
+        .stock-dot.low { background: #ef4444; }
+        .stock-dot.medium { background: #FF6600; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+        }
+        .modal-content { max-width: 400px; width: 100%; max-height: 85vh; overflow-y: auto; border-radius: 32px; }
+        .sunlight-mode .modal { background: rgba(255,255,255,0.95); }
+        .modal::-webkit-scrollbar { display: none; }
+        
+        .share-btn {
+            background: rgba(255, 102, 0, 0.1);
+            border: 1px solid rgba(255, 102, 0, 0.3);
+            color: #FF6600;
+            width: 36px;
+            height: 36px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .share-btn:active { background: #FF6600; color: black; transform: scale(0.9); }
+        
+        .product-card { cursor: pointer; }
+        .product-image { height: 160px; }
+        
+        /* SHINY HORIZONTAL SKELETON LOADER */
+        .skeleton-card {
+            background: rgba(18, 18, 18, 0.7);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .skeleton-image {
+            height: 160px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        .skeleton-line {
+            height: 12px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            animation: shimmer 1.5s infinite;
+        }
+        .sunlight-mode .skeleton-card,
+        .sunlight-mode .skeleton-image,
+        .sunlight-mode .skeleton-line {
+            background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+            background-size: 200% 100%;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .loading-trigger { height: 60px; display: flex; align-items: center; justify-content: center; }
+        .loading-spinner { width: 24px; height: 24px; border: 2px solid #FF6600; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="pb-24">
+    <script>
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.onkeydown = function(e) { if(e.keyCode == 123 || (e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0))) return false; }
+    </script>
+
+    <div class="stars" id="stars"></div>
+
+    <div id="search-view">
+        <div class="flex items-center gap-4 mb-6">
+            <button onclick="closeSearch()" class="text-gray-400"><i data-lucide="arrow-left"></i></button>
+            <div class="flex-1 bg-zinc-900 rounded-2xl flex items-center px-4 border border-white/5">
+                <i data-lucide="search" size="18" class="text-gray-500"></i>
+                <input type="text" id="search-input" oninput="runSearch(this.value)" placeholder="Search product name..." class="bg-transparent w-full p-4 text-sm font-bold outline-none text-white">
+            </div>
+        </div>
+        <div id="search-results-list" class="overflow-y-auto h-[80vh] no-scrollbar"></div>
+    </div>
+
+    <div id="product-modal" class="modal" onclick="if(event.target === this) closeModal()">
+        <div class="modal-content" id="modal-content"></div>
+    </div>
+
+    <nav class="p-4 flex items-center justify-between border-b border-white/10 sticky top-0 bg-black/90 backdrop-blur-md z-50">
+        <div class="flex items-center gap-3">
+            <a href="dashboard.html" class="text-white"><i data-lucide="chevron-left" size="20"></i></a>
+            <button onclick="openSearch()" class="text-gray-400 p-1"><i data-lucide="search" size="18"></i></button>
+        </div>
+        <h1 class="text-base font-black uppercase tracking-tighter italic">Campus <span class="text-sdel">Market</span></h1>
+        <div onclick="window.location.href='cart.html'" class="relative cursor-pointer p-2">
+            <i data-lucide="shopping-cart" size="18" class="text-gray-400"></i>
+            <span id="cart-count" class="absolute -top-1 -right-1 bg-sdel text-black text-[8px] font-black px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-black">0</span>
+        </div>
+    </nav>
+
+    <div class="p-4 flex space-x-2 overflow-x-auto no-scrollbar" id="category-tabs">
+        <button onclick="filterProducts('All', event)" class="category-pill active px-3 py-1.5 rounded-xl text-[9px] font-black uppercase whitespace-nowrap">All Items</button>
+    </div>
+
+    <main class="px-4 grid grid-cols-2 gap-3" id="product-list"></main>
+    <div id="loading-sentinel" class="loading-trigger hidden"><div class="loading-spinner"></div></div>
+
+    <script src="nav.js"></script>
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let currentUserId = "GUEST_USER";
+        let currentUserSchool = null;
+        let allFilteredProducts = [];
+        let displayedProducts = [];
+        let userCart = {};
+        let currentCategory = 'All';
+        let isLoading = false;
+        let hasMore = true;
+        let currentPage = 0;
+        const PAGE_SIZE = 10;
+        
+        let visitorSessionId = localStorage.getItem('visitor_session_id');
+        if (!visitorSessionId) {
+            visitorSessionId = 'session_' + Math.random().toString(36).substring(2) + Date.now();
+            localStorage.setItem('visitor_session_id', visitorSessionId);
+        }
+
+        async function init() {
+            showSkeletons();
+            
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) { 
+                currentUserId = session.user.id;
+                await fetchUserSchool();
+            } else {
+                document.getElementById('product-list').innerHTML = `<div class="col-span-full text-center py-20 opacity-30"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">Please login to view products</p></div>`;
+                return;
+            }
+            
+            await fetchUserCart();
+            await loadTabs();
+            await loadAllFilteredProducts();
+            setupInfiniteScroll();
+            createStars();
+            lucide.createIcons();
+        }
+        
+        function showSkeletons() {
+            const list = document.getElementById('product-list');
+            list.innerHTML = Array(6).fill(0).map(() => `
+                <div class="skeleton-card">
+                    <div class="skeleton-image"></div>
+                    <div class="p-3 space-y-2">
+                        <div class="skeleton-line w-2/3"></div>
+                        <div class="skeleton-line w-1/2"></div>
+                        <div class="skeleton-line w-full"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function fetchUserSchool() {
+            const { data, error } = await supabase
+                .from('profile')
+                .select('school_name')
+                .eq('id', currentUserId)
+                .single();
+            
+            if (data && !error && data.school_name) {
+                currentUserSchool = data.school_name;
+            }
+        }
+
+        async function fetchUserCart() {
+            const { data } = await supabase.from('cart').select('product_id, quantity').eq('user_id', currentUserId);
+            userCart = {};
+            if (data) data.forEach(item => userCart[item.product_id] = item.quantity);
+            updateCartCountDisplay();
+        }
+
+        function updateCartCountDisplay() {
+            document.getElementById('cart-count').innerText = Object.keys(userCart).length;
+        }
+
+        async function loadTabs() {
+            const { data } = await supabase.from('categories').select('*').order('name');
+            const container = document.getElementById('category-tabs');
+            if (data && data.length > 0) {
+                container.innerHTML = `<button onclick="filterProducts('All', event)" class="category-pill active px-3 py-1.5 rounded-xl text-[9px] font-black uppercase whitespace-nowrap">All Items</button>` + 
+                data.map(cat => `<button onclick="filterProducts('${cat.name}', event)" class="category-pill px-3 py-1.5 rounded-xl text-[9px] font-black uppercase whitespace-nowrap">${cat.name}</button>`).join('');
+            }
+        }
+
+        async function loadAllFilteredProducts() {
+            if (!currentUserSchool) {
+                allFilteredProducts = [];
+                renderProductsPage();
+                return;
+            }
+            
+            const { data: productsData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+            const allProducts = productsData || [];
+            
+            const vendorIds = [...new Set(allProducts.map(p => p.vendor_id).filter(id => id))];
+            
+            if (vendorIds.length === 0) {
+                allFilteredProducts = [];
+                renderProductsPage();
+                return;
+            }
+            
+            const { data: profileData } = await supabase
+                .from('profile')
+                .select('id, school_name')
+                .in('id', vendorIds);
+            
+            const vendorSchoolMap = {};
+            if (profileData) {
+                profileData.forEach(profile => {
+                    vendorSchoolMap[profile.id] = profile.school_name;
+                });
+            }
+            
+            allFilteredProducts = allProducts.filter(product => {
+                const vendorSchool = vendorSchoolMap[product.vendor_id];
+                return vendorSchool === currentUserSchool;
+            });
+            
+            currentPage = 0;
+            displayedProducts = [];
+            hasMore = true;
+            
+            renderProductsPage();
+        }
+        
+        function renderProductsPage() {
+            const list = document.getElementById('product-list');
+            
+            let productsToShow = [...allFilteredProducts];
+            if (currentCategory !== 'All') {
+                productsToShow = productsToShow.filter(p => 
+                    String(p.category).trim().toLowerCase() === String(currentCategory).trim().toLowerCase()
+                );
+            }
+            
+            const start = currentPage * PAGE_SIZE;
+            const end = start + PAGE_SIZE;
+            const newProducts = productsToShow.slice(start, end);
+            
+            if (newProducts.length === 0 && currentPage === 0) {
+                list.innerHTML = `<div class="col-span-full text-center py-20 opacity-30"><p class="text-[10px] font-black uppercase tracking-widest text-zinc-500">No Items Found in Your School</p></div>`;
+                hasMore = false;
+                return;
+            }
+            
+            if (newProducts.length === 0) {
+                hasMore = false;
+                document.getElementById('loading-sentinel').classList.add('hidden');
+                return;
+            }
+            
+            displayedProducts = [...displayedProducts, ...newProducts];
+            hasMore = end < productsToShow.length;
+            
+            list.innerHTML = displayedProducts.map(item => {
+                const inCart = userCart[item.id];
+                const stock = item.stock || 0;
+                let stockClass = 'stock-high';
+                let stockText = 'In Stock';
+                let dotClass = 'high';
+                
+                if (stock === 0) {
+                    stockClass = 'stock-low';
+                    stockText = 'Out of Stock';
+                    dotClass = 'low';
+                } else if (stock < 5) {
+                    stockClass = 'stock-low';
+                    stockText = `${stock} left`;
+                    dotClass = 'low';
+                } else if (stock < 10) {
+                    stockClass = 'stock-medium';
+                    stockText = `${stock} left`;
+                    dotClass = 'medium';
+                } else {
+                    stockText = `${stock} in stock`;
+                }
+                
+                return `
+                    <div class="card-zinc rounded-xl overflow-hidden product-card" onclick="goToStore('${item.vendor_id}')">
+                        <div class="relative product-image">
+                            <img src="${item.image_url}" class="object-cover w-full h-full" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Preview'">
+                            <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg">
+                                <p class="text-[7px] text-sdel font-black uppercase tracking-widest">${item.category}</p>
+                            </div>
+                            <button onclick="shareProduct(${JSON.stringify(item).replace(/"/g, '&quot;')}, event)" class="absolute top-2 right-2 share-btn w-7 h-7">
+                                <i data-lucide="share-2" size="12"></i>
+                            </button>
+                        </div>
+                        <div class="p-3 space-y-1">
+                            <div class="flex justify-between items-start gap-1">
+                                <h3 class="font-black text-[11px] uppercase italic tracking-tighter truncate">${item.name}</h3>
+                                <p class="font-black text-xs text-sdel">₦${item.price.toLocaleString()}</p>
+                            </div>
+                            <div class="stock-badge ${stockClass} w-full justify-center py-1">
+                                <span class="stock-dot ${dotClass}"></span>
+                                <span class="font-black text-[8px]">${stockText}</span>
+                            </div>
+                            ${!inCart && stock > 0 ? `
+                                <button onclick="event.stopPropagation(); addToCart('${item.id}')" class="w-full bg-white text-black py-2 rounded-xl font-black uppercase text-[8px] tracking-widest active:scale-95 transition mt-1">Add</button>
+                            ` : inCart ? `
+                                <button onclick="event.stopPropagation(); window.location.href='cart.html'" class="w-full bg-sdel text-black py-2 rounded-xl font-black uppercase text-[8px] tracking-widest active:scale-95 transition mt-1">In Cart</button>
+                            ` : `
+                                <button disabled class="w-full bg-zinc-800 text-zinc-500 py-2 rounded-xl font-black uppercase text-[8px] tracking-widest cursor-not-allowed mt-1">Out</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            lucide.createIcons();
+            
+            if (hasMore) {
+                document.getElementById('loading-sentinel').classList.remove('hidden');
+            } else {
+                document.getElementById('loading-sentinel').classList.add('hidden');
+            }
+        }
+        
+        window.goToStore = (vendorId) => {
+            window.location.href = `Store/store.html?vendor_id=${vendorId}`;
+        };
+        
+        function loadMoreProducts() {
+            if (isLoading || !hasMore) return;
+            isLoading = true;
+            
+            setTimeout(() => {
+                currentPage++;
+                renderProductsPage();
+                isLoading = false;
+            }, 300);
+        }
+        
+        function setupInfiniteScroll() {
+            const sentinel = document.getElementById('loading-sentinel');
+            
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && hasMore && !isLoading) {
+                        loadMoreProducts();
+                    }
+                });
+            }, { threshold: 0.1 });
+            
+            observer.observe(sentinel);
+        }
+
+        window.filterProducts = (cat, e) => {
+            if (e) {
+                document.querySelectorAll('.category-pill').forEach(p => p.classList.remove('active'));
+                e.currentTarget.classList.add('active');
+            }
+            currentCategory = cat;
+            currentPage = 0;
+            displayedProducts = [];
+            hasMore = true;
+            renderProductsPage();
+        };
+
+        window.addToCart = async (id) => {
+            if (!currentUserId) { window.location.href = 'login.html'; return; }
+            const product = allFilteredProducts.find(p => p.id === id);
+            if (!product || (product.stock || 0) < 1) {
+                showToast("Out of stock!", 3000);
+                return;
+            }
+            
+            // Check if product already in cart
+            if (userCart[id]) {
+                showToast("Already in cart! View cart to update quantity.", 3000);
+                return;
+            }
+            
+            userCart[id] = 1;
+            
+            // Insert into cart database
+            const { error } = await supabase
+                .from('cart')
+                .insert([{ user_id: currentUserId, product_id: id, quantity: 1 }]);
+            
+            if (error) {
+                // If duplicate error, just update
+                if (error.code === '23505') {
+                    await supabase
+                        .from('cart')
+                        .update({ quantity: 1 })
+                        .eq('user_id', currentUserId)
+                        .eq('product_id', id);
+                } else {
+                    showToast("Error adding to cart", 3000);
+                    return;
+                }
+            }
+            
+            updateCartCountDisplay();
+            showToast("Added to cart! 🛒", 3000);
+            
+            // Update just this button instead of re-rendering everything
+            const buttons = document.querySelectorAll(`button[onclick*="addToCart('${id}')"]`);
+            buttons.forEach(btn => {
+                btn.innerText = "In Cart";
+                btn.onclick = () => window.location.href = 'cart.html';
+                btn.classList.remove('bg-white', 'text-black');
+                btn.classList.add('bg-sdel', 'text-black');
+            });
+        };
+
+        window.updateQty = async (id, change) => {
+            let newQty = (userCart[id] || 0) + change;
+            if (newQty < 1) return;
+            userCart[id] = newQty;
+            await supabase.from('cart').update({ quantity: newQty }).eq('user_id', currentUserId).eq('product_id', id);
+            closeModal();
+            renderProductsPage();
+        };
+
+        window.shareProduct = async (product, event) => {
+            event.stopPropagation();
+            try {
+                const shareData = {
+                    title: product.name,
+                    text: `Check out ${product.name} on Sdel Market!`,
+                    url: `${window.location.origin}/market.html?id=${product.id}`
+                };
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                    showToast("Shared!", 2000);
+                } else {
+                    navigator.clipboard.writeText(shareData.url);
+                    showToast("Link copied!", 2000);
+                }
+            } catch (error) {
+                navigator.clipboard.writeText(`${window.location.origin}/market.html?id=${product.id}`);
+                showToast("Link copied!", 2000);
+            }
+        };
+        
+        window.openProductModal = (product) => {
+            const modal = document.getElementById('product-modal');
+            const modalContent = document.getElementById('modal-content');
+            const stock = product.stock || 0;
+            let stockClass = 'stock-high', stockText = 'In Stock', dotClass = 'high';
+            
+            if (stock === 0) { stockClass = 'stock-low'; stockText = 'Out of Stock'; dotClass = 'low'; }
+            else if (stock < 5) { stockClass = 'stock-low'; stockText = '🔥 Low Stock - ' + stock + ' left'; dotClass = 'low'; }
+            else if (stock < 10) { stockClass = 'stock-medium'; stockText = '⚠️ Only ' + stock + ' left'; dotClass = 'medium'; }
+            else { stockText = '✅ ' + stock + ' in stock'; }
+            
+            const inCart = userCart[product.id];
+            
+            modalContent.innerHTML = `
+                <div class="card-zinc rounded-3xl overflow-hidden">
+                    <div class="relative">
+                        <img src="${product.image_url}" class="w-full h-64 object-cover" onerror="this.src='https://placehold.co/400x400/121212/FF6600?text=No+Preview'">
+                        <button onclick="closeModal()" class="absolute top-3 right-3 bg-black/50 backdrop-blur-md p-2 rounded-full"><i data-lucide="x" size="18"></i></button>
+                        <button onclick="shareProduct(${JSON.stringify(product).replace(/"/g, '&quot;')}, event)" class="absolute bottom-3 right-3 share-btn"><i data-lucide="share-2" size="16"></i></button>
+                    </div>
+                    <div class="p-5 space-y-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-[8px] text-sdel font-black uppercase tracking-widest bg-black/30 px-2 py-1 rounded-lg">${product.category}</span>
+                                <h2 class="font-black text-xl uppercase italic tracking-tighter mt-2">${product.name}</h2>
+                            </div>
+                            <p class="font-black text-2xl tracking-tighter text-sdel">₦${product.price.toLocaleString()}</p>
+                        </div>
+                        <p class="text-xs text-zinc-400 leading-relaxed">${product.description || 'No description available'}</p>
+                        <div class="stock-badge ${stockClass} w-full justify-center py-2">
+                            <span class="stock-dot ${dotClass}"></span>
+                            <span class="font-black text-xs">${stockText}</span>
+                        </div>
+                        <div class="pt-2">
+                            ${inCart ? `
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="flex items-center bg-zinc-900 rounded-2xl border border-white/10 overflow-hidden flex-1">
+                                        <button onclick="updateQty('${product.id}', -1)" class="px-5 py-3"><i data-lucide="minus" size="16"></i></button>
+                                        <span class="text-sm font-black w-10 text-center">${inCart}</span>
+                                        <button onclick="updateQty('${product.id}', 1)" class="px-5 py-3"><i data-lucide="plus" size="16"></i></button>
+                                    </div>
+                                    <button onclick="window.location.href='cart.html'" class="flex-1 bg-sdel text-black py-3 rounded-2xl font-black text-[11px]">View Cart</button>
+                                </div>
+                            ` : stock > 0 ? `
+                                <button onclick="addToCart('${product.id}')" class="w-full bg-sdel text-black py-4 rounded-2xl font-black text-[11px]">Add to Cart</button>
+                            ` : `
+                                <button disabled class="w-full bg-zinc-800 text-zinc-500 py-4 rounded-2xl font-black text-[11px] cursor-not-allowed">Out of Stock</button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        };
+        
+        window.closeModal = () => document.getElementById('product-modal').style.display = 'none';
+
+        function showToast(msg, duration = 3000) {
+            let toast = document.getElementById('toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast';
+                toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-100px);background:#FF6600;color:black;padding:12px 24px;border-radius:30px;font-weight:800;font-size:12px;z-index:9999;transition:transform 0.3s;box-shadow:0 4px 20px rgba(0,0,0,0.3);white-space:nowrap;';
+                document.body.appendChild(toast);
+            }
+            toast.innerText = msg;
+            toast.style.transform = 'translateX(-50%) translateY(0)';
+            toast.style.visibility = 'visible';
+            setTimeout(() => {
+                toast.style.transform = 'translateX(-50%) translateY(-100px)';
+                setTimeout(() => toast.style.visibility = 'hidden', 300);
+            }, duration);
+        }
+
+        window.openSearch = () => { 
+            document.getElementById('search-view').style.display = 'block'; 
+            document.getElementById('search-input').focus(); 
+            lucide.createIcons();
+        };
+
+        window.closeSearch = () => document.getElementById('search-view').style.display = 'none';
+
+        window.runSearch = (val) => {
+            const container = document.getElementById('search-results-list');
+            if(!val.trim()) { container.innerHTML = ""; return; }
+            let filtered = allFilteredProducts.filter(p => p.name.toLowerCase().includes(val.toLowerCase()));
+            if (currentCategory !== 'All') {
+                filtered = filtered.filter(p => p.category === currentCategory);
+            }
+            container.innerHTML = filtered.map(item => `
+                <div class="search-item" onclick="viewFromSearch('${item.id}')">
+                    <div class="flex items-center gap-3">
+                        <img src="${item.image_url}" class="w-10 h-10 object-cover rounded-lg border border-white/5">
+                        <div>
+                            <p class="font-black text-xs uppercase italic tracking-tighter">${item.name}</p>
+                            <p class="text-[7px] text-gray-500 font-black uppercase">${item.category}</p>
+                        </div>
+                    </div>
+                    <p class="font-black text-sdel text-[10px]">₦${item.price.toLocaleString()}</p>
+                </div>`).join('');
+            lucide.createIcons();
+        };
+
+        window.viewFromSearch = (id) => { 
+            const product = allFilteredProducts.find(p => p.id === id);
+            if (product) {
+                window.location.href = `Store/store.html?vendor_id=${product.vendor_id}`;
+            }
+            closeSearch();
+        };
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 60; i++) {
+                const star = document.createElement('div'); star.classList.add('star');
+                star.style.width = star.style.height = (Math.random() * 2 + 1) + 'px';
+                star.style.left = (Math.random() * 100) + 'vw';
+                star.style.top = (Math.random() * 100) + 'vh';
+                star.style.animationDuration = (Math.random() * 20 + 20) + 's';
+                container.appendChild(star);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
