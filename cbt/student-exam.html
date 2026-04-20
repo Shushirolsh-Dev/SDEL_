@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thesdel CBT - Exam</title>
+    <title>Thesdel CBT - Debug</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -12,6 +12,12 @@
 <div class="max-w-2xl mx-auto">
     <h1 class="text-3xl font-bold text-center mb-6">Thesdel <span class="text-orange-500">CBT</span></h1>
 
+    <!-- DEBUG PANEL -->
+    <div class="bg-gray-900 p-4 rounded-2xl mb-4">
+        <p class="text-orange-500 font-bold mb-2">🔍 Debug Info:</p>
+        <div id="debugInfo" class="text-xs text-gray-400 space-y-1"></div>
+    </div>
+
     <!-- SETUP SCREEN -->
     <div id="setupScreen" class="bg-gray-900 p-6 rounded-2xl">
         <h2 class="text-xl font-bold mb-4">📋 Exam Setup</h2>
@@ -19,19 +25,18 @@
         <div class="mb-4">
             <label class="block text-sm text-gray-400 mb-2">Select Subject</label>
             <select id="subjectSelect" class="w-full p-3 bg-black border border-gray-700 rounded-xl text-white">
-                <option value="">-- Select Subject --</option>
+                <option value="">-- Loading --</option>
             </select>
         </div>
         
         <div class="mb-4">
             <label class="block text-sm text-gray-400 mb-2">Number of Questions</label>
             <input type="number" id="questionCount" value="3" class="w-full p-3 bg-black border border-gray-700 rounded-xl text-white">
-            <p id="questionHint" class="text-xs text-gray-500 mt-1"></p>
         </div>
         
         <div class="mb-4">
             <label class="block text-sm text-gray-400 mb-2">Your Name</label>
-            <input type="text" id="studentName" placeholder="Enter your name" class="w-full p-3 bg-black border border-gray-700 rounded-xl text-white">
+            <input type="text" id="studentName" class="w-full p-3 bg-black border border-gray-700 rounded-xl text-white">
         </div>
         
         <div class="mb-4">
@@ -40,303 +45,130 @@
         </div>
         
         <button onclick="startExam()" class="w-full bg-orange-600 py-3 rounded-xl font-bold hover:bg-orange-500">START EXAM</button>
-        
-        <div id="message" class="mt-3 text-sm text-center text-yellow-500"></div>
-    </div>
-
-    <!-- EXAM SCREEN -->
-    <div id="examScreen" class="hidden">
-        <div class="bg-gray-900 p-4 rounded-2xl mb-4 flex justify-between">
-            <span id="subjectDisplay" class="text-orange-500 font-bold"></span>
-            <span id="timerDisplay" class="font-mono text-xl">00:00</span>
-        </div>
-        
-        <div class="bg-gray-900 p-6 rounded-2xl">
-            <p class="text-gray-400 text-sm mb-2" id="qNumber">Question 1</p>
-            <p class="text-xl font-bold mb-6" id="questionText"></p>
-            <div id="optionsList" class="space-y-3 mb-8"></div>
-            <div class="flex gap-3">
-                <button onclick="prevQuestion()" class="flex-1 bg-gray-700 py-3 rounded-xl">PREV</button>
-                <button onclick="nextQuestion()" id="nextButton" class="flex-1 bg-orange-600 py-3 rounded-xl">NEXT</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- RESULTS SCREEN -->
-    <div id="resultsScreen" class="hidden bg-gray-900 p-6 rounded-2xl">
-        <h2 class="text-2xl font-bold mb-4 text-orange-500">Results</h2>
-        <p id="scoreDisplay" class="text-3xl font-bold mb-6"></p>
-        <div id="reviewList" class="space-y-3 max-h-96 overflow-y-auto mb-6"></div>
-        <button onclick="location.reload()" class="w-full bg-gray-700 py-3 rounded-xl">NEW EXAM</button>
     </div>
 </div>
 
 <script>
-// Initialize Supabase
-const supabase = supabase.createClient(
-    'https://lgfyrlfjoazedwymjpfc.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
-);
+// Supabase connection
+const supabaseUrl = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
 
-let questions = [];
-let answers = {};
-let currentIndex = 0;
-let examActive = false;
-let timer = null;
-let timeLeft = 0;
-let sessionId = null;
+const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
-function showMessage(msg, isError = false) {
-    const msgDiv = document.getElementById('message');
-    msgDiv.innerHTML = msg;
-    msgDiv.style.color = isError ? '#ef4444' : '#eab308';
+function addDebug(msg) {
+    const debugDiv = document.getElementById('debugInfo');
+    debugDiv.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${msg}</div>`;
     console.log(msg);
 }
 
-// Load subjects
-async function loadSubjects() {
-    showMessage("Loading subjects...");
+async function testConnection() {
+    addDebug("Testing Supabase connection...");
+    addDebug(`URL: ${supabaseUrl}`);
     
-    const { data, error } = await supabase.from('subjects').select('*');
-    
-    if (error) {
-        showMessage("Error: " + error.message, true);
-        return;
-    }
-    
-    if (!data || data.length === 0) {
-        showMessage("No subjects found", true);
-        return;
-    }
-    
-    const select = document.getElementById('subjectSelect');
-    select.innerHTML = '<option value="">-- Select Subject --</option>';
-    
-    data.forEach(sub => {
-        select.innerHTML += `<option value="${sub.id}">${sub.name}</option>`;
-    });
-    
-    showMessage(`Loaded ${data.length} subject(s)`);
-    
-    // When subject changes, show question count
-    select.onchange = async () => {
-        if (select.value) {
-            const { count } = await supabase
-                .from('questions')
-                .select('*', { count: 'exact', head: true })
-                .eq('subject_id', parseInt(select.value));
-            
-            document.getElementById('questionHint').innerHTML = `📚 ${count} questions available`;
-            document.getElementById('questionCount').max = count;
+    try {
+        // Test 1: Simple health check
+        addDebug("Test 1: Fetching subjects...");
+        const { data, error, status } = await supabase.from('subjects').select('*');
+        
+        addDebug(`Response status: ${status}`);
+        
+        if (error) {
+            addDebug(`ERROR: ${error.message}`);
+            addDebug(`Error details: ${JSON.stringify(error)}`);
+            return;
         }
-    };
+        
+        addDebug(`SUCCESS! Found ${data?.length || 0} subjects`);
+        
+        if (data && data.length > 0) {
+            data.forEach(sub => {
+                addDebug(`  - ID: ${sub.id}, Name: ${sub.name}`);
+            });
+            
+            // Populate dropdown
+            const select = document.getElementById('subjectSelect');
+            select.innerHTML = '<option value="">-- Select Subject --</option>';
+            data.forEach(sub => {
+                select.innerHTML += `<option value="${sub.id}">${sub.name}</option>`;
+            });
+            addDebug("Dropdown populated successfully!");
+        } else {
+            addDebug("WARNING: No subjects found in database");
+            addDebug("Run this SQL: INSERT INTO subjects (name) VALUES ('Mathematics');");
+        }
+        
+        // Test 2: Check questions
+        addDebug("Test 2: Checking questions...");
+        const { data: qData, error: qError } = await supabase.from('questions').select('*');
+        
+        if (qError) {
+            addDebug(`Questions error: ${qError.message}`);
+        } else {
+            addDebug(`Found ${qData?.length || 0} questions total`);
+            
+            // Group by subject
+            const bySubject = {};
+            (qData || []).forEach(q => {
+                if (!bySubject[q.subject_id]) bySubject[q.subject_id] = 0;
+                bySubject[q.subject_id]++;
+            });
+            addDebug(`Questions per subject: ${JSON.stringify(bySubject)}`);
+        }
+        
+    } catch (err) {
+        addDebug(`CATCH ERROR: ${err.message}`);
+        addDebug(`Stack: ${err.stack}`);
+    }
 }
 
-// Start exam
+// Manual test function for console
+window.testDB = async function() {
+    addDebug("=== MANUAL TEST ===");
+    const { data, error } = await supabase.from('subjects').select('*');
+    if (error) {
+        addDebug("Error: " + error.message);
+    } else {
+        addDebug("Data: " + JSON.stringify(data));
+    }
+};
+
+// Start exam function
 async function startExam() {
     const subjectId = document.getElementById('subjectSelect').value;
-    const numQ = parseInt(document.getElementById('questionCount').value);
     const studentName = document.getElementById('studentName').value.trim();
-    const timeMins = parseInt(document.getElementById('timeLimit').value);
     
-    if (!subjectId) { showMessage("Select a subject", true); return; }
-    if (!studentName) { showMessage("Enter your name", true); return; }
+    addDebug(`Start Exam clicked - Subject ID: ${subjectId}, Name: ${studentName}`);
     
-    showMessage("Loading questions...");
+    if (!subjectId) {
+        addDebug("ERROR: No subject selected");
+        alert("Please select a subject");
+        return;
+    }
     
+    if (!studentName) {
+        addDebug("ERROR: No name entered");
+        alert("Please enter your name");
+        return;
+    }
+    
+    addDebug("Fetching questions...");
     const { data, error } = await supabase
         .from('questions')
         .select('*')
         .eq('subject_id', parseInt(subjectId));
     
     if (error) {
-        showMessage("Error: " + error.message, true);
+        addDebug(`Error fetching questions: ${error.message}`);
+        alert("Error: " + error.message);
         return;
     }
     
-    if (data.length === 0) {
-        showMessage("No questions found", true);
-        return;
-    }
-    
-    // Shuffle
-    for (let i = data.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [data[i], data[j]] = [data[j], data[i]];
-    }
-    
-    questions = data.slice(0, Math.min(numQ, data.length));
-    answers = {};
-    currentIndex = 0;
-    examActive = true;
-    
-    showMessage(`Loaded ${questions.length} questions`);
-    
-    // Create session
-    const { data: session } = await supabase
-        .from('exam_sessions')
-        .insert({
-            session_code: 'EXAM-' + Date.now(),
-            student_name: studentName,
-            subject_id: parseInt(subjectId),
-            total_questions: questions.length,
-            status: 'in-progress'
-        })
-        .select()
-        .single();
-    
-    sessionId = session?.id;
-    
-    // Timer
-    timeLeft = timeMins * 60;
-    startTimer();
-    
-    // Show exam
-    document.getElementById('setupScreen').classList.add('hidden');
-    document.getElementById('examScreen').classList.remove('hidden');
-    
-    const subjectName = document.getElementById('subjectSelect').options[document.getElementById('subjectSelect').selectedIndex].text;
-    document.getElementById('subjectDisplay').innerHTML = subjectName;
-    
-    renderQuestion();
+    addDebug(`Found ${data?.length || 0} questions`);
+    alert(`Found ${data?.length || 0} questions! Check debug panel.`);
 }
 
-function startTimer() {
-    if (timer) clearInterval(timer);
-    timer = setInterval(() => {
-        if (examActive && timeLeft > 0) {
-            timeLeft--;
-            const mins = Math.floor(timeLeft / 60);
-            const secs = timeLeft % 60;
-            document.getElementById('timerDisplay').innerHTML = `${mins}:${secs.toString().padStart(2, '0')}`;
-            if (timeLeft === 0) submitExam();
-        }
-    }, 1000);
-}
-
-function renderQuestion() {
-    const q = questions[currentIndex];
-    document.getElementById('questionText').innerHTML = q.question_text;
-    document.getElementById('qNumber').innerHTML = `Question ${currentIndex + 1} of ${questions.length}`;
-    
-    const opts = [
-        { l: 'A', t: q.option_a },
-        { l: 'B', t: q.option_b },
-        { l: 'C', t: q.option_c },
-        { l: 'D', t: q.option_d }
-    ];
-    
-    let html = '';
-    opts.forEach(opt => {
-        const selected = answers[q.id] === opt.l;
-        html += `
-            <div onclick="selectAnswer(${q.id}, '${opt.l}')" 
-                class="p-3 rounded-xl border cursor-pointer ${selected ? 'border-orange-500 bg-orange-500/20' : 'border-gray-700 bg-gray-800'}">
-                <span class="font-bold mr-2">${opt.l}.</span> ${opt.t}
-            </div>
-        `;
-    });
-    document.getElementById('optionsList').innerHTML = html;
-    
-    const nextBtn = document.getElementById('nextButton');
-    if (currentIndex === questions.length - 1) {
-        nextBtn.innerHTML = 'SUBMIT';
-        nextBtn.classList.add('bg-green-600');
-        nextBtn.classList.remove('bg-orange-600');
-    } else {
-        nextBtn.innerHTML = 'NEXT';
-        nextBtn.classList.remove('bg-green-600');
-        nextBtn.classList.add('bg-orange-600');
-    }
-}
-
-function selectAnswer(id, ans) {
-    answers[id] = ans;
-    renderQuestion();
-}
-
-function nextQuestion() {
-    if (currentIndex < questions.length - 1) {
-        currentIndex++;
-        renderQuestion();
-    } else {
-        submitExam();
-    }
-}
-
-function prevQuestion() {
-    if (currentIndex > 0) {
-        currentIndex--;
-        renderQuestion();
-    }
-}
-
-async function submitExam() {
-    if (!examActive) return;
-    examActive = false;
-    if (timer) clearInterval(timer);
-    
-    showMessage("Marking exam...");
-    
-    // Get correct answers
-    const ids = questions.map(q => q.id);
-    const { data: corrects } = await supabase
-        .from('questions')
-        .select('id, correct_answer')
-        .in('id', ids);
-    
-    const correctMap = {};
-    corrects.forEach(c => { correctMap[c.id] = c.correct_answer; });
-    
-    let correct = 0;
-    const responses = [];
-    
-    for (const q of questions) {
-        const user = answers[q.id];
-        const isCorrect = user === correctMap[q.id];
-        if (isCorrect) correct++;
-        responses.push({
-            session_id: sessionId,
-            question_id: q.id,
-            question_text: q.question_text,
-            selected_answer: user,
-            is_correct: isCorrect
-        });
-    }
-    
-    await supabase.from('exam_responses').insert(responses);
-    await supabase.from('exam_sessions').update({
-        score: correct,
-        percentage: (correct / questions.length) * 100,
-        status: 'completed',
-        completed_at: new Date().toISOString()
-    }).eq('id', sessionId);
-    
-    // Show results
-    document.getElementById('examScreen').classList.add('hidden');
-    document.getElementById('resultsScreen').classList.remove('hidden');
-    document.getElementById('scoreDisplay').innerHTML = `${correct}/${questions.length} (${Math.round(correct/questions.length*100)}%)`;
-    
-    let review = '';
-    for (let i = 0; i < questions.length; i++) {
-        const q = questions[i];
-        const user = answers[q.id] || 'Not answered';
-        const isCorrect = user === correctMap[q.id];
-        review += `
-            <div class="p-3 rounded-xl ${isCorrect ? 'bg-green-500/20' : 'bg-red-500/20'}">
-                <p class="font-bold">${i+1}. ${q.question_text}</p>
-                <p>Your answer: ${user}</p>
-                ${!isCorrect ? `<p class="text-gray-400">Correct: ${correctMap[q.id]}</p>` : ''}
-            </div>
-        `;
-    }
-    document.getElementById('reviewList').innerHTML = review;
-    
-    showMessage(`Score: ${correct}/${questions.length}`);
-}
-
-// Start
-loadSubjects();
+// Run on page load
+testConnection();
 </script>
 </body>
 </html>
