@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Thesdel CBT - Automated Exam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; height: 100vh; margin: 0; padding: 0; user-select: none; }
+        .glass-panel { background: rgba(18, 18, 18, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .option-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 20px; transition: 0.2s; cursor: pointer; }
+        .option-selected { border-color: #ff6600; background: rgba(255, 102, 0, 0.1); box-shadow: 0 0 15px rgba(255, 102, 0, 0.2); }
+        .subject-pill { padding: 8px 16px; border-radius: 99px; font-size: 10px; font-weight: 800; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; white-space: nowrap; transition: 0.3s; }
+        .subject-active { background: #ff6600; border-color: #ff6600; color: white; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .timer-low { color: #ef4444; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        .hidden { display: none; }
+        
+        #exam-ui {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .content-scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            padding-bottom: 20px;
+            min-height: 0;
+        }
+        
+        .button-fixed-area {
+            padding: 20px 0 30px 0;
+            background: linear-gradient(to top, #000 80%, transparent);
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+        }
+        
+        .content-scroll-area::-webkit-scrollbar { display: none; }
+        .option-card, button { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="p-4">
+
+    <script>
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () { history.go(1); };
+    </script>
+
+    <div id="loading-gate" class="fixed inset-0 z-[999] bg-black flex flex-col items-center justify-center">
+        <div class="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+        <p class="text-[10px] font-black uppercase tracking-[0.4em] text-gray-500">Loading Battle Arena...</p>
+    </div>
+
+    <div id="subject-select-modal" class="fixed inset-0 z-[600] bg-black/95 hidden flex items-center justify-center p-6 backdrop-blur-xl">
+        <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm text-center border-orange-500/30">
+            <h2 class="text-xl font-black uppercase tracking-tighter">Select Subject</h2>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2">Choose your battle arena</p>
+            <div id="subject-list-modal" class="mt-6 space-y-3"></div>
+        </div>
+    </div>
+
+    <div id="submit-confirm-modal" class="fixed inset-0 z-[500] bg-black/95 hidden items-center justify-center p-6 backdrop-blur-xl">
+        <div class="glass-panel p-8 rounded-[40px] w-full max-w-sm text-center border-orange-500/30">
+            <h2 class="text-xl font-black uppercase tracking-tighter">End Battle?</h2>
+            <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-2">Submit your answers for marking?</p>
+            <div class="mt-8 flex flex-col gap-3">
+                <button id="final-sub-btn" onclick="finishExam()" class="w-full bg-orange-600 text-white font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest active:scale-95 transition">Submit Now</button>
+                <button onclick="closeSubmitModal()" class="w-full bg-white/5 text-gray-400 font-black py-5 rounded-2xl uppercase text-[10px] tracking-widest">Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="exam-ui" class="hidden">
+        <div class="flex justify-between items-center py-4">
+            <p id="timer" class="text-xl font-mono font-bold">00:00</p>
+            <button onclick="openSubmitModal()" class="bg-red-600/10 text-red-500 px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest">End Exam</button>
+        </div>
+        
+        <div id="subject-tabs" class="flex gap-2 overflow-x-auto no-scrollbar pb-3"></div>
+        
+        <div class="content-scroll-area">
+            <div class="space-y-6 pt-2">
+                <span id="display-q-num" class="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Question 1</span>
+                <p id="question-text" class="text-lg font-bold leading-relaxed"></p>
+                
+                <div id="options-container" class="space-y-3">
+                    <div onclick="selectOpt('A')" id="card-A" class="option-card flex items-center gap-4">
+                        <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">A</span>
+                        <p id="text-A" class="text-sm font-semibold flex-1"></p>
+                    </div>
+                    <div onclick="selectOpt('B')" id="card-B" class="option-card flex items-center gap-4">
+                        <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">B</span>
+                        <p id="text-B" class="text-sm font-semibold flex-1"></p>
+                    </div>
+                    <div onclick="selectOpt('C')" id="card-C" class="option-card flex items-center gap-4">
+                        <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">C</span>
+                        <p id="text-C" class="text-sm font-semibold flex-1"></p>
+                    </div>
+                    <div onclick="selectOpt('D')" id="card-D" class="option-card flex items-center gap-4">
+                        <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] font-black">D</span>
+                        <p id="text-D" class="text-sm font-semibold flex-1"></p>
+                    </div>
+                </div>
+                <div class="h-4"></div>
+            </div>
+        </div>
+        
+        <div class="button-fixed-area">
+            <div class="flex gap-3">
+                <button onclick="prevQuestion()" id="prev-btn" class="flex-1 glass-panel py-5 rounded-[24px] text-[10px] font-black uppercase">Prev</button>
+                <button onclick="handleNext()" id="next-btn" class="flex-[2] bg-white text-black py-5 rounded-[24px] font-black uppercase text-[10px] tracking-widest">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-modal" class="fixed inset-0 z-[400] bg-black hidden flex-col p-8 overflow-y-auto">
+        <div class="max-w-md mx-auto w-full text-center pt-10">
+            <h2 class="text-4xl font-black uppercase tracking-tighter mb-8 italic">Battle Result</h2>
+            <div class="grid grid-cols-2 gap-4 mb-10">
+                <div class="glass-panel p-6 rounded-[32px] text-center">
+                    <p class="text-[8px] text-gray-500 font-black mb-1">SCORE</p>
+                    <p id="res-score" class="text-2xl font-black text-orange-500"></p>
+                </div>
+                <div class="glass-panel p-6 rounded-[32px] text-center">
+                    <p class="text-[8px] text-gray-500 font-black mb-1">PERCENTAGE</p>
+                    <p id="res-percent" class="text-2xl font-black"></p>
+                </div>
+            </div>
+            <div id="review-list" class="space-y-4 text-left mb-10 max-h-96 overflow-y-auto"></div>
+            <button onclick="window.location.reload()" class="w-full bg-white text-black py-6 rounded-3xl font-black text-[10px] uppercase tracking-widest">Take Another Exam</button>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // App state
+        let allQuestions = [];
+        let currentQuestions = [];
+        let selectedAnswers = {};
+        let currentIndex = 0;
+        let currentSubject = null;
+        let allSubjects = [];
+        let timeLeft = 0;
+        let timerInterval = null;
+        let sessionId = null;
+
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const subjectParam = urlParams.get('subject');
+        const numQuestions = parseInt(urlParams.get('limit')) || 10;
+
+        // Load subjects from database
+        async function loadSubjects() {
+            const { data, error } = await sb
+                .from('subjects')
+                .select('id, subject_name, subject_code')
+                .eq('is_active', true);
+            
+            if (error) throw error;
+            allSubjects = data || [];
+            return allSubjects;
+        }
+
+        // Render subject selection modal
+        function showSubjectSelector() {
+            const container = document.getElementById('subject-list-modal');
+            container.innerHTML = allSubjects.map(sub => `
+                <button onclick="selectSubject(${sub.id}, '${sub.subject_name}')" 
+                    class="w-full glass-panel p-4 rounded-2xl text-left font-bold hover:border-orange-500 transition">
+                    <span class="text-orange-500 font-black">${sub.subject_code || ''}</span> ${sub.subject_name}
+                </button>
+            `).join('');
+            document.getElementById('subject-select-modal').classList.replace('hidden', 'flex');
+        }
+
+        // Select subject and load questions
+        async function selectSubject(subjectId, subjectName) {
+            currentSubject = { id: subjectId, name: subjectName };
+            document.getElementById('subject-select-modal').classList.replace('flex', 'hidden');
+            
+            // Fetch questions for this subject from public_questions view (NO correct_answer)
+            const { data, error } = await sb
+                .from('public_questions')
+                .select('id, question_text, option_a, option_b, option_c, option_d, difficulty, points')
+                .eq('subject_id', subjectId)
+                .limit(numQuestions);
+            
+            if (error) throw error;
+            
+            if (!data || data.length === 0) {
+                alert("No questions available for this subject yet!");
+                window.location.reload();
+                return;
+            }
+            
+            // Shuffle questions
+            for (let i = data.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [data[i], data[j]] = [data[j], data[i]];
+            }
+            
+            currentQuestions = data.slice(0, Math.min(numQuestions, data.length));
+            selectedAnswers = {};
+            currentIndex = 0;
+            
+            // Create exam session
+            const { data: userData } = await sb.auth.getUser();
+            const sessionCode = `SESSION-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+            
+            const { data: session, error: sessionError } = await sb
+                .from('exam_sessions')
+                .insert({
+                    session_code: sessionCode,
+                    student_id: userData.user?.id || null,
+                    student_name: userData.user?.email || 'Guest Student',
+                    subject_id: subjectId,
+                    total_questions: currentQuestions.length,
+                    status: 'in-progress'
+                })
+                .select()
+                .single();
+            
+            if (sessionError) throw sessionError;
+            sessionId = session.id;
+            
+            // Set timer (30 minutes default)
+            timeLeft = 30 * 60;
+            updateTimerDisplay();
+            startTimer();
+            
+            // Render UI
+            renderTabs();
+            renderQuestion();
+            document.getElementById('loading-gate').classList.add('hidden');
+            document.getElementById('exam-ui').classList.remove('hidden');
+        }
+
+        function renderTabs() {
+            const tabsContainer = document.getElementById('subject-tabs');
+            tabsContainer.innerHTML = `<div class="subject-pill subject-active">${currentSubject.name}</div>`;
+        }
+
+        function renderQuestion() {
+            const q = currentQuestions[currentIndex];
+            if (!q) return;
+            
+            document.getElementById('display-q-num').innerText = `Question ${currentIndex + 1} of ${currentQuestions.length}`;
+            document.getElementById('question-text').innerText = q.question_text;
+            document.getElementById('text-A').innerText = q.option_a;
+            document.getElementById('text-B').innerText = q.option_b;
+            document.getElementById('text-C').innerText = q.option_c;
+            document.getElementById('text-D').innerText = q.option_d;
+            
+            document.querySelectorAll('.option-card').forEach(c => c.classList.remove('option-selected'));
+            if (selectedAnswers[q.id]) {
+                document.getElementById(`card-${selectedAnswers[q.id]}`).classList.add('option-selected');
+            }
+            
+            updateNextButton();
+        }
+
+        function selectOpt(opt) {
+            const currentQ = currentQuestions[currentIndex];
+            selectedAnswers[currentQ.id] = opt;
+            renderQuestion();
+        }
+
+        function handleNext() {
+            const nextBtn = document.getElementById('next-btn');
+            
+            if (nextBtn.innerText === 'SUBMIT') {
+                openSubmitModal();
+                return;
+            }
+            
+            if (currentIndex < currentQuestions.length - 1) {
+                currentIndex++;
+                renderQuestion();
+            }
+        }
+
+        function prevQuestion() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                renderQuestion();
+            }
+        }
+
+        function updateNextButton() {
+            const nextBtn = document.getElementById('next-btn');
+            const isLastQuestion = currentIndex === currentQuestions.length - 1;
+            
+            if (isLastQuestion) {
+                nextBtn.innerText = 'SUBMIT';
+                nextBtn.classList.remove('bg-white', 'text-black');
+                nextBtn.classList.add('bg-orange-600', 'text-white');
+            } else {
+                nextBtn.innerText = 'Next';
+                nextBtn.classList.remove('bg-orange-600', 'text-white');
+                nextBtn.classList.add('bg-white', 'text-black');
+            }
+        }
+
+        function updateTimerDisplay() {
+            const timerElement = document.getElementById('timer');
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerElement.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft < 60) {
+                timerElement.classList.add('timer-low');
+            } else {
+                timerElement.classList.remove('timer-low');
+            }
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        finishExam();
+                    }
+                }
+            }, 1000);
+        }
+
+        function openSubmitModal() {
+            document.getElementById('submit-confirm-modal').classList.replace('hidden', 'flex');
+        }
+        
+        function closeSubmitModal() {
+            document.getElementById('submit-confirm-modal').classList.replace('flex', 'hidden');
+        }
+
+        // Auto-mark and finish exam
+        async function finishExam() {
+            if (timerInterval) clearInterval(timerInterval);
+            
+            const submitBtn = document.getElementById('final-sub-btn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = "MARKING...";
+            }
+            
+            try {
+                // Fetch correct answers for all questions (officials only, but we need for marking)
+                const questionIds = currentQuestions.map(q => q.id);
+                const { data: correctAnswers, error: answersError } = await sb
+                    .from('questions')
+                    .select('id, correct_answer, option_a, option_b, option_c, option_d')
+                    .in('id', questionIds);
+                
+                if (answersError) throw answersError;
+                
+                const correctMap = {};
+                const correctTextMap = {};
+                correctAnswers.forEach(q => {
+                    correctMap[q.id] = q.correct_answer;
+                    if (q.correct_answer === 'A') correctTextMap[q.id] = q.option_a;
+                    else if (q.correct_answer === 'B') correctTextMap[q.id] = q.option_b;
+                    else if (q.correct_answer === 'C') correctTextMap[q.id] = q.option_c;
+                    else if (q.correct_answer === 'D') correctTextMap[q.id] = q.option_d;
+                });
+                
+                // Calculate score and save responses
+                let correctCount = 0;
+                const responses = [];
+                
+                for (const q of currentQuestions) {
+                    const userAnswer = selectedAnswers[q.id];
+                    const isCorrect = userAnswer === correctMap[q.id];
+                    if (isCorrect) correctCount++;
+                    
+                    responses.push({
+                        session_id: sessionId,
+                        question_id: q.id,
+                        question_text: q.question_text,
+                        selected_answer: userAnswer || null,
+                        is_correct: isCorrect,
+                        correct_answer_text: correctTextMap[q.id]
+                    });
+                }
+                
+                // Save responses
+                const { error: respError } = await sb
+                    .from('exam_responses')
+                    .insert(responses);
+                
+                if (respError) throw respError;
+                
+                // Update session with score
+                const percentage = (correctCount / currentQuestions.length) * 100;
+                const { error: updateError } = await sb
+                    .from('exam_sessions')
+                    .update({
+                        score: correctCount,
+                        percentage: percentage,
+                        status: 'completed',
+                        completed_at: new Date().toISOString(),
+                        time_taken: (30 * 60) - timeLeft
+                    })
+                    .eq('id', sessionId);
+                
+                if (updateError) throw updateError;
+                
+                // Show results
+                document.getElementById('exam-ui').classList.add('hidden');
+                document.getElementById('res-score').innerHTML = `${correctCount}<span class="text-sm text-gray-400">/${currentQuestions.length}</span>`;
+                document.getElementById('res-percent').innerText = `${percentage.toFixed(1)}%`;
+                document.getElementById('res-percent').className = `text-2xl font-black ${percentage >= 70 ? 'text-green-500' : 'text-orange-500'}`;
+                
+                // Build review list
+                const reviewContainer = document.getElementById('review-list');
+                reviewContainer.innerHTML = currentQuestions.map((q, idx) => {
+                    const userAnswer = selectedAnswers[q.id];
+                    const isCorrect = userAnswer === correctMap[q.id];
+                    return `
+                        <div class="glass-panel p-4 rounded-xl ${isCorrect ? 'border-green-500/30' : 'border-red-500/30'}">
+                            <p class="text-[10px] font-black text-gray-500 mb-1">Q${idx + 1}</p>
+                            <p class="text-xs font-bold mb-2">${escapeHtml(q.question_text)}</p>
+                            <p class="text-[9px]">Your answer: <span class="${isCorrect ? 'text-green-500' : 'text-red-500'}">${userAnswer || 'Not answered'}</span></p>
+                            ${!isCorrect ? `<p class="text-[9px] text-gray-400 mt-1">Correct: ${correctMap[q.id]}</p>` : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('result-modal').classList.replace('hidden', 'flex');
+                closeSubmitModal();
+                
+            } catch (err) {
+                console.error('Submit error:', err);
+                alert("Error submitting exam: " + err.message);
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = "Submit Now";
+                }
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        async function init() {
+            try {
+                await loadSubjects();
+                showSubjectSelector();
+                document.getElementById('loading-gate').classList.add('hidden');
+            } catch (err) {
+                console.error('Init error:', err);
+                document.getElementById('loading-gate').innerHTML = `
+                    <div class="text-center p-6">
+                        <p class="text-red-500 font-bold">Error: ${err.message}</p>
+                        <button onclick="location.reload()" class="mt-4 bg-orange-600 px-6 py-3 rounded-xl text-sm font-black">Retry</button>
+                    </div>
+                `;
+            }
+        }
+        
+        init();
+    </script>
+</body>
+</html>
