@@ -150,20 +150,6 @@
             border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         .sunlight-mode .follower-item { border-color: #e4e4e7; }
-        
-        .qty-btn {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            width: 28px;
-            height: 28px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 900;
-            cursor: pointer;
-        }
-        .qty-btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -603,30 +589,6 @@
             });
         }
 
-        function setupQuantitySelectors() {
-            document.querySelectorAll('.qty-btn').forEach(btn => {
-                btn.removeEventListener('click', handleQuantityChange);
-                btn.addEventListener('click', handleQuantityChange);
-            });
-        }
-
-        function handleQuantityChange(e) {
-            e.stopPropagation();
-            const productId = e.currentTarget.dataset.id;
-            const change = parseInt(e.currentTarget.dataset.change);
-            const qtySpan = document.getElementById(`qty-${productId}`);
-            let currentQty = parseInt(qtySpan.innerText);
-            let newQty = currentQty + change;
-            
-            if (newQty < 1) newQty = 1;
-            if (newQty > (storeProducts.find(p => p.id === productId)?.stock || 0)) {
-                showToast(`Only ${storeProducts.find(p => p.id === productId)?.stock} available`, 2000);
-                return;
-            }
-            
-            qtySpan.innerText = newQty;
-        }
-
         function renderProducts() {
             const grid = document.getElementById('products-grid');
             let filtered = storeProducts;
@@ -643,7 +605,7 @@
             grid.innerHTML = filtered.map(product => {
                 const inCart = userCart[product.id];
                 const stock = product.stock || 0;
-                const stockBadge = stock === 0 ? 'Out of Stock' : (stock < 5 ? `Only ${stock} left` : 'In Stock');
+                const stockBadge = stock === 0 ? 'Out of Stock' : (stock < 5 ? `Only ${stock} left` : `${stock} in stock`);
                 const stockColor = stock === 0 ? 'text-red-500' : (stock < 5 ? 'text-orange-500' : 'text-green-500');
                 
                 return `
@@ -662,14 +624,7 @@
                                 <p class="text-[7px] font-black ${stockColor}">${stockBadge}</p>
                             </div>
                             ${!inCart && stock > 0 ? `
-                                <div class="flex gap-1 mt-2">
-                                    <div class="flex items-center bg-zinc-800 rounded-lg overflow-hidden">
-                                        <button data-id="${product.id}" data-change="-1" class="qty-btn w-7 h-7 text-white text-[10px] font-black">-</button>
-                                        <span id="qty-${product.id}" class="text-[9px] font-black w-6 text-center">1</span>
-                                        <button data-id="${product.id}" data-change="1" class="qty-btn w-7 h-7 text-white text-[10px] font-black">+</button>
-                                    </div>
-                                    <button data-id="${product.id}" class="add-to-cart-btn flex-1 bg-white text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider">Add</button>
-                                </div>
+                                <button data-id="${product.id}" class="add-to-cart-btn w-full bg-white text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2">Add to Cart</button>
                             ` : inCart ? `
                                 <button onclick="window.location.href='cart.html'" class="w-full bg-sdel text-black py-1.5 rounded-lg font-black uppercase text-[7px] tracking-wider mt-2">View Cart</button>
                             ` : `
@@ -682,7 +637,7 @@
             
             document.querySelectorAll('.product-card').forEach(card => {
                 card.addEventListener('click', (e) => {
-                    if (e.target.classList.contains('add-to-cart-btn') || e.target.classList.contains('qty-btn')) return;
+                    if (e.target.classList.contains('add-to-cart-btn')) return;
                     const product = JSON.parse(card.dataset.product.replace(/&#39;/g, "'"));
                     openProductModal(product);
                 });
@@ -695,7 +650,6 @@
                 });
             });
             
-            setupQuantitySelectors();
             lucide.createIcons();
         }
 
@@ -740,9 +694,9 @@
                         <div class="flex items-center justify-between mt-4">
                             <span class="text-[9px] font-black uppercase text-zinc-500">Quantity</span>
                             <div class="flex items-center gap-3">
-                                <button onclick="changeModalQty(-1)" id="modal-qty-minus" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black">-</button>
+                                <button onclick="changeModalQty(-1)" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black">-</button>
                                 <span id="modal-qty" class="text-base font-black w-8 text-center">1</span>
-                                <button onclick="changeModalQty(1)" id="modal-qty-plus" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black">+</button>
+                                <button onclick="changeModalQty(1)" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white font-black">+</button>
                             </div>
                         </div>
                         
@@ -758,7 +712,7 @@
                                 </div>
                             ` : stock > 0 ? `
                                 <button onclick="addToCartWithQty('${product.id}')" class="w-full bg-sdel text-black py-3.5 rounded-2xl font-black text-[11px] tracking-wider flex items-center justify-center gap-2">
-                                    <i data-lucide="shopping-cart" size="16"></i> Add to Cart
+                                    <i data-lucide="shopping-cart" size="16"></i> Add to Cart (Qty: <span id="modal-final-qty">1</span>)
                                 </button>
                             ` : `
                                 <button disabled class="w-full bg-zinc-800 text-zinc-500 py-3.5 rounded-2xl font-black text-[11px] cursor-not-allowed">Out of Stock</button>
@@ -780,6 +734,8 @@
                 }
                 selectedQty = newQty;
                 document.getElementById('modal-qty').innerText = selectedQty;
+                const finalQtySpan = document.getElementById('modal-final-qty');
+                if (finalQtySpan) finalQtySpan.innerText = selectedQty;
             };
             
             window.addToCartWithQty = async (id) => {
@@ -828,9 +784,7 @@
         }
 
         async function addToCart(productId) {
-            const qtySpan = document.getElementById(`qty-${productId}`);
-            const quantity = qtySpan ? parseInt(qtySpan.innerText) : 1;
-            await addToCartWithQuantity(productId, quantity);
+            await addToCartWithQuantity(productId, 1);
         }
 
         window.updateQty = async (id, change) => {
