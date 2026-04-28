@@ -1,922 +1,783 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'sunlight') {
+                document.documentElement.classList.add('sunlight-mode');
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Sdel | Feed</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sdel | Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #000; color: #fff; transition: background-color 0.3s; padding-bottom: 85px; }
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .card-glass { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+        .header-text { font-weight: 900; letter-spacing: -0.02em; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        body {
-            background-color: #000;
-            color: #fff;
-            padding-bottom: 70px;
-        }
+        /* Story Rings */
+        .ring-blue-rotate { border-color: transparent !important; background: linear-gradient(#000, #000) padding-box, conic-gradient(#3b82f6, transparent) border-box; border: 2px solid transparent; animation: spin 2s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes gold-glow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
+        .sdel-pulse { animation: gold-glow 2s infinite; }
         
-        /* Light mode */
-        body.light-mode {
-            background-color: #fff;
-            color: #000;
-        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+        ::-webkit-scrollbar-thumb { background: #FF6600; border-radius: 10px; }
         
-        body.light-mode nav,
-        body.light-mode .bottom-nav {
-            background: rgba(255,255,255,0.98);
-            border-color: #e5e5e5;
-        }
+        /* Sunlight Mode */
+        .sunlight-mode body { background-color: #f5f5f5; color: #121212; }
+        .sunlight-mode .card-glass { background: rgba(255,255,255,0.9); border-color: #e4e4e7; }
+        .sunlight-mode .bg-black\/90 { background-color: rgba(255,255,255,0.9); }
+        .sunlight-mode .border-white\/10 { border-color: #e4e4e7; }
+        .sunlight-mode .text-white { color: #121212; }
+        .sunlight-mode .bg-white\/5 { background-color: #e4e4e7; }
+        .sunlight-mode .text-zinc-500 { color: #71717a; }
         
-        body.light-mode .post-card {
-            background: #fff;
-            border-bottom-color: #efefef;
-        }
-        
-        body.light-mode .post-card .text-zinc-200 {
-            color: #1a1a1a;
-        }
-        
-        body.light-mode .action-btn:active {
-            background: rgba(0,0,0,0.05);
-        }
-        
-        body.light-mode .tab-btn {
-            color: #000;
-        }
-        
-        body.light-mode .tab-active {
-            color: #FF6600;
-        }
-        
-        body.light-mode .mention-link {
-            color: #FF6600;
-        }
-        
-        /* Post Card */
-        .post-card {
-            background: #0a0a0a;
-            border-bottom: 1px solid rgba(255,255,255,0.08);
-            transition: background 0.15s;
-            padding: 16px;
-            cursor: pointer;
-        }
-        
-        .post-card:hover {
+        /* Stats Card */
+        .stat-card {
             background: rgba(255,255,255,0.03);
+            border-radius: 20px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .sunlight-mode .stat-card { background: white; border-color: #e4e4e7; }
+        
+        /* Ad Banner */
+        #ad-banner {
+            transition: opacity 0.5s ease;
         }
         
-        /* Like Button */
-        .like-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            border-radius: 40px;
-            transition: all 0.15s ease;
-            background: transparent;
-            cursor: pointer;
-            min-width: 52px;
+        /* Order Items */
+        .order-item {
+            transition: all 0.2s;
         }
-        
-        .like-btn i {
-            width: 20px;
-            height: 20px;
-            transition: transform 0.12s cubic-bezier(0.34, 1.2, 0.64, 1);
-            flex-shrink: 0;
-        }
-        
-        .like-btn:active i {
-            transform: scale(1.2);
-        }
-        
-        .like-btn.liked i {
-            color: #FF6600;
-            fill: #FF6600;
-        }
-        
-        .like-btn span {
-            font-size: 13px;
-            font-weight: 600;
-            min-width: 28px;
-            color: #71717a;
-        }
-        
-        .like-btn.liked span {
-            color: #FF6600;
-        }
-        
-        /* Action buttons */
-        .action-buttons {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            flex-wrap: wrap;
-            margin-top: 12px;
-        }
-        
-        .action-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            border-radius: 40px;
-            transition: background 0.15s;
-            cursor: pointer;
-            background: transparent;
-        }
-        
-        .action-btn:active {
-            background: rgba(255,255,255,0.05);
-        }
-        
-        .action-btn i {
-            width: 18px;
-            height: 18px;
-            flex-shrink: 0;
-            color: #71717a;
-        }
-        
-        .action-btn span {
-            font-size: 13px;
-            font-weight: 500;
-            color: #71717a;
-        }
-        
-        /* Tabs */
-        .tabs-container {
-            display: flex;
-            justify-content: center;
-            gap: 0;
-        }
-        
-        .tab-btn {
-            transition: all 0.2s ease;
-            border-bottom: 2px solid transparent;
-            opacity: 0.6;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 12px;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            padding: 12px 24px;
-        }
-        
-        .tab-active {
-            color: #FF6600;
-            border-bottom: 2px solid #FF6600;
-            opacity: 1;
-        }
-        
-        /* Feed Container */
-        .feed-container {
-            height: calc(100vh - 120px);
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        
-        .feed-container::-webkit-scrollbar {
-            width: 4px;
-        }
-        
-        .feed-container::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.05);
-        }
-        
-        .feed-container::-webkit-scrollbar-thumb {
-            background: #FF6600;
-            border-radius: 10px;
-        }
-        
-        /* Post Image */
-        .post-image {
-            border-radius: 16px;
-            max-height: 300px;
-            width: 100%;
-            object-fit: cover;
-            margin-top: 12px;
-            cursor: pointer;
-        }
+        .order-item:active { transform: scale(0.98); }
         
         /* Modal */
         .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.85);
-            backdrop-filter: blur(12px);
-            z-index: 2000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .modal-content {
-            background: #111;
-            border-radius: 24px;
-            width: 100%;
-            max-width: 500px;
-            padding: 24px;
-            border: 1px solid #222;
-        }
-        
-        body.light-mode .modal-content {
-            background: #fff;
-            border-color: #e5e5e5;
-        }
-        
-        body.light-mode .modal-content textarea {
-            background: #f5f5f5 !important;
-            color: #000 !important;
-            border-color: #e5e5e5 !important;
-        }
-        
-        /* Action Sheet */
-        .action-sheet {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(17,17,17,0.95);
+            background: rgba(0,0,0,0.95);
             backdrop-filter: blur(20px);
-            border-radius: 24px 24px 0 0;
-            transform: translateY(100%);
-            transition: transform 0.25s ease;
-            z-index: 3000;
-            padding: 20px;
-            border-top: 1px solid #222;
         }
-        
-        .action-sheet.open {
-            transform: translateY(0);
-        }
-        
-        body.light-mode .action-sheet {
-            background: #fff;
-            border-top-color: #e5e5e5;
-        }
-        
-        /* Bottom Nav - Same as Dashboard */
+        .sunlight-mode .modal-overlay { background: rgba(255,255,255,0.95); }
+
+        /* ========== BOTTOM NAVIGATION - STRAIGHT LINE, WARM SOFT COLORS, CUSTOM ICONS ========== */
         .bottom-nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(0,0,0,0.95);
+            background: rgba(20, 15, 12, 0.92);
             backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(255,255,255,0.08);
-            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-            z-index: 100;
+            border-top: 1px solid rgba(255, 140, 60, 0.25);
+            padding: 10px 20px 20px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            /* Warm gradient background that softly shifts colors */
+            background: linear-gradient(135deg, #2a1a0e, #1f1408, #2d1c0f);
+            background-size: 200% 200%;
+            animation: warmBottomShift 12s ease infinite;
+            overflow: hidden;
+            position: relative;
         }
-        
-        .bottom-nav-inner {
+
+        /* Light Sweep Animation Overlay */
+        .light-sweep {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 200, 120, 0.4) 30%,
+                rgba(255, 220, 150, 0.6) 50%,
+                rgba(255, 200, 120, 0.4) 70%,
+                transparent 100%);
+            pointer-events: none;
+            z-index: 10;
+            animation: sweepLight 8s ease-in-out infinite;
+        }
+
+        @keyframes sweepLight {
+            0% { left: -100%; opacity: 0; }
+            10% { opacity: 0.8; }
+            30% { left: 120%; opacity: 0.8; }
+            31% { opacity: 0; }
+            100% { left: 120%; opacity: 0; }
+        }
+
+        /* Vibration animation for nav items when light passes */
+        @keyframes vibrateFavicon {
+            0% { transform: translateX(0px) rotate(0deg); }
+            25% { transform: translateX(1.5px) rotate(1deg); }
+            50% { transform: translateX(-1.5px) rotate(-1deg); }
+            75% { transform: translateX(1px) rotate(0.5deg); }
+            100% { transform: translateX(0px) rotate(0deg); }
+        }
+
+        .nav-item-bottom.vibrate {
+            animation: vibrateFavicon 0.25s ease-in-out 0s 1;
+        }
+
+        /* Soft shifting animation for bottom nav background */
+        @keyframes warmBottomShift {
+            0% {
+                background-position: 0% 50%;
+                background-color: #2a1a0e;
+            }
+            50% {
+                background-position: 100% 50%;
+                background-color: #3d2616;
+            }
+            100% {
+                background-position: 0% 50%;
+                background-color: #2a1a0e;
+            }
+        }
+
+        /* Sunlight mode adjustment for bottom nav */
+        .sunlight-mode .bottom-nav {
+            background: linear-gradient(135deg, #fff0e6, #ffe6d9, #fff0e6);
+            background-size: 200% 200%;
+            animation: warmBottomShiftLight 12s ease infinite;
+            border-top: 1px solid rgba(255, 102, 0, 0.3);
+        }
+
+        @keyframes warmBottomShiftLight {
+            0% { background-position: 0% 50%; background-color: #fff0e6; }
+            50% { background-position: 100% 50%; background-color: #ffe0d0; }
+            100% { background-position: 0% 50%; background-color: #fff0e6; }
+        }
+
+        /* Nav container - straight line horizontal layout */
+        .nav-container {
             display: flex;
-            justify-content: space-around;
+            flex-direction: row;
             align-items: center;
+            justify-content: space-around;
+            gap: 4px;
+            width: 100%;
             max-width: 500px;
             margin: 0 auto;
+            position: relative;
+            z-index: 15;
         }
-        
-        .bottom-nav-item {
+
+        /* Individual nav item - pure straight line */
+        .nav-item-bottom {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2px;
-            cursor: pointer;
-            transition: opacity 0.15s;
-            padding: 4px 12px;
-        }
-        
-        .bottom-nav-item:active {
-            opacity: 0.6;
-        }
-        
-        .mention-link {
-            color: #FF6600;
-            font-weight: 600;
+            justify-content: center;
+            gap: 4px;
+            flex: 1;
             text-decoration: none;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px 0 4px;
+            border-radius: 40px;
+            transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            color: rgba(255, 200, 160, 0.7);
         }
-        
-        .loading-spinner {
-            width: 24px;
-            height: 24px;
-            border: 2px solid #FF6600;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin: 20px auto;
+
+        /* Nav icon styling - crisp vector-only (no emojis) */
+        .nav-item-bottom i {
+            font-size: 22px;
+            transition: transform 0.2s ease, color 0.2s;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
         }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+
+        .nav-item-bottom span {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            transition: all 0.2s;
+        }
+
+        /* Active state - warm orange glow */
+        .nav-item-bottom.active {
+            color: #FF884D;
+            transform: translateY(-2px);
+        }
+
+        .nav-item-bottom.active i {
+            color: #FF884D;
+            text-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
+            transform: scale(1.05);
+        }
+
+        .nav-item-bottom.active span {
+            color: #FF884D;
+            font-weight: 800;
+        }
+
+        /* Hover / tap feedback */
+        .nav-item-bottom:hover {
+            background: rgba(255, 140, 60, 0.15);
+            border-radius: 40px;
+            transform: translateY(-1px);
+        }
+
+        .nav-item-bottom:active {
+            transform: scale(0.96);
+            transition: 0.05s;
+        }
+
+        /* Remove focus outline and keep accessible ring */
+        .nav-item-bottom:focus-visible {
+            outline: 2px solid #FF884D;
+            outline-offset: 2px;
+            border-radius: 40px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .nav-item-bottom i { font-size: 20px; }
+            .nav-item-bottom span { font-size: 9px; }
+            .bottom-nav { padding: 8px 12px 18px; }
         }
     </style>
 </head>
 <body>
-
-<!-- Header -->
-<nav class="sticky top-0 bg-black/95 backdrop-blur-xl border-b border-white/10 z-50">
-    <div class="px-4 py-3 flex items-center justify-between">
-        <h1 class="text-xl font-black tracking-tight">
-            sdel<span class="text-[#FF6600]">.</span>
-        </h1>
+    
+    <!-- Navigation -->
+    <nav class="px-5 py-4 flex justify-between items-center sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/10">
+        <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-sdel/30 shadow-lg">
+                <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
+            </div>
+            <div>
+                <p class="text-[10px] font-black uppercase text-zinc-500 tracking-wider">Welcome back,</p>
+                <h1 class="text-lg font-black tracking-tighter"><span id="user-name" class="text-sdel">...</span></h1>
+            </div>
+        </div>
         <div class="flex items-center gap-4">
-            <i data-lucide="sun" size="20" onclick="toggleTheme()" style="cursor: pointer;"></i>
-            <i data-lucide="search" size="20" onclick="toggleSearch()" style="cursor: pointer;"></i>
-            <i data-lucide="bell" size="20" onclick="location.href='messages.html'" style="cursor: pointer;"></i>
-        </div>
-    </div>
-    
-    <!-- Search Bar -->
-    <div id="search-bar" class="px-4 pb-3 hidden">
-        <div class="bg-[#111] rounded-full px-4 py-2 flex items-center gap-3 border border-white/10">
-            <i data-lucide="search" size="18" class="text-zinc-500"></i>
-            <input type="text" id="search-input" placeholder="Search users or posts..." class="bg-transparent flex-1 outline-none text-sm" oninput="handleSearch(this.value)">
-            <i data-lucide="x" size="18" class="text-zinc-500 cursor-pointer" onclick="toggleSearch()"></i>
-        </div>
-    </div>
-    
-    <!-- Tabs -->
-    <div class="tabs-container">
-        <button id="tab-campus" onclick="switchTab('campus')" class="tab-btn tab-active">CAMPUS</button>
-        <button id="tab-universe" onclick="switchTab('universe')" class="tab-btn">UNIVERSE</button>
-    </div>
-</nav>
-
-<!-- Feed Container -->
-<div id="feed-container" class="feed-container">
-    <div id="feed-content"></div>
-</div>
-
-<!-- Bottom Navigation - Same as Dashboard (No Center Button) -->
-<div class="bottom-nav">
-    <div class="bottom-nav-inner">
-        <div class="bottom-nav-item" onclick="location.href='dashboard.html'">
-            <i data-lucide="home" size="22" class="text-zinc-500"></i>
-        </div>
-        <div class="bottom-nav-item" onclick="location.href='explore.html'">
-            <i data-lucide="compass" size="22" class="text-[#FF6600]"></i>
-        </div>
-        <div class="bottom-nav-item" onclick="openPostModal()">
-            <i data-lucide="plus" size="22" class="text-sdel"></i>
-        </div>
-        <div class="bottom-nav-item" onclick="location.href='market.html'">
-            <i data-lucide="shopping-cart" size="22" class="text-zinc-500"></i>
-        </div>
-        <div class="bottom-nav-item" onclick="location.href='profile.html'">
-            <i data-lucide="user" size="22" class="text-zinc-500"></i>
-        </div>
-    </div>
-</div>
-
-<!-- Post Modal -->
-<div id="post-modal" class="modal-overlay" onclick="closePostModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="font-bold text-lg" id="post-modal-title">Create post</h3>
-            <i data-lucide="x" size="20" onclick="closePostModal()" style="cursor: pointer;"></i>
-        </div>
-        <textarea id="modal-post-input" placeholder="What's happening?" class="w-full bg-black border border-white/10 rounded-xl p-4 outline-none resize-none min-h-[120px] text-sm"></textarea>
-        
-        <!-- Image Upload -->
-        <div class="mt-3">
-            <input type="file" id="post-image-input" accept="image/*" class="hidden" onchange="previewImage()">
-            <button onclick="document.getElementById('post-image-input').click()" class="text-sdel text-sm font-medium flex items-center gap-2">
-                <i data-lucide="image" size="18"></i> Add image
+            <button onclick="location.href='homies.html'" class="p-2 rounded-full bg-white/5">
+                <i data-lucide="users" size="20" class="text-sdel"></i>
             </button>
-            <div id="image-preview-container" class="mt-2 hidden relative">
-                <img id="image-preview" class="rounded-xl max-h-48 w-full object-cover">
-                <button onclick="removeImage()" class="absolute top-2 right-2 bg-black/70 rounded-full p-1">
-                    <i data-lucide="x" size="14" class="text-white"></i>
+            <div class="relative cursor-pointer" onclick="location.href='messages.html'">
+                <button class="p-2 rounded-full bg-white/5">
+                    <i data-lucide="bell" size="20" class="text-sdel"></i>
                 </button>
+                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-[9px] font-black text-white w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">0</span>
             </div>
         </div>
-        
-        <div class="flex gap-3 mt-4">
-            <button onclick="closePostModal()" class="flex-1 py-2.5 rounded-full border border-white/10 font-medium text-sm">Cancel</button>
-            <button id="modal-post-btn" onclick="submitPost()" class="flex-1 py-2.5 rounded-full bg-[#FF6600] text-black font-bold text-sm">Post</button>
+    </nav>
+
+    <!-- Wallet & XP Row -->
+    <div class="px-5 pt-5">
+        <div class="grid grid-cols-2 gap-3">
+            <div class="card-glass rounded-2xl p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="wallet" size="16" class="text-sdel"></i>
+                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">Balance</span>
+                </div>
+                <p id="wallet-pill" class="text-2xl font-black tracking-tighter">₦0</p>
+            </div>
+            <div class="card-glass rounded-2xl p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="award" size="16" class="text-sdel"></i>
+                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">XP Points</span>
+                </div>
+                <p id="xp-count" class="text-2xl font-black tracking-tighter">0</p>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Image Preview Modal -->
-<div id="image-modal" class="modal-overlay" onclick="closeImageModal()">
-    <div class="flex items-center justify-center w-full h-full" onclick="event.stopPropagation()">
-        <img id="fullscreen-image" class="max-w-full max-h-full rounded-2xl">
-        <button onclick="closeImageModal()" class="absolute top-5 right-5 bg-black/50 rounded-full p-2">
-            <i data-lucide="x" size="24" class="text-white"></i>
-        </button>
-    </div>
-</div>
-
-<!-- Action Sheet -->
-<div id="action-sheet" class="action-sheet" onclick="event.stopPropagation()">
-    <div class="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-5"></div>
-    <div id="action-options" class="space-y-2"></div>
-    <button onclick="closeActionSheet()" class="w-full mt-3 py-3 text-zinc-500 font-medium text-sm">Cancel</button>
-</div>
-
-<script type="module">
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-const supabase = createClient(
-    'https://lgfyrlfjoazedwymjpfc.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'
-);
-
-let currentUser = null;
-let currentTab = 'campus';
-let campusPosts = [];
-let universePosts = [];
-let likedPosts = new Set();
-let repostedPosts = new Set();
-let isLoading = false;
-let hasMore = true;
-let page = 0;
-let searchQuery = '';
-let currentEditPostId = null;
-let selectedImageFile = null;
-
-const feedContent = document.getElementById('feed-content');
-
-function formatNumber(num) {
-    if (!num) return '0';
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-}
-
-function timeAgo(date) {
-    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d`;
-    return new Date(date).toLocaleDateString();
-}
-
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function formatContent(text) {
-    if (!text) return '';
-    let formatted = escapeHtml(text);
-    formatted = formatted.replace(/@(\w+)/g, '<span class="mention-link">@$1</span>');
-    formatted = formatted.replace(/(https?:\/\/[^\s]+)/g, '<a href="#" onclick="event.stopPropagation(); window.open(\'$1\', \'_blank\')" class="mention-link">$1</a>');
-    return formatted;
-}
-
-async function getCurrentUser() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-        window.location.href = 'login.html';
-        return null;
-    }
-    const { data: profile } = await supabase.from('profile').select('*').eq('id', session.user.id).single();
-    if (profile?.is_banned) {
-        window.location.href = 'banned.html';
-        return null;
-    }
-    return profile;
-}
-
-async function loadPosts(reset = false) {
-    if (isLoading) return;
-    
-    if (reset) {
-        page = 0;
-        if (currentTab === 'campus') campusPosts = [];
-        else universePosts = [];
-        hasMore = true;
-    }
-    
-    if (!hasMore) return;
-    
-    isLoading = true;
-    page++;
-    
-    try {
-        let query = supabase
-            .from('posts')
-            .select('*, profile:user_id(username, is_verified, is_official, school_name, avatar_url)')
-            .eq('post_type', 'post')
-            .order('created_at', { ascending: false })
-            .range((page - 1) * 15, page * 15 - 1);
-        
-        if (currentTab === 'campus' && currentUser?.school_name) {
-            query = query.eq('school_name', currentUser.school_name);
-        }
-        
-        if (searchQuery) {
-            query = query.ilike('content', `%${searchQuery}%`);
-        }
-        
-        const { data: newPosts, error } = await query;
-        
-        if (error) throw error;
-        
-        if (!newPosts || newPosts.length === 0) {
-            hasMore = false;
-            isLoading = false;
-            renderFeed();
-            return;
-        }
-        
-        if (currentUser) {
-            const { data: likes } = await supabase
-                .from('interactions')
-                .select('post_id')
-                .eq('user_id', currentUser.id)
-                .eq('interaction_type', 'like');
-            likedPosts = new Set(likes?.map(l => l.post_id) || []);
-            
-            const { data: reposts } = await supabase
-                .from('interactions')
-                .select('post_id')
-                .eq('user_id', currentUser.id)
-                .eq('interaction_type', 'repost');
-            repostedPosts = new Set(reposts?.map(r => r.post_id) || []);
-        }
-        
-        if (currentTab === 'campus') campusPosts = [...campusPosts, ...newPosts];
-        else universePosts = [...universePosts, ...newPosts];
-        
-        renderFeed();
-        
-    } catch (error) {
-        console.error(error);
-    }
-    
-    isLoading = false;
-}
-
-function openImageModal(imageUrl) {
-    const modal = document.getElementById('image-modal');
-    const fullImg = document.getElementById('fullscreen-image');
-    fullImg.src = imageUrl;
-    modal.style.display = 'flex';
-}
-
-function closeImageModal() {
-    document.getElementById('image-modal').style.display = 'none';
-}
-
-function renderFeed() {
-    const posts = currentTab === 'campus' ? campusPosts : universePosts;
-    
-    if (posts.length === 0 && !isLoading) {
-        feedContent.innerHTML = `
-            <div class="flex flex-col items-center justify-center h-80 px-6 text-center">
-                <i data-lucide="inbox" size="48" class="text-zinc-700 mb-3"></i>
-                <p class="text-zinc-500 text-sm">No posts yet</p>
-                <button onclick="openPostModal()" class="mt-4 px-5 py-2 bg-[#FF6600] text-black rounded-full font-bold text-sm">Create first post</button>
+    <!-- Stories Section -->
+    <section class="px-5 mt-6">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="circle-play" size="16" class="text-sdel"></i>
+                <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Stories</h2>
             </div>
-        `;
-        lucide.createIcons();
-        return;
-    }
-    
-    feedContent.innerHTML = posts.map(post => {
-        const profile = post.profile;
-        const username = profile?.username || 'anon';
-        const isLiked = likedPosts.has(post.id);
-        const hasReposted = repostedPosts.has(post.id);
-        
-        let badge = '';
-        if (profile?.is_official) {
-            badge = '<span class="bg-[#FF6600] rounded-full w-4 h-4 inline-flex items-center justify-center ml-1"><i data-lucide="check" size="10" class="text-white"></i></span>';
-        } else if (profile?.is_verified) {
-            badge = '<span class="bg-[#1da1f2] rounded-full w-4 h-4 inline-flex items-center justify-center ml-1"><i data-lucide="check" size="10" class="text-white"></i></span>';
-        }
-        
-        const schoolTag = (currentTab === 'universe' && post.school_name) ? 
-            `<span class="text-[10px] text-zinc-500 ml-2">🏛️ ${escapeHtml(post.school_name)}</span>` : '';
-        
-        const imageHtml = post.image_url ? 
-            `<img src="${post.image_url}" class="post-image" onclick="event.stopPropagation(); openImageModal('${post.image_url}')">` : '';
-        
-        return `
-            <div class="post-card" data-post-id="${post.id}" ondblclick="handleLike('${post.id}')">
-                <div class="flex gap-3">
-                    <div onclick="event.stopPropagation(); location.href='profile.html?u=${username}'" 
-                         class="w-11 h-11 rounded-full bg-gradient-to-br from-[#FF6600] to-[#FF9940] flex items-center justify-center text-white font-bold text-base cursor-pointer flex-shrink-0">
-                        ${username.charAt(0).toUpperCase()}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center flex-wrap gap-1 mb-1">
-                            <span onclick="event.stopPropagation(); location.href='profile.html?u=${username}'" 
-                                  class="font-bold text-sm cursor-pointer hover:underline">${escapeHtml(username)}</span>
-                            ${badge}
-                            <span class="text-xs text-zinc-500">${timeAgo(post.created_at)}</span>
-                            ${schoolTag}
-                        </div>
-                        <div class="text-sm text-zinc-200 leading-relaxed break-words">
-                            ${formatContent(post.content)}
-                        </div>
-                        ${imageHtml}
-                        <div class="action-buttons">
-                            <button onclick="event.stopPropagation(); handleLike('${post.id}')" 
-                                    class="action-btn like-btn ${isLiked ? 'liked' : ''}">
-                                <i data-lucide="heart" size="18" ${isLiked ? 'fill="#FF6600"' : ''}></i>
-                                <span>${formatNumber(post.likes_count)}</span>
-                            </button>
-                            <button onclick="event.stopPropagation(); location.href='gist.html?id=${post.id}'" 
-                                    class="action-btn">
-                                <i data-lucide="message-circle" size="18"></i>
-                                <span>${formatNumber(post.comments_count)}</span>
-                            </button>
-                            <button onclick="event.stopPropagation(); handleRepost('${post.id}', '${username}')" 
-                                    class="action-btn ${hasReposted ? 'opacity-50' : ''}">
-                                <i data-lucide="repeat" size="18"></i>
-                                <span>${formatNumber(post.reposts_count)}</span>
-                            </button>
-                            <button onclick="event.stopPropagation(); handleShare('${post.id}', '${username}')" 
-                                    class="action-btn">
-                                <i data-lucide="share-2" size="18"></i>
-                            </button>
-                        </div>
-                    </div>
+            <button onclick="location.href='post-story.html'" class="text-[8px] font-black uppercase text-sdel">Post Story</button>
+        </div>
+        <div class="flex space-x-4 overflow-x-auto no-scrollbar pb-2" id="story-rail-content">
+            <div class="flex-shrink-0 flex flex-col items-center gap-2">
+                <div class="w-16 h-16 rounded-full bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center">
+                    <i data-lucide="plus" size="24" class="text-sdel"></i>
+                </div>
+                <span class="text-[8px] font-black uppercase text-zinc-500">Your Story</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Rank Card -->
+    <section class="px-5 mt-6">
+        <div class="card-glass rounded-2xl p-4">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="trophy" size="16" class="text-sdel"></i>
+                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">Current Rank</span>
+                </div>
+                <span id="rank-badge" class="px-3 py-1 rounded-full text-[9px] font-black uppercase bg-sdel/20 text-sdel">CITIZEN</span>
+            </div>
+            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                <div id="xp-progress-bar" class="h-full bg-sdel rounded-full transition-all duration-700" style="width: 0%"></div>
+            </div>
+            <p class="text-[8px] text-zinc-500 mt-2 text-right">Next level: More XP</p>
+        </div>
+    </section>
+
+    <!-- Sponsored Ad -->
+    <section class="px-5 mt-6">
+        <a id="ad-link" href="#" target="_blank" class="block">
+            <div id="ad-banner" class="w-full h-[200px] rounded-2xl bg-cover bg-center relative overflow-hidden" style="display: none; background-image: url('');">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                <div class="absolute bottom-0 left-0 right-0 p-4">
+                    <span class="text-[7px] font-black uppercase bg-sdel text-black px-2 py-0.5 rounded mb-2 inline-block">Sponsored</span>
+                    <p id="ad-text" class="text-sm font-black text-white tracking-tighter">Loading...</p>
                 </div>
             </div>
-        `;
-    }).join('');
-    
-    lucide.createIcons();
-    
-    // Infinite scroll
-    if (hasMore && !isLoading) {
-        const sentinel = document.createElement('div');
-        sentinel.className = 'loading-spinner';
-        feedContent.appendChild(sentinel);
-        
-        const observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting && hasMore && !isLoading) {
-                observer.disconnect();
-                loadPosts();
+        </a>
+    </section>
+
+    <!-- Order History -->
+    <section class="px-5 mt-6">
+        <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+                <i data-lucide="package" size="16" class="text-sdel"></i>
+                <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Recent Orders</h2>
+            </div>
+            <button onclick="toggleAllOrders(true)" class="text-[8px] font-black uppercase text-sdel">View All</button>
+        </div>
+        <div class="space-y-2" id="order-history-list"></div>
+    </section>
+
+    <!-- Global Feed -->
+    <section class="px-5 mt-6">
+        <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="radio" size="16" class="text-sdel"></i>
+            <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Global Feed</h2>
+        </div>
+        <div id="global-feed" class="space-y-4 pb-4"></div>
+    </section>
+
+    <!-- All Orders Modal -->
+    <div id="all-orders-modal" class="fixed inset-0 z-[100] hidden modal-overlay p-6 overflow-y-auto">
+        <div class="flex justify-between items-center mb-6 sticky top-0 bg-black/90 backdrop-blur-md py-4 -mt-2">
+            <h2 class="text-lg font-black tracking-tighter">Order History</h2>
+            <button onclick="toggleAllOrders(false)" class="p-2 rounded-full bg-white/5">
+                <i data-lucide="x" size="20" class="text-sdel"></i>
+            </button>
+        </div>
+        <div id="full-order-list" class="space-y-3 pb-20"></div>
+    </div>
+
+    <!-- ========== BOTTOM NAVIGATION - UPDATED: Explore + Fetch (camera icon), with light sweep & vibration ========== -->
+    <div class="bottom-nav">
+        <div class="light-sweep"></div>
+        <div class="nav-container">
+            <!-- Home Icon -->
+            <button class="nav-item-bottom" data-nav="home" id="bottomNavHome">
+                <i data-lucide="home" size="22"></i>
+                <span>Home</span>
+            </button>
+            <!-- Explore Icon (still compass) -->
+            <button class="nav-item-bottom" data-nav="explore" id="bottomNavExplore">
+                <i data-lucide="compass" size="22"></i>
+                <span>Explore</span>
+            </button>
+            <!-- Shop/Cart Icon -->
+            <button class="nav-item-bottom" data-nav="shop" id="bottomNavShop">
+                <i data-lucide="shopping-bag" size="22"></i>
+                <span>Shop</span>
+            </button>
+            <!-- FETCH Icon: Camera favicon, label "Fetch" (replaces previous Feed) -->
+            <button class="nav-item-bottom" data-nav="fetch" id="bottomNavFetch">
+                <i data-lucide="camera" size="22"></i>
+                <span>Fetch</span>
+            </button>
+            <!-- Profile Icon -->
+            <button class="nav-item-bottom" data-nav="profile" id="bottomNavProfile">
+                <i data-lucide="user" size="22"></i>
+                <span>Profile</span>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+        let currentUserId = null;
+        let activeAds = [];
+        let currentAdIndex = 0;
+        let allOrdersData = [];
+
+        async function init() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) return window.location.href = 'login.html';
+            currentUserId = session.user.id;
+
+            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
+            
+            const displayName = profile?.first_name || session.user.user_metadata?.first_name || "CHAMP";
+            document.getElementById('user-name').innerText = displayName;
+
+            if(profile) {
+                document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
+                if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
+                document.getElementById('xp-count').innerText = profile.xp || 0;
+                updatePrestige(profile.xp || 0);
             }
-        });
-        observer.observe(sentinel);
-    }
-}
 
-async function handleLike(postId) {
-    const isLiked = likedPosts.has(postId);
-    
-    if (isLiked) {
-        likedPosts.delete(postId);
-        let post = campusPosts.find(p => p.id === postId);
-        if (post) post.likes_count = Math.max(0, (post.likes_count || 0) - 1);
-        post = universePosts.find(p => p.id === postId);
-        if (post) post.likes_count = Math.max(0, (post.likes_count || 0) - 1);
-    } else {
-        likedPosts.add(postId);
-        let post = campusPosts.find(p => p.id === postId);
-        if (post) post.likes_count = (post.likes_count || 0) + 1;
-        post = universePosts.find(p => p.id === postId);
-        if (post) post.likes_count = (post.likes_count || 0) + 1;
-    }
-    
-    renderFeed();
-    
-    if (isLiked) {
-        await supabase.from('interactions').delete().eq('user_id', currentUser.id).eq('post_id', postId).eq('interaction_type', 'like');
-        await supabase.rpc('decrement_stat', { post_id: postId, field: 'likes_count' });
-    } else {
-        await supabase.from('interactions').upsert({ user_id: currentUser.id, post_id: postId, interaction_type: 'like' });
-        await supabase.rpc('increment_stat', { post_id: postId, field: 'likes_count' });
-    }
-}
+            loadStories();
+            loadFeed();
+            loadAds(); 
+            loadOrders();
+            getUnreadCount(); 
+            initBottomNav();  // Initialize bottom nav interactions
+            initLightSweepVibration(); // Setup light sweep + vibration effect
+        }
 
-async function handleRepost(postId, username) {
-    if (username === currentUser?.username) return;
-    if (repostedPosts.has(postId)) return;
-    
-    const originalPost = campusPosts.find(p => p.id === postId) || universePosts.find(p => p.id === postId);
-    if (!originalPost) return;
-    
-    const { error } = await supabase.from('posts').insert({
-        user_id: currentUser.id,
-        content: `Reposted from @${username}: ${originalPost.content.substring(0, 100)}`,
-        school_name: currentUser.school_name || 'Global',
-        post_type: 'repost'
-    });
-    
-    if (!error) {
-        await supabase.from('interactions').insert({ user_id: currentUser.id, post_id: postId, interaction_type: 'repost' });
-        await supabase.rpc('increment_stat', { post_id: postId, field: 'reposts_count' });
-        repostedPosts.add(postId);
-        
-        let post = campusPosts.find(p => p.id === postId);
-        if (post) post.reposts_count = (post.reposts_count || 0) + 1;
-        post = universePosts.find(p => p.id === postId);
-        if (post) post.reposts_count = (post.reposts_count || 0) + 1;
-        
-        renderFeed();
-    }
-}
+        // Light sweep animation and vibration on each favicon as light passes
+        function initLightSweepVibration() {
+            const navItems = document.querySelectorAll('.nav-item-bottom');
+            const sweepElement = document.querySelector('.light-sweep');
+            if (!sweepElement) return;
+            
+            // Listen for animation iteration or use keyframes to trigger vibration
+            // We'll create an observer for when the light passes over each icon using intersection? 
+            // Simpler: Add a timed loop that vibrates icons sequentially when the light beam is near.
+            // But the request: "add an animation of light from left to right and upon passing each favicon the favicon vibrates on the spot"
+            // We'll detect the sweep animation progress via JS and trigger vibration on each icon in order.
+            
+            // Get positions of icons relative to nav container
+            function triggerVibrationOnIcon(index) {
+                if (navItems[index]) {
+                    const icon = navItems[index];
+                    icon.classList.add('vibrate');
+                    setTimeout(() => {
+                        icon.classList.remove('vibrate');
+                    }, 250);
+                }
+            }
+            
+            // We'll simulate the light passing from left to right: duration 8s, delay per icon
+            // The light sweep animation takes 8 seconds total. Icons order: home(0), explore(1), shop(2), fetch(3), profile(4)
+            // Light passes each roughly every 1.2s (since 5 icons, ~1.6s spacing) but we'll trigger vibration at specific intervals.
+            let intervalIndex = 0;
+            const iconOrder = [0, 1, 2, 3, 4]; // home, explore, shop, fetch, profile
+            
+            // Reset and trigger vibration sequence each cycle
+            function startSweepVibrationCycle() {
+                let delay = 0;
+                const stepDelay = 1400; // 1.4 seconds between each icon vibration as light sweeps
+                iconOrder.forEach((idx, i) => {
+                    setTimeout(() => {
+                        triggerVibrationOnIcon(idx);
+                    }, delay + i * stepDelay);
+                });
+            }
+            
+            // Start first cycle after page load, then repeat every 8 seconds to match light sweep animation
+            startSweepVibrationCycle();
+            setInterval(() => {
+                startSweepVibrationCycle();
+            }, 8000);
+        }
 
-async function handleShare(postId, username) {
-    const url = `${window.location.origin}/gist.html?id=${postId}`;
-    if (navigator.share) {
-        try {
-            await navigator.share({ title: 'Sdel', text: `@${username}`, url });
-        } catch(e) { copyToClipboard(url); }
-    } else {
-        copyToClipboard(url);
-    }
-}
+        // Bottom Navigation Handler - Straight line with warm colors, UPDATED for Fetch
+        function initBottomNav() {
+            const navItems = document.querySelectorAll('.nav-item-bottom');
+            const sections = {
+                home: () => { window.scrollTo({ top: 0, behavior: 'smooth' }); },
+                explore: () => { 
+                    const feedSection = document.getElementById('global-feed');
+                    if(feedSection) feedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    else window.scrollTo({ top: 600, behavior: 'smooth' });
+                },
+                shop: () => { 
+                    const orderSection = document.querySelector('#order-history-list');
+                    if(orderSection) orderSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                },
+                fetch: () => {
+                    // Fetch action: scroll to stories section or trigger camera/post action
+                    // Opens a new post creation or camera interface (simulate)
+                    const storiesSection = document.querySelector('#story-rail-content');
+                    if(storiesSection) storiesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Optional: additional fetch action (like opening camera modal)
+                    alert("📸 Fetch Mode: Capture & Share moments!");
+                },
+                profile: () => { window.location.href = 'profile.html'; }
+            };
 
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text);
-    showToast('Link copied!');
-}
+            function setActiveNav(navValue) {
+                navItems.forEach(item => {
+                    if(item.getAttribute('data-nav') === navValue) {
+                        item.classList.add('active');
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+            }
 
-function showToast(msg) {
-    let toast = document.getElementById('toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'toast';
-        toast.style.cssText = 'position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(100px);background:#FF6600;color:black;padding:10px 20px;border-radius:30px;font-weight:700;font-size:12px;z-index:9999;transition:transform .3s';
-        document.body.appendChild(toast);
-    }
-    toast.innerText = msg;
-    setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(0)', 10);
-    setTimeout(() => toast.style.transform = 'translateX(-50%) translateY(100px)', 2000);
-}
+            setActiveNav('home');
 
-function openPostModal(editPost = null) {
-    const modal = document.getElementById('post-modal');
-    const input = document.getElementById('modal-post-input');
-    const title = document.getElementById('post-modal-title');
-    const btn = document.getElementById('modal-post-btn');
-    
-    if (editPost) {
-        currentEditPostId = editPost.id;
-        title.innerText = 'Edit post';
-        input.value = editPost.content;
-        btn.innerText = 'Update';
-    } else {
-        currentEditPostId = null;
-        title.innerText = 'Create post';
-        input.value = '';
-        btn.innerText = 'Post';
-    }
-    
-    modal.style.display = 'flex';
-    input.focus();
-}
+            navItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const navValue = item.getAttribute('data-nav');
+                    if (navValue && sections[navValue]) {
+                        sections[navValue]();
+                        setActiveNav(navValue);
+                        const bottomNav = document.querySelector('.bottom-nav');
+                        if(bottomNav) {
+                            bottomNav.style.transform = 'scale(0.99)';
+                            setTimeout(() => { if(bottomNav) bottomNav.style.transform = 'scale(1)'; }, 100);
+                        }
+                    }
+                });
+            });
 
-function closePostModal() {
-    document.getElementById('post-modal').style.display = 'none';
-    currentEditPostId = null;
-    removeImage();
-}
+            window.addEventListener('scroll', () => {
+                const scrollPos = window.scrollY;
+                const exploreTop = document.getElementById('global-feed')?.offsetTop - 100 || 600;
+                const shopTop = document.querySelector('#order-history-list')?.offsetTop - 100 || 1100;
+                const fetchTop = document.querySelector('#story-rail-content')?.offsetTop - 80 || 300;
+                
+                if(scrollPos < exploreTop - 100) setActiveNav('home');
+                else if(scrollPos >= exploreTop - 80 && scrollPos < shopTop - 80) setActiveNav('explore');
+                else if(scrollPos >= shopTop - 80 && scrollPos < fetchTop + 200) setActiveNav('shop');
+                else if(scrollPos >= fetchTop - 50) setActiveNav('fetch');
+            });
+        }
 
-function previewImage() {
-    const file = document.getElementById('post-image-input').files[0];
-    if (file) {
-        selectedImageFile = file;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const preview = document.getElementById('image-preview');
-            const container = document.getElementById('image-preview-container');
-            preview.src = e.target.result;
-            container.classList.remove('hidden');
+        async function loadStories() {
+            const now = new Date().toISOString();
+            
+            const { data: follows } = await supabase.from('followers').select('following_id').eq('follower_id', currentUserId);
+            const homieIds = follows ? follows.map(f => f.following_id) : [];
+
+            const { data: viewed } = await supabase.from('story_views').select('story_id').eq('user_id', currentUserId);
+            const viewedSet = new Set(viewed?.map(v => v.story_id));
+
+            const { data: stories } = await supabase
+                .from('stories')
+                .select('*, profile:profile(first_name, is_official)')
+                .gt('expires_at', now)
+                .or(`is_official_post.eq.true,author_id.eq.${currentUserId},author_id.in.(${homieIds.join(',') || '00000000-0000-0000-0000-000000000000'})`);
+
+            const rail = document.getElementById('story-rail-content');
+            if (stories && stories.length > 0) {
+                const userLatestMap = new Map();
+                stories.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).forEach(s => {
+                    if(!userLatestMap.has(s.author_id)) userLatestMap.set(s.author_id, s);
+                });
+                let uniqueStories = Array.from(userLatestMap.values());
+
+                uniqueStories.sort((a, b) => {
+                    const aIsSdel = a.is_official_post || a.profile?.is_official;
+                    const bIsSdel = b.is_official_post || b.profile?.is_official;
+                    const aIsMe = a.author_id === currentUserId;
+                    const bIsMe = b.author_id === currentUserId;
+                    const aWatched = viewedSet.has(a.id);
+                    const bWatched = viewedSet.has(b.id);
+
+                    if (aIsSdel && !bIsSdel) return -1;
+                    if (!aIsSdel && bIsSdel) return 1;
+                    if (aIsMe && !bIsMe) return -1;
+                    if (!aIsMe && bIsMe) return 1;
+                    if (!aWatched && bWatched) return -1;
+                    if (aWatched && !bWatched) return 1;
+                    return new Date(b.created_at) - new Date(a.created_at);
+                });
+
+                const extraStories = uniqueStories.map(s => {
+                    const isSdel = s.is_official_post || s.profile?.is_official;
+                    const isMe = s.author_id === currentUserId;
+                    const isWatched = viewedSet.has(s.id);
+                    
+                    let ringStyle = "";
+                    if (isSdel) ringStyle = isWatched ? "border-green-500" : "sdel-pulse";
+                    else if (isMe) ringStyle = "border-zinc-600";
+                    else ringStyle = isWatched ? "border-zinc-600" : "ring-blue-rotate";
+
+                    return `
+                        <div class="flex-shrink-0 flex flex-col items-center gap-2" onclick="watchStory('${s.id}')">
+                            <div class="w-16 h-16 rounded-full border-2 ${ringStyle} overflow-hidden">
+                                <img src="${s.media_url}" class="w-full h-full object-cover bg-zinc-900">
+                            </div>
+                            <span class="text-[8px] font-black uppercase truncate w-16 text-center ${isSdel ? 'text-sdel' : 'text-zinc-400'}">
+                                ${isSdel ? 'SDEL' : (s.profile?.first_name || 'HOMIE')}
+                            </span>
+                        </div>`;
+                }).join('');
+                
+                rail.innerHTML += extraStories;
+            }
+            lucide.createIcons();
+        }
+
+        window.watchStory = async (id) => {
+            await supabase.from('story_views').upsert({ user_id: currentUserId, story_id: id });
+            location.href = `view-story.html?id=${id}`;
         };
-        reader.readAsDataURL(file);
-    }
-}
 
-function removeImage() {
-    selectedImageFile = null;
-    document.getElementById('post-image-input').value = '';
-    document.getElementById('image-preview-container').classList.add('hidden');
-}
+        async function getUnreadCount() {
+            if (!currentUserId) return;
+            const { data: profile } = await supabase.from('profile').select('last_read_general, last_read_team').eq('id', currentUserId).single();
+            const lastGen = new Date(profile?.last_read_general || 0);
+            const lastTeam = new Date(profile?.last_read_team || 0);
+            const { data: messages } = await supabase.from('messages').select('type, created_at').or(`recipient_id.is.null,recipient_id.eq.${currentUserId}`);
+            if (!messages) return;
+            const unreadGen = messages.filter(m => m.type === 'general' && new Date(m.created_at) > lastGen).length;
+            const unreadTeam = messages.filter(m => m.type === 'team' && new Date(m.created_at) > lastTeam).length;
+            const totalUnread = unreadGen + unreadTeam;
+            const badge = document.getElementById('notif-badge');
+            if (totalUnread > 0) {
+                badge.innerText = totalUnread > 9 ? '9+' : totalUnread;
+                badge.classList.remove('hidden');
+                badge.style.display = 'flex';
+            } else {
+                badge.classList.add('hidden');
+                badge.style.display = 'none';
+            }
+        }
 
-async function submitPost() {
-    const content = document.getElementById('modal-post-input').value.trim();
-    if (!content && !selectedImageFile) return;
-    
-    let imageUrl = null;
-    
-    if (selectedImageFile) {
-        const fileName = `${currentUser.id}/${Date.now()}.jpg`;
-        const { data, error } = await supabase.storage
-            .from('post-images')
-            .upload(fileName, selectedImageFile);
+        async function loadAds() {
+            const { data: ads, error } = await supabase.from('promoted_ads').select('*').eq('active', true);
+            if (error || !ads || ads.length === 0) return;
+            let weightedAds = [];
+            ads.forEach(ad => {
+                const weight = Math.max(1, Math.floor((ad.price || 0) / 100)); 
+                for(let i=0; i<weight; i++) { weightedAds.push(ad); }
+            });
+            activeAds = weightedAds.sort(() => Math.random() - 0.5);
+            displayNextAd();
+            setInterval(displayNextAd, 5000);
+        }
+
+        function displayNextAd() {
+            if (activeAds.length === 0) return;
+            const ad = activeAds[currentAdIndex];
+            const banner = document.getElementById('ad-banner');
+            const adLink = document.getElementById('ad-link');
+            banner.classList.add('opacity-0');
+            setTimeout(() => {
+                banner.style.backgroundImage = `url(${ad.media_url})`;
+                document.getElementById('ad-text').innerText = ad.title;
+                adLink.href = ad.link_url || '#';
+                banner.classList.remove('opacity-0');
+                banner.style.display = 'flex';
+            }, 300);
+            currentAdIndex = (currentAdIndex + 1) % activeAds.length;
+        }
+
+        async function loadOrders() {
+            const { data: orders } = await supabase.from('orders').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
+            if (!orders) return;
+            allOrdersData = orders;
+            renderOrderList(orders.slice(0, 3), 'order-history-list');
+        }
+
+        function renderOrderList(data, targetId) {
+            const container = document.getElementById(targetId);
+            if (!container) return;
+            if (data.length === 0) {
+                container.innerHTML = `<div class="card-glass rounded-xl p-6 text-center"><i data-lucide="package-x" size="24" class="mx-auto text-zinc-600 mb-2"></i><p class="text-[9px] font-black uppercase text-zinc-500">No orders yet</p></div>`;
+                lucide.createIcons();
+                return;
+            }
+            container.innerHTML = data.map(o => {
+                const displayId = o.order_code || `ID: ${o.id.slice(0,8)}`;
+                const itemNames = o.items ? JSON.parse(JSON.stringify(o.items)).map(i => i.name).join(', ') : 'Market Item';
+                let statusColor = 'bg-zinc-500/20 text-zinc-400 border-zinc-500/20';
+                let statusText = o.status?.toUpperCase() || 'PENDING';
+                if(o.status === 'accepted') { statusColor = 'bg-green-500/20 text-green-500 border-green-500/20'; statusText = 'ACCEPTED'; }
+                if(o.status === 'rejected') { statusColor = 'bg-red-500/20 text-red-500 border-red-500/20'; statusText = 'REJECTED'; }
+                if(o.status === 'pending') { statusColor = 'bg-sdel/20 text-sdel border-sdel/20'; statusText = 'PENDING'; }
+                return `
+                    <div class="order-item card-glass rounded-xl p-3 flex justify-between items-center">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[8px] font-black text-zinc-500 uppercase mb-1">${displayId}</p>
+                            <p class="text-[10px] font-bold truncate">${itemNames}</p>
+                        </div>
+                        <span class="px-2 py-1 rounded-full text-[7px] font-black uppercase border ${statusColor} ml-2 flex-shrink-0">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        window.toggleAllOrders = (show) => {
+            const modal = document.getElementById('all-orders-modal');
+            if(show) { 
+                renderOrderList(allOrdersData, 'full-order-list'); 
+                modal.classList.remove('hidden'); 
+            } else { 
+                modal.classList.add('hidden'); 
+            }
+        }
+
+        function updatePrestige(xp) {
+            const badge = document.getElementById('rank-badge');
+            const progress = document.getElementById('xp-progress-bar');
+            let rank = { n: "CITIZEN", p: (xp/500)*100 };
+            if (xp >= 10000) rank = { n: "OVERLORD", p: 100 };
+            else if (xp >= 5000) rank = { n: "MYTHIC", p: (xp/10000)*100 };
+            else if (xp >= 2500) rank = { n: "ELITE", p: (xp/5000)*100 };
+            else if (xp >= 1000) rank = { n: "WRAITH", p: (xp/2500)*100 };
+            else if (xp >= 500) rank = { n: "SCOUT", p: (xp/1000)*100 };
+            badge.innerText = rank.n;
+            progress.style.width = `${Math.min(rank.p, 100)}%`;
+        }
+
+        async function loadFeed() {
+            const { data: posts } = await supabase.from('posts').select('*, profile(first_name, avatar_url, xp)').order('created_at', { ascending: false });
+            const feed = document.getElementById('global-feed');
+            if (posts && posts.length > 0) {
+                feed.innerHTML = posts.map(p => `
+                    <div class="card-glass rounded-2xl overflow-hidden">
+                        ${p.media_url ? `<img src="${p.media_url}" class="w-full h-64 object-cover">` : ''}
+                        <div class="p-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <img src="${p.profile?.avatar_url || 'https://api.dicebear.com/7.x/initials/svg?seed='+p.profile?.first_name}" class="w-8 h-8 rounded-full border border-white/10">
+                                <div>
+                                    <p class="text-[10px] font-black">${p.profile?.first_name || 'Scholar'}</p>
+                                    <p class="text-[7px] text-zinc-500 uppercase">${formatDate(p.created_at)}</p>
+                                </div>
+                            </div>
+                            <p class="text-[11px] font-medium leading-relaxed">${p.content}</p>
+                        </div>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            } else {
+                feed.innerHTML = `<div class="card-glass rounded-2xl p-8 text-center"><i data-lucide="image" size="32" class="mx-auto text-zinc-600 mb-3"></i><p class="text-[9px] font-black uppercase text-zinc-500">No posts yet</p></div>`;
+                lucide.createIcons();
+            }
+        }
         
-        if (!error) {
-            imageUrl = supabase.storage.from('post-images').getPublicUrl(fileName).data.publicUrl;
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            if (days === 0) return 'Today';
+            if (days === 1) return 'Yesterday';
+            if (days < 7) return `${days} days ago`;
+            return date.toLocaleDateString();
         }
-    }
-    
-    if (currentEditPostId) {
-        const { error } = await supabase.from('posts').update({ content, image_url: imageUrl }).eq('id', currentEditPostId);
-        if (!error) {
-            closePostModal();
-            loadPosts(true);
-        }
-        return;
-    }
-    
-    const { error } = await supabase.from('posts').insert({
-        user_id: currentUser.id,
-        content: content,
-        image_url: imageUrl,
-        school_name: currentUser.school_name || 'Global',
-        post_type: 'post'
-    });
-    
-    if (!error) {
-        closePostModal();
-        loadPosts(true);
-    }
-}
 
-function switchTab(tab) {
-    if (tab === currentTab) return;
-    currentTab = tab;
-    page = 0;
-    hasMore = true;
-    
-    const campusTab = document.getElementById('tab-campus');
-    const universeTab = document.getElementById('tab-universe');
-    
-    if (tab === 'campus') {
-        campusTab.classList.add('tab-active');
-        universeTab.classList.remove('tab-active');
-    } else {
-        universeTab.classList.add('tab-active');
-        campusTab.classList.remove('tab-active');
-    }
-    
-    renderFeed();
-    loadPosts(true);
-}
-
-function toggleSearch() {
-    const bar = document.getElementById('search-bar');
-    bar.classList.toggle('hidden');
-    if (!bar.classList.contains('hidden')) {
-        document.getElementById('search-input').focus();
-    } else {
-        searchQuery = '';
-        loadPosts(true);
-    }
-}
-
-function handleSearch(val) {
-    searchQuery = val;
-    loadPosts(true);
-}
-
-function toggleTheme() {
-    document.body.classList.toggle('light-mode');
-    localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-}
-
-async function init() {
-    currentUser = await getCurrentUser();
-    if (!currentUser) return;
-    
-    if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-mode');
-    
-    await loadPosts();
-    
-    supabase.channel('posts').on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => {
-        loadPosts(true);
-    }).subscribe();
-}
-
-// Make functions global
-window.openPostModal = openPostModal;
-window.closePostModal = closePostModal;
-window.submitPost = submitPost;
-window.switchTab = switchTab;
-window.toggleSearch = toggleSearch;
-window.handleSearch = handleSearch;
-window.toggleTheme = toggleTheme;
-window.handleLike = handleLike;
-window.handleRepost = handleRepost;
-window.handleShare = handleShare;
-window.openImageModal = openImageModal;
-window.closeImageModal = closeImageModal;
-
-init();
-</script>
+        init();
+    </script>
+    <script>lucide.createIcons();</script>
 </body>
 </html>
