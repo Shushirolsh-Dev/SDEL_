@@ -73,7 +73,7 @@
         }
         .sunlight-mode .modal-overlay { background: rgba(255,255,255,0.95); }
 
-        /* ========== BOTTOM NAVIGATION - STRAIGHT LINE, WARM SOFT COLORS, CUSTOM ICONS ========== */
+        /* ========== BOTTOM NAVIGATION - FIXED AT BOTTOM ========== */
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -85,12 +85,10 @@
             padding: 10px 20px 20px;
             z-index: 1000;
             transition: all 0.3s ease;
-            /* Warm gradient background that softly shifts colors */
             background: linear-gradient(135deg, #2a1a0e, #1f1408, #2d1c0f);
             background-size: 200% 200%;
             animation: warmBottomShift 12s ease infinite;
             overflow: hidden;
-            position: relative;
         }
 
         /* Light Sweep Animation Overlay */
@@ -379,7 +377,7 @@
         <div id="full-order-list" class="space-y-3 pb-20"></div>
     </div>
 
-    <!-- ========== BOTTOM NAVIGATION - UPDATED: Explore + Fetch (camera icon), with light sweep & vibration ========== -->
+    <!-- ========== BOTTOM NAVIGATION - FIXED AT BOTTOM with Light Sweep & Vibration ========== -->
     <div class="bottom-nav">
         <div class="light-sweep"></div>
         <div class="nav-container">
@@ -388,7 +386,7 @@
                 <i data-lucide="home" size="22"></i>
                 <span>Home</span>
             </button>
-            <!-- Explore Icon (still compass) -->
+            <!-- Explore Icon (compass) -->
             <button class="nav-item-bottom" data-nav="explore" id="bottomNavExplore">
                 <i data-lucide="compass" size="22"></i>
                 <span>Explore</span>
@@ -398,7 +396,7 @@
                 <i data-lucide="shopping-bag" size="22"></i>
                 <span>Shop</span>
             </button>
-            <!-- FETCH Icon: Camera favicon, label "Fetch" (replaces previous Feed) -->
+            <!-- FETCH Icon: Camera favicon, label "Fetch" -->
             <button class="nav-item-bottom" data-nav="fetch" id="bottomNavFetch">
                 <i data-lucide="camera" size="22"></i>
                 <span>Fetch</span>
@@ -442,23 +440,13 @@
             loadAds(); 
             loadOrders();
             getUnreadCount(); 
-            initBottomNav();  // Initialize bottom nav interactions
-            initLightSweepVibration(); // Setup light sweep + vibration effect
+            initBottomNav();
+            initLightSweepVibration();
         }
 
-        // Light sweep animation and vibration on each favicon as light passes
         function initLightSweepVibration() {
             const navItems = document.querySelectorAll('.nav-item-bottom');
-            const sweepElement = document.querySelector('.light-sweep');
-            if (!sweepElement) return;
             
-            // Listen for animation iteration or use keyframes to trigger vibration
-            // We'll create an observer for when the light passes over each icon using intersection? 
-            // Simpler: Add a timed loop that vibrates icons sequentially when the light beam is near.
-            // But the request: "add an animation of light from left to right and upon passing each favicon the favicon vibrates on the spot"
-            // We'll detect the sweep animation progress via JS and trigger vibration on each icon in order.
-            
-            // Get positions of icons relative to nav container
             function triggerVibrationOnIcon(index) {
                 if (navItems[index]) {
                     const icon = navItems[index];
@@ -469,16 +457,11 @@
                 }
             }
             
-            // We'll simulate the light passing from left to right: duration 8s, delay per icon
-            // The light sweep animation takes 8 seconds total. Icons order: home(0), explore(1), shop(2), fetch(3), profile(4)
-            // Light passes each roughly every 1.2s (since 5 icons, ~1.6s spacing) but we'll trigger vibration at specific intervals.
-            let intervalIndex = 0;
-            const iconOrder = [0, 1, 2, 3, 4]; // home, explore, shop, fetch, profile
+            const iconOrder = [0, 1, 2, 3, 4];
             
-            // Reset and trigger vibration sequence each cycle
             function startSweepVibrationCycle() {
                 let delay = 0;
-                const stepDelay = 1400; // 1.4 seconds between each icon vibration as light sweeps
+                const stepDelay = 1400;
                 iconOrder.forEach((idx, i) => {
                     setTimeout(() => {
                         triggerVibrationOnIcon(idx);
@@ -486,14 +469,12 @@
                 });
             }
             
-            // Start first cycle after page load, then repeat every 8 seconds to match light sweep animation
             startSweepVibrationCycle();
             setInterval(() => {
                 startSweepVibrationCycle();
             }, 8000);
         }
 
-        // Bottom Navigation Handler - Straight line with warm colors, UPDATED for Fetch
         function initBottomNav() {
             const navItems = document.querySelectorAll('.nav-item-bottom');
             const sections = {
@@ -508,11 +489,8 @@
                     if(orderSection) orderSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 },
                 fetch: () => {
-                    // Fetch action: scroll to stories section or trigger camera/post action
-                    // Opens a new post creation or camera interface (simulate)
                     const storiesSection = document.querySelector('#story-rail-content');
                     if(storiesSection) storiesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    // Optional: additional fetch action (like opening camera modal)
                     alert("📸 Fetch Mode: Capture & Share moments!");
                 },
                 profile: () => { window.location.href = 'profile.html'; }
