@@ -15,6 +15,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Navigation JS - handles active state on all pages -->
+    <script src="nav.js"></script>
     
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; box-sizing: border-box; }
@@ -377,35 +379,30 @@
         <div id="full-order-list" class="space-y-3 pb-20"></div>
     </div>
 
-    <!-- ========== BOTTOM NAVIGATION - FIXED AT BOTTOM with Light Sweep & Vibration ========== -->
+    <!-- ========== BOTTOM NAVIGATION - UPDATED WITH CORRECT LINKS ========== -->
     <div class="bottom-nav">
         <div class="light-sweep"></div>
         <div class="nav-container">
-            <!-- Home Icon -->
-            <button class="nav-item-bottom" data-nav="home" id="bottomNavHome">
+            <a href="dashboard.html" class="nav-item-bottom" data-nav="home" id="bottomNavHome">
                 <i data-lucide="home" size="22"></i>
                 <span>Home</span>
-            </button>
-            <!-- Feed/Activity Icon -->
-            <button class="nav-item-bottom" data-nav="feed" id="bottomNavFeed">
+            </a>
+            <a href="explore.html" class="nav-item-bottom" data-nav="feed" id="bottomNavFeed">
                 <i data-lucide="activity" size="22"></i>
                 <span>Feed</span>
-            </button>
-            <!-- Shop/Cart Icon -->
-            <button class="nav-item-bottom" data-nav="shop" id="bottomNavShop">
+            </a>
+            <a href="market.html" class="nav-item-bottom" data-nav="shop" id="bottomNavShop">
                 <i data-lucide="shopping-bag" size="22"></i>
                 <span>Shop</span>
-            </button>
-            <!-- FETCH Icon: Camera favicon, label "Fetch" -->
-            <button class="nav-item-bottom" data-nav="fetch" id="bottomNavFetch">
+            </a>
+            <a href="fetch.html" class="nav-item-bottom" data-nav="fetch" id="bottomNavFetch">
                 <i data-lucide="camera" size="22"></i>
                 <span>Fetch</span>
-            </button>
-            <!-- Profile Icon -->
-            <button class="nav-item-bottom" data-nav="profile" id="bottomNavProfile">
+            </a>
+            <a href="profile.html" class="nav-item-bottom" data-nav="profile" id="bottomNavProfile">
                 <i data-lucide="user" size="22"></i>
                 <span>Profile</span>
-            </button>
+            </a>
         </div>
     </div>
 
@@ -440,101 +437,6 @@
             loadAds(); 
             loadOrders();
             getUnreadCount(); 
-            initBottomNav();
-            initLightSweepVibration();
-        }
-
-        function initLightSweepVibration() {
-            const navItems = document.querySelectorAll('.nav-item-bottom');
-            
-            function triggerVibrationOnIcon(index) {
-                if (navItems[index]) {
-                    const icon = navItems[index];
-                    icon.classList.add('vibrate');
-                    setTimeout(() => {
-                        icon.classList.remove('vibrate');
-                    }, 250);
-                }
-            }
-            
-            const iconOrder = [0, 1, 2, 3, 4];
-            
-            function startSweepVibrationCycle() {
-                let delay = 0;
-                const stepDelay = 1400;
-                iconOrder.forEach((idx, i) => {
-                    setTimeout(() => {
-                        triggerVibrationOnIcon(idx);
-                    }, delay + i * stepDelay);
-                });
-            }
-            
-            startSweepVibrationCycle();
-            setInterval(() => {
-                startSweepVibrationCycle();
-            }, 8000);
-        }
-
-        function initBottomNav() {
-            const navItems = document.querySelectorAll('.nav-item-bottom');
-            const sections = {
-                home: () => { window.scrollTo({ top: 0, behavior: 'smooth' }); },
-                explore: () => { 
-                    const feedSection = document.getElementById('global-feed');
-                    if(feedSection) feedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    else window.scrollTo({ top: 600, behavior: 'smooth' });
-                },
-                shop: () => { 
-                    const orderSection = document.querySelector('#order-history-list');
-                    if(orderSection) orderSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                },
-                fetch: () => {
-                    const storiesSection = document.querySelector('#story-rail-content');
-                    if(storiesSection) storiesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    alert("📸 Fetch Mode: Capture & Share moments!");
-                },
-                profile: () => { window.location.href = 'profile.html'; }
-            };
-
-            function setActiveNav(navValue) {
-                navItems.forEach(item => {
-                    if(item.getAttribute('data-nav') === navValue) {
-                        item.classList.add('active');
-                    } else {
-                        item.classList.remove('active');
-                    }
-                });
-            }
-
-            setActiveNav('home');
-
-            navItems.forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const navValue = item.getAttribute('data-nav');
-                    if (navValue && sections[navValue]) {
-                        sections[navValue]();
-                        setActiveNav(navValue);
-                        const bottomNav = document.querySelector('.bottom-nav');
-                        if(bottomNav) {
-                            bottomNav.style.transform = 'scale(0.99)';
-                            setTimeout(() => { if(bottomNav) bottomNav.style.transform = 'scale(1)'; }, 100);
-                        }
-                    }
-                });
-            });
-
-            window.addEventListener('scroll', () => {
-                const scrollPos = window.scrollY;
-                const exploreTop = document.getElementById('global-feed')?.offsetTop - 100 || 600;
-                const shopTop = document.querySelector('#order-history-list')?.offsetTop - 100 || 1100;
-                const fetchTop = document.querySelector('#story-rail-content')?.offsetTop - 80 || 300;
-                
-                if(scrollPos < exploreTop - 100) setActiveNav('home');
-                else if(scrollPos >= exploreTop - 80 && scrollPos < shopTop - 80) setActiveNav('explore');
-                else if(scrollPos >= shopTop - 80 && scrollPos < fetchTop + 200) setActiveNav('shop');
-                else if(scrollPos >= fetchTop - 50) setActiveNav('fetch');
-            });
         }
 
         async function loadStories() {
