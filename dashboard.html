@@ -15,10 +15,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Navigation JS - handles active state on all pages -->
+    <script src="nav.js"></script>
     
     <style>
         * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; box-sizing: border-box; }
-        body { background-color: #000; color: #fff; transition: background-color 0.3s; }
+        body { background-color: #000; color: #fff; transition: background-color 0.3s; padding-bottom: 85px; }
         .text-sdel { color: #FF6600; }
         .bg-sdel { background-color: #FF6600; }
         .card-glass { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
@@ -72,9 +74,185 @@
             backdrop-filter: blur(20px);
         }
         .sunlight-mode .modal-overlay { background: rgba(255,255,255,0.95); }
+
+        /* ========== BOTTOM NAVIGATION - FIXED AT BOTTOM ========== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(20, 15, 12, 0.92);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 140, 60, 0.25);
+            padding: 10px 20px 20px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #2a1a0e, #1f1408, #2d1c0f);
+            background-size: 200% 200%;
+            animation: warmBottomShift 12s ease infinite;
+            overflow: hidden;
+        }
+
+        /* Light Sweep Animation Overlay */
+        .light-sweep {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 200, 120, 0.4) 30%,
+                rgba(255, 220, 150, 0.6) 50%,
+                rgba(255, 200, 120, 0.4) 70%,
+                transparent 100%);
+            pointer-events: none;
+            z-index: 10;
+            animation: sweepLight 8s ease-in-out infinite;
+        }
+
+        @keyframes sweepLight {
+            0% { left: -100%; opacity: 0; }
+            10% { opacity: 0.8; }
+            30% { left: 120%; opacity: 0.8; }
+            31% { opacity: 0; }
+            100% { left: 120%; opacity: 0; }
+        }
+
+        /* Vibration animation for nav items when light passes */
+        @keyframes vibrateFavicon {
+            0% { transform: translateX(0px) rotate(0deg); }
+            25% { transform: translateX(1.5px) rotate(1deg); }
+            50% { transform: translateX(-1.5px) rotate(-1deg); }
+            75% { transform: translateX(1px) rotate(0.5deg); }
+            100% { transform: translateX(0px) rotate(0deg); }
+        }
+
+        .nav-item-bottom.vibrate {
+            animation: vibrateFavicon 0.25s ease-in-out 0s 1;
+        }
+
+        /* Soft shifting animation for bottom nav background */
+        @keyframes warmBottomShift {
+            0% {
+                background-position: 0% 50%;
+                background-color: #2a1a0e;
+            }
+            50% {
+                background-position: 100% 50%;
+                background-color: #3d2616;
+            }
+            100% {
+                background-position: 0% 50%;
+                background-color: #2a1a0e;
+            }
+        }
+
+        /* Sunlight mode adjustment for bottom nav */
+        .sunlight-mode .bottom-nav {
+            background: linear-gradient(135deg, #fff0e6, #ffe6d9, #fff0e6);
+            background-size: 200% 200%;
+            animation: warmBottomShiftLight 12s ease infinite;
+            border-top: 1px solid rgba(255, 102, 0, 0.3);
+        }
+
+        @keyframes warmBottomShiftLight {
+            0% { background-position: 0% 50%; background-color: #fff0e6; }
+            50% { background-position: 100% 50%; background-color: #ffe0d0; }
+            100% { background-position: 0% 50%; background-color: #fff0e6; }
+        }
+
+        /* Nav container - straight line horizontal layout */
+        .nav-container {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            gap: 4px;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 15;
+        }
+
+        /* Individual nav item - pure straight line */
+        .nav-item-bottom {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            flex: 1;
+            text-decoration: none;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px 0 4px;
+            border-radius: 40px;
+            transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            color: rgba(255, 200, 160, 0.7);
+        }
+
+        /* Nav icon styling - crisp vector-only (no emojis) */
+        .nav-item-bottom i {
+            font-size: 22px;
+            transition: transform 0.2s ease, color 0.2s;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+        }
+
+        .nav-item-bottom span {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            transition: all 0.2s;
+        }
+
+        /* Active state - warm orange glow */
+        .nav-item-bottom.active {
+            color: #FF884D;
+            transform: translateY(-2px);
+        }
+
+        .nav-item-bottom.active i {
+            color: #FF884D;
+            text-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
+            transform: scale(1.05);
+        }
+
+        .nav-item-bottom.active span {
+            color: #FF884D;
+            font-weight: 800;
+        }
+
+        /* Hover / tap feedback */
+        .nav-item-bottom:hover {
+            background: rgba(255, 140, 60, 0.15);
+            border-radius: 40px;
+            transform: translateY(-1px);
+        }
+
+        .nav-item-bottom:active {
+            transform: scale(0.96);
+            transition: 0.05s;
+        }
+
+        /* Remove focus outline and keep accessible ring */
+        .nav-item-bottom:focus-visible {
+            outline: 2px solid #FF884D;
+            outline-offset: 2px;
+            border-radius: 40px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .nav-item-bottom i { font-size: 20px; }
+            .nav-item-bottom span { font-size: 9px; }
+            .bottom-nav { padding: 8px 12px 18px; }
+        }
     </style>
 </head>
-<body class="pb-24">
+<body>
     
     <!-- Navigation -->
     <nav class="px-5 py-4 flex justify-between items-center sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/10">
@@ -201,6 +379,33 @@
         <div id="full-order-list" class="space-y-3 pb-20"></div>
     </div>
 
+    <!-- ========== BOTTOM NAVIGATION - UPDATED WITH CORRECT LINKS ========== -->
+    <div class="bottom-nav">
+        <div class="light-sweep"></div>
+        <div class="nav-container">
+            <a href="dashboard.html" class="nav-item-bottom" data-nav="home" id="bottomNavHome">
+                <i data-lucide="home" size="22"></i>
+                <span>Home</span>
+            </a>
+            <a href="explore.html" class="nav-item-bottom" data-nav="feed" id="bottomNavFeed">
+                <i data-lucide="activity" size="22"></i>
+                <span>Feed</span>
+            </a>
+            <a href="market.html" class="nav-item-bottom" data-nav="shop" id="bottomNavShop">
+                <i data-lucide="shopping-bag" size="22"></i>
+                <span>Shop</span>
+            </a>
+            <a href="fetch.html" class="nav-item-bottom" data-nav="fetch" id="bottomNavFetch">
+                <i data-lucide="camera" size="22"></i>
+                <span>Fetch</span>
+            </a>
+            <a href="profile.html" class="nav-item-bottom" data-nav="profile" id="bottomNavProfile">
+                <i data-lucide="user" size="22"></i>
+                <span>Profile</span>
+            </a>
+        </div>
+    </div>
+
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
@@ -297,6 +502,7 @@
                 
                 rail.innerHTML += extraStories;
             }
+            lucide.createIcons();
         }
 
         window.watchStory = async (id) => {
@@ -453,6 +659,5 @@
         init();
     </script>
     <script>lucide.createIcons();</script>
-    <script src="nav.js"></script>
 </body>
 </html>
