@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Eleyele Congregation - Disaster Preparedness List</title>
+    <!-- html2pdf library (works offline after first load, but can be cached) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #e9f0e6;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            padding: 30px 20px;
+            color: #1e2a2e;
+        }
+
+        /* main container */
+        .form-container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.2);
+            overflow: hidden;
+            padding: 20px 28px 32px 28px;
+            transition: all 0.2s;
+        }
+
+        /* header */
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #2c6e2f;
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+        }
+        .header h1 {
+            font-size: 1.9rem;
+            color: #1e4a2f;
+            letter-spacing: -0.3px;
+            font-weight: 600;
+        }
+        .header h2 {
+            font-size: 1.2rem;
+            font-weight: 500;
+            color: #2d6a4f;
+            margin-top: 8px;
+        }
+        .header p {
+            font-weight: 500;
+            color: #2c3e2f;
+            margin-top: 6px;
+            font-size: 0.95rem;
+        }
+
+        /* form rows grid */
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px;
+            margin-bottom: 28px;
+            background: #fefef5;
+            padding: 18px 20px;
+            border-radius: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8e0;
+        }
+        .input-group {
+            flex: 1 1 180px;
+            min-width: 150px;
+        }
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #2b5e2f;
+            margin-bottom: 6px;
+        }
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 16px;
+            border: 1px solid #cbd5c1;
+            background: white;
+            font-size: 0.9rem;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #2e7d32;
+            box-shadow: 0 0 0 2px rgba(46,125,50,0.2);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            margin: 18px 0 25px 0;
+        }
+        button {
+            background: #2e6b3e;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        button.danger {
+            background: #9e2d2f;
+        }
+        button:hover {
+            background: #1f5530;
+            transform: translateY(-1px);
+        }
+        button.danger:hover {
+            background: #7f2628;
+        }
+        .download-btn {
+            background: #0f5b7a;
+        }
+        .download-btn:hover {
+            background: #0a4560;
+        }
+
+        /* table wrapper for overflow */
+        .table-wrapper {
+            overflow-x: auto;
+            margin-top: 20px;
+            border-radius: 20px;
+            border: 1px solid #e0e7dd;
+            background: #fff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            min-width: 900px;
+        }
+        th {
+            background: #2c5e2f;
+            color: white;
+            padding: 12px 8px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-align: center;
+            border: 1px solid #3d7540;
+        }
+        td {
+            border: 1px solid #dce5d6;
+            padding: 10px 6px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        .status-publisher {
+            background: #c8e6d9;
+            color: #1b4d2e;
+        }
+        .status-pioneer {
+            background: #fff3c9;
+            color: #aa6f20;
+            border-left: 3px solid #e6a017;
+        }
+        .delete-btn {
+            background: none;
+            box-shadow: none;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            background: #f1f1ef;
+            color: #a13e3e;
+            border-radius: 30px;
+        }
+        .delete-btn:hover {
+            background: #f3d7d7;
+        }
+
+        /* watermark area simulated inside pdf, but also visible on screen? only for print/pdf generation but we embed */
+        .watermark-note {
+            text-align: right;
+            font-size: 0.7rem;
+            color: #b5c9b0;
+            margin-top: 12px;
+            font-style: italic;
+            border-top: 1px solid #e2eddc;
+            padding-top: 10px;
+        }
+
+        .group-input-area {
+            background: #f5f7f2;
+            padding: 14px 20px;
+            border-radius: 32px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            flex-wrap: wrap;
+        }
+        .group-input-area label {
+            font-weight: 700;
+            color: #1e4620;
+        }
+        #groupName {
+            width: 180px;
+            padding: 8px 16px;
+            border-radius: 32px;
+            border: 1px solid #bbceb0;
+        }
+
+        .footer-watermark {
+            font-size: 0.7rem;
+            text-align: right;
+            color: #9fb89b;
+            margin-top: 12px;
+            font-family: monospace;
+        }
+        @media (max-width: 680px) {
+            .form-container {
+                padding: 16px;
+            }
+            .input-group {
+                min-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="form-container" id="reportContainer">
+    <div class="header">
+        <h1>🗂️ ELEYELE CONGREGATION OF JEHOVAH’S WITNESSES</h1>
+        <h2>ILE-IFE, OSUN STATE — DISASTER PREPAREDNESS LIST</h2>
+        <p>📋 Group registry • Publisher & Pioneer status • Emergency contacts</p>
+    </div>
+
+    <!-- Group select & dynamic group display -->
+    <div class="group-input-area">
+        <label>🏷️ GROUP (Enter group name/number):</label>
+        <input type="text" id="groupName" placeholder="e.g., Group A / Shepherding Group 3" value="Group A">
+        <span style="font-size:0.8rem; color:#3f6e46;">↳ Data will be saved offline (IndexedDB)</span>
+    </div>
+
+    <!-- Data Entry Form -->
+    <div class="form-row" id="entryForm">
+        <div class="input-group">
+            <label>S/N (auto)</label>
+            <input type="text" id="snAuto" readonly placeholder="Auto" style="background:#f1f3ef;">
+        </div>
+        <div class="input-group">
+            <label>FULL NAME *</label>
+            <input type="text" id="name" placeholder="Brother/Sister name" autocomplete="off">
+        </div>
+        <div class="input-group">
+            <label>SEX</label>
+            <select id="sex">
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>DATE OF BIRTH</label>
+            <input type="date" id="dob">
+        </div>
+        <div class="input-group">
+            <label>DATE OF BAPTISM</label>
+            <input type="date" id="baptism">
+        </div>
+        <div class="input-group">
+            <label>STATUS (Publisher/Pioneer)</label>
+            <select id="statusSelect">
+                <option value="Publisher">📖 PUBLISHER</option>
+                <option value="Pioneer">🌟 PIONEER</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>RESIDENTIAL ADDRESS</label>
+            <input type="text" id="address" placeholder="Street, area, Ile-Ife">
+        </div>
+        <div class="input-group">
+            <label>NEXT OF KIN</label>
+            <input type="text" id="kin" placeholder="Full name">
+        </div>
+        <div class="input-group">
+            <label>NEXT OF KIN ADDRESS</label>
+            <input type="text" id="kinAddress" placeholder="Address of next of kin">
+        </div>
+        <div class="input-group">
+            <label>📞 TELEPHONE NUMBER</label>
+            <input type="tel" id="phone" placeholder="+234 XXX XXX XXXX">
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <button id="addBtn">➕ Add Member</button>
+        <button id="clearFormBtn" class="danger">🗑️ Clear Form</button>
+        <button id="downloadPdfBtn" class="download-btn">📄 Download PDF List</button>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-wrapper" id="tableSection">
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>S/N</th><th>NAME</th><th>SEX</th><th>DOB</th><th>BAPTISM</th><th>STATUS</th>
+                    <th>RESIDENTIAL ADDRESS</th><th>NEXT OF KIN</th><th>NEXT OF KIN ADDRESS</th><th>TELEPHONE</th><th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <tr><td colspan="11" style="text-align:center;">No records yet. Add members using the form above.</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <!-- watermark as per requirement: bottom right of every file (both on screen and inside pdf) -->
+    <div class="footer-watermark" id="watermarkFooter">Made by Shushirolsh</div>
+</div>
+
+<script>
+    // ---------- OFFLINE STORAGE: IndexedDB wrapper (works offline, persists data) ----------
+    const DB_NAME = 'EleyeleDisasterDB';
+    const STORE_NAME = 'members';
+    let db = null;
+
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, 1);
+            request.onerror = (e) => reject('IndexedDB error: ' + e.target.error);
+            request.onsuccess = (e) => {
+                db = e.target.result;
+                resolve(db);
+            };
+            request.onupgradeneeded = (e) => {
+                const dbRef = e.target.result;
+                if (!dbRef.objectStoreNames.contains(STORE_NAME)) {
+                    const store = dbRef.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                    store.createIndex('group', 'group', { unique: false });
+                }
+            };
+        });
+    }
+
+    // Helper: get all members for current group
+    async function getMembersByGroup(group) {
+        if (!db) await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const index = store.index('group');
+            const range = IDBKeyRange.only(group);
+            const request = index.getAll(range);
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject([]);
+        });
+    }
+
+    async function saveMember(member) {
+        if (!db) await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.add(member);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = (e) => reject(e);
+        });
+    }
+
+    async function deleteMemberById(id) {
+        if (!db) await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.delete(id);
+            req.onsuccess = () => resolve();
+            req.onerror = (e) => reject(e);
+        });
+    }
+
+    async function updateAllMembersForGroup(group, membersArray) {
+        // This replaces entire group's data? We'll use granular saves, but we also do import. For simplicity
+        // not needed full replace, but for clearing all group we can do delete and reinsert.
+        // For consistency: we avoid full replace, we only add/remove individually via functions.
+    }
+
+    // Load and render table based on current group
+    let currentGroup = "Group A";
+    let membersList = [];   // cache
+
+    async function loadAndRender() {
+        const groupInput = document.getElementById('groupName');
+        currentGroup = groupInput.value.trim();
+        if (currentGroup === "") currentGroup = "Unnamed Group";
+        const members = await getMembersByGroup(currentGroup);
+        membersList = members.sort((a,b) => (a.sn || 0) - (b.sn || 0));
+        renderTable(membersList);
+    }
+
+    function renderTable(members) {
+        const tbody = document.getElementById('tableBody');
+        if (!members.length) {
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">📭 No records. Add members to disaster preparedness list.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = '';
+        members.forEach((member, idx) => {
+            const row = tbody.insertRow();
+            // assigned S/N based on order (original sn stored, but we show index)
+            const displaySN = member.sn || (idx+1);
+            row.insertCell(0).innerText = displaySN;
+            row.insertCell(1).innerText = member.name || '';
+            row.insertCell(2).innerText = member.sex || '';
+            row.insertCell(3).innerText = member.dob || '';
+            row.insertCell(4).innerText = member.baptism || '';
+            // status display with badge
+            const statusCell = row.insertCell(5);
+            const statusVal = member.status || 'Publisher';
+            const badgeSpan = document.createElement('span');
+            badgeSpan.className = `status-badge ${statusVal === 'Pioneer' ? 'status-pioneer' : 'status-publisher'}`;
+            badgeSpan.innerText = statusVal === 'Pioneer' ? '🌟 PIONEER' : '📖 PUBLISHER';
+            statusCell.appendChild(badgeSpan);
+            row.insertCell(6).innerText = member.address || '';
+            row.insertCell(7).innerText = member.kin || '';
+            row.insertCell(8).innerText = member.kinAddress || '';
+            row.insertCell(9).innerText = member.phone || '';
+            const actionCell = row.insertCell(10);
+            const delBtn = document.createElement('button');
+            delBtn.innerText = '✖ Remove';
+            delBtn.className = 'delete-btn';
+            delBtn.style.padding = '4px 10px';
+            delBtn.onclick = async () => {
+                if (confirm(`Remove ${member.name || 'member'} from ${currentGroup}?`)) {
+                    await deleteMemberById(member.id);
+                    await loadAndRender();
+                }
+            };
+            actionCell.appendChild(delBtn);
+        });
+    }
+
+    // add member from form
+    async function addMemberFromForm() {
+        const name = document.getElementById('name').value.trim();
+        if (!name) {
+            alert("❌ Please enter the member's NAME.");
+            return;
+        }
+        const sex = document.getElementById('sex').value;
+        const dob = document.getElementById('dob').value;
+        const baptism = document.getElementById('baptism').value;
+        const status = document.getElementById('statusSelect').value;
+        const address = document.getElementById('address').value.trim();
+        const kin = document.getElementById('kin').value.trim();
+        const kinAddress = document.getElementById('kinAddress').value.trim();
+        const phone = document.getElementById('phone').value.trim();
+        const group = document.getElementById('groupName').value.trim() || "Group A";
+        
+        // get next available S/N for this group
+        const existing = await getMembersByGroup(group);
+        const nextSN = existing.length > 0 ? Math.max(...existing.map(m => m.sn || 0), 0) + 1 : 1;
+        
+        const newMember = {
+            sn: nextSN,
+            name: name,
+            sex: sex,
+            dob: dob,
+            baptism: baptism,
+            status: status,
+            address: address,
+            kin: kin,
+            kinAddress: kinAddress,
+            phone: phone,
+            group: group,
+            createdAt: new Date().toISOString()
+        };
+        await saveMember(newMember);
+        // reset form fields but keep group and status select defaults
+        document.getElementById('name').value = '';
+        document.getElementById('dob').value = '';
+        document.getElementById('baptism').value = '';
+        document.getElementById('address').value = '';
+        document.getElementById('kin').value = '';
+        document.getElementById('kinAddress').value = '';
+        document.getElementById('phone').value = '';
+        document.getElementById('sex').value = 'M';
+        document.getElementById('statusSelect').value = 'Publisher';
+        document.getElementById('snAuto').value = '';
+        await loadAndRender();
+        // show sn hint
+        document.getElementById('snAuto').placeholder = `Next SN: ${nextSN+1}`;
+    }
+
+    function clearFormFields() {
+        document.getElementById('name').value = '';
+        document.getElementById('dob').value = '';
+        document.getElementById('baptism').value = '';
+        document.getElementById('address').value = '';
+        document.getElementById('kin').value = '';
+        document.getElementById('kinAddress').value = '';
+        document.getElementById('phone').value = '';
+        document.getElementById('sex').value = 'M';
+        document.getElementById('statusSelect').value = 'Publisher';
+        document.getElementById('snAuto').value = '';
+        const groupNow = document.getElementById('groupName').value.trim();
+        if(groupNow) document.getElementById('snAuto').placeholder = `S/N auto-assigned`;
+    }
+
+    // PDF Generation with watermark "Made by Shushirolsh" at bottom right of every PDF page/file
+    async function generatePDF() {
+        // get current data for the current group (already synchronized)
+        const group = document.getElementById('groupName').value.trim() || "Group A";
+        const membersSnapshot = await getMembersByGroup(group);
+        if (membersSnapshot.length === 0) {
+            alert("No members to export. Please add records first.");
+            return;
+        }
+        // Create a temporary div for pdf content with exact styling + watermark inside
+        const pdfContainer = document.createElement('div');
+        pdfContainer.style.background = 'white';
+        pdfContainer.style.padding = '20px';
+        pdfContainer.style.fontFamily = 'Segoe UI, Roboto, sans-serif';
+        pdfContainer.style.width = '100%';
+        pdfContainer.style.position = 'relative';
+        
+        // recreate header and table professionally
+        pdfContainer.innerHTML = `
+        <div style="text-align: center; border-bottom: 2px solid #2c6e2f; margin-bottom: 20px;">
+            <h2 style="color:#1e4a2f;">ELEYELE CONGREGATION OF JEHOVAH’S WITNESSES</h2>
+            <h3 style="color:#2d6a4f;">ILE-IFE, OSUN STATE — DISASTER PREPAREDNESS LIST</h3>
+            <p><strong>Group: ${escapeHtml(group)}</strong> &nbsp;|&nbsp; Date: ${new Date().toLocaleDateString()}</p>
+        </div>
+        <table style="width:100%; border-collapse: collapse; font-size: 11pt;" border="1" cellpadding="5">
+            <thead>
+                <tr style="background:#2c5e2f; color:white;">
+                    <th>S/N</th><th>NAME</th><th>SEX</th><th>DATE OF BIRTH</th><th>DATE OF BAPTISM</th><th>STATUS</th>
+                    <th>RESIDENTIAL ADDRESS</th><th>NEXT OF KIN</th><th>NEXT OF KIN ADDRESS</th><th>TELEPHONE</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${membersSnapshot.map((m, idx) => {
+                    const sn = m.sn || (idx+1);
+                    const statusDisplay = m.status === 'Pioneer' ? '🌟 PIONEER' : '📖 PUBLISHER';
+                    return `<tr>
+                        <td>${sn}</td><td>${escapeHtml(m.name || '')}</td><td>${escapeHtml(m.sex || '')}</td>
+                        <td>${escapeHtml(m.dob || '')}</td><td>${escapeHtml(m.baptism || '')}</td>
+                        <td>${statusDisplay}</td>
+                        <td>${escapeHtml(m.address || '')}</td><td>${escapeHtml(m.kin || '')}</td>
+                        <td>${escapeHtml(m.kinAddress || '')}</td><td>${escapeHtml(m.phone || '')}</td>
+                    </tr>`;
+                }).join('')}
+            </tbody>
+        </table>
+        <div style="margin-top: 25px; font-size:9px; text-align:right; color:#8faa8a; border-top: 1px solid #e0e7dd; padding-top: 8px;">
+            Made by Shushirolsh
+        </div>
+        `;
+        // add explicit watermark at bottom right as per requirement (also inside pdf)
+        // ensure that it's visible bottom-right: already included but we also ensure no extra.
+        const options = {
+            margin: [0.5, 0.5, 0.5, 0.5],
+            filename: `Disaster_Preparedness_${group.replace(/\s/g, '_')}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, letterRendering: true },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+        };
+        // using the html2pdf bundle
+        html2pdf().set(options).from(pdfContainer).save();
+    }
+
+    function escapeHtml(str) {
+        if(!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if(m === '&') return '&amp;';
+            if(m === '<') return '&lt;';
+            if(m === '>') return '&gt;';
+            return m;
+        }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+            return c;
+        });
+    }
+
+    // when group name changes, reload table and preview.
+    function groupChangeHandler() {
+        loadAndRender();
+        // update SN placeholder
+        document.getElementById('snAuto').placeholder = 'Auto on add';
+    }
+
+    // detect offline/online just for info (optional, functionality works offline)
+    window.addEventListener('load', async () => {
+        await openDB();
+        const groupInputElem = document.getElementById('groupName');
+        groupInputElem.addEventListener('change', groupChangeHandler);
+        groupInputElem.addEventListener('input', () => {
+            // debounce optional, but re-render after slight delay
+            setTimeout(() => loadAndRender(), 50);
+        });
+        document.getElementById('addBtn').addEventListener('click', addMemberFromForm);
+        document.getElementById('clearFormBtn').addEventListener('click', clearFormFields);
+        document.getElementById('downloadPdfBtn').addEventListener('click', generatePDF);
+        await loadAndRender();
+        // set auto SN placeholder after group load
+        const grpCurr = groupInputElem.value;
+        const membersCurr = await getMembersByGroup(grpCurr);
+        const nextHint = membersCurr.length + 1;
+        document.getElementById('snAuto').placeholder = `Next S/N: ${nextHint}`;
+    });
+</script>
+</body>
+</html>
