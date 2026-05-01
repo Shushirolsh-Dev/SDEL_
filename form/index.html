@@ -180,6 +180,17 @@
         button.download:hover {
             background: #1f4657;
         }
+        button.edit-btn {
+            background: #e6ede0;
+            border-color: #c8dcbb;
+            color: #4a6b3e;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            margin-right: 5px;
+        }
+        button.edit-btn:hover {
+            background: #d4e2ca;
+        }
 
         .table-section {
             margin-top: 20px;
@@ -258,6 +269,17 @@
             margin-top: 8px;
             text-align: center;
         }
+        
+        .edit-mode-indicator {
+            background: #e8f0e4;
+            border-left: 3px solid #2f6b3a;
+            padding: 8px 16px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 0.75rem;
+            color: #2d572e;
+            display: none;
+        }
 
         @media (max-width: 720px) {
             body { padding: 16px; }
@@ -279,6 +301,11 @@
         <label>GROUP IDENTIFIER</label>
         <input type="text" id="groupName" placeholder="e.g., Shepherding Group 2, Group 1" value="Group 1">
         <span class="offline-hint">✓ Offline storage (IndexedDB) — data persists locally</span>
+    </div>
+    
+    <!-- Edit mode indicator -->
+    <div id="editModeIndicator" class="edit-mode-indicator">
+        ✏️ Editing mode: <span id="editingMemberName"></span> — <span id="cancelEditBtn" style="cursor:pointer; text-decoration:underline; margin-left:12px;">Cancel Edit</span>
     </div>
 
     <!-- Data entry form with manual date fields (DD/MM/YYYY) -->
@@ -317,7 +344,7 @@
                     <option value="Pioneer">PIONEER</option>
                     <option value="Regular Pioneer">REGULAR PIONEER</option>
                     <option value="Elder">ELDER</option>
-                    <option value="Minesterial Servant">MINISTERIAL SERVANT</option>
+                    <option value="Ministerial Servant">MINISTERIAL SERVANT</option>
                 </select>
             </div>
             <div class="field">
@@ -341,6 +368,7 @@
 
     <div class="action-bar">
         <button id="addMemberBtn" class="primary">+ Add Member</button>
+        <button id="updateMemberBtn" class="primary" style="background:#4a6b3e; display:none;">✏️ Update Member</button>
         <button id="resetFormBtn" class="secondary">Clear Fields</button>
         <button id="downloadPdfBtn" class="download">Download PDF List</button>
     </div>
@@ -351,7 +379,7 @@
             <thead>
                 <tr>
                     <th>S/N</th><th>NAME</th><th>SEX</th><th>DOB</th><th>BAPTISM</th><th>STATUS</th>
-                    <th>RESIDENTIAL ADDRESS</th><th>NEXT OF KIN</th><th>NEXT OF KIN ADDRESS</th><th>TELEPHONE</th><th></th>
+                    <th>RESIDENTIAL ADDRESS</th><th>NEXT OF KIN</th><th>NEXT OF KIN ADDRESS</th><th>TELEPHONE</th><th>Actions</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
@@ -368,11 +396,12 @@
     const DB_NAME = 'EleyeleDisasterDB';
     const STORE_NAME = 'members';
     let dbInstance = null;
-    let currentGroup = "Group Alpha";
+    let currentGroup = "Group 1";
+    let editingMemberId = null; // Track which member is being edited
     
     function initDatabase() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, 1);
+            const request = indexedDB.open(DB_NAME, 2); // version bump for future
             request.onerror = () => reject('DB error');
             request.onsuccess = (e) => {
                 dbInstance = e.target.result;
@@ -415,6 +444,17 @@
             req.onerror = (e) => reject(e);
         });
     }
+    
+    async function updateMemberInDB(id, updatedMember) {
+        if (!dbInstance) await initDatabase();
+        return new Promise((resolve, reject) => {
+            const tx = dbInstance.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.put({ ...updatedMember, id: id });
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = (e) => reject(e);
+        });
+    }
 
     async function deleteMemberFromDB(id) {
         if (!dbInstance) await initDatabase();
@@ -438,20 +478,12 @@
         if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
         if (month < 1 || month > 12) return false;
         if (day < 1 || day > 31) return false;
-        // Check days in month
         const daysInMonth = new Date(year, month, 0).getDate();
         if (day > daysInMonth) return false;
-        // Basic year range (reasonable)
         if (year < 1900 || year > 2026) return false;
         return true;
     }
 
-    function formatDateForDisplay(dateStr) {
-        if (!dateStr) return '';
-        return dateStr; // store as entered DD/MM/YYYY
-    }
-
-    // Validate all required fields before saving
     function validateForm() {
         const name = document.getElementById('fullName').value.trim();
         const dob = document.getElementById('birthDate').value.trim();
@@ -465,43 +497,15 @@
         errorDiv.style.display = 'none';
         errorDiv.innerText = '';
         
-        if (!name) {
-            showError("Full Name is required.");
-            return false;
-        }
-        if (!dob) {
-            showError("Date of Birth is required. Format: DD/MM/YYYY");
-            return false;
-        }
-        if (!isValidDateDDMMYYYY(dob)) {
-            showError("Date of Birth is invalid. Please use DD/MM/YYYY format (e.g., 25/12/1990).");
-            return false;
-        }
-        if (!baptism) {
-            showError("Date of Baptism is required. Format: DD/MM/YYYY");
-            return false;
-        }
-        if (!isValidDateDDMMYYYY(baptism)) {
-            showError("Date of Baptism is invalid. Please use DD/MM/YYYY format (e.g., 15/06/2015).");
-            return false;
-        }
-        if (!address) {
-            showError("Residential Address is required.");
-            return false;
-        }
-        if (!kin) {
-            showError("Next of Kin name is required.");
-            return false;
-        }
-        if (!kinAddr) {
-            showError("Next of Kin Address is required.");
-            return false;
-        }
-        if (!phone) {
-            showError("Telephone Number is required.");
-            return false;
-        }
-        // Optional: phone minimal validation
+        if (!name) { showError("Full Name is required."); return false; }
+        if (!dob) { showError("Date of Birth is required. Format: DD/MM/YYYY"); return false; }
+        if (!isValidDateDDMMYYYY(dob)) { showError("Date of Birth is invalid. Please use DD/MM/YYYY format."); return false; }
+        if (!baptism) { showError("Date of Baptism is required."); return false; }
+        if (!isValidDateDDMMYYYY(baptism)) { showError("Date of Baptism is invalid."); return false; }
+        if (!address) { showError("Residential Address is required."); return false; }
+        if (!kin) { showError("Next of Kin name is required."); return false; }
+        if (!kinAddr) { showError("Next of Kin Address is required."); return false; }
+        if (!phone) { showError("Telephone Number is required."); return false; }
         if (phone.replace(/[\s\-\(\)\+]/g, '').length < 8) {
             showError("Please enter a valid telephone number (at least 8 digits).");
             return false;
@@ -513,12 +517,7 @@
         const errorDiv = document.getElementById('formError');
         errorDiv.innerText = msg;
         errorDiv.style.display = 'block';
-        setTimeout(() => {
-            errorDiv.style.opacity = '0.7';
-        }, 3000);
-        setTimeout(() => {
-            errorDiv.style.display = 'none';
-        }, 4500);
+        setTimeout(() => { errorDiv.style.display = 'none'; }, 4500);
     }
 
     async function refreshTable() {
@@ -545,27 +544,107 @@
             row.insertCell(3).innerText = member.dob || '';
             row.insertCell(4).innerText = member.baptism || '';
             const statusCell = row.insertCell(5);
-            const isPioneer = (member.status === 'Pioneer');
             const statusSpan = document.createElement('span');
-            statusSpan.className = `status-chip ${isPioneer ? 'status-pioneer' : ''}`;
-            statusSpan.innerText = isPioneer ? 'PIONEER' : 'PUBLISHER';
+            statusSpan.className = `status-chip`;
+            statusSpan.innerText = member.status || 'PUBLISHER';
             statusCell.appendChild(statusSpan);
             row.insertCell(6).innerText = member.address || '';
             row.insertCell(7).innerText = member.kin || '';
             row.insertCell(8).innerText = member.kinAddress || '';
             row.insertCell(9).innerText = member.phone || '';
             const actionCell = row.insertCell(10);
+            
+            // Edit button
+            const editButton = document.createElement('button');
+            editButton.innerText = 'Edit';
+            editButton.className = 'edit-btn';
+            editButton.onclick = () => loadMemberForEdit(member);
+            actionCell.appendChild(editButton);
+            
+            // Delete button
             const delButton = document.createElement('button');
             delButton.innerText = 'Remove';
             delButton.className = 'remove-btn';
             delButton.onclick = async () => {
                 if (confirm(`Remove ${member.name || 'member'} from the list?`)) {
                     await deleteMemberFromDB(member.id);
+                    if (editingMemberId === member.id) cancelEditMode();
                     await refreshTable();
                 }
             };
             actionCell.appendChild(delButton);
         });
+    }
+    
+    // Function to load member data into form for editing
+    function loadMemberForEdit(member) {
+        editingMemberId = member.id;
+        document.getElementById('fullName').value = member.name || '';
+        document.getElementById('gender').value = member.sex || 'Male';
+        document.getElementById('birthDate').value = member.dob || '';
+        document.getElementById('baptismDate').value = member.baptism || '';
+        document.getElementById('ministryStatus').value = member.status || 'Publisher';
+        document.getElementById('resAddress').value = member.address || '';
+        document.getElementById('nextKin').value = member.kin || '';
+        document.getElementById('kinAddress').value = member.kinAddress || '';
+        document.getElementById('phoneNumber').value = member.phone || '';
+        
+        // Show edit mode UI
+        document.getElementById('editModeIndicator').style.display = 'flex';
+        document.getElementById('editingMemberName').innerText = member.name || 'Unknown';
+        document.getElementById('addMemberBtn').style.display = 'none';
+        document.getElementById('updateMemberBtn').style.display = 'inline-flex';
+        document.getElementById('snPreview').placeholder = `Editing S/N ${member.sn}`;
+    }
+    
+    async function updateCurrentMember() {
+        if (!validateForm()) return;
+        if (!editingMemberId) {
+            showError("No member selected for editing.");
+            return;
+        }
+        
+        const group = document.getElementById('groupName').value.trim() || "Unnamed Group";
+        const existingMembers = await getMembersByGroup(group);
+        const currentMember = existingMembers.find(m => m.id === editingMemberId);
+        if (!currentMember) {
+            showError("Member not found. Please refresh.");
+            cancelEditMode();
+            return;
+        }
+        
+        const updatedMember = {
+            sn: currentMember.sn, // preserve original SN
+            name: document.getElementById('fullName').value.trim(),
+            sex: document.getElementById('gender').value,
+            dob: document.getElementById('birthDate').value.trim(),
+            baptism: document.getElementById('baptismDate').value.trim(),
+            status: document.getElementById('ministryStatus').value,
+            address: document.getElementById('resAddress').value.trim(),
+            kin: document.getElementById('nextKin').value.trim(),
+            kinAddress: document.getElementById('kinAddress').value.trim(),
+            phone: document.getElementById('phoneNumber').value.trim(),
+            group: group,
+            updatedAt: new Date().toISOString()
+        };
+        
+        await updateMemberInDB(editingMemberId, updatedMember);
+        cancelEditMode();
+        await refreshTable();
+        showError("✓ Member updated successfully!");
+        setTimeout(() => {
+            const errDiv = document.getElementById('formError');
+            if (errDiv.innerText.includes("updated")) errDiv.style.display = 'none';
+        }, 2000);
+    }
+    
+    function cancelEditMode() {
+        editingMemberId = null;
+        document.getElementById('editModeIndicator').style.display = 'none';
+        document.getElementById('addMemberBtn').style.display = 'inline-flex';
+        document.getElementById('updateMemberBtn').style.display = 'none';
+        resetForm();
+        document.getElementById('snPreview').placeholder = 'Automatic';
     }
 
     async function addNewMember() {
@@ -576,15 +655,12 @@
         const existingMembers = await getMembersByGroup(group);
         const nextSN = existingMembers.length > 0 ? Math.max(...existingMembers.map(m => m.sn || 0), 0) + 1 : 1;
         
-        const dobRaw = document.getElementById('birthDate').value.trim();
-        const baptismRaw = document.getElementById('baptismDate').value.trim();
-        
         const newMember = {
             sn: nextSN,
             name: name,
             sex: document.getElementById('gender').value,
-            dob: dobRaw,
-            baptism: baptismRaw,
+            dob: document.getElementById('birthDate').value.trim(),
+            baptism: document.getElementById('baptismDate').value.trim(),
             status: document.getElementById('ministryStatus').value,
             address: document.getElementById('resAddress').value.trim(),
             kin: document.getElementById('nextKin').value.trim(),
@@ -595,17 +671,7 @@
         };
         
         await addMemberToDB(newMember);
-        // Clear input fields except group & status defaults
-        document.getElementById('fullName').value = '';
-        document.getElementById('birthDate').value = '';
-        document.getElementById('baptismDate').value = '';
-        document.getElementById('resAddress').value = '';
-        document.getElementById('nextKin').value = '';
-        document.getElementById('kinAddress').value = '';
-        document.getElementById('phoneNumber').value = '';
-        document.getElementById('gender').value = 'Male';
-        document.getElementById('ministryStatus').value = 'Publisher';
-        document.getElementById('formError').style.display = 'none';
+        resetForm();
         await refreshTable();
     }
 
@@ -622,9 +688,7 @@
         const errorDiv = document.getElementById('formError');
         errorDiv.style.display = 'none';
         errorDiv.innerText = '';
-        const groupNow = document.getElementById('groupName').value.trim();
-        if (groupNow) updateSnPlaceholderBasedOnGroup(groupNow);
-        else updateSnPlaceholder([]);
+        updateSnPlaceholderBasedOnGroup(document.getElementById('groupName').value.trim());
     }
 
     async function updateSnPlaceholder(membersArray) {
@@ -644,7 +708,7 @@
         document.getElementById('snPreview').placeholder = `Next: ${nextVal}`;
     }
 
-    // ---------- PDF GENERATION (professional, watermark included) ----------
+    // ---------- PDF GENERATION ----------
     async function generatePDFReport() {
         const group = document.getElementById('groupName').value.trim() || "Unnamed Group";
         const membersList = await getMembersByGroup(group);
@@ -675,18 +739,17 @@
                 <tbody>
                     ${membersList.map((m, idx) => {
                         const snVal = m.sn || (idx+1);
-                        const statusLabel = m.status === 'Pioneer' ? 'PIONEER' : 'PUBLISHER';
                         return `<tr>
                             <td style="padding: 6px;">${snVal}</td>
                             <td style="padding: 6px;">${escapeHtml(m.name || '')}</td>
                             <td style="padding: 6px;">${escapeHtml(m.sex || '')}</td>
                             <td style="padding: 6px;">${escapeHtml(m.dob || '')}</td>
                             <td style="padding: 6px;">${escapeHtml(m.baptism || '')}</td>
-                            <td style="padding: 6px;">${escapeHtml(statusLabel)}</td>
+                            <td style="padding: 6px;">${escapeHtml(m.status || 'Publisher')}</td>
                             <td style="padding: 6px;">${escapeHtml(m.address || '')}</td>
                             <td style="padding: 6px;">${escapeHtml(m.kin || '')}</td>
                             <td style="padding: 6px;">${escapeHtml(m.kinAddress || '')}</td>
-                            <td style="padding: 6px;">${escapeHtml(m.phone || '')}</td>
+                            <td style="padding: 6px;">${escapeHtml(m.phone || '')}<tr>
                         </tr>`;
                     }).join('')}
                 </tbody>
@@ -717,13 +780,13 @@
     }
 
     async function onGroupChange() {
+        if (editingMemberId) cancelEditMode();
         await refreshTable();
         const groupVal = document.getElementById('groupName').value.trim();
         if (groupVal) await updateSnPlaceholderBasedOnGroup(groupVal);
         else updateSnPlaceholder([]);
     }
 
-    // Restrict date field input to DD/MM/YYYY pattern (basic formatting helper)
     function setupDateMask(inputElement) {
         inputElement.addEventListener('input', function(e) {
             let value = this.value.replace(/[^0-9/]/g, '');
@@ -740,15 +803,14 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
         await initDatabase();
-        const dateBirth = document.getElementById('birthDate');
-        const dateBaptism = document.getElementById('baptismDate');
-        setupDateMask(dateBirth);
-        setupDateMask(dateBaptism);
+        setupDateMask(document.getElementById('birthDate'));
+        setupDateMask(document.getElementById('baptismDate'));
         
         const groupField = document.getElementById('groupName');
         groupField.addEventListener('change', onGroupChange);
         groupField.addEventListener('input', () => {
             setTimeout(async () => {
+                if (editingMemberId) cancelEditMode();
                 await refreshTable();
                 const grp = groupField.value.trim();
                 if (grp) await updateSnPlaceholderBasedOnGroup(grp);
@@ -756,11 +818,13 @@
         });
         
         document.getElementById('addMemberBtn').addEventListener('click', addNewMember);
-        document.getElementById('resetFormBtn').addEventListener('click', resetForm);
+        document.getElementById('updateMemberBtn').addEventListener('click', updateCurrentMember);
+        document.getElementById('resetFormBtn').addEventListener('click', () => { if(editingMemberId) cancelEditMode(); else resetForm(); });
         document.getElementById('downloadPdfBtn').addEventListener('click', generatePDFReport);
+        document.getElementById('cancelEditBtn').addEventListener('click', cancelEditMode);
         
         await refreshTable();
-        const initGroup = groupField.value.trim() || "Group Alpha";
+        const initGroup = groupField.value.trim() || "Group 1";
         await updateSnPlaceholderBasedOnGroup(initGroup);
     });
 </script>
