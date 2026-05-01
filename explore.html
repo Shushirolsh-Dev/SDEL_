@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Navigation JS - handles active state on all pages -->
+    <script src="nav.js"></script>
     
     <style>
         * {
@@ -20,6 +22,7 @@
         body {
             background-color: #000;
             color: #fff;
+            padding-bottom: 85px;
         }
         
         /* Light mode - Fixed properly */
@@ -259,53 +262,180 @@
             border-top-color: #e5e5e5;
         }
         
-        /* Bottom Nav */
+        /* ========== BOTTOM NAVIGATION ========== */
         .bottom-nav {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(0,0,0,0.95);
+            background: rgba(20, 15, 12, 0.92);
             backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(255,255,255,0.08);
-            padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-            z-index: 50;
+            border-top: 1px solid rgba(255, 140, 60, 0.25);
+            padding: 10px 20px 20px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #2a1a0e, #1f1408, #2d1c0f);
+            background-size: 200% 200%;
+            animation: warmBottomShift 12s ease infinite;
+            overflow: hidden;
         }
-        
-        .bottom-nav-inner {
+
+        /* Light Sweep Animation Overlay */
+        .light-sweep {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(255, 200, 120, 0.4) 30%,
+                rgba(255, 220, 150, 0.6) 50%,
+                rgba(255, 200, 120, 0.4) 70%,
+                transparent 100%);
+            pointer-events: none;
+            z-index: 10;
+            animation: sweepLight 8s ease-in-out infinite;
+        }
+
+        @keyframes sweepLight {
+            0% { left: -100%; opacity: 0; }
+            10% { opacity: 0.8; }
+            30% { left: 120%; opacity: 0.8; }
+            31% { opacity: 0; }
+            100% { left: 120%; opacity: 0; }
+        }
+
+        /* Vibration animation for nav items when light passes */
+        @keyframes vibrateFavicon {
+            0% { transform: translateX(0px) rotate(0deg); }
+            25% { transform: translateX(1.5px) rotate(1deg); }
+            50% { transform: translateX(-1.5px) rotate(-1deg); }
+            75% { transform: translateX(1px) rotate(0.5deg); }
+            100% { transform: translateX(0px) rotate(0deg); }
+        }
+
+        .nav-item-bottom.vibrate {
+            animation: vibrateFavicon 0.25s ease-in-out 0s 1;
+        }
+
+        /* Soft shifting animation for bottom nav background */
+        @keyframes warmBottomShift {
+            0% {
+                background-position: 0% 50%;
+                background-color: #2a1a0e;
+            }
+            50% {
+                background-position: 100% 50%;
+                background-color: #3d2616;
+            }
+            100% {
+                background-position: 0% 50%;
+                background-color: #2a1a0e;
+            }
+        }
+
+        /* Sunlight mode adjustment for bottom nav */
+        .sunlight-mode .bottom-nav {
+            background: linear-gradient(135deg, #fff0e6, #ffe6d9, #fff0e6);
+            background-size: 200% 200%;
+            animation: warmBottomShiftLight 12s ease infinite;
+            border-top: 1px solid rgba(255, 102, 0, 0.3);
+        }
+
+        @keyframes warmBottomShiftLight {
+            0% { background-position: 0% 50%; background-color: #fff0e6; }
+            50% { background-position: 100% 50%; background-color: #ffe0d0; }
+            100% { background-position: 0% 50%; background-color: #fff0e6; }
+        }
+
+        /* Nav container - straight line horizontal layout */
+        .nav-container {
             display: flex;
-            justify-content: space-around;
+            flex-direction: row;
             align-items: center;
+            justify-content: space-around;
+            gap: 4px;
+            width: 100%;
             max-width: 500px;
             margin: 0 auto;
+            position: relative;
+            z-index: 15;
         }
-        
-        .bottom-nav-item {
+
+        /* Individual nav item - pure straight line */
+        .nav-item-bottom {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2px;
+            justify-content: center;
+            gap: 4px;
+            flex: 1;
+            text-decoration: none;
+            background: transparent;
+            border: none;
             cursor: pointer;
-            transition: opacity 0.15s;
-            padding: 4px 12px;
+            padding: 6px 0 4px;
+            border-radius: 40px;
+            transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            color: rgba(255, 200, 160, 0.7);
         }
-        
-        .bottom-nav-item:active {
-            opacity: 0.6;
+
+        /* Nav icon styling - crisp vector-only (no emojis) */
+        .nav-item-bottom i {
+            font-size: 22px;
+            transition: transform 0.2s ease, color 0.2s;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
         }
-        
-        .center-btn {
-            background: #FF6600;
-            padding: 12px;
-            border-radius: 28px;
-            margin-top: -24px;
-            box-shadow: 0 4px 12px rgba(255,102,0,0.3);
-            transition: transform 0.12s;
-            cursor: pointer;
+
+        .nav-item-bottom span {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            transition: all 0.2s;
         }
-        
-        .center-btn:active {
-            transform: scale(0.95);
+
+        /* Active state - warm orange glow */
+        .nav-item-bottom.active {
+            color: #FF884D;
+            transform: translateY(-2px);
+        }
+
+        .nav-item-bottom.active i {
+            color: #FF884D;
+            text-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
+            transform: scale(1.05);
+        }
+
+        .nav-item-bottom.active span {
+            color: #FF884D;
+            font-weight: 800;
+        }
+
+        /* Hover / tap feedback */
+        .nav-item-bottom:hover {
+            background: rgba(255, 140, 60, 0.15);
+            border-radius: 40px;
+            transform: translateY(-1px);
+        }
+
+        .nav-item-bottom:active {
+            transform: scale(0.96);
+            transition: 0.05s;
+        }
+
+        /* Remove focus outline and keep accessible ring */
+        .nav-item-bottom:focus-visible {
+            outline: 2px solid #FF884D;
+            outline-offset: 2px;
+            border-radius: 40px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .nav-item-bottom i { font-size: 20px; }
+            .nav-item-bottom span { font-size: 9px; }
+            .bottom-nav { padding: 8px 12px 18px; }
         }
         
         /* Utilities */
@@ -369,27 +499,6 @@
         <div id="campus-feed" class="swipe-page"></div>
         <div id="universe-feed" class="swipe-page"></div>
     </div>
-    
-    <!-- Bottom Nav -->
-    <div class="bottom-nav">
-        <div class="bottom-nav-inner">
-            <div class="bottom-nav-item" onclick="location.href='dashboard.html'">
-                <i data-lucide="home" size="22" class="text-zinc-500"></i>
-            </div>
-            <div class="bottom-nav-item" onclick="location.href='explore.html'">
-                <i data-lucide="compass" size="22" class="text-[#FF6600]"></i>
-            </div>
-            <div class="center-btn" onclick="openPostModal()">
-                <i data-lucide="plus" size="22" class="text-black" stroke-width="2.5"></i>
-            </div>
-            <div class="bottom-nav-item" onclick="location.href='market.html'">
-                <i data-lucide="shopping-cart" size="22" class="text-zinc-500"></i>
-            </div>
-            <div class="bottom-nav-item" onclick="location.href='profile.html'">
-                <i data-lucide="user" size="22" class="text-zinc-500"></i>
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- Post Modal -->
@@ -412,6 +521,33 @@
     <div class="w-10 h-1 bg-zinc-700 rounded-full mx-auto mb-5"></div>
     <div id="action-options" class="space-y-2"></div>
     <button onclick="closeActionSheet()" class="w-full mt-3 py-3 text-zinc-500 font-medium text-sm">Cancel</button>
+</div>
+
+<!-- ========== BOTTOM NAVIGATION ========== -->
+<div class="bottom-nav">
+    <div class="light-sweep"></div>
+    <div class="nav-container">
+        <a href="dashboard.html" class="nav-item-bottom" data-nav="home" id="bottomNavHome">
+            <i data-lucide="home" size="22"></i>
+            <span>Home</span>
+        </a>
+        <a href="explore.html" class="nav-item-bottom" data-nav="feed" id="bottomNavFeed">
+            <i data-lucide="activity" size="22"></i>
+            <span>Feed</span>
+        </a>
+        <a href="market.html" class="nav-item-bottom" data-nav="shop" id="bottomNavShop">
+            <i data-lucide="shopping-bag" size="22"></i>
+            <span>Shop</span>
+        </a>
+        <a href="fetch.html" class="nav-item-bottom" data-nav="fetch" id="bottomNavFetch">
+            <i data-lucide="camera" size="22"></i>
+            <span>Fetch</span>
+        </a>
+        <a href="profile.html" class="nav-item-bottom" data-nav="profile" id="bottomNavProfile">
+            <i data-lucide="user" size="22"></i>
+            <span>Profile</span>
+        </a>
+    </div>
 </div>
 
 <script type="module">
