@@ -1,7 +1,50 @@
 // nav.js - Automatic bottom navigation for Sdel app
 // Page mapping: dashboard.html (home), explore.html (feed), market.html (shop), fetch.html, profile.html
 
+// Inject CSS for the live pulse animation on Feed icon
+function injectFeedPulseAnimation() {
+    const style = document.createElement('style');
+    style.textContent = `
+        /* Live pulse animation for Feed icon only */
+        @keyframes feedPulse {
+            0% {
+                text-shadow: 0 0 0 0 rgba(255, 102, 0, 0.7);
+                transform: scale(1);
+            }
+            70% {
+                text-shadow: 0 0 0 8px rgba(255, 102, 0, 0);
+                transform: scale(1.08);
+            }
+            100% {
+                text-shadow: 0 0 0 0 rgba(255, 102, 0, 0);
+                transform: scale(1);
+            }
+        }
+        
+        /* Apply to Feed icon specifically */
+        #bottomNavFeed i {
+            animation: feedPulse 2s ease-in-out infinite;
+            display: inline-block;
+        }
+        
+        /* Stop animation when active (so it doesn't double-animate) */
+        #bottomNavFeed.active i {
+            animation: none;
+            text-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
+        }
+        
+        /* Smooth transition for the icon */
+        #bottomNavFeed i {
+            transition: all 0.2s ease;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
 function initBottomNavigation() {
+    // Inject the pulse animation CSS first
+    injectFeedPulseAnimation();
+    
     // Get all bottom nav items
     const navItems = document.querySelectorAll('.nav-item-bottom');
     
