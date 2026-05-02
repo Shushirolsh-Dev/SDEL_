@@ -13,16 +13,21 @@
         .input-box { background: #121212; border: 1px solid #262626; border-radius: 15px; padding: 15px; width: 100%; outline: none; color: white; font-weight: bold; font-size: 13px; }
         .input-box:focus { border-color: #FF6600; box-shadow: 0 0 10px rgba(255,102,0,0.1); }
         .text-sdel { color: #FF6600; }
+        .bg-sdel { background: #FF6600; }
         .card-zinc { background: rgba(18, 18, 18, 0.7); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(10px); }
         #image-preview-container { display: none; width: 100%; height: 200px; border-radius: 20px; overflow: hidden; margin-bottom: 15px; border: 1px solid #262626; position: relative; }
         #image-preview { width: 100%; height: 100%; object-fit: cover; }
-        .remove-img { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 50%; cursor: pointer; }
+        .remove-img { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 50%; cursor: pointer; color: white; }
         #inventory-list:empty::after { content: "YOUR SHOP IS EMPTY"; display: block; text-align: center; padding: 40px; font-size: 10px; font-weight: 900; color: #262626; }
         .stock-badge { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 30px; }
         .stock-high { background: rgba(34,197,94,0.1); color: #22c55e; }
         .stock-low { background: rgba(239,68,68,0.1); color: #ef4444; }
         .status-banner { background: rgba(255,102,0,0.1); border: 1px solid rgba(255,102,0,0.3); border-radius: 16px; padding: 12px; margin-bottom: 20px; }
         * { font-style: normal !important; }
+        /* Fix button visibility */
+        #save-btn { background: #FF6600; color: #000; font-weight: 900; }
+        #upload-trigger { background: #1a1a1a; border-color: #333; color: #ccc; }
+        #upload-trigger:hover { border-color: #FF6600; color: #FF6600; }
     </style>
 </head>
 <body class="p-6 pb-24">
@@ -71,10 +76,10 @@
             
             <div class="flex items-center gap-4">
                 <input type="file" id="p-image" class="hidden" accept="image/*">
-                <button onclick="document.getElementById('p-image').click()" class="flex-1 bg-zinc-900 py-4 rounded-2xl border border-dashed border-zinc-700 font-bold text-[10px] uppercase text-zinc-400 transition hover:border-sdel">
+                <button onclick="document.getElementById('p-image').click()" id="upload-trigger" class="flex-1 bg-zinc-800 py-4 rounded-2xl border border-dashed border-zinc-600 font-bold text-[10px] uppercase text-zinc-300 transition hover:border-sdel hover:text-sdel">
                     <i data-lucide="camera" class="inline mr-2" size="16"></i> <span id="file-status">Snap Photo</span>
                 </button>
-                <button onclick="saveProduct()" id="save-btn" class="flex-1 bg-sdel py-4 rounded-2xl font-black uppercase text-[10px] text-black tracking-widest shadow-lg shadow-orange-600/20">Launch</button>
+                <button onclick="saveProduct()" id="save-btn" class="flex-1 bg-sdel py-4 rounded-2xl font-black uppercase text-[10px] text-black tracking-widest shadow-lg shadow-orange-600/30">Launch</button>
             </div>
             <button id="cancel-edit" onclick="resetForm()" class="hidden w-full text-[9px] font-black uppercase text-zinc-500 text-center mt-2">Discard Changes</button>
         </div>
@@ -90,20 +95,19 @@
         
         const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
         
-        // ============ CLOUDINARY CONFIGURATION ============
-        const CLOUDINARY_CLOUD_NAME = "dwzdjei6c";  // ← YOUR CLOUD NAME
-        const CLOUDINARY_UPLOAD_PRESET = "sdel_products";  // ← YOUR UNSIGNED PRESET
+        // ============ CLOUDINARY CONFIGURATION - FIXED ============
+        const CLOUDINARY_CLOUD_NAME = "dwzdjei6c";
+        const CLOUDINARY_UPLOAD_PRESET = "Thesdel_products";  // ← Fixed: matches your preset name!
         
         let inventoryData = [];
         let currentUserId = null;
         let currentVendorStatus = null;
 
-        // Upload to Cloudinary
         async function uploadToCloudinary(file) {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-            formData.append('folder', `vendors/${currentUserId}`);
+            // No folder specified - images go to root of Media Library
             
             const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
                 method: 'POST',
@@ -137,9 +141,7 @@
                     options.initialQuality = 0.7;
                 }
                 
-                console.log(`Original: ${(file.size / 1024).toFixed(2)} KB`);
                 const compressedFile = await imageCompression(file, options);
-                console.log(`Compressed: ${(compressedFile.size / 1024).toFixed(2)} KB`);
                 return compressedFile;
             } catch (error) {
                 console.error('Compression error:', error);
@@ -279,12 +281,12 @@
 
             const btn = document.getElementById('save-btn');
             btn.disabled = true; 
+            btn.innerText = "COMPRESSING...";
             
             let imageUrl = null;
             let cloudinaryId = null;
             
             if (file) {
-                btn.innerText = "COMPRESSING...";
                 const compressedFile = await compressImageToMinimum(file);
                 
                 btn.innerText = "AI SCANNING...";
@@ -296,13 +298,13 @@
                     return;
                 }
                 
-                btn.innerText = "UPLOADING TO CLOUDINARY...";
+                btn.innerText = "UPLOADING...";
                 try {
                     const result = await uploadToCloudinary(compressedFile);
                     imageUrl = result.url;
                     cloudinaryId = result.public_id;
                 } catch (err) {
-                    alert("Cloudinary upload failed: " + err.message);
+                    alert("Upload failed: " + err.message);
                     btn.disabled = false;
                     btn.innerText = "Launch";
                     return;
@@ -314,7 +316,7 @@
                 return;
             }
             
-            btn.innerText = "SAVING TO DATABASE...";
+            btn.innerText = "SAVING...";
             
             let productPayload = { 
                 name, 
@@ -343,10 +345,10 @@
             const { error } = await action;
             
             if(!error) {
-                alert("✅ Product Uploaded Successfully!");
+                alert("✅ Product saved! Images stored on Cloudinary (free 25GB).");
                 location.reload();
             } else { 
-                alert("Database error: " + error.message);
+                alert("Error: " + error.message);
                 btn.disabled = false; 
                 btn.innerText = "Launch";
             }
@@ -371,7 +373,7 @@
                         <img src="${p.image_url}" class="w-12 h-12 object-cover rounded-xl border border-white/10">
                         <div>
                             <h4 class="text-[11px] font-black uppercase text-white">${p.name}</h4>
-                            <p class="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">₦${p.price.toLocaleString()}</p>
+                            <p class="text-[8px] text-zinc-500 font-bold uppercase">₦${p.price.toLocaleString()}</p>
                             <span class="stock-badge ${stockClass} mt-1 inline-block">${stockText}</span>
                         </div>
                     </div>
@@ -408,7 +410,7 @@
             const { error } = await supabase.from('products').delete().eq('id', id).eq('vendor_id', currentUserId);
             
             if(!error) {
-                alert("Product deleted from your shop.");
+                alert("✅ Product deleted from your shop!");
                 loadInventory();
             } else {
                 alert("Delete failed: " + error.message);
