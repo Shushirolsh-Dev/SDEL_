@@ -7,9 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <!-- Include browser-image-compression library for image compression -->
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <style>
         body { background: #000; color: #fff; font-family: 'Poppins', sans-serif; }
-        .input-box { background: #121212; border: 1px solid #262626; border-radius: 15px; padding: 15px; width: 100%; outline: none; color: white; font-weight: bold; font-size: 13px; transition: 0.3s; }
+        /* Removed all italic styles - changed to normal font weight where applicable */
+        .input-box { background: #121212; border: 1px solid #262626; border-radius: 15px; padding: 15px; width: 100%; outline: none; color: white; font-weight: bold; font-size: 13px; transition: 0.3s; font-style: normal; }
         .input-box:focus { border-color: #FF6600; box-shadow: 0 0 10px rgba(255,102,0,0.1); }
         .input-box:disabled { opacity: 0.5; cursor: not-allowed; }
         .text-sdel { color: #FF6600; }
@@ -24,12 +27,28 @@
         #inventory-list:empty::after { content: "YOUR SHOP IS EMPTY"; display: block; text-align: center; padding: 40px; font-size: 10px; font-weight: 900; color: #262626; letter-spacing: 0.2em; }
         
         /* Stock badge */
-        .stock-badge { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 30px; }
+        .stock-badge { font-size: 9px; font-weight: 900; padding: 2px 8px; border-radius: 30px; font-style: normal; }
         .stock-high { background: rgba(34,197,94,0.1); color: #22c55e; }
         .stock-low { background: rgba(239,68,68,0.1); color: #ef4444; }
         
         /* Status message */
         .status-banner { background: rgba(255,102,0,0.1); border: 1px solid rgba(255,102,0,0.3); border-radius: 16px; padding: 12px; margin-bottom: 20px; }
+        
+        /* Normal text overrides - ensure no italics anywhere */
+        h1, h2, h3, h4, p, span, a, button, div, input, textarea, select, label {
+            font-style: normal !important;
+        }
+        /* Target any potential italic class or element */
+        .italic, i, em, cite {
+            font-style: normal !important;
+        }
+        /* Override font awesome or lucide icons don't have text style applied */
+        i[data-lucide] {
+            font-style: normal;
+        }
+        button, .btn, .input-box, .stock-badge, .status-banner p, #vendor-status-text, .text-sdel {
+            font-style: normal;
+        }
     </style>
 </head>
 <body class="p-6 pb-24">
@@ -38,7 +57,8 @@
         <button onclick="window.location.href='vendor_dashboard.html'" class="bg-zinc-900 p-3 rounded-xl text-gray-400">
             <i data-lucide="chevron-left" size="20"></i>
         </button>
-        <h1 class="text-xl font-black uppercase italic tracking-tighter">Inventory <span class="text-sdel">Manager</span></h1>
+        <!-- Removed italic class and italic tracking -->
+        <h1 class="text-xl font-black uppercase tracking-tighter">Inventory <span class="text-sdel">Manager</span></h1>
         <div class="w-10"></div>
     </nav>
 
@@ -83,7 +103,7 @@
                 <button onclick="document.getElementById('p-image').click()" id="upload-trigger" class="flex-1 bg-zinc-900 py-4 rounded-2xl border border-dashed border-zinc-700 font-bold text-[10px] uppercase text-zinc-400 transition hover:border-sdel">
                     <i data-lucide="camera" class="inline mr-2" size="16"></i> <span id="file-status">Snap Photo</span>
                 </button>
-                <button onclick="saveProduct()" id="save-btn" class="flex-1 bg-sdel py-4 rounded-2xl font-black uppercase text-[10px] italic text-black tracking-widest shadow-lg shadow-orange-600/20">Launch</button>
+                <button onclick="saveProduct()" id="save-btn" class="flex-1 bg-sdel py-4 rounded-2xl font-black uppercase text-[10px] text-black tracking-widest shadow-lg shadow-orange-600/20">Launch</button>
             </div>
             <button id="cancel-edit" onclick="resetForm()" class="hidden w-full text-[9px] font-black uppercase text-zinc-500 text-center mt-2">Discard Changes</button>
         </div>
@@ -102,6 +122,36 @@
         let currentUserId = null;
         let currentVendorStatus = null;
         let currentUserSchool = null;
+
+        // Helper: Compress image before upload using browser-image-compression
+        async function compressImageToMinimum(file) {
+            try {
+                // Options for maximum compression while maintaining reasonable quality
+                const options = {
+                    maxSizeMB: 0.1,          // Target size: 100KB maximum (aggressive compression)
+                    maxWidthOrHeight: 800,    // Resize to max 800px dimension - smaller file size
+                    useWebWorker: true,
+                    initialQuality: 0.5,      // High compression quality (lower = more compression)
+                    fileType: 'image/jpeg',    // Convert to JPEG for best compression
+                };
+                
+                // Check if file size is already tiny (< 50KB), skip heavy compression but still do some
+                if (file.size < 50 * 1024) {
+                    // For already very small images, just ensure it's compressed slightly
+                    options.maxSizeMB = 0.05;
+                    options.initialQuality = 0.7;
+                }
+                
+                console.log(`Original file size: ${(file.size / 1024).toFixed(2)} KB`);
+                const compressedFile = await imageCompression(file, options);
+                console.log(`Compressed file size: ${(compressedFile.size / 1024).toFixed(2)} KB`);
+                return compressedFile;
+            } catch (error) {
+                console.error('Compression error:', error);
+                // Return original file if compression fails
+                return file;
+            }
+        }
 
         async function init() {
             const { data: { session } } = await supabase.auth.getSession();
@@ -187,15 +237,16 @@
             }
         };
 
-        // PREVIEW LOGIC
-        document.getElementById('p-image').onchange = function(e) {
+        // PREVIEW LOGIC with compression preview
+        document.getElementById('p-image').onchange = async function(e) {
             const file = e.target.files[0];
             if(file) {
+                // Show preview with original file first for responsiveness
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     document.getElementById('image-preview').src = event.target.result;
                     document.getElementById('image-preview-container').style.display = 'block';
-                    document.getElementById('file-status').innerText = "Image Selected";
+                    document.getElementById('file-status').innerText = "Image Selected (will compress)";
                 }
                 reader.readAsDataURL(file);
             }
@@ -260,19 +311,34 @@
             btn.disabled = true; 
             btn.innerText = "AI SCANNING...";
 
-            // AI Safety Scan (Only for new files)
+            let finalImageFile = file;
+            let originalFileSizeMsg = "";
+            
+            // Step 1: Compress image BEFORE AI scan and upload (minimum size)
             if (file) {
-                const scan = await runAIScan(file);
+                btn.innerText = "COMPRESSING IMAGE...";
+                // Compress to minimum size (target under 150KB, ideally 50-100KB)
+                finalImageFile = await compressImageToMinimum(file);
+                originalFileSizeMsg = ` (Original: ${(file.size/1024).toFixed(1)}KB → ${(finalImageFile.size/1024).toFixed(1)}KB compressed)`;
+                
+                // Step 2: AI Safety Scan on compressed image (smaller file, faster upload)
+                btn.innerText = "AI SCANNING" + originalFileSizeMsg;
+                const scan = await runAIScan(finalImageFile);
                 if (!scan.safe) {
                     alert(`🚨 BLOCKED: ${scan.error}. Sdel does not allow these items.`);
                     btn.disabled = false;
                     btn.innerText = "Launch";
                     return;
                 }
+            } else if (!editId) {
+                alert("Please select an image for new product.");
+                btn.disabled = false;
+                btn.innerText = "Launch";
+                return;
             }
 
-            btn.innerText = "UPLOADING...";
-
+            btn.innerText = "UPLOADING TO CLOUD...";
+            
             let productPayload = { 
                 name, 
                 price: parseFloat(price), 
@@ -282,18 +348,31 @@
                 vendor_id: currentUserId 
             };
 
-            // Storage Upload
-            if(file) {
-                const fileName = `${currentUserId}/${Date.now()}.jpg`;
-                const { data, error: uploadError } = await supabase.storage.from('market-assets').upload(fileName, file);
+            // Storage Upload with compressed file (minimum size)
+            if(finalImageFile) {
+                // Generate unique filename with compressed indication
+                const fileName = `${currentUserId}/${Date.now()}_compressed_${Math.random().toString(36).substring(7)}.jpg`;
+                const { data, error: uploadError } = await supabase.storage.from('market-assets').upload(fileName, finalImageFile, {
+                    contentType: 'image/jpeg',
+                    cacheControl: '3600',
+                    upsert: false
+                });
                 
-                if(!uploadError) {
+                if(!uploadError && data) {
                     productPayload.image_url = `https://lgfyrlfjoazedwymjpfc.supabase.co/storage/v1/object/public/market-assets/${fileName}`;
                     productPayload.image_path = fileName;
                 } else {
-                    alert("System Error: Storage Policy Blocked.");
-                    btn.disabled = false; btn.innerText = "Launch";
+                    alert("System Error: Storage upload failed. " + (uploadError?.message || "Unknown error"));
+                    btn.disabled = false; 
+                    btn.innerText = "Launch";
                     return;
+                }
+            } else if (editId && !finalImageFile) {
+                // For edit with no new image, keep existing image
+                const existingProduct = inventoryData.find(p => p.id === editId);
+                if(existingProduct) {
+                    productPayload.image_url = existingProduct.image_url;
+                    productPayload.image_path = existingProduct.image_path;
                 }
             }
 
@@ -304,11 +383,12 @@
 
             const { error } = await action;
             if(!error) {
-                alert("Product saved! It will now appear in the market for your school.");
+                alert(`✅ Product saved! ${originalFileSizeMsg ? 'Image compressed to minimum size - upload speed optimized.' : ''}`);
                 location.reload();
             } else { 
                 alert("Error: " + error.message);
-                btn.disabled = false; btn.innerText = "Launch";
+                btn.disabled = false; 
+                btn.innerText = "Launch";
             }
         };
 
@@ -320,6 +400,7 @@
                 list.innerHTML = '';
                 return;
             }
+            // Removed any italic styling from inventory display elements
             list.innerHTML = inventoryData.map(p => {
                 const stock = p.stock || 0;
                 const stockClass = stock > 0 ? 'stock-high' : 'stock-low';
@@ -330,7 +411,7 @@
                     <div class="flex items-center gap-3">
                         <img src="${p.image_url}" class="w-12 h-12 object-cover rounded-xl border border-white/10">
                         <div>
-                            <h4 class="text-[11px] font-black uppercase italic text-white">${p.name}</h4>
+                            <h4 class="text-[11px] font-black uppercase text-white">${p.name}</h4>
                             <p class="text-[8px] text-zinc-500 font-bold uppercase tracking-widest">₦${p.price.toLocaleString()}</p>
                             <span class="stock-badge ${stockClass} mt-1 inline-block">${stockText}</span>
                         </div>
@@ -355,8 +436,9 @@
             if(p.image_url) {
                 document.getElementById('image-preview').src = p.image_url;
                 document.getElementById('image-preview-container').style.display = 'block';
+                document.getElementById('file-status').innerText = "Image Selected (Keep existing)";
             }
-            document.getElementById('form-title').innerText = "Update Item";
+            document.getElementById('form-title').innerHTML = "Update Item";
             document.getElementById('save-btn').innerText = "Update";
             document.getElementById('cancel-edit').classList.remove('hidden');
             document.getElementById('form-section').scrollIntoView({ behavior: 'smooth' });
@@ -372,6 +454,15 @@
         };
 
         window.resetForm = () => { location.reload(); };
+        
+        // Make imageCompression available from global (since we imported script)
+        // Ensure the library is loaded and accessible
+        if (typeof imageCompression === 'undefined') {
+            console.warn("Waiting for compression library to load...");
+            // Fallback in case library fails to load
+            window.compressImageToMinimum = async (file) => file;
+        }
+        
         init();
     </script>
 </body>
