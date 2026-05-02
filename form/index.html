@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eleyele Congregation | Disaster Preparedness List</title>
-    <!-- html2pdf bundle - works offline after caching -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- html2pdf bundle - fixed CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         * {
             margin: 0;
@@ -368,7 +368,7 @@
         <button id="addMemberBtn" class="primary">+ Add Member</button>
         <button id="updateMemberBtn" class="primary" style="background:#4a6b3e; display:none;">✏️ Update Member</button>
         <button id="resetFormBtn" class="secondary">Clear Fields</button>
-        <button id="downloadPdfBtn" class="download">Download PDF List</button>
+        <button id="downloadPdfBtn" class="download">📄 Download PDF List</button>
     </div>
     <div id="formError" class="error-msg" style="display: none;"></div>
 
@@ -391,7 +391,7 @@
                 </tr>
             </thead>
             <tbody id="tableBody">
-                <tr><td colspan="12" style="text-align:center; padding: 32px;">No records. Add members using the form above.理学</td></tr>
+                <tr><td colspan="12" style="text-align:center; padding: 32px;">No records. Add members using the form above.</td></tr>
             </tbody>
         </table>
     </div>
@@ -630,7 +630,7 @@
         await updateMemberInDB(editingMemberId, updatedMember);
         cancelEditMode();
         await refreshTable();
-        showError("Member updated successfully!");
+        showError("✓ Member updated successfully!");
         setTimeout(() => { const errDiv = document.getElementById('formError'); if (errDiv.innerText.includes("updated")) errDiv.style.display = 'none'; }, 2000);
     }
     
@@ -670,6 +670,8 @@
         await addMemberToDB(newMember);
         resetForm();
         await refreshTable();
+        showError("✓ Member added successfully!");
+        setTimeout(() => { const errDiv = document.getElementById('formError'); if (errDiv.innerText.includes("added")) errDiv.style.display = 'none'; }, 2000);
     }
 
     function resetForm() {
@@ -706,51 +708,89 @@
         document.getElementById('snPreview').placeholder = `Next: ${nextVal}`;
     }
 
+    // FIXED PDF GENERATION - Now works properly
     async function generatePDFReport() {
         const group = document.getElementById('groupName').value.trim() || "Unnamed Group";
         const membersList = await getMembersByGroup(group);
-        if (membersList.length === 0) { alert("No data to export."); return; }
         
-        const pdfWrapper = document.createElement('div');
-        pdfWrapper.style.background = 'white';
-        pdfWrapper.style.padding = '24px 28px';
-        pdfWrapper.style.fontFamily = 'Inter, Segoe UI, Roboto, sans-serif';
-        pdfWrapper.style.width = '100%';
+        if (membersList.length === 0) { 
+            alert("No data to export. Please add members before downloading PDF.");
+            return; 
+        }
         
-        pdfWrapper.innerHTML = `
-            <div style="text-align: center; border-bottom: 2px solid #c2d6b5; padding-bottom: 12px; margin-bottom: 20px;">
-                <h2 style="color: #2b4b2c;">ELEYELE CONGREGATION OF JEHOVAH'S WITNESSES</h2>
-                <h3 style="color: #4a6741;">ILE-IFE, OSUN STATE — DISASTER PREPAREDNESS LIST</h3>
-                <p><strong>Group: ${escapeHtml(group)}</strong> | Generated: ${new Date().toLocaleDateString()}</p>
+        // Create a temporary container for PDF generation
+        const pdfContainer = document.createElement('div');
+        pdfContainer.style.background = 'white';
+        pdfContainer.style.padding = '20px 25px';
+        pdfContainer.style.fontFamily = 'Inter, Segoe UI, Roboto, sans-serif';
+        pdfContainer.style.width = '100%';
+        pdfContainer.style.position = 'relative';
+        
+        // Build the PDF content
+        pdfContainer.innerHTML = `
+            <div style="text-align: center; border-bottom: 2px solid #2c6e2f; padding-bottom: 15px; margin-bottom: 20px;">
+                <h2 style="color: #2b4b2c; font-size: 18pt; margin: 0;">ELEYELE CONGREGATION OF JEHOVAH'S WITNESSES</h2>
+                <h3 style="color: #4a6741; font-size: 12pt; margin-top: 8px;">ILE-IFE, OSUN STATE — DISASTER PREPAREDNESS LIST</h3>
+                <p style="margin-top: 10px; font-size: 10pt;"><strong>Group: ${escapeHtml(group)}</strong> &nbsp;|&nbsp; Generated: ${new Date().toLocaleDateString()}</p>
             </div>
-            <table style="width:100%; border-collapse:collapse; font-size:9pt;" border="1" cellpadding="6">
-                <thead><tr style="background:#eef3e9;">
-                    <th>S/N</th><th>NAME</th><th>SEX</th><th>DATE OF BIRTH</th><th>DATE OF BAPTISM</th><th>STATUS</th>
-                    <th>RESIDENTIAL ADDRESS</th><th>TELEPHONE NUMBER</th><th>NEXT OF KIN</th><th>NEXT OF KIN ADDRESS</th><th>TELEPHONE NUMBER</th>
-                 </tr></thead>
+            <table style="width: 100%; border-collapse: collapse; font-size: 8pt;" border="1" cellpadding="5">
+                <thead>
+                    <tr style="background: #eef3e9;">
+                        <th>S/N</th><th>NAME</th><th>SEX</th><th>DATE OF BIRTH</th><th>DATE OF BAPTISM</th><th>STATUS</th>
+                        <th>RESIDENTIAL ADDRESS</th><th>TELEPHONE</th><th>NEXT OF KIN</th><th>NEXT OF KIN ADDRESS</th><th>TELEPHONE</th>
+                    </tr>
+                </thead>
                 <tbody>
-                    ${membersList.map((m, idx) => `<tr>
-                        <td style="padding: 6px;">${m.sn || (idx+1)}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.name || '')}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.sex || '')}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.dob || '')}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.baptism || '')}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.status || 'Publisher')}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.address || '')}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.phone1 || '')}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.kin || '')}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.kinAddress || '')}</td>
-                        <td style="padding: 6px;">${escapeHtml(m.phone2 || '')}</td>
-                    </tr>`).join('')}
+                    ${membersList.map((m, idx) => {
+                        const snVal = m.sn || (idx + 1);
+                        return `<tr>
+                            <td style="padding: 5px;">${snVal}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.name || '')}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.sex || '')}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.dob || '')}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.baptism || '')}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.status || 'Publisher')}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.address || '')}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.phone1 || '')}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.kin || '')}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.kinAddress || '')}</td>
+                            <td style="padding: 5px;">${escapeHtml(m.phone2 || '')}</td>
+                        </tr>`;
+                    }).join('')}
                 </tbody>
             </table>
-            <div style="margin-top:28px; text-align:right; font-size:8pt; color:#a7be9a; border-top:1px solid #e0ecda; padding-top:10px;">Made by Shushirolsh</div>
+            <div style="margin-top: 20px; text-align: right; font-size: 8pt; color: #a7be9a; border-top: 1px solid #e0ecda; padding-top: 8px;">
+                Made by Shushirolsh
+            </div>
         `;
         
-        html2pdf().set({ margin: [0.5,0.5,0.5,0.5], filename: `Disaster_Preparedness_${group.replace(/\s/g, '_')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } }).from(pdfWrapper).save();
+        // PDF options
+        const opt = {
+            margin: [0.5, 0.5, 0.5, 0.5],
+            filename: `Disaster_Preparedness_${group.replace(/\s/g, '_')}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, letterRendering: true, useCORS: false, logging: false },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+        };
+        
+        // Use html2pdf with proper error handling
+        try {
+            html2pdf().set(opt).from(pdfContainer).save();
+        } catch (error) {
+            console.error("PDF generation error:", error);
+            alert("Error generating PDF. Please try again.");
+        }
     }
 
-    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(ch) { if (ch === '&') return '&amp;'; if (ch === '<') return '&lt;'; if (ch === '>') return '&gt;'; return ch; }); }
+    function escapeHtml(str) { 
+        if (!str) return ''; 
+        return str.replace(/[&<>]/g, function(ch) { 
+            if (ch === '&') return '&amp;'; 
+            if (ch === '<') return '&lt;'; 
+            if (ch === '>') return '&gt;'; 
+            return ch; 
+        }); 
+    }
 
     function setupDateMask(inputElement) {
         inputElement.addEventListener('input', function(e) {
