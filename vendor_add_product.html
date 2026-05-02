@@ -55,6 +55,15 @@
             opacity: 0.5; 
             cursor: not-allowed;
         }
+        
+        /* Loading animation */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
     </style>
 </head>
 <body class="p-6 pb-24">
@@ -405,7 +414,7 @@
                     </div>
                     <div class="flex gap-2">
                         <button onclick="editProduct('${p.id}')" class="text-zinc-600 hover:text-sdel transition p-2"><i data-lucide="edit-3" size="16"></i></button>
-                        <button onclick="deleteItem('${p.id}')" class="text-zinc-600 hover:text-red-500 transition p-2"><i data-lucide="trash-2" size="16"></i></button>
+                        <button onclick="deleteItem('${p.id}', '${p.cloudinary_id || ''}')" class="text-zinc-600 hover:text-red-500 transition p-2"><i data-lucide="trash-2" size="16"></i></button>
                     </div>
                 </div>`}).join('');
             lucide.createIcons();
@@ -430,16 +439,70 @@
             document.getElementById('form-section').scrollIntoView({ behavior: 'smooth' });
         };
 
-        window.deleteItem = async (id) => {
+        // ============ UPDATED DELETE FUNCTION WITH CLOUDINARY EDGE FUNCTION ============
+        window.deleteItem = async (id, cloudinaryId) => {
             if(!confirm("Delete this product forever?")) return;
             
-            const { error } = await supabase.from('products').delete().eq('id', id).eq('vendor_id', currentUserId);
+            // Find the button and show loading state
+            const buttons = document.querySelectorAll(`button[onclick*="deleteItem('${id}'"]`);
+            const btn = buttons[0];
+            const originalHtml = btn?.innerHTML;
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i data-lucide="loader-circle" size="16" class="animate-spin"></i>';
+                lucide.createIcons();
+            }
             
-            if(!error) {
-                alert("✅ Product deleted from your shop!");
-                loadInventory();
-            } else {
-                alert("Delete failed: " + error.message);
+            try {
+                // Step 1: Delete from Cloudinary using Edge Function (if has cloudinary_id)
+                if (cloudinaryId && cloudinaryId !== 'null' && cloudinaryId !== '') {
+                    console.log("🗑️ Deleting from Cloudinary:", cloudinaryId);
+                    
+                    const { data: { session } } = await supabase.auth.getSession();
+                    
+                    const response = await fetch(`${supabase.supabaseUrl}/functions/v1/delete-cloudinary-image`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${session?.access_token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ public_id: cloudinaryId })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        console.warn("Cloudinary delete warning:", result);
+                        alert("⚠️ Product removed from shop, but image cleanup failed. The image will be cleaned up automatically later.");
+                    } else if (result.success) {
+                        console.log("✅ Cloudinary image deleted successfully");
+                    }
+                }
+                
+                // Step 2: Delete product from Supabase database
+                const { error } = await supabase
+                    .from('products')
+                    .delete()
+                    .eq('id', id)
+                    .eq('vendor_id', currentUserId);
+                
+                if (!error) {
+                    alert("✅ Product and its image have been permanently deleted!");
+                    loadInventory();
+                } else {
+                    alert("Delete failed: " + error.message);
+                }
+                
+            } catch (err) {
+                console.error("Delete error:", err);
+                alert("Error during deletion: " + err.message);
+            } finally {
+                // Restore button (if product still exists, otherwise it's removed from DOM)
+                if (btn && document.getElementById(`product-${id}`)) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                    lucide.createIcons();
+                }
             }
         };
 
