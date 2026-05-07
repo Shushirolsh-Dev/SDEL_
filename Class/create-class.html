@@ -3,99 +3,342 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Class Manager - Join Requests</title>
+    <title>The Vault - Class Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body{background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;overflow-x:hidden}
+        .glass-panel{background:rgba(18,18,18,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.05)}
+        .nav-active{color:#ff6600!important}
+        .nav-active i{color:#ff6600!important}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+        .animate-fade{animation:fadeIn .4s ease-out}
+        .blur-loading{filter:blur(4px);pointer-events:none}
+    </style>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="p-5 pb-32">
 
-<div class="max-w-6xl mx-auto">
+<header class="flex justify-between items-start mb-10">
+    <div>
+        <h1 class="text-3xl font-extrabold tracking-tight">Class <span class="text-orange-500">Manager</span></h1>
+        <p class="text-gray-500 text-sm font-medium uppercase tracking-widest h-5" id="dynamic-greeting"></p>
+    </div>
+    <div class="glass-panel px-4 py-2 rounded-xl text-right">
+        <p class="text-xl font-black text-white" id="clock">00:00</p>
+    </div>
+</header>
 
-    <!-- FORM: Create New Class -->
-    <div class="bg-white rounded-lg shadow p-6 mb-8">
-        <h2 class="text-xl font-bold mb-4">🏫 Create New Class</h2>
+<main class="animate-fade" id="main-content">
+    <!-- Create Class Form -->
+    <section class="glass-panel p-6 rounded-3xl mb-8 border-l-4 border-orange-600">
+        <h3 class="text-2xl font-extrabold mb-4 uppercase tracking-tighter">📚 Create New Class</h3>
         <form id="classForm" class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700">Class Name *</label>
-                <input type="text" id="className" required class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                <label class="block text-sm font-medium text-gray-300 mb-2">Class Name *</label>
+                <input type="text" id="className" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 text-white focus:border-orange-500 focus:outline-none">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Class Description</label>
-                <textarea id="classDescription" rows="3" class="mt-1 block w-full border border-gray-300 rounded-md p-2"></textarea>
+                <label class="block text-sm font-medium text-gray-300 mb-2">Class Description</label>
+                <textarea id="classDescription" rows="3" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 text-white focus:border-orange-500 focus:outline-none"></textarea>
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Join Settings</label>
-                <div class="mt-2 space-x-4">
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="joinType" value="open" checked class="mr-2"> 
-                        🌍 Anyone can join
+                <label class="block text-sm font-medium text-gray-300 mb-3">Join Settings</label>
+                <div class="space-y-2">
+                    <label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer hover:bg-black/50 transition">
+                        <input type="radio" name="joinType" value="open" checked class="mr-3 w-4 h-4 text-orange-500">
+                        <div>
+                            <span class="font-bold">🌍 Anyone can join</span>
+                            <p class="text-xs text-gray-500">Students join automatically without approval</p>
+                        </div>
                     </label>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="joinType" value="approval" class="mr-2"> 
-                        🔐 Approve requests
+                    <label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer hover:bg-black/50 transition">
+                        <input type="radio" name="joinType" value="approval" class="mr-3 w-4 h-4 text-orange-500">
+                        <div>
+                            <span class="font-bold">🔐 Approval required</span>
+                            <p class="text-xs text-gray-500">You must approve each student request</p>
+                        </div>
                     </label>
                 </div>
             </div>
-            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">➕ Create Class</button>
+            <button type="submit" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl active:scale-95 transition-all uppercase text-sm tracking-widest">
+                <i class="fas fa-plus mr-2"></i> Create Class
+            </button>
         </form>
-    </div>
+    </section>
 
-    <!-- TABLE: All Classes -->
-    <div class="bg-white rounded-lg shadow overflow-hidden mb-8">
-        <h2 class="text-xl font-bold p-6 pb-0">📚 All Classes</h2>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Join Setting</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Members</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pending Requests</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="classTableBody">
-                    <!-- Dynamic rows -->
-                </tbody>
-            </table>
+    <!-- My Created Classes -->
+    <section class="glass-panel p-6 rounded-3xl mb-8">
+        <h3 class="text-2xl font-extrabold mb-4 uppercase tracking-tighter"><i class="fas fa-chalkboard-user mr-2"></i> My Classes</h3>
+        <div id="myClassesList" class="space-y-3">
+            <!-- Classes will appear here -->
         </div>
-    </div>
+    </section>
 
-    <!-- PENDING REQUESTS SECTION (appears when a class has requests) -->
-    <div id="requestsPanel" class="bg-white rounded-lg shadow p-6 hidden">
-        <h2 class="text-xl font-bold mb-4">⏳ Pending Join Requests</h2>
-        <div id="requestsList"></div>
-    </div>
-</div>
+    <!-- Pending Requests (for classes I created) -->
+    <section id="requestsSection" class="glass-panel p-6 rounded-3xl hidden">
+        <h3 class="text-2xl font-extrabold mb-4 uppercase tracking-tighter"><i class="fas fa-clock mr-2"></i> Pending Join Requests</h3>
+        <div id="requestsList" class="space-y-3"></div>
+    </section>
+</main>
+
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] glass-panel rounded-2xl p-3 border-white/10 flex justify-around items-center z-50 shadow-2xl">
+    <a href="index.html" class="flex flex-col items-center text-gray-500"><i class="fas fa-home text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Home</span></a>
+    <a href="build.html" class="flex flex-col items-center text-gray-500"><i class="fas fa-layer-group text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Build</span></a>
+    <a href="classes.html" class="flex flex-col items-center nav-active"><i class="fas fa-chalkboard text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Classes</span></a>
+    <a href="ranks.html" class="flex flex-col items-center text-gray-500"><i class="fas fa-trophy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Ranks</span></a>
+    <a href="profile.html" class="flex flex-col items-center text-gray-500"><i class="fas fa-user text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Profile</span></a>
+</nav>
 
 <script>
-    // Data structure
-    let classes = [
-        {
-            id: 1,
-            name: "Introduction to Programming",
-            description: "Learn coding basics with Python",
-            joinType: "open",
-            members: ["alice@example.com", "bob@example.com"],
-            requests: [] // stores { email, userName, requestedAt }
-        },
-        {
-            id: 2,
-            name: "Advanced Web Development",
-            description: "React, Node.js, and MongoDB",
-            joinType: "approval",
-            members: ["charlie@example.com"],
-            requests: [
-                { id: 101, email: "david@example.com", userName: "David Chen", requestedAt: new Date().toISOString() },
-                { id: 102, email: "emma@example.com", userName: "Emma Watson", requestedAt: new Date().toISOString() }
-            ]
+    // Your Supabase credentials
+    const _URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+    const _KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+    const supabase = supabase.createClient(_URL, _KEY);
+
+    let currentUser = null;
+
+    // First, create the tables if they don't exist (run this once in Supabase SQL editor)
+    async function setupTables() {
+        // You need to run this SQL in Supabase SQL editor manually first:
+        /*
+        CREATE TABLE IF NOT EXISTS classes (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            description TEXT,
+            join_type VARCHAR(20) CHECK (join_type IN ('open', 'approval')),
+            created_by UUID REFERENCES auth.users(id),
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS class_members (
+            id SERIAL PRIMARY KEY,
+            class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
+            user_id UUID REFERENCES auth.users(id),
+            user_email VARCHAR(255),
+            joined_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(class_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS class_requests (
+            id SERIAL PRIMARY KEY,
+            class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
+            user_id UUID REFERENCES auth.users(id),
+            user_email VARCHAR(255),
+            user_name VARCHAR(100),
+            requested_at TIMESTAMP DEFAULT NOW(),
+            status VARCHAR(20) DEFAULT 'pending'
+        );
+        */
+    }
+
+    // Create a new class
+    document.getElementById('classForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        if (!currentUser) {
+            alert('Please login first');
+            return;
         }
-    ];
-
-    let nextClassId = 3;
-    let nextRequestId = 103;
-
-    // Helper: Escape HTML
+        
+        const name = document.getElementById('className').value.trim();
+        if (!name) {
+            alert('Class name is required');
+            return;
+        }
+        
+        const description = document.getElementById('classDescription').value;
+        const joinType = document.querySelector('input[name="joinType"]:checked').value;
+        
+        const { data, error } = await supabase
+            .from('classes')
+            .insert([{
+                name: name,
+                description: description,
+                join_type: joinType,
+                created_by: currentUser.id
+            }])
+            .select();
+        
+        if (error) {
+            console.error('Error:', error);
+            alert('Error creating class: ' + error.message);
+            return;
+        }
+        
+        alert(`✅ Class "${name}" created successfully!`);
+        document.getElementById('classForm').reset();
+        document.querySelector('input[value="open"]').checked = true;
+        
+        loadMyClasses();
+    });
+    
+    // Load classes created by current user
+    async function loadMyClasses() {
+        if (!currentUser) return;
+        
+        const { data: classes, error } = await supabase
+            .from('classes')
+            .select('*')
+            .eq('created_by', currentUser.id)
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('Error loading classes:', error);
+            return;
+        }
+        
+        const container = document.getElementById('myClassesList');
+        
+        if (!classes || classes.length === 0) {
+            container.innerHTML = '<div class="text-center p-8 text-gray-500"><i class="fas fa-info-circle"></i> No classes created yet</div>';
+            return;
+        }
+        
+        // Get member counts and request counts for each class
+        let html = '';
+        for (const cls of classes) {
+            // Count members
+            const { count: memberCount } = await supabase
+                .from('class_members')
+                .select('*', { count: 'exact', head: true })
+                .eq('class_id', cls.id);
+            
+            // Count pending requests
+            const { count: requestCount } = await supabase
+                .from('class_requests')
+                .select('*', { count: 'exact', head: true })
+                .eq('class_id', cls.id)
+                .eq('status', 'pending');
+            
+            html += `
+                <div class="glass-panel p-4 rounded-2xl border-l-4 border-l-orange-500">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h4 class="font-bold text-lg">${escapeHtml(cls.name)}</h4>
+                            <p class="text-sm text-gray-400 mt-1">${escapeHtml(cls.description || 'No description')}</p>
+                        </div>
+                        <button onclick="deleteClass(${cls.id})" class="text-red-500 hover:text-red-400">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="flex gap-4 text-sm">
+                        <span class="text-gray-400"><i class="fas fa-users mr-1"></i> ${memberCount || 0} members</span>
+                        <span class="text-gray-400"><i class="fas ${cls.join_type === 'open' ? 'fa-globe' : 'fa-lock'} mr-1"></i> ${cls.join_type === 'open' ? 'Open' : 'Approval required'}</span>
+                        ${cls.join_type === 'approval' && requestCount > 0 ? 
+                            `<button onclick="showRequests(${cls.id})" class="text-orange-500 hover:text-orange-400">
+                                <i class="fas fa-clock"></i> ${requestCount} pending requests
+                            </button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+    }
+    
+    // Show pending requests for a class
+    window.showRequests = async function(classId) {
+        const { data: requests, error } = await supabase
+            .from('class_requests')
+            .select('*')
+            .eq('class_id', classId)
+            .eq('status', 'pending');
+        
+        if (error || !requests || requests.length === 0) {
+            document.getElementById('requestsSection').classList.add('hidden');
+            return;
+        }
+        
+        const { data: classData } = await supabase
+            .from('classes')
+            .select('name')
+            .eq('id', classId)
+            .single();
+        
+        const container = document.getElementById('requestsList');
+        let html = `<div class="mb-4 text-orange-500 font-bold">📖 ${classData.name}</div>`;
+        
+        for (const req of requests) {
+            html += `
+                <div class="glass-panel p-4 rounded-2xl flex justify-between items-center">
+                    <div>
+                        <p class="font-bold">${escapeHtml(req.user_name || 'Student')}</p>
+                        <p class="text-xs text-gray-500">${escapeHtml(req.user_email)}</p>
+                        <p class="text-xs text-gray-600 mt-1">Requested: ${new Date(req.requested_at).toLocaleString()}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="approveRequest(${classId}, ${req.id}, '${req.user_id}')" class="bg-green-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-700">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button onclick="denyRequest(${classId}, ${req.id})" class="bg-red-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-red-700">
+                            <i class="fas fa-times"></i> Deny
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+        document.getElementById('requestsSection').classList.remove('hidden');
+    };
+    
+    // Approve request
+    window.approveRequest = async function(classId, requestId, userId) {
+        // Add to members
+        const { error: memberError } = await supabase
+            .from('class_members')
+            .insert([{
+                class_id: classId,
+                user_id: userId
+            }]);
+        
+        if (memberError) {
+            alert('Error adding member: ' + memberError.message);
+            return;
+        }
+        
+        // Update request status
+        await supabase
+            .from('class_requests')
+            .update({ status: 'approved' })
+            .eq('id', requestId);
+        
+        alert('✅ Student approved!');
+        loadMyClasses();
+        document.getElementById('requestsSection').classList.add('hidden');
+    };
+    
+    // Deny request
+    window.denyRequest = async function(classId, requestId) {
+        await supabase
+            .from('class_requests')
+            .update({ status: 'denied' })
+            .eq('id', requestId);
+        
+        alert('❌ Request denied');
+        loadMyClasses();
+        document.getElementById('requestsSection').classList.add('hidden');
+    };
+    
+    // Delete class
+    window.deleteClass = async function(classId) {
+        if (!confirm('⚠️ Delete this class? All members and requests will be removed.')) return;
+        
+        const { error } = await supabase
+            .from('classes')
+            .delete()
+            .eq('id', classId);
+        
+        if (error) {
+            alert('Error deleting: ' + error.message);
+        } else {
+            alert('Class deleted');
+            loadMyClasses();
+        }
+    };
+    
     function escapeHtml(str) {
         if (!str) return '';
         return str.replace(/[&<>]/g, function(m) {
@@ -105,227 +348,32 @@
             return m;
         });
     }
-
-    // Render main classes table
-    function renderClassesTable() {
-        const tbody = document.getElementById('classTableBody');
-        tbody.innerHTML = '';
+    
+    // Auth check and clock
+    async function init() {
+        // Clock and greeting
+        function updateClock() {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
+            const h = new Date().getHours();
+            document.getElementById('dynamic-greeting').innerText = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
         
-        classes.forEach(cls => {
-            const row = tbody.insertRow();
-            const pendingCount = cls.requests.length;
-            const joinSettingDisplay = cls.joinType === 'open' ? 
-                '<span class="text-green-600">🌍 Anyone can join</span>' : 
-                '<span class="text-yellow-600">🔐 Approval required</span>';
-            
-            row.innerHTML = `
-                <td class="px-6 py-4 align-top font-medium">${escapeHtml(cls.name)}</td>
-                <td class="px-6 py-4 align-top text-gray-600">${escapeHtml(cls.description || '-')}</td>
-                <td class="px-6 py-4 align-top">${joinSettingDisplay}</td>
-                <td class="px-6 py-4 align-top">${cls.members.length} members</td>
-                <td class="px-6 py-4 align-top">
-                    ${cls.joinType === 'approval' && pendingCount > 0 ? 
-                        `<button onclick="showRequests(${cls.id})" class="bg-orange-500 text-white px-2 py-1 rounded text-sm">${pendingCount} pending</button>` : 
-                        pendingCount === 0 ? '0 pending' : '-'
-                    }
-                </td>
-                <td class="px-6 py-4 align-top space-x-2">
-                    <button onclick="joinClass(${cls.id})" class="text-blue-600 hover:text-blue-800 text-sm">Join</button>
-                    <button onclick="deleteClass(${cls.id})" class="text-red-600 hover:text-red-800 text-sm ml-2">Delete</button>
-                </td>
-            `;
-        });
-    }
-
-    // Show requests for a specific class
-    function showRequests(classId) {
-        const cls = classes.find(c => c.id === classId);
-        if (!cls || cls.joinType !== 'approval') return;
+        // Check auth
+        const { data: { user }, error } = await supabase.auth.getUser();
         
-        const panel = document.getElementById('requestsPanel');
-        const container = document.getElementById('requestsList');
-        
-        if (cls.requests.length === 0) {
-            panel.classList.add('hidden');
+        if (error || !user) {
+            alert('Please login to access Class Manager');
+            window.location.href = 'cbt-login.html';
             return;
         }
         
-        container.innerHTML = `
-            <div class="border rounded-lg overflow-hidden">
-                <div class="bg-gray-50 px-4 py-2 font-semibold">${escapeHtml(cls.name)} - Join Requests</div>
-                ${cls.requests.map(req => `
-                    <div class="border-t px-4 py-3 flex justify-between items-center">
-                        <div>
-                            <div class="font-medium">${escapeHtml(req.userName)}</div>
-                            <div class="text-sm text-gray-500">${escapeHtml(req.email)}</div>
-                            <div class="text-xs text-gray-400">Requested: ${new Date(req.requestedAt).toLocaleString()}</div>
-                        </div>
-                        <div class="space-x-2">
-                            <button onclick="approveRequest(${cls.id}, ${req.id})" class="bg-green-600 text-white px-3 py-1 rounded text-sm">Approve</button>
-                            <button onclick="denyRequest(${cls.id}, ${req.id})" class="bg-red-600 text-white px-3 py-1 rounded text-sm">Deny</button>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-        
-        panel.classList.remove('hidden');
+        currentUser = user;
+        await loadMyClasses();
     }
-
-    // Approve a join request
-    function approveRequest(classId, requestId) {
-        const cls = classes.find(c => c.id === classId);
-        if (!cls) return;
-        
-        const requestIndex = cls.requests.findIndex(r => r.id === requestId);
-        if (requestIndex === -1) return;
-        
-        const request = cls.requests[requestIndex];
-        // Add to members
-        cls.members.push(request.email);
-        // Remove from requests
-        cls.requests.splice(requestIndex, 1);
-        
-        renderClassesTable();
-        
-        // Refresh requests panel if still open
-        if (cls.requests.length > 0) {
-            showRequests(classId);
-        } else {
-            document.getElementById('requestsPanel').classList.add('hidden');
-        }
-        
-        alert(`Approved ${request.userName} to join the class!`);
-    }
-
-    // Deny a join request
-    function denyRequest(classId, requestId) {
-        const cls = classes.find(c => c.id === classId);
-        if (!cls) return;
-        
-        const requestIndex = cls.requests.findIndex(r => r.id === requestId);
-        if (requestIndex === -1) return;
-        
-        const request = cls.requests[requestIndex];
-        cls.requests.splice(requestIndex, 1);
-        
-        renderClassesTable();
-        
-        if (cls.requests.length > 0) {
-            showRequests(classId);
-        } else {
-            document.getElementById('requestsPanel').classList.add('hidden');
-        }
-        
-        alert(`Denied ${request.userName}'s request.`);
-    }
-
-    // Join class (handles open vs approval)
-    function joinClass(classId) {
-        const cls = classes.find(c => c.id === classId);
-        if (!cls) return;
-        
-        const userEmail = prompt("Enter your email address:", "student@example.com");
-        if (!userEmail) return;
-        
-        const userName = prompt("Enter your name:", "Student Name");
-        if (!userName) return;
-        
-        if (cls.joinType === 'open') {
-            // Auto-join
-            if (cls.members.includes(userEmail)) {
-                alert("You're already a member of this class!");
-                return;
-            }
-            cls.members.push(userEmail);
-            renderClassesTable();
-            alert(`Welcome to ${cls.name}! You've been automatically added.`);
-        } else {
-            // Requires approval - add to requests
-            // Check if already requested
-            const alreadyRequested = cls.requests.some(r => r.email === userEmail);
-            if (alreadyRequested) {
-                alert("You've already requested to join this class. Please wait for approval.");
-                return;
-            }
-            
-            // Check if already a member
-            if (cls.members.includes(userEmail)) {
-                alert("You're already a member of this class!");
-                return;
-            }
-            
-            cls.requests.push({
-                id: nextRequestId++,
-                email: userEmail,
-                userName: userName,
-                requestedAt: new Date().toISOString()
-            });
-            
-            renderClassesTable();
-            
-            // Show notification that request was sent
-            alert(`Request sent to join ${cls.name}. The class admin will approve or deny your request.`);
-            
-            // If this class's requests panel is open, refresh it
-            const panel = document.getElementById('requestsPanel');
-            if (!panel.classList.contains('hidden')) {
-                // Check which class is currently shown (simple approach: find any class with pending)
-                const anyClassWithRequests = classes.find(c => c.requests.length > 0);
-                if (anyClassWithRequests) {
-                    showRequests(anyClassWithRequests.id);
-                }
-            }
-        }
-    }
-
-    // Delete a class
-    function deleteClass(classId) {
-        if (confirm("Are you sure you want to delete this class? All members and requests will be removed.")) {
-            classes = classes.filter(c => c.id !== classId);
-            renderClassesTable();
-            
-            // Hide requests panel if no classes have pending requests
-            const hasRequests = classes.some(c => c.requests.length > 0);
-            if (!hasRequests) {
-                document.getElementById('requestsPanel').classList.add('hidden');
-            }
-        }
-    }
-
-    // Create new class from form
-    document.getElementById('classForm').addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        const name = document.getElementById('className').value.trim();
-        if (!name) {
-            alert("Class name is required");
-            return;
-        }
-        
-        const description = document.getElementById('classDescription').value;
-        const joinType = document.querySelector('input[name="joinType"]:checked').value;
-        
-        const newClass = {
-            id: nextClassId++,
-            name: name,
-            description: description,
-            joinType: joinType,
-            members: [],
-            requests: []
-        };
-        
-        classes.push(newClass);
-        renderClassesTable();
-        e.target.reset();
-        // Reset radio to default
-        document.querySelector('input[value="open"]').checked = true;
-        
-        alert(`Class "${name}" created successfully!`);
-    });
-
-    // Initial render
-    renderClassesTable();
+    
+    init();
 </script>
 
 </body>
