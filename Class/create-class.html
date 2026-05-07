@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Create Class - The Vault</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(18, 18, 18, 0.85);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .btn-orange {
+            background: #ff6600;
+            transition: all 0.2s;
+        }
+        .btn-orange:hover {
+            background: #ff5500;
+            transform: scale(0.98);
+        }
+        .btn-orange:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .input-focus:focus {
+            outline: none;
+            border-color: #ff6600;
+            box-shadow: 0 0 0 2px rgba(255, 102, 0, 0.2);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade {
+            animation: fadeIn 0.45s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards;
+        }
+    </style>
+</head>
+<body class="p-5">
+
+    <div class="max-w-md mx-auto animate-fade">
+        <!-- Back Button -->
+        <a href="class.html" class="text-orange-500 mb-4 inline-flex items-center gap-2 hover:text-orange-400 transition-colors">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        
+        <!-- Create Class Card -->
+        <div class="glass-panel p-6 rounded-2xl">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-plus-circle text-2xl text-orange-500"></i>
+                </div>
+                <h1 class="text-2xl font-black">Create a Class</h1>
+                <p class="text-gray-400 text-sm mt-1">You'll become the Class Representative</p>
+            </div>
+            
+            <form id="create-class-form">
+                <div class="mb-4">
+                    <label class="block text-sm font-bold mb-2">Class Name *</label>
+                    <input 
+                        type="text" 
+                        id="class-name" 
+                        required 
+                        class="w-full p-3 rounded-xl bg-black/50 border border-white/10 text-white input-focus transition-all"
+                        placeholder="e.g., Computer Science 101"
+                    >
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-bold mb-2">Description (Optional)</label>
+                    <textarea 
+                        id="class-desc" 
+                        rows="3" 
+                        class="w-full p-3 rounded-xl bg-black/50 border border-white/10 text-white input-focus transition-all"
+                        placeholder="What's this class about?"
+                    ></textarea>
+                </div>
+                
+                <button type="submit" id="create-btn" class="btn-orange w-full py-4 rounded-xl font-black uppercase tracking-wider flex items-center justify-center gap-2">
+                    <i class="fas fa-plus-circle"></i> Create Class
+                </button>
+            </form>
+            
+            <div class="mt-6 pt-6 border-t border-white/10 text-center">
+                <p class="text-xs text-gray-500">
+                    <i class="fas fa-shield-alt"></i> You can only create ONE class
+                </p>
+            </div>
+        </div>
+        
+        <!-- Toast Container -->
+        <div id="toast-container" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 hidden">
+            <div id="toast" class="glass-panel px-6 py-3 rounded-xl flex items-center gap-3 shadow-2xl">
+                <i id="toast-icon" class="fas fa-check-circle text-green-500"></i>
+                <span id="toast-message" class="text-sm font-medium"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase FIRST
+        const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+        
+        // Create supabase client BEFORE using it
+        const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        console.log('Supabase initialized:', supabase ? '✅' : '❌');
+        
+        // Toast notification
+        function showToast(message, type = 'error') {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toast-icon');
+            const toastMessage = document.getElementById('toast-message');
+            
+            toast.classList.remove('border-red-500/30', 'border-green-500/30', 'border-yellow-500/30');
+            
+            switch(type) {
+                case 'error':
+                    toastIcon.className = 'fas fa-exclamation-circle text-red-500';
+                    toast.classList.add('border-red-500/30');
+                    break;
+                case 'success':
+                    toastIcon.className = 'fas fa-check-circle text-green-500';
+                    toast.classList.add('border-green-500/30');
+                    break;
+                case 'warning':
+                    toastIcon.className = 'fas fa-exclamation-triangle text-yellow-500';
+                    toast.classList.add('border-yellow-500/30');
+                    break;
+                default:
+                    toastIcon.className = 'fas fa-info-circle text-blue-500';
+            }
+            
+            toastMessage.innerText = message;
+            toastContainer.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toastContainer.classList.add('hidden');
+            }, 4000);
+        }
+        
+        // Call Edge Function
+        async function callCreateEdgeFunction(name, description) {
+            console.log('1. Getting session...');
+            
+            // Get current session
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            
+            console.log('2. Session:', session ? '✅ Got session' : '❌ No session');
+            
+            if (sessionError) {
+                console.error('Session error:', sessionError);
+                throw new Error(`Session error: ${sessionError.message}`);
+            }
+            
+            if (!session) {
+                console.error('No session found');
+                throw new Error('Please login first');
+            }
+            
+            console.log('3. Calling edge function with:', { name, description });
+            
+            try {
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/create-class`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        name: name,
+                        description: description || '',
+                        custom_slug: null
+                    })
+                });
+                
+                console.log('4. Response status:', response.status);
+                
+                const result = await response.json();
+                console.log('5. Response data:', result);
+                
+                if (!response.ok) {
+                    throw new Error(result.error || `Failed with status ${response.status}`);
+                }
+                
+                return result;
+            } catch (error) {
+                console.error('Edge Function error:', error);
+                throw error;
+            }
+        }
+        
+        // Check if user already has a class
+        async function checkUserHasClass() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return false;
+            
+            console.log('Checking if user has class...', user.id);
+            
+            // Check if user is a class rep
+            const { data: asRep } = await supabase
+                .from('classes')
+                .select('id, name')
+                .eq('rep_id', user.id)
+                .maybeSingle();
+            
+            if (asRep) {
+                console.log('User is already a rep for:', asRep.name);
+                return asRep;
+            }
+            
+            // Check if user is a class member
+            const { data: asMember } = await supabase
+                .from('class_members')
+                .select('class:classes(id, name)')
+                .eq('user_id', user.id)
+                .eq('status', 'approved')
+                .maybeSingle();
+            
+            if (asMember?.class) {
+                console.log('User is already a member of:', asMember.class.name);
+                return asMember.class;
+            }
+            
+            console.log('User has no class yet');
+            return false;
+        }
+        
+        // Handle form submission
+        document.getElementById('create-class-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const className = document.getElementById('class-name').value.trim();
+            const classDesc = document.getElementById('class-desc').value.trim();
+            const createBtn = document.getElementById('create-btn');
+            
+            console.log('Form submitted:', { className, classDesc });
+            
+            // Validate input
+            if (!className) {
+                showToast('Please enter a class name', 'error');
+                return;
+            }
+            
+            if (className.length < 3) {
+                showToast('Class name must be at least 3 characters', 'error');
+                return;
+            }
+            
+            if (className.length > 100) {
+                showToast('Class name is too long (max 100 characters)', 'error');
+                return;
+            }
+            
+            // Check if user already has a class
+            const existingClass = await checkUserHasClass();
+            if (existingClass) {
+                showToast(`You already have a class "${existingClass.name}". You can only create one class.`, 'warning');
+                setTimeout(() => {
+                    window.location.href = 'class.html';
+                }, 2000);
+                return;
+            }
+            
+            // Disable button and show loading
+            const originalBtnHtml = createBtn.innerHTML;
+            createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            createBtn.disabled = true;
+            
+            try {
+                const result = await callCreateEdgeFunction(className, classDesc);
+                
+                console.log('Create result:', result);
+                
+                if (result.success) {
+                    showToast(result.message || 'Class created successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'class.html';
+                    }, 1500);
+                } else {
+                    showToast(result.error || 'Failed to create class', 'error');
+                    createBtn.innerHTML = originalBtnHtml;
+                    createBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Create error:', error);
+                showToast(error.message || 'Network error. Please try again.', 'error');
+                createBtn.innerHTML = originalBtnHtml;
+                createBtn.disabled = false;
+            }
+        });
+        
+        // Check authentication on page load
+        async function checkAuth() {
+            console.log('Checking authentication...');
+            const { data: { session }, error } = await supabase.auth.getSession();
+            
+            if (error) {
+                console.error('Auth check error:', error);
+            }
+            
+            if (!session) {
+                console.log('No session, redirecting to login');
+                showToast('Please login first', 'warning');
+                setTimeout(() => {
+                    window.location.href = 'https://thesdel.com';
+                }, 1500);
+                return false;
+            }
+            
+            console.log('User is authenticated:', session.user.email);
+            return true;
+        }
+        
+        // Run auth check on load
+        checkAuth();
+    </script>
+</body>
+</html>
