@@ -156,47 +156,6 @@
             return null;
         }
         
-        async function createClassDirectly(name, description) {
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-                throw new Error('Please login first');
-            }
-            
-            // Insert the class
-            const { data: classData, error: classError } = await supabase
-                .from('classes')
-                .insert({
-                    name: name.trim(),
-                    description: description?.trim() || '',
-                    rep_id: user.id,
-                    join_mode: 'open'
-                })
-                .select()
-                .single();
-            
-            if (classError) {
-                throw new Error(classError.message);
-            }
-            
-            // Add user as member
-            const { error: memberError } = await supabase
-                .from('class_members')
-                .insert({
-                    class_id: classData.id,
-                    user_id: user.id,
-                    status: 'approved'
-                });
-            
-            if (memberError) {
-                // Rollback: delete the class
-                await supabase.from('classes').delete().eq('id', classData.id);
-                throw new Error('Failed to add you as a member');
-            }
-            
-            return { success: true, class: classData };
-        }
-        
         document.getElementById('create-class-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -226,14 +185,47 @@
             redirectInProgress = true;
             
             try {
-                const result = await createClassDirectly(className, classDesc);
+                const { data: { user } } = await supabase.auth.getUser();
                 
-                if (result.success) {
-                    showToast('Class created successfully!', 'success');
-                    setTimeout(() => {
-                        window.location.href = 'class.html';
-                    }, 1500);
+                if (!user) {
+                    throw new Error('Please login first');
                 }
+                
+                // Insert the class directly
+                const { data: classData, error: classError } = await supabase
+                    .from('classes')
+                    .insert({
+                        name: className,
+                        description: classDesc || '',
+                        rep_id: user.id,
+                        join_mode: 'open'
+                    })
+                    .select()
+                    .single();
+                
+                if (classError) {
+                    throw new Error(classError.message);
+                }
+                
+                // Add user as member
+                const { error: memberError } = await supabase
+                    .from('class_members')
+                    .insert({
+                        class_id: classData.id,
+                        user_id: user.id,
+                        status: 'approved'
+                    });
+                
+                if (memberError) {
+                    await supabase.from('classes').delete().eq('id', classData.id);
+                    throw new Error('Failed to add you as a member');
+                }
+                
+                showToast('Class created successfully!', 'success');
+                setTimeout(() => {
+                    window.location.href = 'class.html';
+                }, 1500);
+                
             } catch (error) {
                 console.error('Create error:', error);
                 showToast(error.message || 'Failed to create class', 'error');
