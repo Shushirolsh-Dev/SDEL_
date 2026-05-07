@@ -11,82 +11,91 @@
     <style>
         body{background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif}
         .glass-panel{background:rgba(18,18,18,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.05)}
-        .nav-active{color:#ff6600!important}
     </style>
 </head>
 <body class="p-5 pb-32">
 
-<header class="flex justify-between items-start mb-10">
-    <div>
+<div class="max-w-4xl mx-auto">
+    <header class="mb-10">
         <h1 class="text-3xl font-extrabold">Class <span class="text-orange-500">Manager</span></h1>
-        <p class="text-gray-500 text-sm" id="userName"></p>
-    </div>
-    <div class="glass-panel px-4 py-2 rounded-xl">
-        <p class="text-xl font-black" id="clock">00:00</p>
-    </div>
-</header>
+        <p class="text-gray-500 text-sm">Create and manage your classes</p>
+    </header>
 
-<!-- Create Class Form -->
-<div class="glass-panel p-6 rounded-3xl mb-8">
-    <h2 class="text-2xl font-bold mb-4">📚 Create New Class</h2>
-    <form id="classForm">
-        <input type="text" id="className" placeholder="Class Name" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white">
-        <textarea id="classDescription" placeholder="Description" rows="3" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea>
+    <!-- Create Class Form -->
+    <div class="glass-panel p-6 rounded-3xl mb-8">
+        <h2 class="text-xl font-bold mb-4">📚 Create New Class</h2>
         
-        <div class="mb-4 space-y-2">
-            <label class="flex items-center p-3 bg-black/30 rounded-xl">
-                <input type="radio" name="joinType" value="open" checked class="mr-3">
-                <span>🌍 Anyone can join (no approval needed)</span>
-            </label>
-            <label class="flex items-center p-3 bg-black/30 rounded-xl">
-                <input type="radio" name="joinType" value="approval" class="mr-3">
-                <span>🔐 Approval required (you approve requests)</span>
-            </label>
+        <div id="message" class="hidden mb-4 p-3 rounded-xl"></div>
+        
+        <form id="classForm">
+            <input type="text" id="className" placeholder="Class Name *" required 
+                   class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white">
+            
+            <textarea id="classDescription" placeholder="Class Description" rows="3" 
+                      class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea>
+            
+            <div class="mb-4 space-y-2">
+                <label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer">
+                    <input type="radio" name="joinType" value="open" checked class="mr-3">
+                    <span>🌍 Anyone can join (open enrollment)</span>
+                </label>
+                <label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer">
+                    <input type="radio" name="joinType" value="approval" class="mr-3">
+                    <span>🔐 Approval required (must approve requests)</span>
+                </label>
+            </div>
+            
+            <button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-700">
+                <i class="fas fa-plus"></i> Create Class
+            </button>
+        </form>
+    </div>
+
+    <!-- Classes List -->
+    <div class="glass-panel p-6 rounded-3xl">
+        <h2 class="text-xl font-bold mb-4"><i class="fas fa-list"></i> All Classes</h2>
+        <div id="classesList">
+            <div class="text-center text-gray-500 py-8">
+                <i class="fas fa-spinner fa-spin"></i> Loading classes...
+            </div>
         </div>
-        
-        <button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">
-            <i class="fas fa-plus"></i> Create Class
-        </button>
-    </form>
-</div>
-
-<!-- My Classes List -->
-<div class="glass-panel p-6 rounded-3xl">
-    <h2 class="text-2xl font-bold mb-4"><i class="fas fa-chalkboard"></i> My Classes</h2>
-    <div id="classesList">
-        <div class="text-center text-gray-500 py-8">Loading...</div>
     </div>
 </div>
-
-<nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] glass-panel rounded-2xl p-3 flex justify-around">
-    <a href="index.html" class="text-gray-500"><i class="fas fa-home text-xl"></i></a>
-    <a href="build.html" class="text-gray-500"><i class="fas fa-layer-group text-xl"></i></a>
-    <a href="classes.html" class="nav-active"><i class="fas fa-chalkboard text-xl"></i></a>
-    <a href="ranks.html" class="text-gray-500"><i class="fas fa-trophy text-xl"></i></a>
-    <a href="profile.html" class="text-gray-500"><i class="fas fa-user text-xl"></i></a>
-</nav>
 
 <script>
+    // Initialize Supabase
     const supabase = supabase.createClient(
         "https://lgfyrlfjoazedwymjpfc.supabase.co",
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw"
     );
 
-    let currentUser = null;
+    // Function to show message
+    function showMessage(text, type = 'success') {
+        const msgDiv = document.getElementById('message');
+        msgDiv.className = `mb-4 p-3 rounded-xl ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+        msgDiv.innerHTML = text;
+        msgDiv.classList.remove('hidden');
+        setTimeout(() => msgDiv.classList.add('hidden'), 3000);
+    }
 
-    // Display classes from database
+    // Load and display all classes
     async function loadClasses() {
+        console.log('Loading classes...');
+        
         const { data: classes, error } = await supabase
             .from('classes')
             .select('*')
             .order('created_at', { ascending: false });
         
+        console.log('Query result:', { classes, error });
+        
         if (error) {
-            console.error('Error:', error);
+            console.error('Load error:', error);
             document.getElementById('classesList').innerHTML = `
                 <div class="text-center text-red-500 py-8">
-                    <i class="fas fa-exclamation-triangle"></i> Error: Table 'classes' doesn't exist yet.<br>
-                    <span class="text-sm">Please run the CREATE TABLE SQL in Supabase first.</span>
+                    <i class="fas fa-exclamation-triangle"></i><br>
+                    Error: ${error.message}<br>
+                    <span class="text-sm text-gray-500">Make sure the 'classes' table exists in Supabase</span>
                 </div>
             `;
             return;
@@ -95,34 +104,40 @@
         if (!classes || classes.length === 0) {
             document.getElementById('classesList').innerHTML = `
                 <div class="text-center text-gray-500 py-8">
-                    <i class="fas fa-info-circle"></i> No classes created yet.<br>
-                    <span class="text-sm">Create your first class above!</span>
+                    <i class="fas fa-info-circle"></i><br>
+                    No classes yet.<br>
+                    <span class="text-sm">Create your first class using the form above!</span>
                 </div>
             `;
             return;
         }
         
+        // Display classes
         let html = '';
         for (const cls of classes) {
-            // Get member count
-            const { count: memberCount } = await supabase
-                .from('class_members')
-                .select('*', { count: 'exact', head: true })
-                .eq('class_id', cls.id);
+            // Get member count for each class
+            let memberCount = 0;
+            try {
+                const { count } = await supabase
+                    .from('class_members')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('class_id', cls.id);
+                memberCount = count || 0;
+            } catch(e) { console.log('Member count error:', e); }
             
             html += `
                 <div class="bg-black/30 p-4 rounded-xl mb-3 border-l-4 border-orange-500">
-                    <div class="flex justify-between">
-                        <div>
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
                             <h3 class="font-bold text-lg">${escapeHtml(cls.name)}</h3>
                             <p class="text-gray-400 text-sm mt-1">${escapeHtml(cls.description || 'No description')}</p>
                             <div class="flex gap-3 mt-2 text-xs">
-                                <span class="text-gray-500"><i class="fas fa-users"></i> ${memberCount || 0} members</span>
-                                <span class="text-gray-500">${cls.join_type === 'open' ? '🌍 Open' : '🔐 Approval'}</span>
+                                <span class="text-gray-500"><i class="fas fa-users"></i> ${memberCount} members</span>
+                                <span class="text-gray-500">${cls.join_type === 'open' ? '🌍 Open' : '🔐 Approval Required'}</span>
                                 <span class="text-gray-500">📅 ${new Date(cls.created_at).toLocaleDateString()}</span>
                             </div>
                         </div>
-                        <button onclick="deleteClass(${cls.id})" class="text-red-500 hover:text-red-400">
+                        <button onclick="deleteClass(${cls.id})" class="text-red-500 hover:text-red-400 ml-4">
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
@@ -138,12 +153,14 @@
         
         const name = document.getElementById('className').value.trim();
         if (!name) {
-            alert('Class name required');
+            showMessage('Class name is required!', 'error');
             return;
         }
         
         const description = document.getElementById('classDescription').value;
         const joinType = document.querySelector('input[name="joinType"]:checked').value;
+        
+        console.log('Creating class:', { name, description, joinType });
         
         const { data, error } = await supabase
             .from('classes')
@@ -151,24 +168,31 @@
                 name: name,
                 description: description,
                 join_type: joinType,
-                created_by: currentUser?.id || null
-            }]);
+                created_at: new Date()
+            }])
+            .select();
+        
+        console.log('Insert result:', { data, error });
         
         if (error) {
-            alert('Error: ' + error.message);
-            console.error(error);
+            showMessage('Error: ' + error.message, 'error');
+            console.error('Insert error:', error);
             return;
         }
         
-        alert('✅ Class created successfully!');
+        showMessage('✅ Class "' + name + '" created successfully!', 'success');
+        
+        // Clear form
         document.getElementById('classForm').reset();
         document.querySelector('input[value="open"]').checked = true;
-        loadClasses(); // Refresh the list
+        
+        // Reload the list
+        await loadClasses();
     });
 
     // Delete class
     window.deleteClass = async (classId) => {
-        if (!confirm('Delete this class?')) return;
+        if (!confirm('Are you sure you want to delete this class? This cannot be undone.')) return;
         
         const { error } = await supabase
             .from('classes')
@@ -176,10 +200,10 @@
             .eq('id', classId);
         
         if (error) {
-            alert('Error: ' + error.message);
+            showMessage('Error deleting: ' + error.message, 'error');
         } else {
-            alert('Class deleted');
-            loadClasses();
+            showMessage('Class deleted successfully!', 'success');
+            await loadClasses();
         }
     };
 
@@ -193,26 +217,8 @@
         });
     }
 
-    // Check auth and initialize
-    async function init() {
-        // Clock
-        setInterval(() => {
-            document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        }, 1000);
-        
-        // Check login
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            currentUser = user;
-            document.getElementById('userName').innerText = `Welcome, ${user.email}`;
-        } else {
-            document.getElementById('userName').innerHTML = '<span class="text-orange-500">⚠️ Not logged in</span>';
-        }
-        
-        loadClasses();
-    }
-    
-    init();
+    // Load classes on page load
+    loadClasses();
 </script>
 
 </body>
