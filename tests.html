@@ -1,663 +1,91 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <title>Create Class - SIMPLE TEST</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Create Class - Test Version</h1>
+    
+    <input type="text" id="className" placeholder="Class Name" style="width: 100%; padding: 10px; margin: 10px 0;">
+    <button id="createBtn">Create Class</button>
+    
+    <div id="result" style="margin-top: 20px; padding: 10px; background: #f0f0f0;"></div>
+
     <script>
-        (function() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'sunlight') {
-                document.documentElement.classList.add('sunlight-mode');
+        const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const resultDiv = document.getElementById('result');
+        
+        function log(message, isError = false) {
+            resultDiv.innerHTML += `<div style="color: ${isError ? 'red' : 'green'}; margin: 5px 0;">${message}</div>`;
+            console.log(message);
+        }
+        
+        document.getElementById('createBtn').onclick = async () => {
+            resultDiv.innerHTML = '';
+            log('Button clicked - starting...');
+            
+            try {
+                log('Getting user...');
+                const { data: { user }, error: userError } = await supabase.auth.getUser();
+                
+                if (userError) {
+                    log('ERROR getting user: ' + userError.message, true);
+                    return;
+                }
+                
+                if (!user) {
+                    log('No user logged in!', true);
+                    return;
+                }
+                
+                log('User ID: ' + user.id);
+                
+                const className = document.getElementById('className').value;
+                if (!className) {
+                    log('Please enter a class name', true);
+                    return;
+                }
+                
+                log('Creating class: ' + className);
+                
+                const { data: classData, error: classError } = await supabase
+                    .from('classes')
+                    .insert({
+                        name: className,
+                        rep_id: user.id,
+                        join_mode: 'open'
+                    })
+                    .select();
+                
+                if (classError) {
+                    log('ERROR creating class: ' + classError.message, true);
+                    return;
+                }
+                
+                log('SUCCESS! Class created with ID: ' + classData[0].id);
+                log('Class data: ' + JSON.stringify(classData[0]));
+                
+            } catch (err) {
+                log('CATCH ERROR: ' + err.message, true);
+            }
+        };
+        
+        // Check auth on page load
+        (async () => {
+            log('Page loaded - checking auth...');
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                log('✅ Logged in! User ID: ' + session.user.id);
+            } else {
+                log('❌ Not logged in!', true);
             }
         })();
     </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sdel | Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Navigation JS - handles active state on all pages -->
-    <script src="nav.js"></script>
-    
-    <style>
-        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; box-sizing: border-box; }
-        body { background-color: #000; color: #fff; transition: background-color 0.3s; padding-bottom: 85px; }
-        .text-sdel { color: #FF6600; }
-        .bg-sdel { background-color: #FF6600; }
-        .card-glass { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
-        .header-text { font-weight: 900; letter-spacing: -0.02em; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        
-        /* Story Rings */
-        .ring-blue-rotate { border-color: transparent !important; background: linear-gradient(#000, #000) padding-box, conic-gradient(#3b82f6, transparent) border-box; border: 2px solid transparent; animation: spin 2s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes gold-glow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
-        .sdel-pulse { animation: gold-glow 2s infinite; }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-        ::-webkit-scrollbar-thumb { background: #FF6600; border-radius: 10px; }
-        
-        /* Sunlight Mode */
-        .sunlight-mode body { background-color: #f5f5f5; color: #121212; }
-        .sunlight-mode .card-glass { background: rgba(255,255,255,0.9); border-color: #e4e4e7; }
-        .sunlight-mode .bg-black\/90 { background-color: rgba(255,255,255,0.9); }
-        .sunlight-mode .border-white\/10 { border-color: #e4e4e7; }
-        .sunlight-mode .text-white { color: #121212; }
-        .sunlight-mode .bg-white\/5 { background-color: #e4e4e7; }
-        .sunlight-mode .text-zinc-500 { color: #71717a; }
-        
-        /* Stats Card */
-        .stat-card {
-            background: rgba(255,255,255,0.03);
-            border-radius: 20px;
-            padding: 16px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .sunlight-mode .stat-card { background: white; border-color: #e4e4e7; }
-        
-        /* Ad Banner */
-        #ad-banner {
-            transition: opacity 0.5s ease;
-        }
-        
-        /* Order Items */
-        .order-item {
-            transition: all 0.2s;
-        }
-        .order-item:active { transform: scale(0.98); }
-        
-        /* Modal */
-        .modal-overlay {
-            background: rgba(0,0,0,0.95);
-            backdrop-filter: blur(20px);
-        }
-        .sunlight-mode .modal-overlay { background: rgba(255,255,255,0.95); }
-
-        /* ========== BOTTOM NAVIGATION - FIXED AT BOTTOM ========== */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(20, 15, 12, 0.92);
-            backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(255, 140, 60, 0.25);
-            padding: 10px 20px 20px;
-            z-index: 1000;
-            transition: all 0.3s ease;
-            background: linear-gradient(135deg, #2a1a0e, #1f1408, #2d1c0f);
-            background-size: 200% 200%;
-            animation: warmBottomShift 12s ease infinite;
-            overflow: hidden;
-        }
-
-        /* Light Sweep Animation Overlay */
-        .light-sweep {
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, 
-                transparent 0%, 
-                rgba(255, 200, 120, 0.4) 30%,
-                rgba(255, 220, 150, 0.6) 50%,
-                rgba(255, 200, 120, 0.4) 70%,
-                transparent 100%);
-            pointer-events: none;
-            z-index: 10;
-            animation: sweepLight 8s ease-in-out infinite;
-        }
-
-        @keyframes sweepLight {
-            0% { left: -100%; opacity: 0; }
-            10% { opacity: 0.8; }
-            30% { left: 120%; opacity: 0.8; }
-            31% { opacity: 0; }
-            100% { left: 120%; opacity: 0; }
-        }
-
-        /* Vibration animation for nav items when light passes */
-        @keyframes vibrateFavicon {
-            0% { transform: translateX(0px) rotate(0deg); }
-            25% { transform: translateX(1.5px) rotate(1deg); }
-            50% { transform: translateX(-1.5px) rotate(-1deg); }
-            75% { transform: translateX(1px) rotate(0.5deg); }
-            100% { transform: translateX(0px) rotate(0deg); }
-        }
-
-        .nav-item-bottom.vibrate {
-            animation: vibrateFavicon 0.25s ease-in-out 0s 1;
-        }
-
-        /* Soft shifting animation for bottom nav background */
-        @keyframes warmBottomShift {
-            0% {
-                background-position: 0% 50%;
-                background-color: #2a1a0e;
-            }
-            50% {
-                background-position: 100% 50%;
-                background-color: #3d2616;
-            }
-            100% {
-                background-position: 0% 50%;
-                background-color: #2a1a0e;
-            }
-        }
-
-        /* Sunlight mode adjustment for bottom nav */
-        .sunlight-mode .bottom-nav {
-            background: linear-gradient(135deg, #fff0e6, #ffe6d9, #fff0e6);
-            background-size: 200% 200%;
-            animation: warmBottomShiftLight 12s ease infinite;
-            border-top: 1px solid rgba(255, 102, 0, 0.3);
-        }
-
-        @keyframes warmBottomShiftLight {
-            0% { background-position: 0% 50%; background-color: #fff0e6; }
-            50% { background-position: 100% 50%; background-color: #ffe0d0; }
-            100% { background-position: 0% 50%; background-color: #fff0e6; }
-        }
-
-        /* Nav container - straight line horizontal layout */
-        .nav-container {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-around;
-            gap: 4px;
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 15;
-        }
-
-        /* Individual nav item - pure straight line */
-        .nav-item-bottom {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            flex: 1;
-            text-decoration: none;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 6px 0 4px;
-            border-radius: 40px;
-            transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-            color: rgba(255, 200, 160, 0.7);
-        }
-
-        /* Nav icon styling - crisp vector-only (no emojis) */
-        .nav-item-bottom i {
-            font-size: 22px;
-            transition: transform 0.2s ease, color 0.2s;
-            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
-        }
-
-        .nav-item-bottom span {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-            transition: all 0.2s;
-        }
-
-        /* Active state - warm orange glow */
-        .nav-item-bottom.active {
-            color: #FF884D;
-            transform: translateY(-2px);
-        }
-
-        .nav-item-bottom.active i {
-            color: #FF884D;
-            text-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
-            transform: scale(1.05);
-        }
-
-        .nav-item-bottom.active span {
-            color: #FF884D;
-            font-weight: 800;
-        }
-
-        /* Hover / tap feedback */
-        .nav-item-bottom:hover {
-            background: rgba(255, 140, 60, 0.15);
-            border-radius: 40px;
-            transform: translateY(-1px);
-        }
-
-        .nav-item-bottom:active {
-            transform: scale(0.96);
-            transition: 0.05s;
-        }
-
-        /* Remove focus outline and keep accessible ring */
-        .nav-item-bottom:focus-visible {
-            outline: 2px solid #FF884D;
-            outline-offset: 2px;
-            border-radius: 40px;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 480px) {
-            .nav-item-bottom i { font-size: 20px; }
-            .nav-item-bottom span { font-size: 9px; }
-            .bottom-nav { padding: 8px 12px 18px; }
-        }
-    </style>
-</head>
-<body>
-    
-    <!-- Navigation -->
-    <nav class="px-5 py-4 flex justify-between items-center sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/10">
-        <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-sdel/30 shadow-lg">
-                <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
-            </div>
-            <div>
-                <p class="text-[10px] font-black uppercase text-zinc-500 tracking-wider">Welcome back,</p>
-                <h1 class="text-lg font-black tracking-tighter"><span id="user-name" class="text-sdel">...</span></h1>
-            </div>
-        </div>
-        <div class="flex items-center gap-4">
-            <button onclick="location.href='homies.html'" class="p-2 rounded-full bg-white/5">
-                <i data-lucide="users" size="20" class="text-sdel"></i>
-            </button>
-            <div class="relative cursor-pointer" onclick="location.href='messages.html'">
-                <button class="p-2 rounded-full bg-white/5">
-                    <i data-lucide="bell" size="20" class="text-sdel"></i>
-                </button>
-                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-[9px] font-black text-white w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">0</span>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Wallet & XP Row -->
-    <div class="px-5 pt-5">
-        <div class="grid grid-cols-2 gap-3">
-            <div class="card-glass rounded-2xl p-4">
-                <div class="flex items-center gap-2 mb-2">
-                    <i data-lucide="wallet" size="16" class="text-sdel"></i>
-                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">Balance</span>
-                </div>
-                <p id="wallet-pill" class="text-2xl font-black tracking-tighter">₦0</p>
-            </div>
-            <div class="card-glass rounded-2xl p-4">
-                <div class="flex items-center gap-2 mb-2">
-                    <i data-lucide="award" size="16" class="text-sdel"></i>
-                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">XP Points</span>
-                </div>
-                <p id="xp-count" class="text-2xl font-black tracking-tighter">0</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Stories Section -->
-    <section class="px-5 mt-6">
-        <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-                <i data-lucide="circle-play" size="16" class="text-sdel"></i>
-                <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Stories</h2>
-            </div>
-            <button onclick="location.href='post-story.html'" class="text-[8px] font-black uppercase text-sdel">Post Story</button>
-        </div>
-        <div class="flex space-x-4 overflow-x-auto no-scrollbar pb-2" id="story-rail-content">
-            <div class="flex-shrink-0 flex flex-col items-center gap-2">
-                <div class="w-16 h-16 rounded-full bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center">
-                    <i data-lucide="plus" size="24" class="text-sdel"></i>
-                </div>
-                <span class="text-[8px] font-black uppercase text-zinc-500">Your Story</span>
-            </div>
-        </div>
-    </section>
-
-    <!-- Rank Card -->
-    <section class="px-5 mt-6">
-        <div class="card-glass rounded-2xl p-4">
-            <div class="flex justify-between items-center mb-3">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="trophy" size="16" class="text-sdel"></i>
-                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">Current Rank</span>
-                </div>
-                <span id="rank-badge" class="px-3 py-1 rounded-full text-[9px] font-black uppercase bg-sdel/20 text-sdel">CITIZEN</span>
-            </div>
-            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                <div id="xp-progress-bar" class="h-full bg-sdel rounded-full transition-all duration-700" style="width: 0%"></div>
-            </div>
-            <p class="text-[8px] text-zinc-500 mt-2 text-right">Next level: More XP</p>
-        </div>
-    </section>
-
-    <!-- Sponsored Ad -->
-    <section class="px-5 mt-6">
-        <a id="ad-link" href="#" target="_blank" class="block">
-            <div id="ad-banner" class="w-full h-[200px] rounded-2xl bg-cover bg-center relative overflow-hidden" style="display: none; background-image: url('');">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                <div class="absolute bottom-0 left-0 right-0 p-4">
-                    <span class="text-[7px] font-black uppercase bg-sdel text-black px-2 py-0.5 rounded mb-2 inline-block">Sponsored</span>
-                    <p id="ad-text" class="text-sm font-black text-white tracking-tighter">Loading...</p>
-                </div>
-            </div>
-        </a>
-    </section>
-
-    <!-- Order History -->
-    <section class="px-5 mt-6">
-        <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-                <i data-lucide="package" size="16" class="text-sdel"></i>
-                <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Recent Orders</h2>
-            </div>
-            <button onclick="toggleAllOrders(true)" class="text-[8px] font-black uppercase text-sdel">View All</button>
-        </div>
-        <div class="space-y-2" id="order-history-list"></div>
-    </section>
-
-    <!-- Global Feed -->
-    <section class="px-5 mt-6">
-        <div class="flex items-center gap-2 mb-3">
-            <i data-lucide="radio" size="16" class="text-sdel"></i>
-            <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Global Feed</h2>
-        </div>
-        <div id="global-feed" class="space-y-4 pb-4"></div>
-    </section>
-
-    <!-- All Orders Modal -->
-    <div id="all-orders-modal" class="fixed inset-0 z-[100] hidden modal-overlay p-6 overflow-y-auto">
-        <div class="flex justify-between items-center mb-6 sticky top-0 bg-black/90 backdrop-blur-md py-4 -mt-2">
-            <h2 class="text-lg font-black tracking-tighter">Order History</h2>
-            <button onclick="toggleAllOrders(false)" class="p-2 rounded-full bg-white/5">
-                <i data-lucide="x" size="20" class="text-sdel"></i>
-            </button>
-        </div>
-        <div id="full-order-list" class="space-y-3 pb-20"></div>
-    </div>
-
-    <!-- ========== BOTTOM NAVIGATION - UPDATED WITH CORRECT LINKS ========== -->
-    <div class="bottom-nav">
-        <div class="light-sweep"></div>
-        <div class="nav-container">
-            <a href="dashboard.html" class="nav-item-bottom" data-nav="home" id="bottomNavHome">
-                <i data-lucide="home" size="22"></i>
-                <span>Home</span>
-            </a>
-            <a href="explore.html" class="nav-item-bottom" data-nav="feed" id="bottomNavFeed">
-                <i data-lucide="activity" size="22"></i>
-                <span>Feed</span>
-            </a>
-            <a href="market.html" class="nav-item-bottom" data-nav="shop" id="bottomNavShop">
-                <i data-lucide="shopping-bag" size="22"></i>
-                <span>Shop</span>
-            </a>
-            <a href="fetch.html" class="nav-item-bottom" data-nav="fetch" id="bottomNavFetch">
-                <i data-lucide="camera" size="22"></i>
-                <span>Fetch</span>
-            </a>
-            <a href="profile.html" class="nav-item-bottom" data-nav="profile" id="bottomNavProfile">
-                <i data-lucide="user" size="22"></i>
-                <span>Profile</span>
-            </a>
-        </div>
-    </div>
-
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
-
-        let currentUserId = null;
-        let activeAds = [];
-        let currentAdIndex = 0;
-        let allOrdersData = [];
-
-        async function init() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.href = 'login.html';
-            currentUserId = session.user.id;
-
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
-            
-            const displayName = profile?.first_name || session.user.user_metadata?.first_name || "CHAMP";
-            document.getElementById('user-name').innerText = displayName;
-
-            if(profile) {
-                document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
-                if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
-                document.getElementById('xp-count').innerText = profile.xp || 0;
-                updatePrestige(profile.xp || 0);
-            }
-
-            loadStories();
-            loadFeed();
-            loadAds(); 
-            loadOrders();
-            getUnreadCount(); 
-        }
-
-        async function loadStories() {
-            const now = new Date().toISOString();
-            
-            const { data: follows } = await supabase.from('followers').select('following_id').eq('follower_id', currentUserId);
-            const homieIds = follows ? follows.map(f => f.following_id) : [];
-
-            const { data: viewed } = await supabase.from('story_views').select('story_id').eq('user_id', currentUserId);
-            const viewedSet = new Set(viewed?.map(v => v.story_id));
-
-            const { data: stories } = await supabase
-                .from('stories')
-                .select('*, profile:profile(first_name, is_official)')
-                .gt('expires_at', now)
-                .or(`is_official_post.eq.true,author_id.eq.${currentUserId},author_id.in.(${homieIds.join(',') || '00000000-0000-0000-0000-000000000000'})`);
-
-            const rail = document.getElementById('story-rail-content');
-            if (stories && stories.length > 0) {
-                const userLatestMap = new Map();
-                stories.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).forEach(s => {
-                    if(!userLatestMap.has(s.author_id)) userLatestMap.set(s.author_id, s);
-                });
-                let uniqueStories = Array.from(userLatestMap.values());
-
-                uniqueStories.sort((a, b) => {
-                    const aIsSdel = a.is_official_post || a.profile?.is_official;
-                    const bIsSdel = b.is_official_post || b.profile?.is_official;
-                    const aIsMe = a.author_id === currentUserId;
-                    const bIsMe = b.author_id === currentUserId;
-                    const aWatched = viewedSet.has(a.id);
-                    const bWatched = viewedSet.has(b.id);
-
-                    if (aIsSdel && !bIsSdel) return -1;
-                    if (!aIsSdel && bIsSdel) return 1;
-                    if (aIsMe && !bIsMe) return -1;
-                    if (!aIsMe && bIsMe) return 1;
-                    if (!aWatched && bWatched) return -1;
-                    if (aWatched && !bWatched) return 1;
-                    return new Date(b.created_at) - new Date(a.created_at);
-                });
-
-                const extraStories = uniqueStories.map(s => {
-                    const isSdel = s.is_official_post || s.profile?.is_official;
-                    const isMe = s.author_id === currentUserId;
-                    const isWatched = viewedSet.has(s.id);
-                    
-                    let ringStyle = "";
-                    if (isSdel) ringStyle = isWatched ? "border-green-500" : "sdel-pulse";
-                    else if (isMe) ringStyle = "border-zinc-600";
-                    else ringStyle = isWatched ? "border-zinc-600" : "ring-blue-rotate";
-
-                    return `
-                        <div class="flex-shrink-0 flex flex-col items-center gap-2" onclick="watchStory('${s.id}')">
-                            <div class="w-16 h-16 rounded-full border-2 ${ringStyle} overflow-hidden">
-                                <img src="${s.media_url}" class="w-full h-full object-cover bg-zinc-900">
-                            </div>
-                            <span class="text-[8px] font-black uppercase truncate w-16 text-center ${isSdel ? 'text-sdel' : 'text-zinc-400'}">
-                                ${isSdel ? 'SDEL' : (s.profile?.first_name || 'HOMIE')}
-                            </span>
-                        </div>`;
-                }).join('');
-                
-                rail.innerHTML += extraStories;
-            }
-            lucide.createIcons();
-        }
-
-        window.watchStory = async (id) => {
-            await supabase.from('story_views').upsert({ user_id: currentUserId, story_id: id });
-            location.href = `view-story.html?id=${id}`;
-        };
-
-        async function getUnreadCount() {
-            if (!currentUserId) return;
-            const { data: profile } = await supabase.from('profile').select('last_read_general, last_read_team').eq('id', currentUserId).single();
-            const lastGen = new Date(profile?.last_read_general || 0);
-            const lastTeam = new Date(profile?.last_read_team || 0);
-            const { data: messages } = await supabase.from('messages').select('type, created_at').or(`recipient_id.is.null,recipient_id.eq.${currentUserId}`);
-            if (!messages) return;
-            const unreadGen = messages.filter(m => m.type === 'general' && new Date(m.created_at) > lastGen).length;
-            const unreadTeam = messages.filter(m => m.type === 'team' && new Date(m.created_at) > lastTeam).length;
-            const totalUnread = unreadGen + unreadTeam;
-            const badge = document.getElementById('notif-badge');
-            if (totalUnread > 0) {
-                badge.innerText = totalUnread > 9 ? '9+' : totalUnread;
-                badge.classList.remove('hidden');
-                badge.style.display = 'flex';
-            } else {
-                badge.classList.add('hidden');
-                badge.style.display = 'none';
-            }
-        }
-
-        async function loadAds() {
-            const { data: ads, error } = await supabase.from('promoted_ads').select('*').eq('active', true);
-            if (error || !ads || ads.length === 0) return;
-            let weightedAds = [];
-            ads.forEach(ad => {
-                const weight = Math.max(1, Math.floor((ad.price || 0) / 100)); 
-                for(let i=0; i<weight; i++) { weightedAds.push(ad); }
-            });
-            activeAds = weightedAds.sort(() => Math.random() - 0.5);
-            displayNextAd();
-            setInterval(displayNextAd, 5000);
-        }
-
-        function displayNextAd() {
-            if (activeAds.length === 0) return;
-            const ad = activeAds[currentAdIndex];
-            const banner = document.getElementById('ad-banner');
-            const adLink = document.getElementById('ad-link');
-            banner.classList.add('opacity-0');
-            setTimeout(() => {
-                banner.style.backgroundImage = `url(${ad.media_url})`;
-                document.getElementById('ad-text').innerText = ad.title;
-                adLink.href = ad.link_url || '#';
-                banner.classList.remove('opacity-0');
-                banner.style.display = 'flex';
-            }, 300);
-            currentAdIndex = (currentAdIndex + 1) % activeAds.length;
-        }
-
-        async function loadOrders() {
-            const { data: orders } = await supabase.from('orders').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
-            if (!orders) return;
-            allOrdersData = orders;
-            renderOrderList(orders.slice(0, 3), 'order-history-list');
-        }
-
-        function renderOrderList(data, targetId) {
-            const container = document.getElementById(targetId);
-            if (!container) return;
-            if (data.length === 0) {
-                container.innerHTML = `<div class="card-glass rounded-xl p-6 text-center"><i data-lucide="package-x" size="24" class="mx-auto text-zinc-600 mb-2"></i><p class="text-[9px] font-black uppercase text-zinc-500">No orders yet</p></div>`;
-                lucide.createIcons();
-                return;
-            }
-            container.innerHTML = data.map(o => {
-                const displayId = o.order_code || `ID: ${o.id.slice(0,8)}`;
-                const itemNames = o.items ? JSON.parse(JSON.stringify(o.items)).map(i => i.name).join(', ') : 'Market Item';
-                let statusColor = 'bg-zinc-500/20 text-zinc-400 border-zinc-500/20';
-                let statusText = o.status?.toUpperCase() || 'PENDING';
-                if(o.status === 'accepted') { statusColor = 'bg-green-500/20 text-green-500 border-green-500/20'; statusText = 'ACCEPTED'; }
-                if(o.status === 'rejected') { statusColor = 'bg-red-500/20 text-red-500 border-red-500/20'; statusText = 'REJECTED'; }
-                if(o.status === 'pending') { statusColor = 'bg-sdel/20 text-sdel border-sdel/20'; statusText = 'PENDING'; }
-                return `
-                    <div class="order-item card-glass rounded-xl p-3 flex justify-between items-center">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-[8px] font-black text-zinc-500 uppercase mb-1">${displayId}</p>
-                            <p class="text-[10px] font-bold truncate">${itemNames}</p>
-                        </div>
-                        <span class="px-2 py-1 rounded-full text-[7px] font-black uppercase border ${statusColor} ml-2 flex-shrink-0">${statusText}</span>
-                    </div>
-                `;
-            }).join('');
-            lucide.createIcons();
-        }
-
-        window.toggleAllOrders = (show) => {
-            const modal = document.getElementById('all-orders-modal');
-            if(show) { 
-                renderOrderList(allOrdersData, 'full-order-list'); 
-                modal.classList.remove('hidden'); 
-            } else { 
-                modal.classList.add('hidden'); 
-            }
-        }
-
-        function updatePrestige(xp) {
-            const badge = document.getElementById('rank-badge');
-            const progress = document.getElementById('xp-progress-bar');
-            let rank = { n: "CITIZEN", p: (xp/500)*100 };
-            if (xp >= 10000) rank = { n: "OVERLORD", p: 100 };
-            else if (xp >= 5000) rank = { n: "MYTHIC", p: (xp/10000)*100 };
-            else if (xp >= 2500) rank = { n: "ELITE", p: (xp/5000)*100 };
-            else if (xp >= 1000) rank = { n: "WRAITH", p: (xp/2500)*100 };
-            else if (xp >= 500) rank = { n: "SCOUT", p: (xp/1000)*100 };
-            badge.innerText = rank.n;
-            progress.style.width = `${Math.min(rank.p, 100)}%`;
-        }
-
-        async function loadFeed() {
-            const { data: posts } = await supabase.from('posts').select('*, profile(first_name, avatar_url, xp)').order('created_at', { ascending: false });
-            const feed = document.getElementById('global-feed');
-            if (posts && posts.length > 0) {
-                feed.innerHTML = posts.map(p => `
-                    <div class="card-glass rounded-2xl overflow-hidden">
-                        ${p.media_url ? `<img src="${p.media_url}" class="w-full h-64 object-cover">` : ''}
-                        <div class="p-4">
-                            <div class="flex items-center gap-3 mb-3">
-                                <img src="${p.profile?.avatar_url || 'https://api.dicebear.com/7.x/initials/svg?seed='+p.profile?.first_name}" class="w-8 h-8 rounded-full border border-white/10">
-                                <div>
-                                    <p class="text-[10px] font-black">${p.profile?.first_name || 'Scholar'}</p>
-                                    <p class="text-[7px] text-zinc-500 uppercase">${formatDate(p.created_at)}</p>
-                                </div>
-                            </div>
-                            <p class="text-[11px] font-medium leading-relaxed">${p.content}</p>
-                        </div>
-                    </div>
-                `).join('');
-                lucide.createIcons();
-            } else {
-                feed.innerHTML = `<div class="card-glass rounded-2xl p-8 text-center"><i data-lucide="image" size="32" class="mx-auto text-zinc-600 mb-3"></i><p class="text-[9px] font-black uppercase text-zinc-500">No posts yet</p></div>`;
-                lucide.createIcons();
-            }
-        }
-        
-        function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            const now = new Date();
-            const diff = now - date;
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            if (days === 0) return 'Today';
-            if (days === 1) return 'Yesterday';
-            if (days < 7) return `${days} days ago`;
-            return date.toLocaleDateString();
-        }
-
-        init();
-    </script>
-    <script>lucide.createIcons();</script>
 </body>
 </html>
