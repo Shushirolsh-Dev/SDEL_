@@ -2,179 +2,95 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Class Board - The Vault</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Board</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        body {
-            background-color: #000;
-            color: #fff;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
-        .glass-panel {
-            background: rgba(18, 18, 18, 0.85);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-        }
-        .btn-orange {
-            background: #ff6600;
-            transition: all 0.2s;
-        }
-        .btn-orange:hover {
-            background: #ff5500;
-        }
-    </style>
 </head>
-<body class="p-5 pb-32">
+<body class="bg-black text-white p-5">
 
-    <div class="max-w-md mx-auto">
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-8">
-            <div>
-                <h1 class="text-2xl font-black">Class<span class="text-orange-500">Board</span></h1>
-                <p class="text-gray-500 text-sm" id="greeting">Loading...</p>
-            </div>
-            <div class="glass-panel px-4 py-2 rounded-xl">
-                <p class="text-xl font-black" id="clock">--:--</p>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <div id="main-content">
-            <div class="text-center py-10">
-                <i class="fas fa-spinner fa-spin text-3xl text-orange-500"></i>
-                <p class="mt-4 text-gray-400">Loading...</p>
-            </div>
-        </div>
+<div class="max-w-md mx-auto">
+    <h1 class="text-2xl font-bold mb-4">Class Board</h1>
+    
+    <div id="content">
+        <div class="text-center py-10">Loading...</div>
     </div>
+    
+    <div class="mt-8 flex gap-3">
+        <a href="create-class.html" id="createLink" class="bg-orange-500 flex-1 text-center p-3 rounded font-bold">Create Class</a>
+        <a href="join-class.html" id="joinLink" class="bg-gray-700 flex-1 text-center p-3 rounded font-bold">Join Class</a>
+    </div>
+</div>
 
-    <script>
-        const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+<script>
+    const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+    
+    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    async function checkClass() {
+        const { data: { session } } = await supabase.auth.getSession();
         
-        const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        let userClass = null;
-        
-        // Update clock
-        function updateClock() {
-            const now = new Date();
-            document.getElementById('clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        }
-        updateClock();
-        setInterval(updateClock, 1000);
-        
-        // Get user's class (if any)
-        async function getUserClass() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return null;
-            
-            // Check if user is a class rep
-            const { data: asRep } = await supabase
-                .from('classes')
-                .select('id, name, custom_link, rep_id')
-                .eq('rep_id', user.id)
-                .maybeSingle();
-            
-            if (asRep) {
-                return { ...asRep, role: 'rep' };
-            }
-            
-            // Check if user is a class member
-            const { data: asMember } = await supabase
-                .from('class_members')
-                .select('class:classes(id, name, custom_link, rep_id)')
-                .eq('user_id', user.id)
-                .eq('status', 'approved')
-                .maybeSingle();
-            
-            if (asMember?.class) {
-                return { ...asMember.class, role: 'member' };
-            }
-            
-            return null;
+        if (!session) {
+            document.getElementById('content').innerHTML = '<div class="glass-panel p-5 rounded">Please login</div>';
+            return;
         }
         
-        // Render based on whether user has a class
-        async function render() {
-            // Check auth first
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                window.location.href = 'https://thesdel.com';
-                return;
-            }
-            
-            // Get user's first name
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('first_name')
-                .eq('id', session.user.id)
-                .single();
-            
-            const firstName = profile?.first_name || session.user.email?.split('@')[0] || 'User';
-            document.getElementById('greeting').innerHTML = `Welcome, <span class="text-orange-500">${firstName}</span>`;
-            
-            // Get user's class
-            userClass = await getUserClass();
-            
-            const mainContent = document.getElementById('main-content');
-            
-            if (!userClass) {
-                // No class - show create/join options
-                mainContent.innerHTML = `
-                    <div class="text-center py-10">
-                        <i class="fas fa-graduation-cap text-6xl text-orange-500/50 mb-6"></i>
-                        <h2 class="text-xl font-bold mb-4">Join a Class to Get Started</h2>
-                        <p class="text-gray-400 text-sm mb-8">Create your own class or join with a custom link</p>
-                        <div class="flex gap-4 flex-col">
-                            <a href="create-class.html" class="btn-orange w-full py-4 rounded-xl font-black uppercase tracking-wider text-center block">
-                                <i class="fas fa-plus-circle"></i> Create Class
-                            </a>
-                            <a href="join-class.html" class="glass-panel w-full py-4 rounded-xl font-black uppercase tracking-wider text-center border border-white/10 block">
-                                <i class="fas fa-sign-in-alt"></i> Join Class
-                            </a>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Has class - show class info
-                const isRep = userClass.role === 'rep';
-                mainContent.innerHTML = `
-                    <div class="glass-panel p-5 rounded-2xl mb-6">
-                        <h2 class="text-xl font-black">${escapeHtml(userClass.name)}</h2>
-                        <p class="text-gray-400 text-sm mt-1">
-                            <i class="fas fa-link"></i> ${userClass.custom_link}
-                        </p>
-                        ${isRep ? '<span class="inline-block mt-2 text-xs bg-orange-500/20 text-orange-400 px-2 py-1 rounded-full"><i class="fas fa-crown"></i> Class Representative</span>' : ''}
-                    </div>
-                    
-                    <div class="glass-panel p-5 rounded-2xl mb-6">
-                        <h3 class="font-bold mb-3"><i class="fas fa-bullhorn text-orange-500"></i> Announcements</h3>
-                        <p class="text-gray-400 text-sm">Loading announcements...</p>
-                    </div>
-                    
-                    <div class="glass-panel p-5 rounded-2xl">
-                        <h3 class="font-bold mb-3"><i class="fas fa-calendar text-orange-500"></i> Daily Timetable</h3>
-                        <p class="text-gray-400 text-sm">Loading schedule...</p>
-                    </div>
-                `;
-            }
+        // Get user's email
+        const email = session.user.email;
+        document.getElementById('content').innerHTML = `<div class="glass-panel p-5 rounded">Logged in as: ${email}<br>Checking your class...</div>`;
+        
+        // Check if user is a class rep
+        const { data: asRep } = await supabase
+            .from('classes')
+            .select('name, custom_link')
+            .eq('rep_id', session.user.id)
+            .maybeSingle();
+        
+        if (asRep) {
+            document.getElementById('content').innerHTML = `
+                <div class="glass-panel p-5 rounded">
+                    <h2 class="text-xl font-bold mb-2">${asRep.name}</h2>
+                    <p class="text-gray-400">Your Link: ${asRep.custom_link}</p>
+                    <p class="text-orange-500 mt-2">You are the Class Representative 👑</p>
+                </div>
+            `;
+            document.getElementById('createLink').classList.add('hidden');
+            document.getElementById('joinLink').classList.add('hidden');
+            return;
         }
         
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
+        // Check if user is a class member
+        const { data: asMember } = await supabase
+            .from('class_members')
+            .select('class:classes(name, custom_link)')
+            .eq('user_id', session.user.id)
+            .eq('status', 'approved')
+            .maybeSingle();
+        
+        if (asMember?.class) {
+            document.getElementById('content').innerHTML = `
+                <div class="glass-panel p-5 rounded">
+                    <h2 class="text-xl font-bold mb-2">${asMember.class.name}</h2>
+                    <p class="text-gray-400">Class Link: ${asMember.class.custom_link}</p>
+                    <p class="text-blue-500 mt-2">You are a Member</p>
+                </div>
+            `;
+            document.getElementById('createLink').classList.add('hidden');
+            document.getElementById('joinLink').classList.add('hidden');
+            return;
         }
         
-        render();
-    </script>
+        // No class
+        document.getElementById('content').innerHTML = `
+            <div class="glass-panel p-5 rounded text-center">
+                <p class="mb-2">You haven't joined any class yet</p>
+                <p class="text-gray-500 text-sm">Create a new class or join with a custom link</p>
+            </div>
+        `;
+    }
+    
+    checkClass();
+</script>
 </body>
 </html>
