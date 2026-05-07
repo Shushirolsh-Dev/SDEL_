@@ -3,172 +3,516 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel Login</title>
+    <title>The Vault - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        body { background: #000; color: white; font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; }
-        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
-        .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
-        
-        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(110vh); opacity: 0; } }
-        
-        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 90%; max-width: 400px; position: relative; z-index: 10; }
-        .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 100%; color: white; outline: none; }
-        .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 16px; border-radius: 12px; text-transform: uppercase; cursor: pointer; border: none; }
-        .btn-orange:disabled { background: #555; cursor: not-allowed; }
-        .eye-box { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 100; padding: 10px; }
-        .hidden { display: none !important; }
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(18, 18, 18, 0.85);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .gradient-border {
+            background: linear-gradient(135deg, #ff6600, #ff0066);
+            padding: 2px;
+            border-radius: 1.5rem;
+        }
+        .option-card {
+            transition: all 0.3s ease;
+        }
+        .option-card:hover {
+            transform: translateY(-5px);
+            border-color: #ff6600;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade {
+            animation: fadeIn 0.6s ease-out;
+        }
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #ff6600;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
+<body class="p-5">
 
-    <div class="stars" id="star-field"></div>
+<div class="max-w-4xl mx-auto animate-fade">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-10">
+        <div>
+            <h1 class="text-4xl font-black tracking-tight">
+                The <span class="text-orange-500">Vault</span>
+            </h1>
+            <p class="text-gray-500 text-sm mt-1" id="userGreeting"></p>
+        </div>
+        <button id="logoutBtn" class="glass-panel px-4 py-2 rounded-xl text-sm hover:bg-white/10 transition">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+    </div>
 
-    <a href="index.html" class="absolute top-8 left-8 text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-[0.3em] transition">← Back</a>
+    <!-- Loading State -->
+    <div id="loadingState" class="text-center py-20">
+        <div class="loading-spinner mx-auto mb-4"></div>
+        <p class="text-gray-400">Checking your status...</p>
+    </div>
 
-    <div class="login-card">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-black italic uppercase tracking-tighter">S<span class="text-[#FF6600]">DEL</span> LOGIN</h1>
-            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Login to your campus account</p>
+    <!-- Already Has Class State -->
+    <div id="hasClassState" class="hidden">
+        <div class="gradient-border mb-6">
+            <div class="glass-panel p-8 rounded-2xl text-center">
+                <div class="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-check-circle text-4xl text-green-500"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">You're Already in a Class!</h2>
+                <p class="text-gray-400 mb-6">You're part of an existing class. Head to your class dashboard.</p>
+                <a href="class.html" class="inline-flex items-center gap-2 bg-orange-600 px-6 py-3 rounded-xl font-bold hover:bg-orange-700 transition">
+                    <i class="fas fa-chalkboard"></i> Go to My Class
+                </a>
+            </div>
         </div>
         
-        <div id="err" class="hidden p-3 mb-4 rounded bg-red-900/20 text-red-500 border border-red-500/30 text-xs font-bold text-center uppercase"></div>
-
-        <div class="space-y-4">
-            <input type="text" id="identifier" placeholder="EMAIL OR USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()">
-
-            <div class="relative">
-                <input type="password" id="pass" placeholder="PASSWORD" class="sdel-input pr-12">
-                <div class="eye-box" onclick="toggleView()">
-                    <svg id="on" class="w-5 h-5 stroke-current text-gray-500" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    <svg id="off" class="w-5 h-5 stroke-current text-gray-500 hidden" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                </div>
-            </div>
-
-            <button onclick="startLogin()" id="l-btn" class="btn-orange">Log In</button>
-
-            <div class="flex justify-between items-center mt-4">
-                <a href="forgot-password.html" class="text-[10px] font-bold text-gray-500 hover:text-[#FF6600] uppercase tracking-tighter">Forgot Password?</a>
-                <a href="signup.html" class="text-[10px] font-bold text-[#FF6600] hover:underline uppercase tracking-tighter">Create Account</a>
+        <div class="glass-panel p-6 rounded-2xl">
+            <h3 class="font-bold mb-3">📋 Your Class Info</h3>
+            <div id="existingClassInfo" class="space-y-2 text-sm">
+                <!-- Class info will appear here -->
             </div>
         </div>
     </div>
 
-            <script>
-    // Star field animation
-    const f = document.getElementById('star-field');
-    for(let i=0; i<80; i++) {
-        const s = document.createElement('div');
-        s.className = 'star';
-        s.style.width = s.style.height = (Math.random() * 2 + 1) + 'px';
-        s.style.left = Math.random()*100+'vw';
-        s.style.top = Math.random()*100+'vh';
-        s.style.animationDuration = (Math.random()*20 + 25)+'s'; 
-        s.style.animationDelay = (Math.random()*10)+'s';
-        f.appendChild(s);
-    }
+    <!-- No Class Yet - Choose Action -->
+    <div id="noClassState" class="hidden">
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-black mb-2">Welcome! 🎉</h2>
+            <p class="text-gray-400">Choose how you want to get started</p>
+        </div>
 
-    const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Create Class Option -->
+            <div class="gradient-border cursor-pointer option-card" id="createClassOption">
+                <div class="glass-panel p-8 rounded-2xl text-center h-full">
+                    <div class="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-plus-circle text-3xl text-orange-500"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Create a Class</h3>
+                    <p class="text-gray-400 text-sm mb-4">Start your own class and become the class rep. You'll get a unique class code to share.</p>
+                    <ul class="text-left text-xs text-gray-500 space-y-1 mb-4">
+                        <li><i class="fas fa-check-circle text-green-500 mr-2"></i> Full control over your class</li>
+                        <li><i class="fas fa-check-circle text-green-500 mr-2"></i> Choose join mode (Open/Approval)</li>
+                        <li><i class="fas fa-check-circle text-green-500 mr-2"></i> Manage members and requests</li>
+                    </ul>
+                    <button class="w-full bg-orange-600 py-2 rounded-xl font-bold hover:bg-orange-700 transition">
+                        Create Class →
+                    </button>
+                </div>
+            </div>
 
-    function toggleView() {
-        const p = document.getElementById('pass');
-        const on = document.getElementById('on');
-        const off = document.getElementById('off');
-        if (p.type === 'password') {
-            p.type = 'text';
-            on.classList.add('hidden');
-            off.classList.remove('hidden');
-        } else {
-            p.type = 'password';
-            on.classList.remove('hidden');
-            off.classList.add('hidden');
-        }
-    }
+            <!-- Join Class Option -->
+            <div class="gradient-border cursor-pointer option-card" id="joinClassOption">
+                <div class="glass-panel p-8 rounded-2xl text-center h-full">
+                    <div class="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-sign-in-alt text-3xl text-blue-500"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Join a Class</h3>
+                    <p class="text-gray-400 text-sm mb-4">Join an existing class using a class code from your instructor.</p>
+                    <ul class="text-left text-xs text-gray-500 space-y-1 mb-4">
+                        <li><i class="fas fa-check-circle text-green-500 mr-2"></i> Learn from existing classes</li>
+                        <li><i class="fas fa-check-circle text-green-500 mr-2"></i> Access class materials</li>
+                        <li><i class="fas fa-check-circle text-green-500 mr-2"></i> Interact with members</li>
+                    </ul>
+                    <button class="w-full bg-blue-600 py-2 rounded-xl font-bold hover:bg-blue-700 transition">
+                        Join Class →
+                    </button>
+                </div>
+            </div>
+        </div>
 
-    function showErr(t) {
-        const e = document.getElementById('err');
-        e.innerText = t.toUpperCase();
-        e.classList.remove('hidden');
-        setTimeout(() => e.classList.add('hidden'), 4000);
-    }
+        <!-- Warning Message -->
+        <div class="mt-8 glass-panel p-4 rounded-xl text-center">
+            <p class="text-xs text-gray-500">
+                <i class="fas fa-info-circle mr-1"></i> 
+                You can only create OR join ONE class. Choose wisely!
+            </p>
+        </div>
+    </div>
 
-    async function startLogin() {
-        const inputVal = document.getElementById('identifier').value;
-        const pw = document.getElementById('pass').value;
-        const btn = document.getElementById('l-btn');
+    <!-- Create Class Modal -->
+    <div id="createModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel p-6 rounded-2xl max-w-md w-full animate-fade">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Create New Class</h3>
+                <button id="closeModal" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="createClassForm">
+                <input type="text" id="className" placeholder="Class Name *" required 
+                       class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white">
+                <textarea id="classDescription" placeholder="Class Description" rows="3" 
+                          class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea>
+                <div class="mb-4 space-y-2">
+                    <label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer">
+                        <input type="radio" name="joinType" value="open" checked class="mr-3">
+                        <span>🌍 Anyone can join (open enrollment)</span>
+                    </label>
+                    <label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer">
+                        <input type="radio" name="joinType" value="approval" class="mr-3">
+                        <span>🔐 Approval required (must approve requests)</span>
+                    </label>
+                </div>
+                <button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-700">
+                    <i class="fas fa-plus"></i> Create Class
+                </button>
+            </form>
+            <div id="createMessage" class="mt-3 text-sm"></div>
+        </div>
+    </div>
 
-        if(!inputVal || !pw) return showErr("ENTER ALL DETAILS");
+    <!-- Join Class Modal -->
+    <div id="joinModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel p-6 rounded-2xl max-w-md w-full animate-fade">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold">Join a Class</h3>
+                <button id="closeJoinModal" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div>
+                <input type="text" id="joinClassCode" placeholder="Enter class code (e.g., THESDEL-xxxxx)" 
+                       class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white font-mono">
+                <button id="submitJoin" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700">
+                    <i class="fas fa-sign-in-alt"></i> Join Class
+                </button>
+            </div>
+            <div id="joinMessage" class="mt-3 text-sm"></div>
+        </div>
+    </div>
 
-        btn.innerText = "VERIFYING...";
-        btn.disabled = true;
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 glass-panel px-6 py-3 rounded-xl hidden z-50">
+        <i id="toastIcon" class="fas fa-check-circle text-green-500 mr-2"></i>
+        <span id="toastMessage" class="text-sm"></span>
+    </div>
+</div>
 
-        let finalEmail = inputVal;
-
-        // 1. Resolve Username to Email
-        if (!inputVal.includes('@')) {
-            const { data: profileData, error: findError } = await sb
-                .from('profile')
-                .select('email')
-                .eq('username', inputVal)
-                .single();
-            
-            if (findError || !profileData) {
-                btn.innerText = "LOG IN";
-                btn.disabled = false;
-                return showErr("USERNAME NOT FOUND");
-            }
-            finalEmail = profileData.email;
-        }
-
-        // 2. Sign In
-        const { data: { user }, error: authError } = await sb.auth.signInWithPassword({
-            email: finalEmail,
-            password: pw
-        });
-
-        if (authError) {
-            showErr(authError.message);
-            btn.innerText = "LOG IN";
-            btn.disabled = false;
-            return;
-        }
-
-        // 3. AGGRESSIVE SECURITY CHECK
-        // Checking 'is_banned' to stay consistent with your feed file
-        const { data: profile, error: profError } = await sb
-            .from('profile')
-            .select('account_status, is_banned')
-            .eq('id', user.id)
-            .single();
-
-        if (profError || !profile) {
-            await sb.auth.signOut();
-            showErr("PROFILE ERROR - CONTACT SUPPORT");
-            btn.innerText = "LOG IN";
-            btn.disabled = false;
-            return;
-        }
-
-        // Check Banned Status
-        if (profile.is_banned === true) {
-            await sb.auth.signOut(); // Kills session server-side
-            window.location.replace('banned.html'); // Kills history trace
-            return;
-        }
-
-        // Check Suspension
-        if (profile.account_status === 'suspended') {
-            await sb.auth.signOut();
-            window.location.replace('suspended.html');
-            return;
-        }
-
-        // 4. Success
-        window.location.replace('Class/create-class.html');
-    }
-        </script>
+<script>
+    const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
     
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    let currentUser = null;
+    let userClass = null;
+
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toastIcon');
+        const msg = document.getElementById('toastMessage');
+        
+        icon.className = type === 'success' ? 'fas fa-check-circle text-green-500 mr-2' : 'fas fa-exclamation-circle text-red-500 mr-2';
+        msg.innerText = message;
+        toast.classList.remove('hidden');
+        
+        setTimeout(() => {
+            toast.classList.add('hidden');
+        }, 3000);
+    }
+
+    async function getUserStatus() {
+        const { data: { user }, error } = await supabaseClient.auth.getUser();
+        
+        if (error || !user) {
+            window.location.href = 'index.html';
+            return null;
+        }
+        
+        currentUser = user;
+        document.getElementById('userGreeting').innerHTML = `Welcome back, <span class="text-orange-500">${user.email?.split('@')[0] || 'Student'}</span>`;
+        
+        // Check if user created a class
+        const { data: createdClass } = await supabaseClient
+            .from('classes')
+            .select('*')
+            .eq('created_by', user.id)
+            .maybeSingle();
+        
+        if (createdClass) {
+            userClass = { ...createdClass, role: 'creator' };
+            return { hasClass: true, classData: createdClass, role: 'creator' };
+        }
+        
+        // Check if user is a member of any class
+        const { data: memberData } = await supabaseClient
+            .from('class_members')
+            .select('class_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+        
+        if (memberData) {
+            const { data: classData } = await supabaseClient
+                .from('classes')
+                .select('*')
+                .eq('id', memberData.class_id)
+                .single();
+            userClass = { ...classData, role: 'member' };
+            return { hasClass: true, classData, role: 'member' };
+        }
+        
+        return { hasClass: false };
+    }
+
+    function displayExistingClass(classData, role) {
+        const container = document.getElementById('existingClassInfo');
+        container.innerHTML = `
+            <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                <span class="text-gray-400">Class Name:</span>
+                <span class="font-bold">${escapeHtml(classData.name)}</span>
+            </div>
+            <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                <span class="text-gray-400">Your Role:</span>
+                <span class="font-bold ${role === 'creator' ? 'text-orange-500' : 'text-green-500'}">
+                    ${role === 'creator' ? 'Class Creator' : 'Member'}
+                </span>
+            </div>
+            <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                <span class="text-gray-400">Class Code:</span>
+                <code class="text-orange-500">${classData.class_code}</code>
+            </div>
+            <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+                <span class="text-gray-400">Join Mode:</span>
+                <span>${classData.join_type === 'open' ? '🌍 Open' : '🔐 Approval Required'}</span>
+            </div>
+        `;
+    }
+
+    function generateClassCode() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < 10; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return 'THESDEL-' + result;
+    }
+
+    async function createClass(name, description, joinType) {
+        const classCode = generateClassCode();
+        
+        const { data, error } = await supabaseClient
+            .from('classes')
+            .insert([{
+                name: name,
+                description: description,
+                join_type: joinType,
+                class_code: classCode,
+                created_by: currentUser.id,
+                created_at: new Date()
+            }])
+            .select();
+        
+        if (error) throw error;
+        
+        // Auto-add creator as member
+        await supabaseClient
+            .from('class_members')
+            .insert([{
+                class_id: data[0].id,
+                user_id: currentUser.id,
+                user_email: currentUser.email
+            }]);
+        
+        return data[0];
+    }
+
+    async function joinClass(classCode) {
+        // Find class by code
+        const { data: classData, error: findError } = await supabaseClient
+            .from('classes')
+            .select('*')
+            .eq('class_code', classCode)
+            .single();
+        
+        if (findError || !classData) {
+            throw new Error('Class code not found');
+        }
+        
+        // Check if user is already a member
+        const { data: existingMember } = await supabaseClient
+            .from('class_members')
+            .select('*')
+            .eq('class_id', classData.id)
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
+        
+        if (existingMember) {
+            throw new Error('You are already a member of this class');
+        }
+        
+        if (classData.join_type === 'open') {
+            // Auto-join
+            const { error: joinError } = await supabaseClient
+                .from('class_members')
+                .insert([{
+                    class_id: classData.id,
+                    user_id: currentUser.id,
+                    user_email: currentUser.email
+                }]);
+            
+            if (joinError) throw joinError;
+            return { success: true, classData, autoJoined: true };
+        } else {
+            // Request approval
+            const { error: requestError } = await supabaseClient
+                .from('class_requests')
+                .insert([{
+                    class_id: classData.id,
+                    user_id: currentUser.id,
+                    user_email: currentUser.email,
+                    user_name: currentUser.email?.split('@')[0] || 'Student',
+                    status: 'pending'
+                }]);
+            
+            if (requestError) throw requestError;
+            return { success: true, classData, autoJoined: false };
+        }
+    }
+
+    // Initialize page
+    async function init() {
+        const status = await getUserStatus();
+        
+        document.getElementById('loadingState').classList.add('hidden');
+        
+        if (status.hasClass) {
+            document.getElementById('hasClassState').classList.remove('hidden');
+            displayExistingClass(status.classData, status.role);
+        } else {
+            document.getElementById('noClassState').classList.remove('hidden');
+        }
+    }
+
+    // Event Listeners
+    document.getElementById('createClassOption')?.addEventListener('click', () => {
+        document.getElementById('createModal').classList.remove('hidden');
+    });
+
+    document.getElementById('joinClassOption')?.addEventListener('click', () => {
+        document.getElementById('joinModal').classList.remove('hidden');
+    });
+
+    document.getElementById('closeModal')?.addEventListener('click', () => {
+        document.getElementById('createModal').classList.add('hidden');
+        document.getElementById('createMessage').innerHTML = '';
+        document.getElementById('createClassForm').reset();
+    });
+
+    document.getElementById('closeJoinModal')?.addEventListener('click', () => {
+        document.getElementById('joinModal').classList.add('hidden');
+        document.getElementById('joinMessage').innerHTML = '';
+        document.getElementById('joinClassCode').value = '';
+    });
+
+    document.getElementById('createClassForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const name = document.getElementById('className').value.trim();
+        const description = document.getElementById('classDescription').value;
+        const joinType = document.querySelector('input[name="joinType"]:checked').value;
+        
+        if (!name) {
+            document.getElementById('createMessage').innerHTML = '<div class="text-red-500 text-center">Class name is required</div>';
+            return;
+        }
+        
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+        
+        try {
+            const newClass = await createClass(name, description, joinType);
+            showToast(`✅ Class "${name}" created successfully!`, 'success');
+            document.getElementById('createModal').classList.add('hidden');
+            setTimeout(() => {
+                window.location.href = 'class.html';
+            }, 1500);
+        } catch (error) {
+            console.error(error);
+            document.getElementById('createMessage').innerHTML = `<div class="text-red-500 text-center">Error: ${error.message}</div>`;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i> Create Class';
+        }
+    });
+
+    document.getElementById('submitJoin')?.addEventListener('click', async () => {
+        const classCode = document.getElementById('joinClassCode').value.trim();
+        const messageDiv = document.getElementById('joinMessage');
+        const submitBtn = document.getElementById('submitJoin');
+        
+        if (!classCode) {
+            messageDiv.innerHTML = '<div class="text-red-500 text-center">Please enter a class code</div>';
+            return;
+        }
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining...';
+        
+        try {
+            const result = await joinClass(classCode);
+            
+            if (result.autoJoined) {
+                messageDiv.innerHTML = `<div class="text-green-500 text-center">✅ Successfully joined "${result.classData.name}"!</div>`;
+                showToast(`✅ Joined "${result.classData.name}"!`, 'success');
+                setTimeout(() => {
+                    window.location.href = 'class.html';
+                }, 1500);
+            } else {
+                messageDiv.innerHTML = `<div class="text-yellow-500 text-center">⏳ Request sent to join "${result.classData.name}". Wait for approval!</div>`;
+                showToast(`Request sent to join "${result.classData.name}"`, 'success');
+                setTimeout(() => {
+                    document.getElementById('joinModal').classList.add('hidden');
+                    window.location.reload();
+                }, 2000);
+            }
+        } catch (error) {
+            console.error(error);
+            messageDiv.innerHTML = `<div class="text-red-500 text-center">❌ ${error.message}</div>`;
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Join Class';
+        }
+    });
+
+    document.getElementById('logoutBtn')?.addEventListener('click', async () => {
+        await supabaseClient.auth.signOut();
+        window.location.href = 'index.html';
+    });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    init();
+</script>
+
 </body>
 </html>
