@@ -3,275 +3,459 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>Create Class - The Vault</title>
+    <title>Create Class — The Vault</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        body {
-            background-color: #000;
-            color: #fff;
+        * {
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
+        body {
+            background: radial-gradient(circle at 10% 20%, #0a0a0a, #000000);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            padding: 1.5rem;
+        }
         .glass-panel {
-            background: rgba(18, 18, 18, 0.85);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(12, 12, 16, 0.9);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 102, 0, 0.25);
+            box-shadow: 0 25px 45px -12px rgba(0, 0, 0, 0.5);
         }
         .btn-orange {
-            background: #ff6600;
-            transition: all 0.2s;
+            background: linear-gradient(95deg, #ff6600, #ff4400);
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(255, 102, 0, 0.3);
         }
-        .btn-orange:hover {
-            background: #ff5500;
-            transform: scale(0.98);
+        .btn-orange:hover:not(:disabled) {
+            transform: translateY(-2px);
+            filter: brightness(1.05);
+            box-shadow: 0 8px 20px rgba(255, 102, 0, 0.4);
         }
         .btn-orange:disabled {
-            opacity: 0.5;
+            opacity: 0.55;
             cursor: not-allowed;
             transform: none;
         }
         .input-focus:focus {
             outline: none;
             border-color: #ff6600;
-            box-shadow: 0 0 0 2px rgba(255, 102, 0, 0.2);
+            box-shadow: 0 0 0 3px rgba(255, 102, 0, 0.25);
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(12px); }
-            to { opacity: 1; transform: translateY(0); }
+        .custom-alert {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            background: #1f1f2e;
+            backdrop-filter: blur(20px);
+            border-left: 5px solid #ff3300;
+            border-radius: 1rem;
+            padding: 1rem 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 1000;
+            box-shadow: 0 20px 35px -10px black;
+            transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .custom-alert.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
+        }
+        .toast-success {
+            border-left-color: #00c853;
+        }
+        .toast-error {
+            border-left-color: #ff3b30;
+        }
+        .toast-warning {
+            border-left-color: #ffaa00;
+        }
+        @keyframes gentleFade {
+            0% { opacity: 0; transform: translateY(18px); }
+            100% { opacity: 1; transform: translateY(0); }
         }
         .animate-fade {
-            animation: fadeIn 0.45s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards;
+            animation: gentleFade 0.5s ease-out forwards;
         }
     </style>
 </head>
-<body class="p-5">
+<body>
 
-    <div class="max-w-md mx-auto animate-fade">
-        <a href="class.html" class="text-orange-500 mb-4 inline-flex items-center gap-2 hover:text-orange-400 transition-colors">
-            <i class="fas fa-arrow-left"></i> Back to Class
-        </a>
-        
-        <div class="glass-panel p-6 rounded-2xl">
-            <div class="text-center mb-6">
-                <div class="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-plus-circle text-2xl text-orange-500"></i>
-                </div>
-                <h1 class="text-2xl font-black">Create a Class</h1>
-                <p class="text-gray-400 text-sm mt-1">You'll become the Class Representative</p>
+<div class="max-w-md w-full animate-fade">
+    <!-- Back navigation -->
+    <a href="class.html" class="inline-flex items-center gap-2 text-orange-400 hover:text-orange-300 mb-5 transition-all group">
+        <i class="fas fa-arrow-left group-hover:-translate-x-1 transition-transform"></i>
+        <span class="font-semibold">Back to Classes</span>
+    </a>
+
+    <div class="glass-panel rounded-2xl p-7 shadow-2xl">
+        <div class="text-center mb-6">
+            <div class="w-20 h-20 bg-gradient-to-br from-orange-500/30 to-orange-600/10 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <i class="fas fa-chalkboard-user text-3xl text-orange-500 drop-shadow-md"></i>
             </div>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-bold mb-2">Class Name *</label>
-                <input 
-                    type="text" 
-                    id="class-name" 
-                    required 
-                    class="w-full p-3 rounded-xl bg-black/50 border border-white/10 text-white input-focus transition-all"
-                    placeholder="e.g., Computer Science 101"
-                >
-            </div>
-            
-            <div class="mb-6">
-                <label class="block text-sm font-bold mb-2">Description (Optional)</label>
-                <textarea 
-                    id="class-desc" 
-                    rows="3" 
-                    class="w-full p-3 rounded-xl bg-black/50 border border-white/10 text-white input-focus transition-all"
-                    placeholder="What's this class about?"
-                ></textarea>
-            </div>
-            
-            <button id="create-btn" class="btn-orange w-full py-4 rounded-xl font-black uppercase tracking-wider flex items-center justify-center gap-2">
-                <i class="fas fa-plus-circle"></i> Create Class
-            </button>
+            <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">Launch a new class</h1>
+            <p class="text-gray-400 text-sm mt-2">You become the Class Representative · full control</p>
         </div>
-        
-        <div id="toast-container" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 hidden">
-            <div id="toast" class="glass-panel px-6 py-3 rounded-xl flex items-center gap-3 shadow-2xl border border-white/10">
-                <i id="toast-icon" class="fas fa-check-circle text-green-500"></i>
-                <span id="toast-message" class="text-sm font-medium"></span>
-            </div>
+
+        <div class="mb-5">
+            <label class="block text-sm font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-tag text-orange-500 text-xs"></i> Class name <span class="text-orange-500">*</span>
+            </label>
+            <input type="text" id="class-name" required
+                class="w-full p-3.5 rounded-xl bg-black/50 border border-white/15 text-white placeholder:text-gray-500 input-focus transition-all"
+                placeholder="e.g., Advanced Algorithms · CS50 · Literature Hub">
+        </div>
+
+        <div class="mb-7">
+            <label class="block text-sm font-bold mb-2 flex items-center gap-2">
+                <i class="fas fa-align-left text-orange-500 text-xs"></i> Description (optional)
+            </label>
+            <textarea id="class-desc" rows="3"
+                class="w-full p-3.5 rounded-xl bg-black/50 border border-white/15 text-white placeholder:text-gray-500 input-focus transition-all resize-none"
+                placeholder="What will members explore? Syllabus, goals, or vibe..."></textarea>
+        </div>
+
+        <button id="create-btn" class="btn-orange w-full py-4 rounded-xl font-black uppercase tracking-wider flex items-center justify-center gap-3 text-white shadow-lg">
+            <i class="fas fa-plus-circle text-lg"></i> Create class
+        </button>
+
+        <div class="mt-5 text-center text-xs text-gray-500 flex justify-center gap-4">
+            <span><i class="fas fa-lock-open text-orange-400/60"></i> open join mode</span>
+            <span><i class="fas fa-magic"></i> auto link: THESDEL-***</span>
         </div>
     </div>
+</div>
 
-    <script>
-        const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+<!-- reusable custom browser alert container -->
+<div id="customAlert" class="custom-alert">
+    <i id="alertIcon" class="fas fa-circle-exclamation text-xl"></i>
+    <span id="alertMessage" class="font-medium text-white text-sm"></span>
+    <button id="closeAlertBtn" class="ml-2 text-gray-400 hover:text-white transition">
+        <i class="fas fa-times"></i>
+    </button>
+</div>
+
+<script>
+    // --------------------------------------------------------------
+    // SUPABASE INIT (matching your required schema & environment)
+    // --------------------------------------------------------------
+    const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Flag to prevent double submission / redirect loops
+    let isProcessing = false;
+
+    // --------------------------------------------------------------
+    // CUSTOM BROWSER-STYLE ALERT (non-blocking but visually prominent)
+    // --------------------------------------------------------------
+    const alertContainer = document.getElementById('customAlert');
+    const alertIconElem = document.getElementById('alertIcon');
+    const alertMsgSpan = document.getElementById('alertMessage');
+    const closeAlertBtn = document.getElementById('closeAlertBtn');
+
+    function showCustomAlert(message, type = 'error') {
+        // type: 'error', 'success', 'warning'
+        if (!alertContainer) return;
         
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        let redirectInProgress = false;
-        
-        function showToast(message, type = 'error') {
-            const toastContainer = document.getElementById('toast-container');
-            const toast = document.getElementById('toast');
-            const toastIcon = document.getElementById('toast-icon');
-            const toastMessage = document.getElementById('toast-message');
-            
-            switch(type) {
-                case 'error':
-                    toastIcon.className = 'fas fa-exclamation-circle text-red-500';
-                    break;
-                case 'success':
-                    toastIcon.className = 'fas fa-check-circle text-green-500';
-                    break;
-                case 'warning':
-                    toastIcon.className = 'fas fa-exclamation-triangle text-yellow-500';
-                    break;
-            }
-            
-            toastMessage.innerText = message;
-            toastContainer.classList.remove('hidden');
-            
-            setTimeout(() => {
-                toastContainer.classList.add('hidden');
-            }, 4000);
+        // remove any existing classes and add new styling based on type
+        alertContainer.classList.remove('toast-success', 'toast-error', 'toast-warning');
+        if (type === 'success') {
+            alertContainer.classList.add('toast-success');
+            alertIconElem.className = 'fas fa-check-circle text-xl text-green-400';
+        } else if (type === 'warning') {
+            alertContainer.classList.add('toast-warning');
+            alertIconElem.className = 'fas fa-exclamation-triangle text-xl text-amber-400';
+        } else {
+            alertContainer.classList.add('toast-error');
+            alertIconElem.className = 'fas fa-circle-exclamation text-xl text-red-400';
         }
         
-        async function getUserClass() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return null;
-            
-            const { data: asRep } = await supabase
-                .from('classes')
-                .select('id, name, custom_link')
-                .eq('rep_id', user.id)
-                .maybeSingle();
-            
-            if (asRep) return asRep;
-            
-            const { data: asMember } = await supabase
-                .from('class_members')
-                .select('class:classes(id, name, custom_link)')
-                .eq('user_id', user.id)
-                .eq('status', 'approved')
-                .maybeSingle();
-            
-            if (asMember?.class) return asMember.class;
-            
-            return null;
-        }
+        alertMsgSpan.innerText = message;
+        alertContainer.classList.add('show');
         
-        document.getElementById('create-btn').addEventListener('click', async () => {
-            if (redirectInProgress) return;
-            
-            const className = document.getElementById('class-name').value.trim();
-            const classDesc = document.getElementById('class-desc').value.trim();
-            const createBtn = document.getElementById('create-btn');
-            
-            if (!className) {
-                showToast('Please enter a class name', 'error');
-                return;
-            }
-            
-            const existingClass = await getUserClass();
-            if (existingClass) {
-                showToast(`You already have a class: "${existingClass.name}". Redirecting...`, 'warning');
-                setTimeout(() => {
-                    window.location.href = 'class.html';
-                }, 2000);
-                return;
-            }
-            
-            const originalBtnHtml = createBtn.innerHTML;
-            createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
-            createBtn.disabled = true;
-            redirectInProgress = true;
-            
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                
-                if (!user) {
-                    throw new Error('Please login first');
-                }
-                
-                // Insert the class directly
-                const { data: classData, error: classError } = await supabase
-                    .from('classes')
-                    .insert({
-                        name: className,
-                        description: classDesc || '',
-                        rep_id: user.id,
-                        join_mode: 'open'
-                    })
-                    .select()
-                    .single();
-                
-                if (classError) {
-                    throw new Error(classError.message);
-                }
-                
-                // Add user as member
-                const { error: memberError } = await supabase
-                    .from('class_members')
-                    .insert({
-                        class_id: classData.id,
-                        user_id: user.id,
-                        status: 'approved'
-                    });
-                
-                if (memberError) {
-                    await supabase.from('classes').delete().eq('id', classData.id);
-                    throw new Error('Failed to add you as a member');
-                }
-                
-                showToast('Class created successfully!', 'success');
-                setTimeout(() => {
-                    window.location.href = 'class.html';
-                }, 1500);
-                
-            } catch (error) {
-                console.error('Create error:', error);
-                showToast(error.message || 'Failed to create class', 'error');
-                createBtn.innerHTML = originalBtnHtml;
-                createBtn.disabled = false;
-                redirectInProgress = false;
+        // auto hide after 4.5 seconds (unless user closes manually)
+        const timeoutId = setTimeout(() => {
+            alertContainer.classList.remove('show');
+        }, 4500);
+        
+        // store timeout so we can clear if user closes manually
+        alertContainer.dataset.timeoutId = timeoutId;
+    }
+    
+    // manual close listener
+    if (closeAlertBtn) {
+        closeAlertBtn.addEventListener('click', () => {
+            alertContainer.classList.remove('show');
+            if (alertContainer.dataset.timeoutId) {
+                clearTimeout(parseInt(alertContainer.dataset.timeoutId));
+                delete alertContainer.dataset.timeoutId;
             }
         });
+    }
+    
+    // helper: clear alert timer on any new alert
+    function clearExistingAlertTimer() {
+        if (alertContainer && alertContainer.dataset.timeoutId) {
+            clearTimeout(parseInt(alertContainer.dataset.timeoutId));
+            delete alertContainer.dataset.timeoutId;
+        }
+    }
+    
+    // enhanced alert wrapper
+    function notifyUser(message, type = 'error') {
+        clearExistingAlertTimer();
+        showCustomAlert(message, type);
+    }
+    
+    // --------------------------------------------------------------
+    // HELPER: fetch current user's class (rep or member approved)
+    // (replicates original logic but more robust)
+    // --------------------------------------------------------------
+    async function getUserExistingClass() {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) return null;
         
-        async function checkExistingClass() {
-            const existingClass = await getUserClass();
-            if (existingClass) {
-                showToast(`Note: You already have a class "${existingClass.name}"`, 'warning');
-                const createBtn = document.getElementById('create-btn');
-                createBtn.disabled = true;
-                createBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                createBtn.innerHTML = '<i class="fas fa-ban"></i> Already Have a Class';
-                
-                const container = document.querySelector('.glass-panel');
-                if (!document.querySelector('.go-to-class-btn')) {
-                    const goToClassBtn = document.createElement('a');
-                    goToClassBtn.href = 'class.html';
-                    goToClassBtn.className = 'btn-orange w-full py-4 rounded-xl font-black uppercase tracking-wider flex items-center justify-center gap-2 mt-4 go-to-class-btn';
-                    goToClassBtn.innerHTML = '<i class="fas fa-graduation-cap"></i> Go to My Class';
-                    container.appendChild(goToClassBtn);
-                }
-            }
+        // 1) check if user is class rep (owner)
+        const { data: asRep, error: repError } = await supabase
+            .from('classes')
+            .select('id, name, custom_link')
+            .eq('rep_id', user.id)
+            .maybeSingle();
+        
+        if (asRep) return asRep;
+        
+        // 2) check if user is an approved member of any class (max one class per design)
+        const { data: memberClass, error: memberError } = await supabase
+            .from('class_members')
+            .select('class:classes(id, name, custom_link)')
+            .eq('user_id', user.id)
+            .eq('status', 'approved')
+            .maybeSingle();
+        
+        if (memberClass?.class) return memberClass.class;
+        return null;
+    }
+    
+    // --------------------------------------------------------------
+    // DIRECT CLASS INSERT + MEMBER + TRIGGERS COMPLIANT
+    // This matches the exact supabase schema: custom_link auto generated by DB trigger,
+    // rep_id, join_mode, last_activity handled by DB defaults/triggers.
+    // Also we manually add class_members entry and activity will be tracked automatically
+    // via triggers (update_class_activity on member insert).
+    // --------------------------------------------------------------
+    async function createClassAndRedirect(className, classDescription) {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            notifyUser("Authentication required. Please login again.", "error");
+            return false;
         }
         
-        async function checkAuth() {
-            const { data: { session } } = await supabase.auth.getSession();
-            
-            if (!session) {
-                showToast('Please login first', 'warning');
-                setTimeout(() => {
-                    window.location.href = 'https://thesdel.com';
-                }, 1500);
-                return false;
-            }
+        // 1) Insert into classes table (custom_link will be generated by Postgres trigger)
+        // According to provided SQL: trigger set_custom_link generates 'THESDEL-xxxxxxxxxx'
+        // ensure rep_id is the current user, join_mode default 'open'
+        const { data: newClass, error: insertClassError } = await supabase
+            .from('classes')
+            .insert({
+                name: className,
+                description: classDescription || null,
+                rep_id: user.id,
+                join_mode: 'open'          // explicit 'open' as per default requirement
+            })
+            .select('id, name, custom_link')
+            .single();
+        
+        if (insertClassError) {
+            console.error("Class insert error:", insertClassError);
+            throw new Error(`Failed to create class: ${insertClassError.message}`);
+        }
+        
+        if (!newClass) throw new Error("No class data returned after creation");
+        
+        // 2) Insert creator as an approved member (class_members)
+        const { error: memberInsertError } = await supabase
+            .from('class_members')
+            .insert({
+                class_id: newClass.id,
+                user_id: user.id,
+                status: 'approved'
+            });
+        
+        if (memberInsertError) {
+            // rollback: delete created class to maintain consistency
+            console.error("Member insert failed, rolling back class creation");
+            await supabase.from('classes').delete().eq('id', newClass.id);
+            throw new Error(`Unable to enroll you as class member: ${memberInsertError.message}`);
+        }
+        
+        // Note: Activity logs for member join will be automatically inserted by triggers
+        // (track_member_join_activity + update_class_activity).
+        // Also, the class last_activity updates automatically when member added.
+        return newClass;
+    }
+    
+    // --------------------------------------------------------------
+    // CHECK AUTH + REDIRECT LOGIC FOR ALREADY OWNED CLASS
+    // --------------------------------------------------------------
+    async function redirectIfAlreadyInClass() {
+        const existing = await getUserExistingClass();
+        if (existing) {
+            notifyUser(`You already belong to "${existing.name}". Redirecting to your class dashboard...`, "warning");
+            setTimeout(() => {
+                window.location.href = "class.html";
+            }, 2100);
             return true;
         }
+        return false;
+    }
+    
+    // --------------------------------------------------------------
+    // MAIN CREATE FLOW (with UI blocking, custom error handling)
+    // --------------------------------------------------------------
+    async function handleClassCreation() {
+        if (isProcessing) return;
         
-        async function init() {
-            const isAuthed = await checkAuth();
-            if (isAuthed) {
-                await checkExistingClass();
-            }
+        const nameInput = document.getElementById('class-name');
+        const descInput = document.getElementById('class-desc');
+        const createButton = document.getElementById('create-btn');
+        
+        const classNameRaw = nameInput.value.trim();
+        const classDesc = descInput.value.trim();
+        
+        if (!classNameRaw) {
+            notifyUser("Class name cannot be empty. Please give your class a name.", "error");
+            return;
         }
         
-        init();
-    </script>
+        if (classNameRaw.length > 200) {
+            notifyUser("Class name is too long (max 200 characters).", "error");
+            return;
+        }
+        
+        // extra check: double-check that user isn't already in a class before sending request
+        const alreadyHasClass = await getUserExistingClass();
+        if (alreadyHasClass) {
+            notifyUser(`You're already a rep/member of "${alreadyHasClass.name}". Redirecting now.`, "warning");
+            setTimeout(() => window.location.href = "class.html", 1800);
+            return;
+        }
+        
+        isProcessing = true;
+        const originalContent = createButton.innerHTML;
+        createButton.disabled = true;
+        createButton.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> Creating vault space...';
+        
+        try {
+            const created = await createClassAndRedirect(classNameRaw, classDesc);
+            if (created) {
+                // success: notify with custom success alert
+                notifyUser(`✨ Class "${created.name}" created! Custom link: ${created.custom_link || 'auto-generated'}. Redirecting to class dashboard...`, "success");
+                // slight delay before redirect to let user see the success message clearly
+                setTimeout(() => {
+                    window.location.href = "class.html";
+                }, 1500);
+            } else {
+                throw new Error("Class creation returned empty response");
+            }
+        } catch (err) {
+            console.error("creation error:", err);
+            let errorMsg = err.message || "Unexpected error while creating class.";
+            // improve readability for Supabase foreign/RLS errors
+            if (errorMsg.includes("profile")) errorMsg = "Unable to verify user profile. Make sure your account is active.";
+            else if (errorMsg.includes("permission denied")) errorMsg = "Permission denied: please check your authentication status.";
+            else if (errorMsg.includes("duplicate key")) errorMsg = "A class with similar identifier already exists. Please try again.";
+            
+            notifyUser(errorMsg, "error");
+            // restore UI
+            createButton.innerHTML = originalContent;
+            createButton.disabled = false;
+            isProcessing = false;
+        }
+    }
+    
+    // --------------------------------------------------------------
+    // RUNTIME: ENSURE AUTH AND DISABLE BUTTON IF ALREADY IN CLASS
+    // --------------------------------------------------------------
+    async function initCreatePage() {
+        // Check session & redirect if not logged in
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            notifyUser("You need to login first. Redirecting to Thesdel...", "warning");
+            setTimeout(() => {
+                window.location.href = "https://thesdel.com";
+            }, 2000);
+            return;
+        }
+        
+        // verify if user already has a class (rep or member), if yes show message & disable creation with helpful UI
+        const existingClass = await getUserExistingClass();
+        const createBtn = document.getElementById('create-btn');
+        const nameField = document.getElementById('class-name');
+        const descField = document.getElementById('class-desc');
+        
+        if (existingClass) {
+            notifyUser(`You already have an active class: "${existingClass.name}". Only one class per user is allowed. Redirecting...`, "warning");
+            if (createBtn) {
+                createBtn.disabled = true;
+                createBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                createBtn.innerHTML = '<i class="fas fa-ban"></i> Already enrolled in a class';
+            }
+            if (nameField) nameField.disabled = true;
+            if (descField) descField.disabled = true;
+            
+            setTimeout(() => {
+                window.location.href = "class.html";
+            }, 2200);
+            return;
+        }
+        
+        // If no existing class, attach event handler to creation button
+        if (createBtn) {
+            // remove any previous listeners
+            const newBtn = createBtn.cloneNode(true);
+            createBtn.parentNode.replaceChild(newBtn, createBtn);
+            const finalBtn = document.getElementById('create-btn');
+            finalBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                handleClassCreation();
+            });
+        }
+        
+        // small extra: Pre-populate suggestion? Not needed but friendly
+        // optional: manual style
+    }
+    
+    // run initialization and also re-check on window focus (robust)
+    initCreatePage();
+    
+    // for extra safety: If user manually reloads while having class but session state changed, re-evaluate
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted || performance.getEntriesByType("navigation")[0]?.type === "back_forward") {
+            // re-run init to refresh class status
+            initCreatePage();
+        }
+    });
+    
+    // Also if any manual class check needed via link clicks, prevent double-redirect issues
+    document.querySelectorAll('a[href="class.html"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+            if (isProcessing) {
+                e.preventDefault();
+                notifyUser("Class creation in progress, please wait.", "warning");
+            }
+        });
+    });
+</script>
 </body>
 </html>
