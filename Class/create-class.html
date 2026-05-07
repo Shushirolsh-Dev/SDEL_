@@ -11,6 +11,8 @@
     <style>
         body{background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif}
         .glass-panel{background:rgba(18,18,18,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.05)}
+        .code-box{background:#000;border:1px solid #ff6600;border-radius:12px;padding:8px 12px;font-family:monospace;font-size:14px;letter-spacing:1px}
+        .copy-btn:hover{background:#ff6600;color:#000;transition:all 0.2s}
     </style>
 </head>
 <body class="p-5 pb-32">
@@ -18,7 +20,7 @@
 <div class="max-w-4xl mx-auto">
     <header class="mb-10">
         <h1 class="text-3xl font-extrabold">Class <span class="text-orange-500">Manager</span></h1>
-        <p class="text-gray-500 text-sm">Create and manage your classes</p>
+        <p class="text-gray-500 text-sm">Create classes with unique join codes</p>
     </header>
 
     <!-- Create Class Form -->
@@ -53,23 +55,38 @@
 
     <!-- Classes List -->
     <div class="glass-panel p-6 rounded-3xl">
-        <h2 class="text-xl font-bold mb-4"><i class="fas fa-list"></i> All Classes</h2>
+        <h2 class="text-xl font-bold mb-4"><i class="fas fa-list"></i> My Classes</h2>
         <div id="classesList">
             <div class="text-center text-gray-500 py-8">
                 <i class="fas fa-spinner fa-spin"></i> Loading classes...
             </div>
         </div>
     </div>
+
+    <!-- Pending Requests Section -->
+    <div id="requestsSection" class="glass-panel p-6 rounded-3xl mt-8 hidden">
+        <h2 class="text-xl font-bold mb-4"><i class="fas fa-clock"></i> Pending Join Requests</h2>
+        <div id="requestsList"></div>
+    </div>
 </div>
 
 <script>
-    // Initialize Supabase (only once)
     const _SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
     const _SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
     
     const supabaseClient = supabase.createClient(_SUPABASE_URL, _SUPABASE_KEY);
+    let currentUser = null;
 
-    // Function to show message
+    // Generate unique class code
+    function generateClassCode() {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < 10; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return 'THESDEL-' + result;
+    }
+
     function showMessage(text, type = 'success') {
         const msgDiv = document.getElementById('message');
         msgDiv.className = `mb-4 p-3 rounded-xl ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
@@ -78,29 +95,30 @@
         setTimeout(() => msgDiv.classList.add('hidden'), 3000);
     }
 
-    // Load and display all classes
+    function copyToClipboard(text, fieldName) {
+        navigator.clipboard.writeText(text);
+        showMessage(`${fieldName} copied to clipboard!`, 'success');
+    }
+
+    // Load classes
     async function loadClasses() {
         console.log('Loading classes...');
         
         try {
-            const { data: classes, error } = await supabaseClient
-                .from('classes')
-                .select('*')
-                .order('created_at', { ascending: false });
+            // Get current user
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            currentUser = user;
             
-            console.log('Query result:', { classes, error });
+            let query = supabaseClient.from('classes').select('*');
             
-            if (error) {
-                console.error('Load error:', error);
-                document.getElementById('classesList').innerHTML = `
-                    <div class="text-center text-red-500 py-8">
-                        <i class="fas fa-exclamation-triangle"></i><br>
-                        Error: ${error.message}<br>
-                        <span class="text-sm text-gray-500">Make sure the 'classes' table exists in Supabase</span>
-                    </div>
-                `;
-                return;
+            // If logged in, show their created classes
+            if (currentUser) {
+                query = query.eq('created_by', currentUser.id);
             }
+            
+            const { data: classes, error } = await query.order('created_at', { ascending: false });
+            
+            if (error) throw error;
             
             if (!classes || classes.length === 0) {
                 document.getElementById('classesList').innerHTML = `
@@ -113,43 +131,52 @@
                 return;
             }
             
-            // Display classes
             let html = '';
             for (const cls of classes) {
-                // Get member count for each class
-                let memberCount = 0;
-                try {
-                    const { count } = await supabaseClient
-                        .from('class_members')
-                        .select('*', { count: 'exact', head: true })
-                        .eq('class_id', cls.id);
-                    memberCount = count || 0;
-                } catch(e) { 
-                    console.log('Member count error:', e); 
-                }
+                const joinLink = `${window.location.origin}/join.html?code=${cls.class_code}`;
                 
                 html += `
                     <div class="bg-black/30 p-4 rounded-xl mb-3 border-l-4 border-orange-500">
-                        <div class="flex justify-between items-start">
+                        <div class="flex justify-between items-start mb-3">
                             <div class="flex-1">
                                 <h3 class="font-bold text-lg">${escapeHtml(cls.name)}</h3>
                                 <p class="text-gray-400 text-sm mt-1">${escapeHtml(cls.description || 'No description')}</p>
-                                <div class="flex gap-3 mt-2 text-xs">
-                                    <span class="text-gray-500"><i class="fas fa-users"></i> ${memberCount} members</span>
-                                    <span class="text-gray-500">${cls.join_type === 'open' ? '🌍 Open' : '🔐 Approval Required'}</span>
-                                    <span class="text-gray-500">📅 ${new Date(cls.created_at).toLocaleDateString()}</span>
-                                </div>
                             </div>
                             <button onclick="deleteClass(${cls.id})" class="text-red-500 hover:text-red-400 ml-4">
                                 <i class="fas fa-trash"></i>
                             </button>
+                        </div>
+                        
+                        <!-- Class Code Section -->
+                        <div class="bg-black/50 p-3 rounded-xl mb-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs text-gray-400 uppercase tracking-wider">Class Code</span>
+                                <button onclick="copyToClipboard('${cls.class_code}', 'Class code')" class="copy-btn text-xs text-orange-500 hover:text-white">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                            <div class="code-box flex justify-between items-center">
+                                <code class="text-orange-500">${cls.class_code}</code>
+                                <a href="${joinLink}" target="_blank" class="text-xs bg-orange-600 px-2 py-1 rounded hover:bg-orange-700">
+                                    <i class="fas fa-external-link-alt"></i> Join Link
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <div class="flex gap-3 text-xs">
+                            <span class="text-gray-500"><i class="fas fa-users"></i> ${cls.member_count || 0} members</span>
+                            <span class="text-gray-500">${cls.join_type === 'open' ? '🌍 Open' : '🔐 Approval Required'}</span>
+                            ${cls.join_type === 'approval' ? 
+                                `<button onclick="showRequests(${cls.id})" class="text-orange-500 hover:text-orange-400">
+                                    <i class="fas fa-clock"></i> View Requests
+                                </button>` : ''}
                         </div>
                     </div>
                 `;
             }
             document.getElementById('classesList').innerHTML = html;
         } catch (err) {
-            console.error('Unexpected error:', err);
+            console.error('Error:', err);
             document.getElementById('classesList').innerHTML = `
                 <div class="text-center text-red-500 py-8">
                     <i class="fas fa-exclamation-triangle"></i><br>
@@ -171,8 +198,15 @@
         
         const description = document.getElementById('classDescription').value;
         const joinType = document.querySelector('input[name="joinType"]:checked').value;
+        const classCode = generateClassCode();
         
-        console.log('Creating class:', { name, description, joinType });
+        // Get current user
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        
+        if (!user) {
+            showMessage('You must be logged in to create a class!', 'error');
+            return;
+        }
         
         try {
             const { data, error } = await supabaseClient
@@ -181,50 +215,106 @@
                     name: name,
                     description: description,
                     join_type: joinType,
+                    class_code: classCode,
+                    created_by: user.id,
                     created_at: new Date()
                 }])
                 .select();
             
-            console.log('Insert result:', { data, error });
+            if (error) throw error;
             
-            if (error) {
-                showMessage('Error: ' + error.message, 'error');
-                console.error('Insert error:', error);
-                return;
-            }
-            
-            showMessage('✅ Class "' + name + '" created successfully!', 'success');
-            
-            // Clear form
+            showMessage(`✅ Class "${name}" created! Class code: ${classCode}`, 'success');
             document.getElementById('classForm').reset();
             document.querySelector('input[value="open"]').checked = true;
-            
-            // Reload the list
             await loadClasses();
         } catch (err) {
             showMessage('Error: ' + err.message, 'error');
-            console.error('Submit error:', err);
         }
     });
 
+    // Show pending requests
+    window.showRequests = async (classId) => {
+        const { data: requests, error } = await supabaseClient
+            .from('class_requests')
+            .select('*')
+            .eq('class_id', classId)
+            .eq('status', 'pending');
+        
+        if (error || !requests || requests.length === 0) {
+            document.getElementById('requestsSection').classList.add('hidden');
+            return;
+        }
+        
+        const { data: classData } = await supabaseClient
+            .from('classes')
+            .select('name')
+            .eq('id', classId)
+            .single();
+        
+        let html = `<div class="mb-4 text-orange-500 font-bold">📖 ${classData.name}</div>`;
+        
+        for (const req of requests) {
+            html += `
+                <div class="bg-black/30 p-4 rounded-xl mb-3 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold">${escapeHtml(req.user_name || 'Student')}</p>
+                        <p class="text-xs text-gray-500">${escapeHtml(req.user_email)}</p>
+                        <p class="text-xs text-gray-600">Requested: ${new Date(req.requested_at).toLocaleString()}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="approveRequest(${classId}, ${req.id})" class="bg-green-600 px-3 py-1 rounded text-sm">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button onclick="denyRequest(${classId}, ${req.id})" class="bg-red-600 px-3 py-1 rounded text-sm">
+                            <i class="fas fa-times"></i> Deny
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        document.getElementById('requestsList').innerHTML = html;
+        document.getElementById('requestsSection').classList.remove('hidden');
+    };
+
+    // Approve request
+    window.approveRequest = async (classId, requestId) => {
+        await supabaseClient
+            .from('class_requests')
+            .update({ status: 'approved' })
+            .eq('id', requestId);
+        
+        alert('✅ Student approved!');
+        document.getElementById('requestsSection').classList.add('hidden');
+        loadClasses();
+    };
+
+    // Deny request
+    window.denyRequest = async (classId, requestId) => {
+        await supabaseClient
+            .from('class_requests')
+            .update({ status: 'denied' })
+            .eq('id', requestId);
+        
+        alert('❌ Request denied');
+        document.getElementById('requestsSection').classList.add('hidden');
+        loadClasses();
+    };
+
     // Delete class
     window.deleteClass = async (classId) => {
-        if (!confirm('Are you sure you want to delete this class? This cannot be undone.')) return;
+        if (!confirm('Delete this class? All members and requests will be removed.')) return;
         
-        try {
-            const { error } = await supabaseClient
-                .from('classes')
-                .delete()
-                .eq('id', classId);
-            
-            if (error) {
-                showMessage('Error deleting: ' + error.message, 'error');
-            } else {
-                showMessage('Class deleted successfully!', 'success');
-                await loadClasses();
-            }
-        } catch (err) {
-            showMessage('Error: ' + err.message, 'error');
+        const { error } = await supabaseClient
+            .from('classes')
+            .delete()
+            .eq('id', classId);
+        
+        if (error) {
+            showMessage('Error: ' + error.message, 'error');
+        } else {
+            showMessage('Class deleted!', 'success');
+            loadClasses();
         }
     };
 
@@ -238,7 +328,6 @@
         });
     }
 
-    // Load classes on page load
     loadClasses();
 </script>
 
