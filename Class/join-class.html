@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Join Class - The Vault</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(18, 18, 18, 0.85);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .btn-orange {
+            background: #ff6600;
+            transition: all 0.2s;
+        }
+        .btn-orange:hover {
+            background: #ff5500;
+            transform: scale(0.98);
+        }
+        .btn-orange:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .input-focus:focus {
+            outline: none;
+            border-color: #ff6600;
+            box-shadow: 0 0 0 2px rgba(255, 102, 0, 0.2);
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade {
+            animation: fadeIn 0.45s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards;
+        }
+    </style>
+</head>
+<body class="p-5">
+
+    <div class="max-w-md mx-auto animate-fade">
+        <!-- Back Button -->
+        <a href="class.html" class="text-orange-500 mb-4 inline-flex items-center gap-2 hover:text-orange-400 transition-colors">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+        
+        <!-- Join Class Card -->
+        <div class="glass-panel p-6 rounded-2xl">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-sign-in-alt text-2xl text-orange-500"></i>
+                </div>
+                <h1 class="text-2xl font-black">Join a Class</h1>
+                <p class="text-gray-400 text-sm mt-1">Enter the custom link shared by your Class Rep</p>
+            </div>
+            
+            <form id="join-class-form">
+                <div class="mb-6">
+                    <label class="block text-sm font-bold mb-2">Custom Class Link</label>
+                    <div class="relative">
+                        <i class="fas fa-link absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm"></i>
+                        <input 
+                            type="text" 
+                            id="class-link" 
+                            placeholder="THESDEL-aB3xY9zK2m"
+                            class="w-full p-3 pl-10 rounded-xl bg-black/50 border border-white/10 text-white font-mono text-sm input-focus transition-all"
+                            autocomplete="off"
+                        >
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">
+                        <i class="fas fa-info-circle"></i> Example: THESDEL-aB3xY9zK2m
+                    </p>
+                </div>
+                
+                <button type="submit" id="join-btn" class="btn-orange w-full py-4 rounded-xl font-black uppercase tracking-wider flex items-center justify-center gap-2">
+                    <i class="fas fa-sign-in-alt"></i> Join Class
+                </button>
+            </form>
+            
+            <div class="mt-6 pt-6 border-t border-white/10 text-center">
+                <p class="text-xs text-gray-500">
+                    <i class="fas fa-shield-alt"></i> You can only join ONE class
+                </p>
+            </div>
+        </div>
+        
+        <!-- Message Toast Container -->
+        <div id="toast-container" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 hidden">
+            <div id="toast" class="glass-panel px-6 py-3 rounded-xl flex items-center gap-3 shadow-2xl">
+                <i id="toast-icon" class="fas fa-check-circle text-green-500"></i>
+                <span id="toast-message" class="text-sm font-medium"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase configuration (same as your existing)
+        const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+        
+        const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Toast notification
+        function showToast(message, isError = false) {
+            const toastContainer = document.getElementById('toast-container');
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toast-icon');
+            const toastMessage = document.getElementById('toast-message');
+            
+            if (isError) {
+                toastIcon.className = 'fas fa-exclamation-circle text-red-500';
+                toast.classList.add('border-red-500/30');
+            } else {
+                toastIcon.className = 'fas fa-check-circle text-green-500';
+                toast.classList.remove('border-red-500/30');
+            }
+            
+            toastMessage.innerText = message;
+            toastContainer.classList.remove('hidden');
+            
+            setTimeout(() => {
+                toastContainer.classList.add('hidden');
+            }, 4000);
+        }
+        
+        // Call Edge Function
+        async function callJoinEdgeFunction(customLink) {
+            // Get current session
+            const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+            
+            if (sessionError || !session) {
+                showToast('Please login first', true);
+                setTimeout(() => {
+                    window.location.href = 'https://thesdel.com';
+                }, 1500);
+                return null;
+            }
+            
+            try {
+                const response = await fetch(`${SUPABASE_URL}/functions/v1/join-class`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${session.access_token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        custom_link: customLink 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to join class');
+                }
+                
+                return result;
+            } catch (error) {
+                console.error('Edge Function error:', error);
+                throw error;
+            }
+        }
+        
+        // Check if user already has a class (from your class.js logic)
+        async function checkUserHasClass() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return false;
+            
+            // Check if user is a class rep
+            const { data: asRep } = await supabase
+                .from('classes')
+                .select('id')
+                .eq('rep_id', user.id)
+                .single();
+            
+            if (asRep) return true;
+            
+            // Check if user is a class member
+            const { data: asMember } = await supabase
+                .from('class_members')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('status', 'approved')
+                .single();
+            
+            return !!asMember;
+        }
+        
+        // Handle form submission
+        document.getElementById('join-class-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const classLinkInput = document.getElementById('class-link');
+            const customLink = classLinkInput.value.trim();
+            const joinBtn = document.getElementById('join-btn');
+            
+            // Validate input
+            if (!customLink) {
+                showToast('Please enter a class link', true);
+                return;
+            }
+            
+            // Basic format validation (should start with THESDEL-)
+            if (!customLink.startsWith('THESDEL-')) {
+                showToast('Invalid link format. Must start with THESDEL-', true);
+                return;
+            }
+            
+            // Check if user already has a class BEFORE calling edge function
+            const hasClass = await checkUserHasClass();
+            if (hasClass) {
+                showToast('You are already in a class. Only one class per account.', true);
+                setTimeout(() => {
+                    window.location.href = 'class.html';
+                }, 2000);
+                return;
+            }
+            
+            // Disable button and show loading
+            const originalBtnHtml = joinBtn.innerHTML;
+            joinBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining...';
+            joinBtn.disabled = true;
+            
+            try {
+                const result = await callJoinEdgeFunction(customLink);
+                
+                if (result.success) {
+                    if (result.requires_approval) {
+                        showToast(result.message || 'Join request sent! Wait for class rep approval.', false);
+                        setTimeout(() => {
+                            window.location.href = 'class.html';
+                        }, 2000);
+                    } else {
+                        showToast(result.message || 'Successfully joined class!', false);
+                        setTimeout(() => {
+                            window.location.href = 'class.html';
+                        }, 1500);
+                    }
+                } else {
+                    showToast(result.error || 'Failed to join class', true);
+                    joinBtn.innerHTML = originalBtnHtml;
+                    joinBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error('Join error:', error);
+                showToast(error.message || 'Network error. Please try again.', true);
+                joinBtn.innerHTML = originalBtnHtml;
+                joinBtn.disabled = false;
+            }
+        });
+        
+        // Auto-paste from clipboard? (optional feature)
+        async function checkClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text && text.startsWith('THESDEL-')) {
+                    const input = document.getElementById('class-link');
+                    input.value = text;
+                    showToast('Link pasted from clipboard!', false);
+                }
+            } catch (err) {
+                // User denied clipboard permission - ignore
+            }
+        }
+        
+        // Check clipboard on load (optional)
+        // checkClipboard();
+        
+        // Add some helpful keyboard shortcuts
+        document.getElementById('class-link').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('join-class-form').dispatchEvent(new Event('submit'));
+            }
+        });
+    </script>
+</body>
+</html>
