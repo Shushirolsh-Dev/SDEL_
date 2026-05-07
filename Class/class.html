@@ -54,13 +54,22 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .code-box {
+            background: #000;
+            border: 1px solid #ff6600;
+            border-radius: 12px;
+            padding: 8px 12px;
+            font-family: monospace;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
 <body class="p-5">
 
     <div class="max-w-4xl mx-auto animate-fade">
         <div class="flex justify-between items-center mb-6">
-            <a href="https://thesdel.com" class="text-orange-500 hover:text-orange-400 transition-colors">
+            <a href="index.html" class="text-orange-500 hover:text-orange-400 transition-colors">
                 <i class="fas fa-arrow-left"></i> Back to Home
             </a>
             <button id="logout-btn" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
@@ -80,7 +89,7 @@
                 </div>
                 <h2 class="text-2xl font-black mb-2">No Class Found</h2>
                 <p class="text-gray-400 mb-6">You haven't joined or created any class yet.</p>
-                <a href="create-class.html" class="btn-orange inline-flex px-6 py-3 rounded-xl font-bold items-center gap-2">
+                <a href="classes.html" class="btn-orange inline-flex px-6 py-3 rounded-xl font-bold items-center gap-2">
                     <i class="fas fa-plus-circle"></i> Create a Class
                 </a>
             </div>
@@ -92,24 +101,34 @@
                     <div>
                         <h1 id="class-name" class="text-3xl font-black mb-2">Loading...</h1>
                         <p id="class-description" class="text-gray-400">Loading...</p>
-                        <div class="flex items-center gap-3 mt-3">
+                        <div class="flex items-center gap-3 mt-3 flex-wrap">
                             <span id="rep-badge" class="text-xs bg-orange-500/20 text-orange-500 px-2 py-1 rounded-full hidden">
-                                <i class="fas fa-crown"></i> You're the Rep
-                            </span>
-                            <span id="assistant-badge" class="text-xs bg-blue-500/20 text-blue-500 px-2 py-1 rounded-full hidden">
-                                <i class="fas fa-user-shield"></i> Class Assistant
+                                <i class="fas fa-crown"></i> Class Creator
                             </span>
                             <span id="member-badge" class="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded-full">
                                 <i class="fas fa-user-check"></i> Member
                             </span>
-                            <span id="class-code" class="text-xs bg-white/10 px-2 py-1 rounded-full font-mono">
-                                Code: ---
-                            </span>
                         </div>
                     </div>
                     <button id="share-btn" class="btn-secondary px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                        <i class="fas fa-share-alt"></i> Share Invite
+                        <i class="fas fa-share-alt"></i> Share Invite Link
                     </button>
+                </div>
+                
+                <!-- Class Code Display -->
+                <div class="mt-4 pt-4 border-t border-white/10">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-400 uppercase tracking-wider">Class Code</span>
+                        <button id="copy-code-btn" class="text-xs text-orange-500 hover:text-orange-400">
+                            <i class="fas fa-copy"></i> Copy Code
+                        </button>
+                    </div>
+                    <div class="code-box mt-2 flex justify-between items-center">
+                        <code id="class-code-display" class="text-orange-500 font-mono text-sm">---</code>
+                        <a id="join-link-preview" href="#" target="_blank" class="text-xs bg-orange-600 px-2 py-1 rounded hover:bg-orange-700">
+                            <i class="fas fa-external-link-alt"></i> Join Link
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -128,7 +147,7 @@
                 <div class="glass-panel p-4 rounded-xl">
                     <div class="flex items-center gap-3">
                         <div class="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center">
-                            <i class="fas fa-clock text-orange-500"></i>
+                            <i class="fas fa-lock text-orange-500"></i>
                         </div>
                         <div>
                             <p class="text-xl font-bold" id="join-mode">Open</p>
@@ -157,6 +176,14 @@
                     <!-- Members will be loaded here -->
                 </div>
             </div>
+
+            <!-- Pending Requests (only for class creator) -->
+            <div id="requests-section" class="glass-panel p-6 rounded-2xl mt-6 hidden">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <i class="fas fa-clock text-orange-500"></i> Pending Join Requests
+                </h2>
+                <div id="requests-list" class="space-y-2"></div>
+            </div>
         </div>
 
         <div id="toast-container" class="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 hidden">
@@ -171,11 +198,11 @@
         const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
         
-        const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         let currentUser = null;
         let currentClass = null;
-        let userRole = null;
+        let isCreator = false;
 
         function showToast(message, type = 'error') {
             const toastContainer = document.getElementById('toast-container');
@@ -204,7 +231,7 @@
         }
 
         async function getCurrentUser() {
-            const { data: { user }, error } = await supabase.auth.getUser();
+            const { data: { user }, error } = await supabaseClient.auth.getUser();
             if (error || !user) {
                 return null;
             }
@@ -215,46 +242,29 @@
             const user = await getCurrentUser();
             if (!user) return { class: null, role: null };
             
-            // Check if user is rep
-            const { data: asRep } = await supabase
+            // Check if user is creator of any class
+            const { data: createdClass } = await supabaseClient
                 .from('classes')
                 .select('*')
-                .eq('rep_id', user.id)
+                .eq('created_by', user.id)
                 .maybeSingle();
             
-            if (asRep) {
-                return { class: asRep, role: 'rep' };
-            }
-            
-            // Check if user is assistant
-            const { data: asAssistant } = await supabase
-                .from('class_assistants')
-                .select('class_id')
-                .eq('user_id', user.id)
-                .maybeSingle();
-            
-            if (asAssistant) {
-                const { data: classData } = await supabase
-                    .from('classes')
-                    .select('*')
-                    .eq('id', asAssistant.class_id)
-                    .single();
-                return { class: classData, role: 'assistant' };
+            if (createdClass) {
+                return { class: createdClass, role: 'creator' };
             }
             
             // Check if user is member
-            const { data: asMember } = await supabase
+            const { data: memberData } = await supabaseClient
                 .from('class_members')
                 .select('class_id')
                 .eq('user_id', user.id)
-                .eq('status', 'approved')
                 .maybeSingle();
             
-            if (asMember) {
-                const { data: classData } = await supabase
+            if (memberData) {
+                const { data: classData } = await supabaseClient
                     .from('classes')
                     .select('*')
-                    .eq('id', asMember.class_id)
+                    .eq('id', memberData.class_id)
                     .single();
                 return { class: classData, role: 'member' };
             }
@@ -263,49 +273,108 @@
         }
 
         async function loadMembers(classId) {
-            const { data: members, error } = await supabase
+            const { data: members, error } = await supabaseClient
                 .from('class_members')
-                .select(`
-                    user_id,
-                    joined_at,
-                    profile:user_id (first_name, last_name, email)
-                `)
-                .eq('class_id', classId)
-                .eq('status', 'approved');
+                .select('user_id, user_email, joined_at')
+                .eq('class_id', classId);
             
             if (error) {
                 console.error('Error loading members:', error);
                 return [];
             }
             
-            // Get assistants
-            const { data: assistants } = await supabase
-                .from('class_assistants')
-                .select('user_id')
-                .eq('class_id', classId);
+            return members;
+        }
+
+        async function loadPendingRequests(classId) {
+            if (!isCreator) return;
             
-            const assistantIds = new Set(assistants?.map(a => a.user_id) || []);
+            const { data: requests, error } = await supabaseClient
+                .from('class_requests')
+                .select('*')
+                .eq('class_id', classId)
+                .eq('status', 'pending');
             
-            // Get rep
-            const { data: classData } = await supabase
-                .from('classes')
-                .select('rep_id')
-                .eq('id', classId)
+            if (error) {
+                console.error('Error loading requests:', error);
+                return;
+            }
+            
+            const requestsSection = document.getElementById('requests-section');
+            const requestsList = document.getElementById('requests-list');
+            
+            if (!requests || requests.length === 0) {
+                requestsSection.classList.add('hidden');
+                return;
+            }
+            
+            requestsSection.classList.remove('hidden');
+            
+            requestsList.innerHTML = requests.map(req => `
+                <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                    <div>
+                        <p class="font-medium">${escapeHtml(req.user_name || req.user_email?.split('@')[0] || 'Student')}</p>
+                        <p class="text-xs text-gray-400">${escapeHtml(req.user_email)}</p>
+                        <p class="text-xs text-gray-500">Requested: ${new Date(req.requested_at).toLocaleString()}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="approveRequest(${req.id}, ${classId})" class="bg-green-600 px-3 py-1 rounded text-sm hover:bg-green-700">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button onclick="denyRequest(${req.id}, ${classId})" class="bg-red-600 px-3 py-1 rounded text-sm hover:bg-red-700">
+                            <i class="fas fa-times"></i> Deny
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.approveRequest = async (requestId, classId) => {
+            // Get request details first
+            const { data: request } = await supabaseClient
+                .from('class_requests')
+                .select('*')
+                .eq('id', requestId)
                 .single();
             
-            return members.map(member => ({
-                ...member,
-                isRep: member.user_id === classData?.rep_id,
-                isAssistant: assistantIds.has(member.user_id)
-            }));
-        }
+            if (!request) return;
+            
+            // Add to members
+            await supabaseClient
+                .from('class_members')
+                .insert([{
+                    class_id: classId,
+                    user_id: request.user_id,
+                    user_email: request.user_email
+                }]);
+            
+            // Update request status
+            await supabaseClient
+                .from('class_requests')
+                .update({ status: 'approved' })
+                .eq('id', requestId);
+            
+            showToast('✅ Student approved!', 'success');
+            loadMembers(classId);
+            loadPendingRequests(classId);
+        };
+
+        window.denyRequest = async (requestId, classId) => {
+            await supabaseClient
+                .from('class_requests')
+                .update({ status: 'denied' })
+                .eq('id', requestId);
+            
+            showToast('❌ Request denied', 'warning');
+            loadPendingRequests(classId);
+        };
 
         function displayMembers(members) {
             const membersList = document.getElementById('members-list');
             document.getElementById('member-count').textContent = members.length;
             
             if (members.length === 0) {
-                membersList.innerHTML = '<p class="text-gray-400 text-center py-4">No members yet</p>';
+                membersList.innerHTML = '<p class="text-gray-400 text-center py-4">No members yet. Share the invite link!</p>';
                 return;
             }
             
@@ -317,15 +386,12 @@
                         </div>
                         <div>
                             <p class="font-medium">
-                                ${member.profile?.first_name || member.profile?.email?.split('@')[0] || 'User'}
-                                ${member.profile?.last_name ? member.profile.last_name : ''}
+                                ${member.user_email?.split('@')[0] || 'User'}
                             </p>
-                            <p class="text-xs text-gray-400">
-                                ${member.isRep ? 'Class Representative' : (member.isAssistant ? 'Assistant Representative' : 'Member')}
-                            </p>
+                            <p class="text-xs text-gray-400">${member.user_email || ''}</p>
                         </div>
                     </div>
-                    ${member.isRep ? '<i class="fas fa-crown text-yellow-500 text-sm"></i>' : (member.isAssistant ? '<i class="fas fa-user-shield text-blue-500 text-sm"></i>' : '')}
+                    <i class="fas fa-user-check text-green-500 text-sm"></i>
                 </div>
             `).join('');
         }
@@ -333,23 +399,22 @@
         function displayClass(classData, role) {
             document.getElementById('class-name').textContent = classData.name;
             document.getElementById('class-description').textContent = classData.description || 'No description provided';
-            document.getElementById('class-code').innerHTML = `<i class="fas fa-link"></i> Code: ${classData.custom_link}`;
-            document.getElementById('join-mode').textContent = classData.join_mode === 'open' ? 'Open (Anyone can join)' : 'Approval Required';
+            document.getElementById('class-code-display').textContent = classData.class_code;
+            document.getElementById('join-mode').textContent = classData.join_type === 'open' ? '🌍 Open (Anyone can join)' : '🔐 Approval Required';
             
             const createdDate = new Date(classData.created_at).toLocaleDateString();
             document.getElementById('created-date').textContent = createdDate;
             
-            // Show appropriate badge
+            // Show appropriate badges
             document.getElementById('rep-badge').classList.add('hidden');
-            document.getElementById('assistant-badge').classList.add('hidden');
             document.getElementById('member-badge').classList.add('hidden');
             
-            if (role === 'rep') {
+            if (role === 'creator') {
                 document.getElementById('rep-badge').classList.remove('hidden');
-            } else if (role === 'assistant') {
-                document.getElementById('assistant-badge').classList.remove('hidden');
+                isCreator = true;
             } else {
                 document.getElementById('member-badge').classList.remove('hidden');
+                isCreator = false;
             }
         }
 
@@ -365,11 +430,14 @@
                 }
                 
                 currentClass = classData;
-                userRole = role;
                 displayClass(classData, role);
                 
                 const members = await loadMembers(classData.id);
                 displayMembers(members);
+                
+                if (isCreator && classData.join_type === 'approval') {
+                    await loadPendingRequests(classData.id);
+                }
                 
                 document.getElementById('loading-state').classList.add('hidden');
                 document.getElementById('no-class-state').classList.add('hidden');
@@ -384,7 +452,7 @@
         async function shareInvite() {
             if (!currentClass) return;
             
-            const inviteLink = `${window.location.origin}/join.html?code=${currentClass.custom_link}`;
+            const inviteLink = `${window.location.origin}/join.html?code=${currentClass.class_code}`;
             
             try {
                 await navigator.clipboard.writeText(inviteLink);
@@ -394,9 +462,20 @@
             }
         }
 
+        async function copyClassCode() {
+            if (!currentClass) return;
+            
+            try {
+                await navigator.clipboard.writeText(currentClass.class_code);
+                showToast('Class code copied!', 'success');
+            } catch (err) {
+                showToast('Could not copy code', 'error');
+            }
+        }
+
         async function logout() {
-            await supabase.auth.signOut();
-            window.location.href = 'https://thesdel.com';
+            await supabaseClient.auth.signOut();
+            window.location.href = 'index.html';
         }
 
         async function checkAuth() {
@@ -404,7 +483,7 @@
             if (!user) {
                 showToast('Please login first', 'warning');
                 setTimeout(() => {
-                    window.location.href = 'https://thesdel.com';
+                    window.location.href = 'index.html';
                 }, 1500);
                 return false;
             }
@@ -412,7 +491,18 @@
             return true;
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
         document.getElementById('share-btn')?.addEventListener('click', shareInvite);
+        document.getElementById('copy-code-btn')?.addEventListener('click', copyClassCode);
         document.getElementById('logout-btn')?.addEventListener('click', logout);
 
         async function init() {
