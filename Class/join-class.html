@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Vault - Join Class</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body{background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif}
+        .glass-panel{background:rgba(18,18,18,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.05)}
+        .shake{animation:shake 0.3s ease-in-out}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
+        .btn-primary{background:#ff6600;transition:all 0.2s}
+        .btn-primary:hover{background:#ff5500;transform:scale(0.98)}
+    </style>
+</head>
+<body class="p-5">
+
+<div class="max-w-md mx-auto mt-20">
+    <div class="glass-panel p-8 rounded-3xl text-center">
+        <i class="fas fa-chalkboard-user text-5xl text-orange-500 mb-4"></i>
+        <h1 class="text-2xl font-bold mb-2">Join a Class</h1>
+        <p class="text-gray-400 text-sm mb-6">Enter the class code to join</p>
+        
+        <input type="text" id="classCode" placeholder="THESDEL-xxxxxxxxxx" 
+               class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white text-center font-mono text-sm">
+        
+        <div id="codeHint" class="text-xs text-gray-500 mb-4">
+            Format: THESDEL- followed by 10 letters/numbers
+        </div>
+        
+        <button id="joinBtn" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-700">
+            <i class="fas fa-sign-in-alt"></i> Join Class
+        </button>
+        
+        <div id="result" class="mt-4"></div>
+    </div>
+</div>
+
+<script>
+    console.log('Join page loaded');
+    
+    const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+    
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    // Get code from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const codeFromUrl = urlParams.get('code');
+    console.log('Code from URL:', codeFromUrl);
+    
+    if (codeFromUrl) {
+        document.getElementById('classCode').value = codeFromUrl;
+        // Auto-join if code is from URL
+        setTimeout(() => {
+            joinClass();
+        }, 500);
+    }
+    
+    function showError(message) {
+        console.log('Error:', message);
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = `<div class="bg-red-600/20 border border-red-600 rounded-lg p-3 text-red-400 text-sm">
+            <i class="fas fa-exclamation-circle mr-2"></i> ${message}
+        </div>`;
+        
+        const input = document.getElementById('classCode');
+        input.classList.add('shake');
+        input.style.borderColor = '#ef4444';
+        setTimeout(() => {
+            input.classList.remove('shake');
+            input.style.borderColor = '';
+        }, 500);
+    }
+    
+    function showSuccess(message) {
+        console.log('Success:', message);
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = `<div class="bg-green-600/20 border border-green-600 rounded-lg p-3 text-green-400 text-sm">
+            <i class="fas fa-check-circle mr-2"></i> ${message}
+        </div>`;
+    }
+    
+    function showInfo(message) {
+        console.log('Info:', message);
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = `<div class="bg-yellow-600/20 border border-yellow-600 rounded-lg p-3 text-yellow-400 text-sm">
+            <i class="fas fa-clock mr-2"></i> ${message}
+        </div>`;
+    }
+    
+    async function joinClass() {
+        console.log('joinClass() called');
+        
+        const classCode = document.getElementById('classCode').value.trim();
+        console.log('Class code entered:', classCode);
+        
+        // Validation
+        if (!classCode) {
+            showError('Please enter a class code');
+            return;
+        }
+        
+        if (!classCode.startsWith('THESDEL-')) {
+            showError('Invalid format. Class code must start with THESDEL-');
+            return;
+        }
+        
+        if (classCode.length < 15) {
+            showError('Class code is too short. Format: THESDEL- followed by 10 characters');
+            return;
+        }
+        
+        // Show loading
+        document.getElementById('result').innerHTML = '<div class="text-gray-400"><i class="fas fa-spinner fa-spin"></i> Checking code...</div>';
+        
+        // Get current user
+        console.log('Getting current user...');
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        
+        if (userError) {
+            console.error('User error:', userError);
+        }
+        
+        console.log('Current user:', user);
+        
+        if (!user) {
+            showError('Please login first. <a href="index.html" class="text-orange-500 underline">Login here</a>');
+            return;
+        }
+        
+        // Find class by code
+        console.log('Searching for class with code:', classCode);
+        const { data: classData, error: classError } = await supabaseClient
+            .from('classes')
+            .select('*')
+            .eq('class_code', classCode)
+            .single();
+        
+        console.log('Class query result:', { classData, classError });
+        
+        if (classError || !classData) {
+            showError(`❌ Class code "${classCode}" not found. Please check and try again.`);
+            return;
+        }
+        
+        console.log('Found class:', classData.name);
+        
+        // Check if already a member
+        const { data: existingMember } = await supabaseClient
+            .from('class_members')
+            .select('*')
+            .eq('class_id', classData.id)
+            .eq('user_id', user.id)
+            .single();
+        
+        if (existingMember) {
+            showError(`You are already a member of "${classData.name}"!`);
+            return;
+        }
+        
+        if (classData.join_type === 'open') {
+            console.log('Open class - auto joining');
+            // Auto-join
+            const { error: joinError } = await supabaseClient
+                .from('class_members')
+                .insert([{
+                    class_id: classData.id,
+                    user_id: user.id,
+                    user_email: user.email
+                }]);
+            
+            if (joinError) {
+                console.error('Join error:', joinError);
+                showError('Error joining class. Please try again.');
+            } else {
+                showSuccess(`✅ Successfully joined "${classData.name}"! Redirecting...`);
+                setTimeout(() => {
+                    window.location.href = 'class.html';
+                }, 2000);
+            }
+        } else {
+            console.log('Approval class - sending request');
+            // Check if already requested
+            const { data: existingRequest } = await supabaseClient
+                .from('class_requests')
+                .select('*')
+                .eq('class_id', classData.id)
+                .eq('user_id', user.id)
+                .eq('status', 'pending')
+                .single();
+            
+            if (existingRequest) {
+                showInfo(`⏳ You already requested to join "${classData.name}". Waiting for approval.`);
+                return;
+            }
+            
+            // Create new request
+            const { error: requestError } = await supabaseClient
+                .from('class_requests')
+                .insert([{
+                    class_id: classData.id,
+                    user_id: user.id,
+                    user_email: user.email,
+                    user_name: user.email?.split('@')[0] || 'Student',
+                    status: 'pending'
+                }]);
+            
+            if (requestError) {
+                console.error('Request error:', requestError);
+                showError('Error sending request. Please try again.');
+            } else {
+                showInfo(`⏳ Request sent to join "${classData.name}". The class creator will approve your request.`);
+                document.getElementById('classCode').value = '';
+            }
+        }
+    }
+    
+    // Add event listener to button
+    const joinBtn = document.getElementById('joinBtn');
+    if (joinBtn) {
+        joinBtn.addEventListener('click', joinClass);
+        console.log('Button event listener added');
+    } else {
+        console.error('Join button not found!');
+    }
+    
+    // Also allow Enter key press
+    document.getElementById('classCode').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            joinClass();
+        }
+    });
+</script>
+
+</body>
+</html>
