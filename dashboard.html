@@ -1,0 +1,524 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>The Vault - Dashboard</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><style>
+body{background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;overflow-x:hidden}
+.glass-panel{background:rgba(18,18,18,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.05)}
+.nav-active{color:#ff6600!important}.nav-active i{color:#ff6600!important}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+.animate-fade{animation:fadeIn .4s ease-out}
+.animate-slide{animation:slideIn .3s ease-out}
+.lecture-card{transition:all 0.3s ease}.lecture-past{opacity:0.5;background:rgba(50,50,50,0.5);border-color:#444}.lecture-card:hover{transform:translateX(5px)}
+.tab-active{border-bottom:2px solid #ff6600;color:#ff6600}
+</style></head><body class="p-5 pb-32"><header class="flex justify-between items-start mb-10"><div><h1 class="text-3xl font-extrabold tracking-tight">Hey, <span class="text-orange-500" id="userFirstName">---</span></h1><p class="text-gray-500 text-sm font-medium uppercase tracking-widest h-5" id="dynamic-greeting"></p></div><div class="glass-panel px-4 py-2 rounded-xl text-right"><p class="text-xl font-black text-white" id="clock">00:00</p></div></header>
+
+<!-- Dynamic Content Area -->
+<main class="animate-fade" id="main-content"></main>
+
+<!-- Modals -->
+<div id="createModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">Create New Class</h3><button onclick="closeCreateModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="createClassForm"><input type="text" id="className" placeholder="Class Name *" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><textarea id="classDescription" placeholder="Class Description" rows="3" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea><div class="mb-4 space-y-2"><label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer"><input type="radio" name="joinType" value="open" checked class="mr-3"><span>🌍 Anyone can join</span></label><label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer"><input type="radio" name="joinType" value="approval" class="mr-3"><span>🔐 Approval required</span></label></div><button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Create Class</button></form><div id="createMessage" class="mt-3 text-sm"></div></div></div>
+
+<div id="joinModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">Join a Class</h3><button onclick="closeJoinModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div><input type="text" id="joinClassCode" placeholder="Enter class code (e.g., THESDEL-xxxxx)" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white font-mono"><button onclick="submitJoin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">Join Class</button></div><div id="joinMessage" class="mt-3 text-sm"></div></div></div>
+
+<div id="announcementModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">Make Announcement</h3><button onclick="closeAnnouncementModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><textarea id="announcementText" rows="4" placeholder="Write your announcement here..." class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea><button onclick="postAnnouncement()" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Post Announcement</button></div></div>
+
+<!-- Bottom Navigation -->
+<nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] glass-panel rounded-2xl p-3 border-white/10 flex justify-around items-center z-50 shadow-2xl" id="bottomNav"></nav>
+
+<script>
+const _URL="https://lgfyrlfjoazedwymjpfc.supabase.co";
+const _KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+const sb=supabase.createClient(_URL,_KEY);
+let currentUser = null;
+let currentClass = null;
+let userRole = null;
+let currentPage = 'home';
+let timetableTab = 'lectures';
+let lecturesData = [];
+let examData = [];
+let announcements = [];
+
+function redirectToLogin(){window.location.href='login.html'}
+function redirectToSignup(){window.location.href='https://thesdel.com/signup.html'}
+function showToast(msg, type){alert(msg);}
+
+function generateClassCode(){const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';let result='';for(let i=0;i<10;i++){result+=chars.charAt(Math.floor(Math.random()*chars.length));}return'THESDEL-'+result;}
+
+async function loadUserFirstName() {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return;
+    const { data: profile } = await sb.from('profile').select('first_name').eq('id', user.id).single();
+    if (profile?.first_name) {
+        document.getElementById('userFirstName').innerText = profile.first_name;
+    } else {
+        document.getElementById('userFirstName').innerText = user.email?.split('@')[0] || 'User';
+    }
+}
+
+function navigateTo(page){
+    currentPage = page;
+    updateBottomNavActive();
+    const container = document.getElementById('main-content');
+    container.classList.remove('animate-fade');
+    container.classList.add('animate-slide');
+    renderPage();
+    setTimeout(() => {
+        container.classList.remove('animate-slide');
+        container.classList.add('animate-fade');
+    }, 300);
+}
+
+function updateBottomNavActive(){
+    document.querySelectorAll('#bottomNav a').forEach(link => {
+        const page = link.getAttribute('data-page');
+        if(page === currentPage){
+            link.classList.add('nav-active');
+            link.classList.remove('text-gray-500');
+        } else {
+            link.classList.remove('nav-active');
+            link.classList.add('text-gray-500');
+        }
+    });
+}
+
+function renderPage(){
+    const container = document.getElementById('main-content');
+    if(currentPage === 'home'){
+        container.innerHTML = renderHomePage();
+    } else if(currentPage === 'timetable'){
+        container.innerHTML = renderTimetablePage();
+    } else if(currentPage === 'tests'){
+        container.innerHTML = renderTestsPage();
+    } else if(currentPage === 'ranks'){
+        container.innerHTML = renderRanksPage();
+    } else if(currentPage === 'profile'){
+        container.innerHTML = renderProfilePage();
+    }
+    attachPageEvents();
+}
+
+function renderHomePage(){
+    if(userRole === 'rep'){
+        return `
+            <div class="glass-panel p-6 rounded-3xl mb-6 border-l-4 border-orange-600">
+                <div class="flex justify-between items-start flex-wrap gap-4 mb-4">
+                    <div><h2 class="text-2xl font-black">${escapeHtml(currentClass?.name || 'Class')}</h2><p class="text-gray-400 text-sm">${escapeHtml(currentClass?.description || 'No description')}</p></div>
+                    <code class="text-xs bg-black/50 px-2 py-1 rounded font-mono text-orange-500">${currentClass?.class_code || ''}</code>
+                </div>
+                <button onclick="openAnnouncementModal()" class="w-full bg-orange-600 text-white font-bold py-2 rounded-xl mb-3"><i class="fas fa-bullhorn"></i> Make Announcement</button>
+                <button onclick="shareInviteLink()" class="w-full glass-panel py-2 rounded-xl text-sm"><i class="fas fa-share-alt"></i> Share Invite Link</button>
+            </div>
+            <div class="glass-panel p-6 rounded-3xl">
+                <h3 class="font-bold mb-3 flex items-center gap-2"><i class="fas fa-bullhorn text-orange-500"></i> Announcements</h3>
+                <div id="announcementsList" class="space-y-3 max-h-96 overflow-y-auto"></div>
+            </div>
+        `;
+    } else if(userRole === 'member'){
+        return `
+            <div class="glass-panel p-6 rounded-3xl mb-6 border-l-4 border-green-500">
+                <h2 class="text-2xl font-black">${escapeHtml(currentClass?.name || 'Class')}</h2>
+                <p class="text-gray-400 text-sm mt-1">${escapeHtml(currentClass?.description || 'No description')}</p>
+                <div class="flex gap-2 mt-2"><span class="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded-full"><i class="fas fa-user-check"></i> Member</span></div>
+            </div>
+            <div class="glass-panel p-6 rounded-3xl mb-6">
+                <h3 class="font-bold mb-3 flex items-center gap-2"><i class="fas fa-calendar-alt text-orange-500"></i> Today's Lectures</h3>
+                <div id="lecturesList" class="space-y-3"></div>
+            </div>
+            <div class="glass-panel p-6 rounded-3xl">
+                <h3 class="font-bold mb-3 flex items-center gap-2"><i class="fas fa-bullhorn text-orange-500"></i> Announcements</h3>
+                <div id="announcementsListMember" class="space-y-3 max-h-96 overflow-y-auto"></div>
+            </div>
+        `;
+    } else {
+        return `
+            <div class="glass-panel p-8 rounded-3xl text-center mb-6">
+                <div class="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-graduation-cap text-3xl text-orange-500"></i></div>
+                <h2 class="text-2xl font-black mb-2">Join a Class or Create One</h2>
+                <p class="text-gray-400 mb-6">Get started by joining an existing class or creating your own.</p>
+                <div class="grid grid-cols-2 gap-4"><button onclick="showJoinModal()" class="bg-blue-600 py-3 rounded-xl font-bold hover:bg-blue-700"><i class="fas fa-sign-in-alt"></i> Join Class</button><button onclick="showCreateModal()" class="bg-orange-600 py-3 rounded-xl font-bold hover:bg-orange-700"><i class="fas fa-plus"></i> Create Class</button></div>
+            </div>
+        `;
+    }
+}
+
+function renderTimetablePage(){
+    return `
+        <div class="glass-panel p-6 rounded-3xl">
+            <div class="flex gap-4 mb-6 border-b border-white/10">
+                <button onclick="switchTimetableTab('lectures')" id="lecturesTab" class="pb-2 px-4 font-bold transition-colors tab-active">📚 Lectures</button>
+                <button onclick="switchTimetableTab('exams')" id="examsTab" class="pb-2 px-4 font-bold text-gray-400 transition-colors">📝 Exams</button>
+            </div>
+            <div id="timetableContent">
+                <div class="text-center text-gray-400 py-8"><i class="fas fa-spinner fa-spin"></i> Loading timetable...</div>
+            </div>
+        </div>
+    `;
+}
+
+function switchTimetableTab(tab){
+    timetableTab = tab;
+    const lecturesTab = document.getElementById('lecturesTab');
+    const examsTab = document.getElementById('examsTab');
+    if(tab === 'lectures'){
+        lecturesTab.classList.add('tab-active');
+        lecturesTab.classList.remove('text-gray-400');
+        examsTab.classList.remove('tab-active');
+        examsTab.classList.add('text-gray-400');
+        loadLecturesTimetable();
+    } else {
+        examsTab.classList.add('tab-active');
+        examsTab.classList.remove('text-gray-400');
+        lecturesTab.classList.remove('tab-active');
+        lecturesTab.classList.add('text-gray-400');
+        loadExamsTimetable();
+    }
+}
+
+async function loadLecturesTimetable(){
+    const container = document.getElementById('timetableContent');
+    // Fetch lectures from database
+    const { data: lectures, error } = await sb
+        .from('class_lectures')
+        .select('*')
+        .eq('class_id', currentClass?.id)
+        .order('day_of_week', { ascending: true })
+        .order('time', { ascending: true });
+    
+    if(error || !lectures || lectures.length === 0){
+        container.innerHTML = `
+            <div class="text-center text-gray-400 py-8">
+                <i class="fas fa-info-circle text-3xl mb-2"></i>
+                <p>No lectures scheduled yet</p>
+                ${userRole === 'rep' ? '<button onclick="addLecture()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm">+ Add Lecture</button>' : ''}
+            </div>
+        `;
+        return;
+    }
+    
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    let html = '';
+    days.forEach(day => {
+        const dayLectures = lectures.filter(l => l.day_of_week === day);
+        if(dayLectures.length > 0){
+            html += `<div class="mb-6"><h3 class="font-bold mb-2 text-orange-500">${day}</h3><div class="space-y-2">`;
+            dayLectures.forEach(lecture => {
+                html += `
+                    <div class="glass-panel p-3 rounded-xl flex justify-between items-center">
+                        <div><h4 class="font-bold text-sm">${escapeHtml(lecture.title)}</h4><p class="text-xs text-gray-400">${lecture.time} • ${lecture.duration} • ${lecture.venue || 'Online'}</p></div>
+                        ${userRole === 'rep' ? `<button onclick="deleteLecture(${lecture.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>` : ''}
+                    </div>
+                `;
+            });
+            html += `</div></div>`;
+        }
+    });
+    
+    if(userRole === 'rep'){
+        html += `<button onclick="addLecture()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500"><i class="fas fa-plus"></i> Add Lecture</button>`;
+    }
+    container.innerHTML = html;
+}
+
+async function loadExamsTimetable(){
+    const container = document.getElementById('timetableContent');
+    const { data: exams, error } = await sb
+        .from('class_exams')
+        .select('*')
+        .eq('class_id', currentClass?.id)
+        .order('exam_date', { ascending: true });
+    
+    if(error || !exams || exams.length === 0){
+        container.innerHTML = `
+            <div class="text-center text-gray-400 py-8">
+                <i class="fas fa-calendar-times text-3xl mb-2"></i>
+                <p>No exams scheduled yet</p>
+                ${userRole === 'rep' ? '<button onclick="addExam()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm">+ Schedule Exam</button>' : ''}
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `<div class="space-y-3">`;
+    exams.forEach(exam => {
+        const examDate = new Date(exam.exam_date);
+        const isPast = examDate < new Date();
+        html += `
+            <div class="glass-panel p-4 rounded-xl ${isPast ? 'opacity-50' : 'border-l-4 border-orange-500'}">
+                <div class="flex justify-between items-start">
+                    <div><h4 class="font-bold">${escapeHtml(exam.title)}</h4><p class="text-xs text-gray-400 mt-1">📅 ${new Date(exam.exam_date).toLocaleDateString()} • ⏰ ${exam.time} • 📍 ${exam.venue || 'Online'}</p></div>
+                    ${userRole === 'rep' ? `<button onclick="deleteExam(${exam.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>` : ''}
+                </div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+    if(userRole === 'rep'){
+        html += `<button onclick="addExam()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500"><i class="fas fa-plus"></i> Schedule Exam</button>`;
+    }
+    container.innerHTML = html;
+}
+
+function addLecture(){
+    const name = prompt('Lecture title:');
+    if(!name) return;
+    const day = prompt('Day (Monday, Tuesday, Wednesday, Thursday, Friday):');
+    if(!day) return;
+    const time = prompt('Time (e.g., 10:00 AM):');
+    if(!time) return;
+    const duration = prompt('Duration (e.g., 1 hour):');
+    const venue = prompt('Venue/Location:');
+    
+    sb.from('class_lectures').insert([{
+        class_id: currentClass.id,
+        title: name,
+        day_of_week: day,
+        time: time,
+        duration: duration,
+        venue: venue
+    }]).then(() => {
+        if(timetableTab === 'lectures') loadLecturesTimetable();
+    });
+}
+
+function addExam(){
+    const title = prompt('Exam title:');
+    if(!title) return;
+    const date = prompt('Date (YYYY-MM-DD):');
+    if(!date) return;
+    const time = prompt('Time (e.g., 10:00 AM):');
+    const venue = prompt('Venue/Location:');
+    
+    sb.from('class_exams').insert([{
+        class_id: currentClass.id,
+        title: title,
+        exam_date: date,
+        time: time,
+        venue: venue
+    }]).then(() => {
+        if(timetableTab === 'exams') loadExamsTimetable();
+    });
+}
+
+function deleteLecture(id){
+    if(confirm('Delete this lecture?')){
+        sb.from('class_lectures').delete().eq('id', id).then(() => loadLecturesTimetable());
+    }
+}
+
+function deleteExam(id){
+    if(confirm('Delete this exam?')){
+        sb.from('class_exams').delete().eq('id', id).then(() => loadExamsTimetable());
+    }
+}
+
+function renderTestsPage(){
+    return `<div class="glass-panel p-6 rounded-3xl text-center"><i class="fas fa-pen-fancy text-5xl text-orange-500 mb-4"></i><h2 class="text-2xl font-bold mb-2">Tests Coming Soon</h2><p class="text-gray-400">Your class tests will appear here.</p></div>`;
+}
+
+function renderRanksPage(){
+    return `<div class="glass-panel p-6 rounded-3xl text-center"><i class="fas fa-trophy text-5xl text-orange-500 mb-4"></i><h2 class="text-2xl font-bold mb-2">Leaderboard</h2><p class="text-gray-400">Class rankings coming soon.</p></div>`;
+}
+
+function renderProfilePage(){
+    return `<div class="glass-panel p-6 rounded-3xl text-center"><i class="fas fa-user text-5xl text-orange-500 mb-4"></i><h2 class="text-2xl font-bold mb-2">Profile</h2><p class="text-gray-400">Your profile details will appear here.</p></div>`;
+}
+
+function attachPageEvents(){
+    if(userRole === 'member'){
+        loadTodayLectures();
+    }
+    if(announcements.length > 0){
+        renderAnnouncements();
+    }
+    if(currentPage === 'timetable'){
+        loadLecturesTimetable();
+    }
+}
+
+async function loadTodayLectures(){
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    const { data: lectures, error } = await sb
+        .from('class_lectures')
+        .select('*')
+        .eq('class_id', currentClass?.id)
+        .eq('day_of_week', today);
+    
+    const container = document.getElementById('lecturesList');
+    if(!container) return;
+    
+    if(error || !lectures || lectures.length === 0){
+        container.innerHTML = '<div class="text-center text-gray-400 py-4">No lectures scheduled for today</div>';
+        return;
+    }
+    
+    const now = new Date();
+    const currentTime = now.getHours() + now.getMinutes()/60;
+    
+    container.innerHTML = lectures.map(lecture => {
+        const [timeStr] = lecture.time.split(' ');
+        const [hour, minute] = timeStr.split(':');
+        let lectureHour = parseInt(hour);
+        if(lecture.time.includes('PM') && lectureHour !== 12) lectureHour += 12;
+        if(lecture.time.includes('AM') && lectureHour === 12) lectureHour = 0;
+        const lectureTime = lectureHour + (parseInt(minute)||0)/60;
+        const isPast = lectureTime < currentTime;
+        return `
+            <div class="lecture-card glass-panel p-4 rounded-xl border-l-4 ${isPast ? 'lecture-past border-gray-500' : 'border-green-500'}">
+                <div class="flex justify-between items-start">
+                    <div><h4 class="font-bold">${escapeHtml(lecture.title)}</h4><p class="text-xs text-gray-400 mt-1"><i class="far fa-clock"></i> ${lecture.time} • ${lecture.duration || 'N/A'}</p></div>
+                    ${isPast ? '<span class="text-xs text-gray-500"><i class="fas fa-check-circle"></i> Completed</span>' : '<span class="text-xs text-green-500"><i class="fas fa-play-circle"></i> Upcoming</span>'}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderAnnouncements(){
+    const repContainer = document.getElementById('announcementsList');
+    const memberContainer = document.getElementById('announcementsListMember');
+    const announcementsHtml = announcements.map(ann => `
+        <div class="bg-white/5 p-3 rounded-xl">
+            <div class="flex justify-between items-start mb-2"><span class="text-xs text-orange-500"><i class="fas fa-bullhorn"></i> Announcement</span><span class="text-xs text-gray-500">${ann.time}</span></div>
+            <p class="text-sm">${escapeHtml(ann.text)}</p>
+            <p class="text-xs text-gray-600 mt-2">— ${ann.author}</p>
+        </div>
+    `).join('');
+    if(repContainer) repContainer.innerHTML = announcementsHtml || '<p class="text-gray-500 text-sm">No announcements yet</p>';
+    if(memberContainer) memberContainer.innerHTML = announcementsHtml || '<p class="text-gray-500 text-sm">No announcements yet</p>';
+}
+
+function postAnnouncement(){
+    const text = document.getElementById('announcementText').value.trim();
+    if(!text){alert('Please enter an announcement');return;}
+    announcements.unshift({text, author: currentUser?.email?.split('@')[0] || 'Class Rep', time: new Date().toLocaleTimeString()});
+    closeAnnouncementModal();
+    renderPage();
+}
+
+function openAnnouncementModal(){document.getElementById('announcementModal').classList.remove('hidden');}
+function closeAnnouncementModal(){document.getElementById('announcementModal').classList.add('hidden');document.getElementById('announcementText').value='';}
+function shareInviteLink(){if(currentClass){const link=`${window.location.origin}/join.html?code=${currentClass.class_code}`;navigator.clipboard.writeText(link);alert('Invite link copied!');}}
+function showCreateModal(){document.getElementById('createModal').classList.remove('hidden');}
+function closeCreateModal(){document.getElementById('createModal').classList.add('hidden');document.getElementById('createClassForm').reset();}
+function showJoinModal(){document.getElementById('joinModal').classList.remove('hidden');}
+function closeJoinModal(){document.getElementById('joinModal').classList.add('hidden');document.getElementById('joinClassCode').value='';}
+
+async function submitJoin(){
+    const code=document.getElementById('joinClassCode').value.trim();const msgDiv=document.getElementById('joinMessage');
+    if(!code){msgDiv.innerHTML='<div class="text-red-500">Enter class code</div>';return;}
+    const{data:classData,error}=await sb.from('classes').select('*').eq('class_code',code).single();
+    if(error||!classData){msgDiv.innerHTML='<div class="text-red-500">Invalid class code</div>';return;}
+    if(classData.join_type==='open'){
+        const{error:joinErr}=await sb.from('class_members').insert([{class_id:classData.id,user_id:currentUser.id,user_email:currentUser.email}]);
+        if(joinErr){msgDiv.innerHTML='<div class="text-red-500">Already a member or error</div>';}
+        else{msgDiv.innerHTML='<div class="text-green-500">Joined! Redirecting...</div>';setTimeout(()=>location.reload(),1500);}
+    }else{
+        await sb.from('class_requests').insert([{class_id:classData.id,user_id:currentUser.id,user_email:currentUser.email,user_name:currentUser.email?.split('@')[0],status:'pending'}]);
+        msgDiv.innerHTML='<div class="text-yellow-500">Request sent! Wait for approval.</div>';setTimeout(()=>location.reload(),2000);
+    }
+}
+
+document.getElementById('createClassForm')?.addEventListener('submit',async(e)=>{
+    e.preventDefault();const name=document.getElementById('className').value.trim();const desc=document.getElementById('classDescription').value;const joinType=document.querySelector('input[name="joinType"]:checked').value;
+    if(!name){document.getElementById('createMessage').innerHTML='<div class="text-red-500">Class name required</div>';return;}
+    const code=generateClassCode();const{error}=await sb.from('classes').insert([{name,description:desc,join_type:joinType,class_code:code,created_by:currentUser.id,created_at:new Date()}]);
+    if(error){document.getElementById('createMessage').innerHTML='<div class="text-red-500">Error: '+error.message+'</div>';}
+    else{await sb.from('class_members').insert([{class_id:1,user_id:currentUser.id,user_email:currentUser.email}]);alert('Class created!');location.reload();}
+});
+
+async function loadUserClass(){
+    const{data:{user}}=await sb.auth.getUser();if(!user)return null;
+    currentUser=user;
+    const{data:createdClass}=await sb.from('classes').select('*').eq('created_by',user.id).maybeSingle();
+    if(createdClass){userRole='rep';currentClass=createdClass;return'rep';}
+    const{data:memberData}=await sb.from('class_members').select('class_id').eq('user_id',user.id).maybeSingle();
+    if(memberData){const{data:classData}=await sb.from('classes').select('*').eq('id',memberData.class_id).single();if(classData){userRole='member';currentClass=classData;return'member';}}
+    userRole='none';return'none';
+}
+
+function renderBottomNav(){
+    const nav = document.getElementById('bottomNav');
+    if(userRole === 'rep'){
+        nav.innerHTML = `
+            <a href="#" data-page="home" class="flex flex-col items-center nav-active"><i class="fas fa-home text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Home</span></a>
+            <a href="#" data-page="timetable" class="flex flex-col items-center text-gray-500"><i class="fas fa-calendar-alt text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Timetable</span></a>
+            <a href="#" data-page="tests" class="flex flex-col items-center text-gray-500"><i class="fas fa-pen-fancy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Tests</span></a>
+            <a href="#" data-page="ranks" class="flex flex-col items-center text-gray-500"><i class="fas fa-trophy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Ranks</span></a>
+            <a href="#" data-page="profile" class="flex flex-col items-center text-gray-500"><i class="fas fa-user text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Profile</span></a>
+        `;
+    } else if(userRole === 'member'){
+        nav.innerHTML = `
+            <a href="#" data-page="home" class="flex flex-col items-center nav-active"><i class="fas fa-home text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Home</span></a>
+            <a href="#" data-page="timetable" class="flex flex-col items-center text-gray-500"><i class="fas fa-calendar-alt text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Timetable</span></a>
+            <a href="#" data-page="tests" class="flex flex-col items-center text-gray-500"><i class="fas fa-pen-fancy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Tests</span></a>
+            <a href="#" data-page="ranks" class="flex flex-col items-center text-gray-500"><i class="fas fa-trophy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Ranks</span></a>
+            <a href="#" data-page="profile" class="flex flex-col items-center text-gray-500"><i class="fas fa-user text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Profile</span></a>
+        `;
+    } else {
+        nav.innerHTML = `
+            <a href="#" data-page="home" class="flex flex-col items-center nav-active"><i class="fas fa-home text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Home</span></a>
+            <a href="#" data-page="tests" class="flex flex-col items-center text-gray-500"><i class="fas fa-pen-fancy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Tests</span></a>
+            <a href="#" data-page="ranks" class="flex flex-col items-center text-gray-500"><i class="fas fa-trophy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Ranks</span></a>
+            <a href="#" data-page="profile" class="flex flex-col items-center text-gray-500"><i class="fas fa-user text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Profile</span></a>
+        `;
+    }
+    document.querySelectorAll('#bottomNav a').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const page = link.getAttribute('data-page');
+            navigateTo(page);
+        });
+    });
+}
+
+function escapeHtml(str){if(!str)return '';return str.replace(/[&<>]/g,function(m){if(m==='&')return'&amp;';if(m==='<')return'&lt;';if(m==='>')return'&gt;';return m;});}
+
+// SQL to create tables for timetable (run in Supabase SQL editor):
+/*
+CREATE TABLE IF NOT EXISTS class_lectures (
+    id SERIAL PRIMARY KEY,
+    class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
+    title VARCHAR(200) NOT NULL,
+    day_of_week VARCHAR(20) CHECK (day_of_week IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')),
+    time VARCHAR(20),
+    duration VARCHAR(50),
+    venue VARCHAR(200),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS class_exams (
+    id SERIAL PRIMARY KEY,
+    class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
+    title VARCHAR(200) NOT NULL,
+    exam_date DATE,
+    time VARCHAR(20),
+    venue VARCHAR(200),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+*/
+
+async function init(){
+    function updateClock(){
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
+        const h = new Date().getHours();
+        document.getElementById('dynamic-greeting').innerText = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+    
+    const { data: { session }, error: sessionError } = await sb.auth.getSession();
+    const { data: { user }, error: userError } = await sb.auth.getUser();
+    
+    if (sessionError || userError || !user || !session) {
+        window.location.href = 'login.html';
+        return;
+    }
+    
+    currentUser = user;
+    await loadUserFirstName();
+    await loadUserClass();
+    renderBottomNav();
+    renderPage();
+}
+
+init();
+</script>
+</body></html>
