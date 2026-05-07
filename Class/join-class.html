@@ -11,6 +11,8 @@
     <style>
         body{background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif}
         .glass-panel{background:rgba(18,18,18,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.05)}
+        .shake{animation:shake 0.3s ease-in-out}
+        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
     </style>
 </head>
 <body class="p-5">
@@ -22,7 +24,11 @@
         <p class="text-gray-400 text-sm mb-6">Enter the class code to join</p>
         
         <input type="text" id="classCode" placeholder="THESDEL-xxxxxxxxxx" 
-               class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-4 text-white text-center font-mono">
+               class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white text-center font-mono">
+        
+        <div id="codeHint" class="text-xs text-gray-500 mb-4">
+            Format: THESDEL- followed by 10 letters/numbers
+        </div>
         
         <button onclick="joinClass()" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-700">
             <i class="fas fa-sign-in-alt"></i> Join Class
@@ -45,32 +51,81 @@
         document.getElementById('classCode').value = codeFromUrl;
     }
 
+    function showError(message, shakeInput = true) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = `<div class="bg-red-600/20 border border-red-600 rounded-lg p-3 text-red-400 text-sm">
+            <i class="fas fa-exclamation-circle mr-2"></i> ${message}
+        </div>`;
+        
+        if (shakeInput) {
+            const input = document.getElementById('classCode');
+            input.classList.add('shake');
+            input.style.borderColor = '#ef4444';
+            setTimeout(() => {
+                input.classList.remove('shake');
+                input.style.borderColor = '';
+            }, 500);
+        }
+    }
+
+    function showSuccess(message) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = `<div class="bg-green-600/20 border border-green-600 rounded-lg p-3 text-green-400 text-sm">
+            <i class="fas fa-check-circle mr-2"></i> ${message}
+        </div>`;
+    }
+
+    function showInfo(message) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = `<div class="bg-yellow-600/20 border border-yellow-600 rounded-lg p-3 text-yellow-400 text-sm">
+            <i class="fas fa-clock mr-2"></i> ${message}
+        </div>`;
+    }
+
     async function joinClass() {
         const classCode = document.getElementById('classCode').value.trim();
         const resultDiv = document.getElementById('result');
         
+        // Error Case 1: Empty code
         if (!classCode) {
-            resultDiv.innerHTML = '<div class="text-red-500">Please enter a class code</div>';
+            showError('Please enter a class code');
             return;
         }
+        
+        // Error Case 2: Wrong format (doesn't start with THESDEL-)
+        if (!classCode.startsWith('THESDEL-')) {
+            showError('Invalid format. Class code must start with THESDEL-');
+            return;
+        }
+        
+        // Error Case 3: Code too short
+        if (classCode.length < 15) {
+            showError('Class code is too short. Format: THESDEL- followed by 10 characters');
+            return;
+        }
+        
+        // Show loading state
+        resultDiv.innerHTML = '<div class="text-gray-400"><i class="fas fa-spinner fa-spin"></i> Checking code...</div>';
         
         // Get current user
         const { data: { user } } = await supabase.auth.getUser();
         
+        // Error Case 4: Not logged in
         if (!user) {
-            resultDiv.innerHTML = '<div class="text-red-500">Please login first <a href="cbt-login.html" class="text-orange-500">Login here</a></div>';
+            showError('Please login first. <a href="cbt-login.html" class="text-orange-500 underline">Login here</a>', false);
             return;
         }
         
-        // Find class by code
+        // Try to find class by code
         const { data: classData, error: classError } = await supabase
             .from('classes')
             .select('*')
             .eq('class_code', classCode)
             .single();
         
+        // Error Case 5: Code doesn't exist in database
         if (classError || !classData) {
-            resultDiv.innerHTML = '<div class="text-red-500">Invalid class code</div>';
+            showError(`❌ Class code "${classCode}" not found. Please check the code and try again.`);
             return;
         }
         
@@ -82,11 +137,13 @@
             .eq('user_id', user.id)
             .single();
         
+        // Error Case 6: Already a member
         if (existingMember) {
-            resultDiv.innerHTML = '<div class="text-yellow-500">You are already a member of this class!</div>';
+            showError(`You are already a member of "${classData.name}"!`);
             return;
         }
         
+        // Success path based on join type
         if (classData.join_type === 'open') {
             // Auto-join
             const { error: joinError } = await supabase
@@ -98,13 +155,28 @@
                 }]);
             
             if (joinError) {
-                resultDiv.innerHTML = '<div class="text-red-500">Error joining class</div>';
+                showError('Error joining class. Please try again.');
+                console.error(joinError);
             } else {
-                resultDiv.innerHTML = `<div class="text-green-500">✅ Successfully joined ${classData.name}!</div>`;
+                showSuccess(`✅ Successfully joined "${classData.name}"! Redirecting...`);
                 setTimeout(() => window.location.href = 'index.html', 2000);
             }
         } else {
-            // Approval required - create request
+            // Approval required - check if already requested
+            const { data: existingRequest } = await supabase
+                .from('class_requests')
+                .select('*')
+                .eq('class_id', classData.id)
+                .eq('user_id', user.id)
+                .eq('status', 'pending')
+                .single();
+            
+            if (existingRequest) {
+                showInfo(`⏳ You already requested to join "${classData.name}". Waiting for approval.`);
+                return;
+            }
+            
+            // Create new request
             const { error: requestError } = await supabase
                 .from('class_requests')
                 .insert([{
@@ -116,12 +188,32 @@
                 }]);
             
             if (requestError) {
-                resultDiv.innerHTML = '<div class="text-red-500">Error sending request</div>';
+                showError('Error sending request. Please try again.');
+                console.error(requestError);
             } else {
-                resultDiv.innerHTML = `<div class="text-yellow-500">⏳ Request sent to join ${classData.name}. Wait for approval!</div>`;
+                showInfo(`⏳ Request sent to join "${classData.name}". The class creator will approve your request.`);
+                // Clear input after successful request
+                document.getElementById('classCode').value = '';
             }
         }
     }
+
+    // Real-time validation as user types
+    document.getElementById('classCode').addEventListener('input', (e) => {
+        const input = e.target;
+        const value = input.value.toUpperCase();
+        
+        // Auto-add THESDEL- prefix if missing
+        if (value && !value.startsWith('THESDEL-')) {
+            if (value.length > 0 && !value.includes('THESDEL')) {
+                input.value = 'THESDEL-' + value.replace(/[^A-Z0-9]/gi, '');
+            }
+        }
+        
+        // Clear error styling when user starts typing
+        input.style.borderColor = '';
+        document.getElementById('result').innerHTML = '';
+    });
 </script>
 
 </body>
