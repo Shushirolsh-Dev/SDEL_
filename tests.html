@@ -2,90 +2,173 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Create Class - SIMPLE TEST</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sdel Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
+    <style>
+        body { background: #000; color: white; font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; }
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+        .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
+        
+        @keyframes fall { 0% { transform: translateY(-10vh); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translateY(110vh); opacity: 0; } }
+        
+        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 24px; padding: 40px; width: 90%; max-width: 400px; position: relative; z-index: 10; }
+        .sdel-input { background: #161616; border: 1px solid #333; border-radius: 12px; padding: 16px; width: 100%; color: white; outline: none; }
+        .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 16px; border-radius: 12px; text-transform: uppercase; cursor: pointer; border: none; }
+        .btn-orange:disabled { background: #555; cursor: not-allowed; }
+        .eye-box { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 100; padding: 10px; }
+        .hidden { display: none !important; }
+    </style>
 </head>
-<body>
-    <h1>Create Class - Test Version</h1>
-    
-    <input type="text" id="className" placeholder="Class Name" style="width: 100%; padding: 10px; margin: 10px 0;">
-    <button id="createBtn">Create Class</button>
-    
-    <div id="result" style="margin-top: 20px; padding: 10px; background: #f0f0f0;"></div>
+<body class="flex items-center justify-center min-h-screen">
 
-    <script>
-        const SUPABASE_URL = "https://lgfyrlfjoazedwymjpfc.supabase.co";
-        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+    <div class="stars" id="star-field"></div>
+
+    <a href="index.html" class="absolute top-8 left-8 text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-[0.3em] transition">← Back</a>
+
+    <div class="login-card">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-black italic uppercase tracking-tighter">S<span class="text-[#FF6600]">DEL</span> LOGIN</h1>
+            <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2">Login to your campus account</p>
+        </div>
         
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        const resultDiv = document.getElementById('result');
-        
-        function log(message, isError = false) {
-            resultDiv.innerHTML += `<div style="color: ${isError ? 'red' : 'green'}; margin: 5px 0;">${message}</div>`;
-            console.log(message);
+        <div id="err" class="hidden p-3 mb-4 rounded bg-red-900/20 text-red-500 border border-red-500/30 text-xs font-bold text-center uppercase"></div>
+
+        <div class="space-y-4">
+            <input type="text" id="identifier" placeholder="EMAIL OR USERNAME" class="sdel-input" oninput="this.value = this.value.toLowerCase()">
+
+            <div class="relative">
+                <input type="password" id="pass" placeholder="PASSWORD" class="sdel-input pr-12">
+                <div class="eye-box" onclick="toggleView()">
+                    <svg id="on" class="w-5 h-5 stroke-current text-gray-500" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="off" class="w-5 h-5 stroke-current text-gray-500 hidden" viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </div>
+            </div>
+
+            <button onclick="startLogin()" id="l-btn" class="btn-orange">Log In</button>
+
+            <div class="flex justify-between items-center mt-4">
+                <a href="forgot-password.html" class="text-[10px] font-bold text-gray-500 hover:text-[#FF6600] uppercase tracking-tighter">Forgot Password?</a>
+                <a href="signup.html" class="text-[10px] font-bold text-[#FF6600] hover:underline uppercase tracking-tighter">Create Account</a>
+            </div>
+        </div>
+    </div>
+
+            <script>
+    // Star field animation
+    const f = document.getElementById('star-field');
+    for(let i=0; i<80; i++) {
+        const s = document.createElement('div');
+        s.className = 'star';
+        s.style.width = s.style.height = (Math.random() * 2 + 1) + 'px';
+        s.style.left = Math.random()*100+'vw';
+        s.style.top = Math.random()*100+'vh';
+        s.style.animationDuration = (Math.random()*20 + 25)+'s'; 
+        s.style.animationDelay = (Math.random()*10)+'s';
+        f.appendChild(s);
+    }
+
+    const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
+
+    function toggleView() {
+        const p = document.getElementById('pass');
+        const on = document.getElementById('on');
+        const off = document.getElementById('off');
+        if (p.type === 'password') {
+            p.type = 'text';
+            on.classList.add('hidden');
+            off.classList.remove('hidden');
+        } else {
+            p.type = 'password';
+            on.classList.remove('hidden');
+            off.classList.add('hidden');
         }
-        
-        document.getElementById('createBtn').onclick = async () => {
-            resultDiv.innerHTML = '';
-            log('Button clicked - starting...');
+    }
+
+    function showErr(t) {
+        const e = document.getElementById('err');
+        e.innerText = t.toUpperCase();
+        e.classList.remove('hidden');
+        setTimeout(() => e.classList.add('hidden'), 4000);
+    }
+
+    async function startLogin() {
+        const inputVal = document.getElementById('identifier').value;
+        const pw = document.getElementById('pass').value;
+        const btn = document.getElementById('l-btn');
+
+        if(!inputVal || !pw) return showErr("ENTER ALL DETAILS");
+
+        btn.innerText = "VERIFYING...";
+        btn.disabled = true;
+
+        let finalEmail = inputVal;
+
+        // 1. Resolve Username to Email
+        if (!inputVal.includes('@')) {
+            const { data: profileData, error: findError } = await sb
+                .from('profile')
+                .select('email')
+                .eq('username', inputVal)
+                .single();
             
-            try {
-                log('Getting user...');
-                const { data: { user }, error: userError } = await supabase.auth.getUser();
-                
-                if (userError) {
-                    log('ERROR getting user: ' + userError.message, true);
-                    return;
-                }
-                
-                if (!user) {
-                    log('No user logged in!', true);
-                    return;
-                }
-                
-                log('User ID: ' + user.id);
-                
-                const className = document.getElementById('className').value;
-                if (!className) {
-                    log('Please enter a class name', true);
-                    return;
-                }
-                
-                log('Creating class: ' + className);
-                
-                const { data: classData, error: classError } = await supabase
-                    .from('classes')
-                    .insert({
-                        name: className,
-                        rep_id: user.id,
-                        join_mode: 'open'
-                    })
-                    .select();
-                
-                if (classError) {
-                    log('ERROR creating class: ' + classError.message, true);
-                    return;
-                }
-                
-                log('SUCCESS! Class created with ID: ' + classData[0].id);
-                log('Class data: ' + JSON.stringify(classData[0]));
-                
-            } catch (err) {
-                log('CATCH ERROR: ' + err.message, true);
+            if (findError || !profileData) {
+                btn.innerText = "LOG IN";
+                btn.disabled = false;
+                return showErr("USERNAME NOT FOUND");
             }
-        };
-        
-        // Check auth on page load
-        (async () => {
-            log('Page loaded - checking auth...');
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                log('✅ Logged in! User ID: ' + session.user.id);
-            } else {
-                log('❌ Not logged in!', true);
-            }
-        })();
-    </script>
+            finalEmail = profileData.email;
+        }
+
+        // 2. Sign In
+        const { data: { user }, error: authError } = await sb.auth.signInWithPassword({
+            email: finalEmail,
+            password: pw
+        });
+
+        if (authError) {
+            showErr(authError.message);
+            btn.innerText = "LOG IN";
+            btn.disabled = false;
+            return;
+        }
+
+        // 3. AGGRESSIVE SECURITY CHECK
+        // Checking 'is_banned' to stay consistent with your feed file
+        const { data: profile, error: profError } = await sb
+            .from('profile')
+            .select('account_status, is_banned')
+            .eq('id', user.id)
+            .single();
+
+        if (profError || !profile) {
+            await sb.auth.signOut();
+            showErr("PROFILE ERROR - CONTACT SUPPORT");
+            btn.innerText = "LOG IN";
+            btn.disabled = false;
+            return;
+        }
+
+        // Check Banned Status
+        if (profile.is_banned === true) {
+            await sb.auth.signOut(); // Kills session server-side
+            window.location.replace('banned.html'); // Kills history trace
+            return;
+        }
+
+        // Check Suspension
+        if (profile.account_status === 'suspended') {
+            await sb.auth.signOut();
+            window.location.replace('suspended.html');
+            return;
+        }
+
+        // 4. Success
+        window.location.replace('class/create-class.html');
+    }
+        </script>
+    
 </body>
 </html>
