@@ -13,8 +13,6 @@
         .glass-panel{background:rgba(18,18,18,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.05)}
         .shake{animation:shake 0.3s ease-in-out}
         @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}50%{transform:translateX(5px)}75%{transform:translateX(-3px)}}
-        .btn-primary{background:#ff6600;transition:all 0.2s}
-        .btn-primary:hover{background:#ff5500;transform:scale(0.98)}
     </style>
 </head>
 <body class="p-5">
@@ -124,9 +122,12 @@
         
         if (userError) {
             console.error('User error:', userError);
+            showError('Please login first. <a href="index.html" class="text-orange-500 underline">Login here</a>');
+            return;
         }
         
         console.log('Current user:', user);
+        console.log('User ID:', user?.id);
         
         if (!user) {
             showError('Please login first. <a href="index.html" class="text-orange-500 underline">Login here</a>');
@@ -149,14 +150,18 @@
         }
         
         console.log('Found class:', classData.name);
+        console.log('Class ID:', classData.id);
+        console.log('Join type:', classData.join_type);
         
-        // Check if already a member
-        const { data: existingMember } = await supabaseClient
+        // Check if already a member - using user_id
+        const { data: existingMember, error: memberCheckError } = await supabaseClient
             .from('class_members')
             .select('*')
             .eq('class_id', classData.id)
             .eq('user_id', user.id)
-            .single();
+            .maybeSingle();
+        
+        console.log('Existing member check:', { existingMember, memberCheckError });
         
         if (existingMember) {
             showError(`You are already a member of "${classData.name}"!`);
@@ -165,18 +170,32 @@
         
         if (classData.join_type === 'open') {
             console.log('Open class - auto joining');
-            // Auto-join
-            const { error: joinError } = await supabaseClient
+            
+            // Auto-join - simplified insert
+            const memberData = {
+                class_id: classData.id,
+                user_id: user.id,
+                user_email: user.email,
+                joined_at: new Date()
+            };
+            
+            console.log('Attempting to insert member:', memberData);
+            
+            const { data: insertData, error: joinError } = await supabaseClient
                 .from('class_members')
-                .insert([{
-                    class_id: classData.id,
-                    user_id: user.id,
-                    user_email: user.email
-                }]);
+                .insert([memberData])
+                .select();
+            
+            console.log('Insert result:', { insertData, joinError });
             
             if (joinError) {
-                console.error('Join error:', joinError);
-                showError('Error joining class. Please try again.');
+                console.error('Join error details:', joinError);
+                // Check if it's a duplicate key error
+                if (joinError.code === '23505') {
+                    showError('You are already a member of this class!');
+                } else {
+                    showError(`Error joining class: ${joinError.message}`);
+                }
             } else {
                 showSuccess(`✅ Successfully joined "${classData.name}"! Redirecting...`);
                 setTimeout(() => {
@@ -185,6 +204,7 @@
             }
         } else {
             console.log('Approval class - sending request');
+            
             // Check if already requested
             const { data: existingRequest } = await supabaseClient
                 .from('class_requests')
@@ -192,7 +212,7 @@
                 .eq('class_id', classData.id)
                 .eq('user_id', user.id)
                 .eq('status', 'pending')
-                .single();
+                .maybeSingle();
             
             if (existingRequest) {
                 showInfo(`⏳ You already requested to join "${classData.name}". Waiting for approval.`);
@@ -200,19 +220,24 @@
             }
             
             // Create new request
+            const requestData = {
+                class_id: classData.id,
+                user_id: user.id,
+                user_email: user.email,
+                user_name: user.email?.split('@')[0] || 'Student',
+                status: 'pending',
+                requested_at: new Date()
+            };
+            
+            console.log('Creating request:', requestData);
+            
             const { error: requestError } = await supabaseClient
                 .from('class_requests')
-                .insert([{
-                    class_id: classData.id,
-                    user_id: user.id,
-                    user_email: user.email,
-                    user_name: user.email?.split('@')[0] || 'Student',
-                    status: 'pending'
-                }]);
+                .insert([requestData]);
             
             if (requestError) {
-                console.error('Request error:', requestError);
-                showError('Error sending request. Please try again.');
+                console.error('Request error details:', requestError);
+                showError(`Error sending request: ${requestError.message}`);
             } else {
                 showInfo(`⏳ Request sent to join "${classData.name}". The class creator will approve your request.`);
                 document.getElementById('classCode').value = '';
