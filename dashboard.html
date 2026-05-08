@@ -1,5 +1,7 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>The Vault - Dashboard</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><style>
-body{background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;overflow-x:hidden}
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no"><title>The Vault - Dashboard</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif}
+#app{position:relative;width:100%;height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 .glass-panel{background:rgba(18,18,18,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.05)}
 .nav-active{color:#ff6600!important}.nav-active i{color:#ff6600!important}
 @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -8,7 +10,6 @@ body{background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif
 .animate-slide{animation:slideIn .3s ease-out}
 .lecture-card{transition:all 0.3s ease}.lecture-past{opacity:0.5;background:rgba(50,50,50,0.5);border-color:#444}.lecture-card:hover{transform:translateX(5px)}
 .tab-active{border-bottom:2px solid #ff6600;color:#ff6600}
-/* Carousel styles */
 .carousel-container{position:relative;overflow:hidden;border-radius:1rem}
 .carousel-track{display:flex;transition:transform 0.5s ease-in-out}
 .carousel-item{flex:0 0 100%;padding:1rem}
@@ -19,29 +20,39 @@ body{background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif
 .carousel-dots{display:flex;justify-content:center;gap:0.5rem;margin-top:1rem}
 .dot{width:8px;height:8px;border-radius:50%;background:#444;cursor:pointer;transition:all 0.2s}
 .dot.active{background:#ff6600;width:24px;border-radius:4px}
-</style></head><body class="p-5 pb-32"><header class="flex justify-between items-start mb-10"><div><h1 class="text-3xl font-extrabold tracking-tight">Hey, <span class="text-orange-500" id="userFirstName">---</span></h1><p class="text-gray-500 text-sm font-medium uppercase tracking-widest h-5" id="dynamic-greeting"></p></div><div class="glass-panel px-4 py-2 rounded-xl text-right"><p class="text-xl font-black text-white" id="clock">00:00</p></div></header>
 
-<!-- Dynamic Content Area - SPA smooth navigation -->
+/* AGGRESSIVE MOBILE BOTTOM NAV FIX */
+.bottom-nav-fix{position:fixed;bottom:0;left:0;right:0;z-index:100;padding-bottom:env(safe-area-inset-bottom, 10px);background:transparent;pointer-events:none}
+.bottom-nav-fix .nav-container{pointer-events:auto;width:92%;margin:0 auto 12px auto;background:rgba(18,18,18,.95);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:28px;padding:10px 16px;display:flex;justify-content:space-around;align-items:center;box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+.bottom-nav-fix a{display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:#6b7280;transition:all 0.2s ease}
+.bottom-nav-fix a i{font-size:1.25rem}
+.bottom-nav-fix a span{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px}
+.bottom-nav-fix a.nav-active{color:#ff6600}
+.content-pb{padding-bottom:calc(80px + env(safe-area-inset-bottom, 0px))}
+</style></head><body><div id="app" class="content-pb"><div class="p-5"><header class="flex justify-between items-start mb-10"><div><h1 class="text-3xl font-extrabold tracking-tight">Hey, <span class="text-orange-500" id="userFirstName">---</span></h1><p class="text-gray-500 text-sm font-medium uppercase tracking-widest h-5" id="dynamic-greeting"></p></div><div class="glass-panel px-4 py-2 rounded-xl text-right"><p class="text-xl font-black text-white" id="clock">00:00</p></div></header>
+
+<!-- Dynamic Content Area -->
 <main class="animate-fade" id="main-content"></main>
 
 <!-- Modals -->
-<div id="createModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Create New Class</h3><button onclick="closeCreateModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="createClassForm"><input type="text" id="className" placeholder="Class Name *" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><textarea id="classDescription" placeholder="Class Description" rows="3" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea><div class="mb-4 space-y-2"><label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer"><input type="radio" name="joinType" value="open" checked class="mr-3"><span class="text-white">🌍 Anyone can join</span></label><label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer"><input type="radio" name="joinType" value="approval" class="mr-3"><span class="text-white">🔐 Approval required</span></label></div><button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Create Class</button></form><div id="createMessage" class="mt-3 text-sm"></div></div></div>
+<div id="createModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Create New Class</h3><button onclick="closeCreateModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="createClassForm"><input type="text" id="className" placeholder="Class Name *" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><textarea id="classDescription" placeholder="Class Description" rows="3" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea><div class="mb-4 space-y-2"><label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer"><input type="radio" name="joinType" value="open" checked class="mr-3"><span class="text-white">🌍 Anyone can join</span></label><label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer"><input type="radio" name="joinType" value="approval" class="mr-3"><span class="text-white">🔐 Approval required</span></label></div><button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Create Class</button></form><div id="createMessage" class="mt-3 text-sm"></div></div></div>
 
-<div id="joinModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Join a Class</h3><button onclick="closeJoinModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div><input type="text" id="joinClassCode" placeholder="Enter class code (e.g., THESDEL-xxxxx)" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white font-mono"><button onclick="submitJoin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">Join Class</button></div><div id="joinMessage" class="mt-3 text-sm"></div></div></div>
+<div id="joinModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Join a Class</h3><button onclick="closeJoinModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div><input type="text" id="joinClassCode" placeholder="Enter class code" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white font-mono"><button onclick="submitJoin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl">Join Class</button></div><div id="joinMessage" class="mt-3 text-sm"></div></div></div>
 
-<div id="announcementModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Make Announcement</h3><button onclick="closeAnnouncementModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="announcementForm"><input type="text" id="announcementTitle" placeholder="Announcement Title" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><textarea id="announcementText" rows="3" placeholder="Announcement content..." required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea><input type="datetime-local" id="announcementStart" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="datetime-local" id="announcementEnd" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Post Announcement</button></form><div id="announcementMessage" class="mt-3 text-sm"></div></div></div>
+<div id="announcementModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Make Announcement</h3><button onclick="closeAnnouncementModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="announcementForm"><input type="text" id="announcementTitle" placeholder="Title" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><textarea id="announcementText" rows="3" placeholder="Content" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea><input type="datetime-local" id="announcementStart" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="datetime-local" id="announcementEnd" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Post Announcement</button></form><div id="announcementMessage" class="mt-3 text-sm"></div></div></div>
 
-<!-- Lecture Modal -->
-<div id="lectureModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white"><i class="fas fa-chalkboard-teacher text-orange-500"></i> Add Lecture</h3><button onclick="closeLectureModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="lectureForm"><input type="text" id="lectureTitle" placeholder="Lecture Title" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><select id="lectureDay" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><option value="" class="text-black">Select Day</option><option value="Monday" class="text-white">Monday</option><option value="Tuesday" class="text-white">Tuesday</option><option value="Wednesday" class="text-white">Wednesday</option><option value="Thursday" class="text-white">Thursday</option><option value="Friday" class="text-white">Friday</option></select><input type="time" id="lectureTime" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="text" id="lectureDuration" placeholder="Duration (e.g., 1 hour)" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="text" id="lectureVenue" placeholder="Venue (e.g., Room 101, Online)" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Add Lecture</button></form><div id="lectureMessage" class="mt-3 text-sm"></div></div></div>
+<div id="lectureModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Add Lecture</h3><button onclick="closeLectureModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="lectureForm"><input type="text" id="lectureTitle" placeholder="Title" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><select id="lectureDay" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><option value="">Select Day</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option></select><input type="time" id="lectureTime" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="text" id="lectureDuration" placeholder="Duration" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="text" id="lectureVenue" placeholder="Venue" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Add Lecture</button></form><div id="lectureMessage" class="mt-3 text-sm"></div></div></div>
 
-<!-- Exam Modal -->
-<div id="examModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white"><i class="fas fa-calendar-alt text-orange-500"></i> Schedule Exam</h3><button onclick="closeExamModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="examForm"><input type="text" id="examTitle" placeholder="Exam Title" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="date" id="examDate" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="time" id="examTime" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="text" id="examVenue" placeholder="Venue (e.g., Room 205, Online)" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Schedule Exam</button></form><div id="examMessage" class="mt-3 text-sm"></div></div></div>
+<div id="examModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Schedule Exam</h3><button onclick="closeExamModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="examForm"><input type="text" id="examTitle" placeholder="Exam Title" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="date" id="examDate" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="time" id="examTime" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><input type="text" id="examVenue" placeholder="Venue" required class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Schedule Exam</button></form><div id="examMessage" class="mt-3 text-sm"></div></div></div>
 
-<!-- Rename Class Modal -->
-<div id="renameModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Rename Class</h3><button onclick="closeRenameModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><input type="text" id="newClassName" placeholder="New Class Name" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><button onclick="renameClass()" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Update Name</button></div></div>
+<div id="renameModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Rename Class</h3><button onclick="closeRenameModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><input type="text" id="newClassName" placeholder="New Class Name" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"><button onclick="renameClass()" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Update Name</button></div></div>
 
-<!-- Bottom Navigation - SPA no reload -->
-<nav class="fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] glass-panel rounded-2xl p-3 border-white/10 flex justify-around items-center z-50 shadow-2xl" id="bottomNav"></nav>
+<div id="descriptionModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Edit Description</h3><button onclick="closeDescriptionModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><textarea id="newClassDescription" rows="4" placeholder="Class Description" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea><button onclick="updateDescription()" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Update Description</button></div></div>
+
+</div></div>
+
+<!-- BOTTOM NAV - AGGRESSIVE MOBILE FIX -->
+<div class="bottom-nav-fix"><div class="nav-container" id="bottomNav"></div></div>
 
 <script>
 const _URL="https://lgfyrlfjoazedwymjpfc.supabase.co";
@@ -56,60 +67,43 @@ let announcements = [];
 let carouselIndex = 0;
 let carouselInterval = null;
 
-function redirectToLogin(){window.location.href='login.html'}
 function showToast(msg, type){alert(msg);}
-
 function generateClassCode(){const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';let result='';for(let i=0;i<10;i++){result+=chars.charAt(Math.floor(Math.random()*chars.length));}return'THESDEL-'+result;}
 
 async function loadUserFirstName() {
     const { data: { user } } = await sb.auth.getUser();
     if (!user) return;
     const { data: profile } = await sb.from('profile').select('first_name').eq('id', user.id).single();
-    if (profile?.first_name) {
-        document.getElementById('userFirstName').innerText = profile.first_name;
-    } else {
-        document.getElementById('userFirstName').innerText = user.email?.split('@')[0] || 'User';
-    }
+    if (profile?.first_name) document.getElementById('userFirstName').innerText = profile.first_name;
+    else document.getElementById('userFirstName').innerText = user.email?.split('@')[0] || 'User';
 }
 
-// SPA Navigation - NO PAGE RELOAD
 function navigateTo(page){
     if(currentPage === page) return;
     currentPage = page;
-    updateBottomNavActive();
     const container = document.getElementById('main-content');
     container.style.animation = 'none';
     container.offsetHeight;
     container.style.animation = 'slideIn 0.3s ease-out';
     renderPage();
+    updateBottomNavActive();
 }
 
 function updateBottomNavActive(){
     document.querySelectorAll('#bottomNav a').forEach(link => {
         const page = link.getAttribute('data-page');
-        if(page === currentPage){
-            link.classList.add('nav-active');
-            link.classList.remove('text-gray-500');
-        } else {
-            link.classList.remove('nav-active');
-            link.classList.add('text-gray-500');
-        }
+        if(page === currentPage) link.classList.add('nav-active');
+        else link.classList.remove('nav-active');
     });
 }
 
 function renderPage(){
     const container = document.getElementById('main-content');
-    if(currentPage === 'home'){
-        container.innerHTML = renderHomePage();
-    } else if(currentPage === 'timetable'){
-        container.innerHTML = renderTimetablePage();
-    } else if(currentPage === 'tests'){
-        container.innerHTML = renderTestsPage();
-    } else if(currentPage === 'ranks'){
-        container.innerHTML = renderRanksPage();
-    } else if(currentPage === 'profile'){
-        container.innerHTML = renderProfilePage();
-    }
+    if(currentPage === 'home') container.innerHTML = renderHomePage();
+    else if(currentPage === 'timetable') container.innerHTML = renderTimetablePage();
+    else if(currentPage === 'tests') container.innerHTML = renderTestsPage();
+    else if(currentPage === 'ranks') container.innerHTML = renderRanksPage();
+    else if(currentPage === 'profile') container.innerHTML = renderProfilePage();
     attachPageEvents();
 }
 
@@ -118,76 +112,40 @@ function renderHomePage(){
         return `
             <div class="glass-panel p-6 rounded-3xl mb-6 border-l-4 border-orange-600">
                 <div class="flex justify-between items-start flex-wrap gap-4 mb-4">
-                    <div><h2 class="text-2xl font-black">${escapeHtml(currentClass?.name || 'Class')}</h2><p class="text-gray-400 text-sm">${escapeHtml(currentClass?.description || 'No description')}</p></div>
+                    <div><h2 class="text-2xl font-black">${escapeHtml(currentClass?.name || 'Class')}</h2>
+                    <div class="flex items-start gap-2 mt-1"><p class="text-gray-400 text-sm">${escapeHtml(currentClass?.description || 'No description')}</p><button onclick="openDescriptionModal()" class="text-xs text-orange-500"><i class="fas fa-edit"></i></button></div></div>
                     <div class="flex gap-2"><code class="text-xs bg-black/50 px-2 py-1 rounded font-mono text-orange-500">${currentClass?.class_code || ''}</code><button onclick="openRenameModal()" class="text-xs bg-white/10 px-2 py-1 rounded hover:bg-white/20"><i class="fas fa-edit"></i></button></div>
                 </div>
                 <button onclick="openAnnouncementModal()" class="w-full bg-orange-600 text-white font-bold py-2 rounded-xl mb-3"><i class="fas fa-bullhorn"></i> Make Announcement</button>
                 <button onclick="shareInviteLink()" class="w-full glass-panel py-2 rounded-xl text-sm"><i class="fas fa-share-alt"></i> Share Invite Link</button>
             </div>
             <div id="announcementsCarousel" class="glass-panel p-4 rounded-3xl mb-6"></div>
-            <div class="glass-panel p-6 rounded-3xl">
-                <h3 class="font-bold mb-3 flex items-center gap-2"><i class="fas fa-history text-orange-500"></i> Past Announcements</h3>
-                <div id="pastAnnouncementsList" class="space-y-3 max-h-64 overflow-y-auto"></div>
-            </div>
+            <div class="glass-panel p-6 rounded-3xl"><h3 class="font-bold mb-3"><i class="fas fa-history text-orange-500"></i> Past Announcements</h3><div id="pastAnnouncementsList" class="space-y-3 max-h-64 overflow-y-auto"></div></div>
         `;
     } else if(userRole === 'member'){
         return `
             <div class="glass-panel p-6 rounded-3xl mb-6 border-l-4 border-green-500">
-                <div class="flex justify-between items-start"><div><h2 class="text-2xl font-black">${escapeHtml(currentClass?.name || 'Class')}</h2><p class="text-gray-400 text-sm mt-1">${escapeHtml(currentClass?.description || 'No description')}</p><div class="flex gap-2 mt-2"><span class="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded-full"><i class="fas fa-user-check"></i> Member</span></div></div><button onclick="leaveClass()" class="text-xs bg-red-500/20 text-red-500 px-3 py-1 rounded-full hover:bg-red-500/30"><i class="fas fa-sign-out-alt"></i> Leave Class</button></div>
+                <div class="flex justify-between items-start"><div><h2 class="text-2xl font-black">${escapeHtml(currentClass?.name || 'Class')}</h2><p class="text-gray-400 text-sm mt-1">${escapeHtml(currentClass?.description || 'No description')}</p><div class="flex gap-2 mt-2"><span class="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded-full"><i class="fas fa-user-check"></i> Member</span></div></div><button onclick="leaveClass()" class="text-xs bg-red-500/20 text-red-500 px-3 py-1 rounded-full"><i class="fas fa-sign-out-alt"></i> Leave Class</button></div>
             </div>
-            <div class="glass-panel p-6 rounded-3xl mb-6">
-                <h3 class="font-bold mb-3 flex items-center gap-2"><i class="fas fa-calendar-alt text-orange-500"></i> Today's Lectures</h3>
-                <div id="lecturesList" class="space-y-3"></div>
-            </div>
+            <div class="glass-panel p-6 rounded-3xl mb-6"><h3 class="font-bold mb-3">Today's Lectures</h3><div id="lecturesList" class="space-y-3"></div></div>
             <div id="announcementsCarouselMember" class="glass-panel p-4 rounded-3xl mb-6"></div>
-            <div class="glass-panel p-6 rounded-3xl">
-                <h3 class="font-bold mb-3 flex items-center gap-2"><i class="fas fa-history text-orange-500"></i> Past Announcements</h3>
-                <div id="pastAnnouncementsListMember" class="space-y-3 max-h-64 overflow-y-auto"></div>
-            </div>
+            <div class="glass-panel p-6 rounded-3xl"><h3 class="font-bold mb-3">Past Announcements</h3><div id="pastAnnouncementsListMember" class="space-y-3 max-h-64 overflow-y-auto"></div></div>
         `;
     } else {
-        return `
-            <div class="glass-panel p-8 rounded-3xl text-center mb-6">
-                <div class="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-graduation-cap text-3xl text-orange-500"></i></div>
-                <h2 class="text-2xl font-black mb-2">Join a Class or Create One</h2>
-                <p class="text-gray-400 mb-6">Get started by joining an existing class or creating your own.</p>
-                <div class="grid grid-cols-2 gap-4"><button onclick="showJoinModal()" class="bg-blue-600 py-3 rounded-xl font-bold hover:bg-blue-700"><i class="fas fa-sign-in-alt"></i> Join Class</button><button onclick="showCreateModal()" class="bg-orange-600 py-3 rounded-xl font-bold hover:bg-orange-700"><i class="fas fa-plus"></i> Create Class</button></div>
-            </div>
-        `;
+        return `<div class="glass-panel p-8 rounded-3xl text-center"><div class="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-graduation-cap text-3xl text-orange-500"></i></div><h2 class="text-2xl font-black mb-2">Join a Class or Create One</h2><p class="text-gray-400 mb-6">Get started by joining an existing class or creating your own.</p><div class="grid grid-cols-2 gap-4"><button onclick="showJoinModal()" class="bg-blue-600 py-3 rounded-xl font-bold">Join Class</button><button onclick="showCreateModal()" class="bg-orange-600 py-3 rounded-xl font-bold">Create Class</button></div></div>`;
     }
 }
 
 function renderTimetablePage(){
-    return `
-        <div class="glass-panel p-6 rounded-3xl">
-            <div class="flex gap-4 mb-6 border-b border-white/10">
-                <button onclick="switchTimetableTab('lectures')" id="lecturesTab" class="pb-2 px-4 font-bold transition-colors tab-active text-white">📚 Lectures</button>
-                <button onclick="switchTimetableTab('exams')" id="examsTab" class="pb-2 px-4 font-bold text-gray-400 transition-colors text-white">📝 Exams</button>
-            </div>
-            <div id="timetableContent">
-                <div class="text-center text-gray-400 py-8"><i class="fas fa-spinner fa-spin"></i> Loading timetable...</div>
-            </div>
-        </div>
-    `;
+    return `<div class="glass-panel p-6 rounded-3xl"><div class="flex gap-4 mb-6 border-b border-white/10"><button onclick="switchTimetableTab('lectures')" id="lecturesTab" class="pb-2 px-4 font-bold tab-active text-white">📚 Lectures</button><button onclick="switchTimetableTab('exams')" id="examsTab" class="pb-2 px-4 font-bold text-gray-400 text-white">📝 Exams</button></div><div id="timetableContent"><div class="text-center text-gray-400 py-8"><i class="fas fa-spinner fa-spin"></i> Loading...</div></div></div>`;
 }
 
 function switchTimetableTab(tab){
     timetableTab = tab;
     const lecturesTab = document.getElementById('lecturesTab');
     const examsTab = document.getElementById('examsTab');
-    if(tab === 'lectures'){
-        lecturesTab.classList.add('tab-active');
-        lecturesTab.classList.remove('text-gray-400');
-        examsTab.classList.remove('tab-active');
-        examsTab.classList.add('text-gray-400');
-        loadLecturesTimetable();
-    } else {
-        examsTab.classList.add('tab-active');
-        examsTab.classList.remove('text-gray-400');
-        lecturesTab.classList.remove('tab-active');
-        lecturesTab.classList.add('text-gray-400');
-        loadExamsTimetable();
-    }
+    if(tab === 'lectures'){lecturesTab.classList.add('tab-active');lecturesTab.classList.remove('text-gray-400');examsTab.classList.remove('tab-active');examsTab.classList.add('text-gray-400');loadLecturesTimetable();}
+    else{examsTab.classList.add('tab-active');examsTab.classList.remove('text-gray-400');lecturesTab.classList.remove('tab-active');lecturesTab.classList.add('text-gray-400');loadExamsTimetable();}
 }
 
 function openLectureModal(){document.getElementById('lectureModal').classList.remove('hidden');}
@@ -196,6 +154,8 @@ function openExamModal(){document.getElementById('examModal').classList.remove('
 function closeExamModal(){document.getElementById('examModal').classList.add('hidden');document.getElementById('examForm').reset();}
 function openRenameModal(){document.getElementById('renameModal').classList.remove('hidden');}
 function closeRenameModal(){document.getElementById('renameModal').classList.add('hidden');document.getElementById('newClassName').value='';}
+function openDescriptionModal(){document.getElementById('descriptionModal').classList.remove('hidden');document.getElementById('newClassDescription').value=currentClass?.description||'';}
+function closeDescriptionModal(){document.getElementById('descriptionModal').classList.add('hidden');}
 
 async function renameClass(){
     const newName = document.getElementById('newClassName').value.trim();
@@ -204,8 +164,14 @@ async function renameClass(){
     if(error){alert('Error: '+error.message);}else{currentClass.name = newName;closeRenameModal();renderPage();showToast('Class renamed!','success');}
 }
 
+async function updateDescription(){
+    const newDesc = document.getElementById('newClassDescription').value.trim();
+    const { error } = await sb.from('classes').update({ description: newDesc }).eq('id', currentClass.id);
+    if(error){alert('Error: '+error.message);}else{currentClass.description = newDesc;closeDescriptionModal();renderPage();showToast('Description updated!','success');}
+}
+
 async function leaveClass(){
-    if(!confirm('Are you sure you want to leave this class?')) return;
+    if(!confirm('Leave this class?')) return;
     const { error } = await sb.from('class_members').delete().eq('class_id', currentClass.id).eq('user_id', currentUser.id);
     if(error){alert('Error: '+error.message);}else{window.location.reload();}
 }
@@ -236,9 +202,10 @@ document.getElementById('examForm')?.addEventListener('submit', async (e) => {
 });
 
 async function loadAnnouncements(){
+    if(!currentClass) return;
     const now = new Date().toISOString();
-    const { data: active } = await sb.from('class_announcements').select('*').eq('class_id', currentClass?.id).lte('start_time', now).gte('end_time', now).order('created_at', { ascending: false });
-    const { data: past } = await sb.from('class_announcements').select('*').eq('class_id', currentClass?.id).lt('end_time', now).order('end_time', { ascending: false });
+    const { data: active } = await sb.from('class_announcements').select('*').eq('class_id', currentClass.id).lte('start_time', now).gte('end_time', now).order('created_at', { ascending: false });
+    const { data: past } = await sb.from('class_announcements').select('*').eq('class_id', currentClass.id).lt('end_time', now).order('end_time', { ascending: false });
     if(active && active.length > 0) initCarousel(active);
     if(past && past.length > 0) displayPastAnnouncements(past);
 }
@@ -250,10 +217,7 @@ function initCarousel(announcementsList){
     const container = document.getElementById(userRole === 'rep' ? 'announcementsCarousel' : 'announcementsCarouselMember');
     if(!container) return;
     if(announcements.length === 0){container.innerHTML = '<div class="text-center text-gray-400 py-4">No active announcements</div>';return;}
-    container.innerHTML = `
-        <div class="carousel-container"><div class="carousel-track" id="carouselTrack"></div><button class="carousel-btn carousel-prev" onclick="prevSlide()">❮</button><button class="carousel-btn carousel-next" onclick="nextSlide()">❯</button></div>
-        <div class="carousel-dots" id="carouselDots"></div>
-    `;
+    container.innerHTML = `<div class="carousel-container"><div class="carousel-track" id="carouselTrack"></div><button class="carousel-btn carousel-prev" onclick="prevSlide()">❮</button><button class="carousel-btn carousel-next" onclick="nextSlide()">❯</button></div><div class="carousel-dots" id="carouselDots"></div>`;
     const track = document.getElementById('carouselTrack');
     announcements.forEach(ann => {track.innerHTML += `<div class="carousel-item"><div class="bg-orange-500/10 p-4 rounded-xl border-l-4 border-orange-500"><div class="flex justify-between items-start mb-2"><h4 class="font-bold text-orange-500">${escapeHtml(ann.title)}</h4><span class="text-xs text-gray-500">${new Date(ann.start_time).toLocaleString()}</span></div><p class="text-sm">${escapeHtml(ann.content)}</p></div></div>`;});
     const dotsContainer = document.getElementById('carouselDots');
@@ -288,22 +252,22 @@ document.getElementById('announcementForm')?.addEventListener('submit', async (e
 
 async function loadLecturesTimetable(){
     const container = document.getElementById('timetableContent');
-    const { data: lectures, error } = await sb.from('class_lectures').select('*').eq('class_id', currentClass?.id).order('day_of_week', { ascending: true }).order('time', { ascending: true });
-    if(error || !lectures || lectures.length === 0){container.innerHTML = `<div class="text-center text-gray-400 py-8"><i class="fas fa-info-circle text-3xl mb-2"></i><p>No lectures scheduled yet</p>${userRole === 'rep' ? '<button onclick="openLectureModal()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm text-white">+ Add Lecture</button>' : ''}</div>`;return;}
+    const { data: lectures } = await sb.from('class_lectures').select('*').eq('class_id', currentClass?.id).order('day_of_week', { ascending: true }).order('time', { ascending: true });
+    if(!lectures || lectures.length === 0){container.innerHTML = `<div class="text-center text-gray-400 py-8"><p>No lectures scheduled</p>${userRole === 'rep' ? '<button onclick="openLectureModal()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm text-white">+ Add Lecture</button>' : ''}</div>`;return;}
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];let html = '';
     days.forEach(day => {const dayLectures = lectures.filter(l => l.day_of_week === day);if(dayLectures.length > 0){html += `<div class="mb-6"><h3 class="font-bold mb-2 text-orange-500">${day}</h3><div class="space-y-2">`;dayLectures.forEach(lecture => {let displayTime = lecture.time;if(lecture.time && !lecture.time.includes('AM') && !lecture.time.includes('PM')){const [hour, minute] = lecture.time.split(':');let h = parseInt(hour);const ampm = h >= 12 ? 'PM' : 'AM';h = h % 12 || 12;displayTime = `${h}:${minute} ${ampm}`;}html += `<div class="glass-panel p-3 rounded-xl flex justify-between items-center"><div><h4 class="font-bold text-sm text-white">${escapeHtml(lecture.title)}</h4><p class="text-xs text-gray-400">${displayTime} • ${lecture.duration} • ${escapeHtml(lecture.venue || 'Online')}</p></div>${userRole === 'rep' ? `<button onclick="deleteLecture(${lecture.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>` : ''}</div>`;});html += `</div></div>`;}});
-    if(userRole === 'rep'){html += `<button onclick="openLectureModal()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500"><i class="fas fa-plus"></i> Add Lecture</button>`;}
+    if(userRole === 'rep'){html += `<button onclick="openLectureModal()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500">+ Add Lecture</button>`;}
     container.innerHTML = html;
 }
 
 async function loadExamsTimetable(){
     const container = document.getElementById('timetableContent');
-    const { data: exams, error } = await sb.from('class_exams').select('*').eq('class_id', currentClass?.id).order('exam_date', { ascending: true });
-    if(error || !exams || exams.length === 0){container.innerHTML = `<div class="text-center text-gray-400 py-8"><i class="fas fa-calendar-times text-3xl mb-2"></i><p>No exams scheduled yet</p>${userRole === 'rep' ? '<button onclick="openExamModal()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm text-white">+ Schedule Exam</button>' : ''}</div>`;return;}
+    const { data: exams } = await sb.from('class_exams').select('*').eq('class_id', currentClass?.id).order('exam_date', { ascending: true });
+    if(!exams || exams.length === 0){container.innerHTML = `<div class="text-center text-gray-400 py-8"><p>No exams scheduled</p>${userRole === 'rep' ? '<button onclick="openExamModal()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm text-white">+ Schedule Exam</button>' : ''}</div>`;return;}
     let html = `<div class="space-y-3">`;
     exams.forEach(exam => {const examDate = new Date(exam.exam_date);const isPast = examDate < new Date();let displayTime = exam.time;if(exam.time && !exam.time.includes('AM') && !exam.time.includes('PM')){const [hour, minute] = exam.time.split(':');let h = parseInt(hour);const ampm = h >= 12 ? 'PM' : 'AM';h = h % 12 || 12;displayTime = `${h}:${minute} ${ampm}`;}html += `<div class="glass-panel p-4 rounded-xl ${isPast ? 'opacity-50' : 'border-l-4 border-orange-500'}"><div class="flex justify-between items-start"><div><h4 class="font-bold text-white">${escapeHtml(exam.title)}</h4><p class="text-xs text-gray-400 mt-1">📅 ${new Date(exam.exam_date).toLocaleDateString()} • ⏰ ${displayTime} • 📍 ${escapeHtml(exam.venue || 'Online')}</p></div>${userRole === 'rep' ? `<button onclick="deleteExam(${exam.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>` : ''}</div></div>`;});
     html += `</div>`;
-    if(userRole === 'rep'){html += `<button onclick="openExamModal()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500"><i class="fas fa-plus"></i> Schedule Exam</button>`;}
+    if(userRole === 'rep'){html += `<button onclick="openExamModal()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500">+ Schedule Exam</button>`;}
     container.innerHTML = html;
 }
 
@@ -312,21 +276,44 @@ function deleteExam(id){if(confirm('Delete this exam?')){sb.from('class_exams').
 
 function renderTestsPage(){return `<div class="glass-panel p-6 rounded-3xl text-center"><i class="fas fa-pen-fancy text-5xl text-orange-500 mb-4"></i><h2 class="text-2xl font-bold mb-2 text-white">Tests Coming Soon</h2><p class="text-gray-400">Your class tests will appear here.</p></div>`;}
 function renderRanksPage(){return `<div class="glass-panel p-6 rounded-3xl text-center"><i class="fas fa-trophy text-5xl text-orange-500 mb-4"></i><h2 class="text-2xl font-bold mb-2 text-white">Leaderboard</h2><p class="text-gray-400">Class rankings coming soon.</p></div>`;}
-function renderProfilePage(){return `<div class="glass-panel p-6 rounded-3xl text-center"><i class="fas fa-user text-5xl text-orange-500 mb-4"></i><h2 class="text-2xl font-bold mb-2 text-white">Profile</h2><p class="text-gray-400">Your profile details will appear here.</p></div>`;}
+
+function renderProfilePage(){
+    return `
+        <div class="glass-panel p-6 rounded-3xl text-center mb-6">
+            <div class="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-user text-3xl text-orange-500"></i></div>
+            <h2 class="text-2xl font-bold">${currentUser?.email?.split('@')[0] || 'User'}</h2>
+            <p class="text-gray-400 text-sm">${currentUser?.email}</p>
+            <div class="flex justify-center gap-2 mt-2"><span class="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded-full"><i class="fas fa-user-check"></i> ${userRole === 'rep' ? 'Class Rep' : 'Member'}</span></div>
+        </div>
+        <div class="glass-panel p-6 rounded-3xl">
+            <h3 class="font-bold mb-3">Class Info</h3>
+            <div class="space-y-2 text-sm"><div class="flex justify-between"><span class="text-gray-400">Class Name:</span><span>${currentClass?.name || 'No class'}</span></div><div class="flex justify-between"><span class="text-gray-400">Class Code:</span><code class="text-orange-500">${currentClass?.class_code || 'None'}</code></div><div class="flex justify-between"><span class="text-gray-400">Role:</span><span class="${userRole === 'rep' ? 'text-orange-500' : 'text-green-500'}">${userRole === 'rep' ? 'Class Representative' : 'Member'}</span></div></div>
+        </div>
+        <button onclick="logout()" class="w-full mt-6 bg-red-600/20 text-red-500 py-4 rounded-xl font-bold hover:bg-red-600/30 transition"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    `;
+}
+
+async function logout(){
+    await sb.auth.signOut();
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = 'login.html';
+    window.history.pushState(null, '', 'login.html');
+}
 
 function attachPageEvents(){
-    if(userRole === 'member'){loadTodayLectures();}
-    if(currentPage === 'timetable'){loadLecturesTimetable();}
-    if(currentClass && (userRole === 'rep' || userRole === 'member')){loadAnnouncements();}
+    if(userRole === 'member') loadTodayLectures();
+    if(currentPage === 'timetable') loadLecturesTimetable();
+    if(currentClass && (userRole === 'rep' || userRole === 'member')) loadAnnouncements();
 }
 
 async function loadTodayLectures(){
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-    const { data: lectures, error } = await sb.from('class_lectures').select('*').eq('class_id', currentClass?.id).eq('day_of_week', today);
+    const { data: lectures } = await sb.from('class_lectures').select('*').eq('class_id', currentClass?.id).eq('day_of_week', today);
     const container = document.getElementById('lecturesList');if(!container) return;
-    if(error || !lectures || lectures.length === 0){container.innerHTML = '<div class="text-center text-gray-400 py-4">No lectures scheduled for today</div>';return;}
+    if(!lectures || lectures.length === 0){container.innerHTML = '<div class="text-center text-gray-400 py-4">No lectures today</div>';return;}
     const now = new Date();const currentHour = now.getHours();const currentMinute = now.getMinutes();
-    container.innerHTML = lectures.map(lecture => {let [hour, minute] = lecture.time.split(':');let lectureHour = parseInt(hour);let lectureMinute = parseInt(minute) || 0;let isPast = (lectureHour < currentHour) || (lectureHour === currentHour && lectureMinute < currentMinute);let displayTime = lecture.time;if(lecture.time && !lecture.time.includes('AM') && !lecture.time.includes('PM')){let h = lectureHour;const ampm = h >= 12 ? 'PM' : 'AM';h = h % 12 || 12;displayTime = `${h}:${lectureMinute.toString().padStart(2,'0')} ${ampm}`;}return `<div class="lecture-card glass-panel p-4 rounded-xl border-l-4 ${isPast ? 'lecture-past border-gray-500' : 'border-green-500'}"><div class="flex justify-between items-start"><div><h4 class="font-bold text-white">${escapeHtml(lecture.title)}</h4><p class="text-xs text-gray-400 mt-1"><i class="far fa-clock"></i> ${displayTime} • ${lecture.duration || 'N/A'} • ${escapeHtml(lecture.venue || 'Online')}</p></div>${isPast ? '<span class="text-xs text-gray-500"><i class="fas fa-check-circle"></i> Completed</span>' : '<span class="text-xs text-green-500"><i class="fas fa-play-circle"></i> Upcoming</span>'}</div></div>`;}).join('');
+    container.innerHTML = lectures.map(lecture => {let [hour, minute] = lecture.time.split(':');let lectureHour = parseInt(hour);let lectureMinute = parseInt(minute) || 0;let isPast = (lectureHour < currentHour) || (lectureHour === currentHour && lectureMinute < currentMinute);let displayTime = lecture.time;if(lecture.time && !lecture.time.includes('AM') && !lecture.time.includes('PM')){let h = lectureHour;const ampm = h >= 12 ? 'PM' : 'AM';h = h % 12 || 12;displayTime = `${h}:${lectureMinute.toString().padStart(2,'0')} ${ampm}`;}return `<div class="lecture-card glass-panel p-4 rounded-xl border-l-4 ${isPast ? 'lecture-past border-gray-500' : 'border-green-500'}"><div class="flex justify-between items-start"><div><h4 class="font-bold text-white">${escapeHtml(lecture.title)}</h4><p class="text-xs text-gray-400 mt-1">${displayTime} • ${lecture.duration} • ${escapeHtml(lecture.venue)}</p></div>${isPast ? '<span class="text-xs text-gray-500"><i class="fas fa-check-circle"></i> Completed</span>' : '<span class="text-xs text-green-500"><i class="fas fa-play-circle"></i> Upcoming</span>'}</div></div>`;}).join('');
 }
 
 function openAnnouncementModal(){document.getElementById('announcementModal').classList.remove('hidden');}
@@ -344,7 +331,7 @@ async function submitJoin(){
     if(error||!classData){msgDiv.innerHTML='<div class="text-red-500">Invalid class code</div>';return;}
     if(classData.join_type==='open'){
         const{error:joinErr}=await sb.from('class_members').insert([{class_id:classData.id,user_id:currentUser.id,user_email:currentUser.email}]);
-        if(joinErr){msgDiv.innerHTML='<div class="text-red-500">Already a member or error</div>';}
+        if(joinErr){msgDiv.innerHTML='<div class="text-red-500">Already a member</div>';}
         else{msgDiv.innerHTML='<div class="text-green-500">Joined! Redirecting...</div>';setTimeout(()=>location.reload(),1500);}
     }else{
         await sb.from('class_requests').insert([{class_id:classData.id,user_id:currentUser.id,user_email:currentUser.email,user_name:currentUser.email?.split('@')[0],status:'pending'}]);
@@ -373,50 +360,19 @@ async function loadUserClass(){
 function renderBottomNav(){
     const nav = document.getElementById('bottomNav');
     if(userRole === 'rep'){
-        nav.innerHTML = `<a href="#" data-page="home" class="flex flex-col items-center nav-active"><i class="fas fa-home text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Home</span></a><a href="#" data-page="timetable" class="flex flex-col items-center text-gray-500"><i class="fas fa-calendar-alt text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Timetable</span></a><a href="#" data-page="tests" class="flex flex-col items-center text-gray-500"><i class="fas fa-pen-fancy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Tests</span></a><a href="#" data-page="ranks" class="flex flex-col items-center text-gray-500"><i class="fas fa-trophy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Ranks</span></a><a href="#" data-page="profile" class="flex flex-col items-center text-gray-500"><i class="fas fa-user text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Profile</span></a>`;
+        nav.innerHTML = `<a href="#" data-page="home"><i class="fas fa-home"></i><span>Home</span></a><a href="#" data-page="timetable"><i class="fas fa-calendar-alt"></i><span>Timetable</span></a><a href="#" data-page="tests"><i class="fas fa-pen-fancy"></i><span>Tests</span></a><a href="#" data-page="ranks"><i class="fas fa-trophy"></i><span>Ranks</span></a><a href="#" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>`;
     } else if(userRole === 'member'){
-        nav.innerHTML = `<a href="#" data-page="home" class="flex flex-col items-center nav-active"><i class="fas fa-home text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Home</span></a><a href="#" data-page="timetable" class="flex flex-col items-center text-gray-500"><i class="fas fa-calendar-alt text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Timetable</span></a><a href="#" data-page="tests" class="flex flex-col items-center text-gray-500"><i class="fas fa-pen-fancy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Tests</span></a><a href="#" data-page="ranks" class="flex flex-col items-center text-gray-500"><i class="fas fa-trophy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Ranks</span></a><a href="#" data-page="profile" class="flex flex-col items-center text-gray-500"><i class="fas fa-user text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Profile</span></a>`;
+        nav.innerHTML = `<a href="#" data-page="home"><i class="fas fa-home"></i><span>Home</span></a><a href="#" data-page="timetable"><i class="fas fa-calendar-alt"></i><span>Timetable</span></a><a href="#" data-page="tests"><i class="fas fa-pen-fancy"></i><span>Tests</span></a><a href="#" data-page="ranks"><i class="fas fa-trophy"></i><span>Ranks</span></a><a href="#" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>`;
     } else {
-        nav.innerHTML = `<a href="#" data-page="home" class="flex flex-col items-center nav-active"><i class="fas fa-home text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Home</span></a><a href="#" data-page="tests" class="flex flex-col items-center text-gray-500"><i class="fas fa-pen-fancy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Tests</span></a><a href="#" data-page="ranks" class="flex flex-col items-center text-gray-500"><i class="fas fa-trophy text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Ranks</span></a><a href="#" data-page="profile" class="flex flex-col items-center text-gray-500"><i class="fas fa-user text-xl mb-1"></i><span class="text-[9px] font-black uppercase">Profile</span></a>`;
+        nav.innerHTML = `<a href="#" data-page="home"><i class="fas fa-home"></i><span>Home</span></a><a href="#" data-page="tests"><i class="fas fa-pen-fancy"></i><span>Tests</span></a><a href="#" data-page="ranks"><i class="fas fa-trophy"></i><span>Ranks</span></a><a href="#" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>`;
     }
-    document.querySelectorAll('#bottomNav a').forEach(link => {link.addEventListener('click', (e) => {e.preventDefault();const page = link.getAttribute('data-page');navigateTo(page);});});
+    document.querySelectorAll('#bottomNav a').forEach(link => {
+        link.addEventListener('click', (e) => {e.preventDefault();const page = link.getAttribute('data-page');navigateTo(page);});
+    });
+    updateBottomNavActive();
 }
 
 function escapeHtml(str){if(!str)return '';return str.replace(/[&<>]/g,function(m){if(m==='&')return'&amp;';if(m==='<')return'&lt;';if(m==='>')return'&gt;';return m;});}
-
-/* RUN THIS SQL IN SUPABASE:
-CREATE TABLE IF NOT EXISTS class_announcements (
-    id SERIAL PRIMARY KEY,
-    class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
-    content TEXT NOT NULL,
-    start_time TIMESTAMP NOT NULL,
-    end_time TIMESTAMP NOT NULL,
-    created_by UUID,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS class_lectures (
-    id SERIAL PRIMARY KEY,
-    class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
-    day_of_week VARCHAR(20) CHECK (day_of_week IN ('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday')),
-    time VARCHAR(20),
-    duration VARCHAR(50),
-    venue VARCHAR(200),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS class_exams (
-    id SERIAL PRIMARY KEY,
-    class_id INTEGER REFERENCES classes(id) ON DELETE CASCADE,
-    title VARCHAR(200) NOT NULL,
-    exam_date DATE,
-    time VARCHAR(20),
-    venue VARCHAR(200),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-*/
 
 async function init(){
     function updateClock(){document.getElementById('clock').innerText = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});const h = new Date().getHours();document.getElementById('dynamic-greeting').innerText = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";}
