@@ -20,18 +20,15 @@ html,body{position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;bac
 .carousel-dots{display:flex;justify-content:center;gap:0.5rem;margin-top:1rem}
 .dot{width:8px;height:8px;border-radius:50%;background:#444;cursor:pointer;transition:all 0.2s}
 .dot.active{background:#ff6600;width:24px;border-radius:4px}
-
-/* AGGRESSIVE MOBILE BOTTOM NAV FIX */
 .bottom-nav-fix{position:fixed;bottom:0;left:0;right:0;z-index:100;padding-bottom:env(safe-area-inset-bottom, 10px);background:transparent;pointer-events:none}
-.bottom-nav-fix .nav-container{pointer-events:auto;width:92%;margin:0 auto 12px auto;background:rgba(18,18,18,.95);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:28px;padding:10px 16px;display:flex;justify-content:space-around;align-items:center;box-shadow:0 8px 32px rgba(0,0,0,0.4)}
+.bottom-nav-fix .nav-container{pointer-events:auto;width:92%;margin:0 auto 12px auto;background:rgba(18,18,18,.95);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:28px;padding:10px 16px;display:flex;justify-content:space-around;align-items:center}
 .bottom-nav-fix a{display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:#6b7280;transition:all 0.2s ease}
 .bottom-nav-fix a i{font-size:1.25rem}
-.bottom-nav-fix a span{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px}
+.bottom-nav-fix a span{font-size:9px;font-weight:800;text-transform:uppercase}
 .bottom-nav-fix a.nav-active{color:#ff6600}
 .content-pb{padding-bottom:calc(80px + env(safe-area-inset-bottom, 0px))}
 </style></head><body><div id="app" class="content-pb"><div class="p-5"><header class="flex justify-between items-start mb-10"><div><h1 class="text-3xl font-extrabold tracking-tight">Hey, <span class="text-orange-500" id="userFirstName">---</span></h1><p class="text-gray-500 text-sm font-medium uppercase tracking-widest h-5" id="dynamic-greeting"></p></div><div class="glass-panel px-4 py-2 rounded-xl text-right"><p class="text-xl font-black text-white" id="clock">00:00</p></div></header>
 
-<!-- Dynamic Content Area -->
 <main class="animate-fade" id="main-content"></main>
 
 <!-- Modals -->
@@ -49,9 +46,10 @@ html,body{position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;bac
 
 <div id="descriptionModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Edit Description</h3><button onclick="closeDescriptionModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><textarea id="newClassDescription" rows="4" placeholder="Class Description" class="w-full bg-black/50 border border-gray-700 rounded-xl p-3 mb-3 text-white"></textarea><button onclick="updateDescription()" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Update Description</button></div></div>
 
+<div id="membersModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden"><div class="glass-panel p-6 rounded-2xl max-w-md w-full max-h-[80vh] overflow-y-auto"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Class Members</h3><button onclick="closeMembersModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div id="membersListModal" class="space-y-2"></div></div></div>
+
 </div></div>
 
-<!-- BOTTOM NAV - AGGRESSIVE MOBILE FIX -->
 <div class="bottom-nav-fix"><div class="nav-container" id="bottomNav"></div></div>
 
 <script>
@@ -116,7 +114,7 @@ function renderHomePage(){
                     <div class="flex items-start gap-2 mt-1"><p class="text-gray-400 text-sm">${escapeHtml(currentClass?.description || 'No description')}</p><button onclick="openDescriptionModal()" class="text-xs text-orange-500"><i class="fas fa-edit"></i></button></div></div>
                     <div class="flex gap-2"><code class="text-xs bg-black/50 px-2 py-1 rounded font-mono text-orange-500">${currentClass?.class_code || ''}</code><button onclick="openRenameModal()" class="text-xs bg-white/10 px-2 py-1 rounded hover:bg-white/20"><i class="fas fa-edit"></i></button></div>
                 </div>
-                <button onclick="openAnnouncementModal()" class="w-full bg-orange-600 text-white font-bold py-2 rounded-xl mb-3"><i class="fas fa-bullhorn"></i> Make Announcement</button>
+                <div class="flex gap-2 mb-3"><button onclick="openMembersModal()" class="flex-1 glass-panel py-2 rounded-xl text-sm"><i class="fas fa-users"></i> Manage Members (${userRole === 'rep' ? 'Rep' : 'Member'})</button><button onclick="openAnnouncementModal()" class="flex-1 bg-orange-600 text-white font-bold py-2 rounded-xl text-sm"><i class="fas fa-bullhorn"></i> Announce</button></div>
                 <button onclick="shareInviteLink()" class="w-full glass-panel py-2 rounded-xl text-sm"><i class="fas fa-share-alt"></i> Share Invite Link</button>
             </div>
             <div id="announcementsCarousel" class="glass-panel p-4 rounded-3xl mb-6"></div>
@@ -156,6 +154,44 @@ function openRenameModal(){document.getElementById('renameModal').classList.remo
 function closeRenameModal(){document.getElementById('renameModal').classList.add('hidden');document.getElementById('newClassName').value='';}
 function openDescriptionModal(){document.getElementById('descriptionModal').classList.remove('hidden');document.getElementById('newClassDescription').value=currentClass?.description||'';}
 function closeDescriptionModal(){document.getElementById('descriptionModal').classList.add('hidden');}
+function openMembersModal(){document.getElementById('membersModal').classList.remove('hidden');loadMembersList();}
+function closeMembersModal(){document.getElementById('membersModal').classList.add('hidden');}
+
+async function loadMembersList(){
+    const { data: members } = await sb.from('class_members').select('user_id, user_email').eq('class_id', currentClass.id);
+    const { data: assistants } = await sb.from('class_assistants').select('user_id').eq('class_id', currentClass.id);
+    const assistantIds = new Set(assistants?.map(a => a.user_id) || []);
+    const container = document.getElementById('membersListModal');
+    if(!members || members.length === 0){container.innerHTML = '<p class="text-gray-400">No members yet</p>';return;}
+    container.innerHTML = members.map(m => `
+        <div class="flex justify-between items-center p-3 bg-white/5 rounded-lg">
+            <div><p class="font-medium">${escapeHtml(m.user_email?.split('@')[0] || 'User')}</p><p class="text-xs text-gray-500">${m.user_email}</p>${m.user_id === currentClass?.created_by ? '<span class="text-xs text-orange-500">👑 Class Rep</span>' : (assistantIds.has(m.user_id) ? '<span class="text-xs text-blue-500">🔧 Assistant Rep</span>' : '')}</div>
+            <div class="flex gap-2">${userRole === 'rep' && m.user_id !== currentUser?.id ? `<button onclick="makeAssistant('${m.user_id}')" class="text-xs bg-blue-600 px-2 py-1 rounded">Make Assistant</button><button onclick="removeMember('${m.user_id}')" class="text-xs bg-red-600 px-2 py-1 rounded">Remove</button><button onclick="transferRep('${m.user_id}')" class="text-xs bg-orange-600 px-2 py-1 rounded">Transfer Rep</button>` : ''}</div>
+        </div>
+    `).join('');
+}
+
+async function makeAssistant(userId){
+    await sb.from('class_assistants').insert([{class_id: currentClass.id, user_id: userId, added_by: currentUser.id}]);
+    showToast('Assistant rep added!','success');
+    loadMembersList();
+}
+
+async function removeMember(userId){
+    if(!confirm('Remove this member?')) return;
+    await sb.from('class_members').delete().eq('class_id', currentClass.id).eq('user_id', userId);
+    await sb.from('class_assistants').delete().eq('class_id', currentClass.id).eq('user_id', userId);
+    showToast('Member removed!','success');
+    loadMembersList();
+}
+
+async function transferRep(userId){
+    if(!confirm('Transfer class rep ownership? You will become a regular member.')) return;
+    await sb.from('classes').update({ created_by: userId }).eq('id', currentClass.id);
+    await sb.from('class_assistants').delete().eq('class_id', currentClass.id).eq('user_id', userId);
+    showToast('Rep transferred! Reloading...','success');
+    setTimeout(() => location.reload(), 1500);
+}
 
 async function renameClass(){
     const newName = document.getElementById('newClassName').value.trim();
@@ -172,8 +208,9 @@ async function updateDescription(){
 
 async function leaveClass(){
     if(!confirm('Leave this class?')) return;
-    const { error } = await sb.from('class_members').delete().eq('class_id', currentClass.id).eq('user_id', currentUser.id);
-    if(error){alert('Error: '+error.message);}else{window.location.reload();}
+    await sb.from('class_members').delete().eq('class_id', currentClass.id).eq('user_id', currentUser.id);
+    await sb.from('class_assistants').delete().eq('class_id', currentClass.id).eq('user_id', currentUser.id);
+    location.reload();
 }
 
 document.getElementById('lectureForm')?.addEventListener('submit', async (e) => {
@@ -201,6 +238,13 @@ document.getElementById('examForm')?.addEventListener('submit', async (e) => {
     else{closeExamModal();if(timetableTab === 'exams') loadExamsTimetable();showToast('Exam scheduled!','success');}
 });
 
+async function deleteAnnouncement(announcementId){
+    if(!confirm('Delete this announcement?')) return;
+    await sb.from('class_announcements').delete().eq('id', announcementId);
+    loadAnnouncements();
+    showToast('Announcement deleted!','success');
+}
+
 async function loadAnnouncements(){
     if(!currentClass) return;
     const now = new Date().toISOString();
@@ -208,6 +252,12 @@ async function loadAnnouncements(){
     const { data: past } = await sb.from('class_announcements').select('*').eq('class_id', currentClass.id).lt('end_time', now).order('end_time', { ascending: false });
     if(active && active.length > 0) initCarousel(active);
     if(past && past.length > 0) displayPastAnnouncements(past);
+    // Auto-delete expired from DB (cron job simulation - runs on page load)
+    if(past && past.length > 0){
+        for(const ann of past){
+            await sb.from('class_announcements').delete().eq('id', ann.id);
+        }
+    }
 }
 
 function initCarousel(announcementsList){
@@ -219,7 +269,7 @@ function initCarousel(announcementsList){
     if(announcements.length === 0){container.innerHTML = '<div class="text-center text-gray-400 py-4">No active announcements</div>';return;}
     container.innerHTML = `<div class="carousel-container"><div class="carousel-track" id="carouselTrack"></div><button class="carousel-btn carousel-prev" onclick="prevSlide()">❮</button><button class="carousel-btn carousel-next" onclick="nextSlide()">❯</button></div><div class="carousel-dots" id="carouselDots"></div>`;
     const track = document.getElementById('carouselTrack');
-    announcements.forEach(ann => {track.innerHTML += `<div class="carousel-item"><div class="bg-orange-500/10 p-4 rounded-xl border-l-4 border-orange-500"><div class="flex justify-between items-start mb-2"><h4 class="font-bold text-orange-500">${escapeHtml(ann.title)}</h4><span class="text-xs text-gray-500">${new Date(ann.start_time).toLocaleString()}</span></div><p class="text-sm">${escapeHtml(ann.content)}</p></div></div>`;});
+    announcements.forEach(ann => {track.innerHTML += `<div class="carousel-item"><div class="bg-orange-500/10 p-4 rounded-xl border-l-4 border-orange-500"><div class="flex justify-between items-start mb-2"><h4 class="font-bold text-orange-500">${escapeHtml(ann.title)}</h4><div class="flex gap-2"><span class="text-xs text-gray-500">${new Date(ann.start_time).toLocaleString()}</span>${userRole === 'rep' ? `<button onclick="deleteAnnouncement(${ann.id})" class="text-red-500 text-xs"><i class="fas fa-trash"></i></button>` : ''}</div></div><p class="text-sm">${escapeHtml(ann.content)}</p></div></div>`;});
     const dotsContainer = document.getElementById('carouselDots');
     announcements.forEach((_, i) => {const dot = document.createElement('div');dot.classList.add('dot');if(i === 0) dot.classList.add('active');dot.onclick = () => goToSlide(i);dotsContainer.appendChild(dot);});
     updateCarousel();
@@ -253,21 +303,21 @@ document.getElementById('announcementForm')?.addEventListener('submit', async (e
 async function loadLecturesTimetable(){
     const container = document.getElementById('timetableContent');
     const { data: lectures } = await sb.from('class_lectures').select('*').eq('class_id', currentClass?.id).order('day_of_week', { ascending: true }).order('time', { ascending: true });
-    if(!lectures || lectures.length === 0){container.innerHTML = `<div class="text-center text-gray-400 py-8"><p>No lectures scheduled</p>${userRole === 'rep' ? '<button onclick="openLectureModal()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm text-white">+ Add Lecture</button>' : ''}</div>`;return;}
+    if(!lectures || lectures.length === 0){container.innerHTML = `<div class="text-center text-gray-400 py-8"><p>No lectures scheduled</p>${userRole === 'rep' || userRole === 'assistant' ? '<button onclick="openLectureModal()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm text-white">+ Add Lecture</button>' : ''}</div>`;return;}
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];let html = '';
-    days.forEach(day => {const dayLectures = lectures.filter(l => l.day_of_week === day);if(dayLectures.length > 0){html += `<div class="mb-6"><h3 class="font-bold mb-2 text-orange-500">${day}</h3><div class="space-y-2">`;dayLectures.forEach(lecture => {let displayTime = lecture.time;if(lecture.time && !lecture.time.includes('AM') && !lecture.time.includes('PM')){const [hour, minute] = lecture.time.split(':');let h = parseInt(hour);const ampm = h >= 12 ? 'PM' : 'AM';h = h % 12 || 12;displayTime = `${h}:${minute} ${ampm}`;}html += `<div class="glass-panel p-3 rounded-xl flex justify-between items-center"><div><h4 class="font-bold text-sm text-white">${escapeHtml(lecture.title)}</h4><p class="text-xs text-gray-400">${displayTime} • ${lecture.duration} • ${escapeHtml(lecture.venue || 'Online')}</p></div>${userRole === 'rep' ? `<button onclick="deleteLecture(${lecture.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>` : ''}</div>`;});html += `</div></div>`;}});
-    if(userRole === 'rep'){html += `<button onclick="openLectureModal()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500">+ Add Lecture</button>`;}
+    days.forEach(day => {const dayLectures = lectures.filter(l => l.day_of_week === day);if(dayLectures.length > 0){html += `<div class="mb-6"><h3 class="font-bold mb-2 text-orange-500">${day}</h3><div class="space-y-2">`;dayLectures.forEach(lecture => {let displayTime = lecture.time;if(lecture.time && !lecture.time.includes('AM') && !lecture.time.includes('PM')){const [hour, minute] = lecture.time.split(':');let h = parseInt(hour);const ampm = h >= 12 ? 'PM' : 'AM';h = h % 12 || 12;displayTime = `${h}:${minute} ${ampm}`;}html += `<div class="glass-panel p-3 rounded-xl flex justify-between items-center"><div><h4 class="font-bold text-sm text-white">${escapeHtml(lecture.title)}</h4><p class="text-xs text-gray-400">${displayTime} • ${lecture.duration} • ${escapeHtml(lecture.venue || 'Online')}</p></div>${userRole === 'rep' || userRole === 'assistant' ? `<button onclick="deleteLecture(${lecture.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>` : ''}</div>`;});html += `</div></div>`;}});
+    if(userRole === 'rep' || userRole === 'assistant'){html += `<button onclick="openLectureModal()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500">+ Add Lecture</button>`;}
     container.innerHTML = html;
 }
 
 async function loadExamsTimetable(){
     const container = document.getElementById('timetableContent');
     const { data: exams } = await sb.from('class_exams').select('*').eq('class_id', currentClass?.id).order('exam_date', { ascending: true });
-    if(!exams || exams.length === 0){container.innerHTML = `<div class="text-center text-gray-400 py-8"><p>No exams scheduled</p>${userRole === 'rep' ? '<button onclick="openExamModal()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm text-white">+ Schedule Exam</button>' : ''}</div>`;return;}
+    if(!exams || exams.length === 0){container.innerHTML = `<div class="text-center text-gray-400 py-8"><p>No exams scheduled</p>${userRole === 'rep' || userRole === 'assistant' ? '<button onclick="openExamModal()" class="mt-4 bg-orange-600 px-4 py-2 rounded-lg text-sm text-white">+ Schedule Exam</button>' : ''}</div>`;return;}
     let html = `<div class="space-y-3">`;
-    exams.forEach(exam => {const examDate = new Date(exam.exam_date);const isPast = examDate < new Date();let displayTime = exam.time;if(exam.time && !exam.time.includes('AM') && !exam.time.includes('PM')){const [hour, minute] = exam.time.split(':');let h = parseInt(hour);const ampm = h >= 12 ? 'PM' : 'AM';h = h % 12 || 12;displayTime = `${h}:${minute} ${ampm}`;}html += `<div class="glass-panel p-4 rounded-xl ${isPast ? 'opacity-50' : 'border-l-4 border-orange-500'}"><div class="flex justify-between items-start"><div><h4 class="font-bold text-white">${escapeHtml(exam.title)}</h4><p class="text-xs text-gray-400 mt-1">📅 ${new Date(exam.exam_date).toLocaleDateString()} • ⏰ ${displayTime} • 📍 ${escapeHtml(exam.venue || 'Online')}</p></div>${userRole === 'rep' ? `<button onclick="deleteExam(${exam.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>` : ''}</div></div>`;});
+    exams.forEach(exam => {const examDate = new Date(exam.exam_date);const isPast = examDate < new Date();let displayTime = exam.time;if(exam.time && !exam.time.includes('AM') && !exam.time.includes('PM')){const [hour, minute] = exam.time.split(':');let h = parseInt(hour);const ampm = h >= 12 ? 'PM' : 'AM';h = h % 12 || 12;displayTime = `${h}:${minute} ${ampm}`;}html += `<div class="glass-panel p-4 rounded-xl ${isPast ? 'opacity-50' : 'border-l-4 border-orange-500'}"><div class="flex justify-between items-start"><div><h4 class="font-bold text-white">${escapeHtml(exam.title)}</h4><p class="text-xs text-gray-400 mt-1">📅 ${new Date(exam.exam_date).toLocaleDateString()} • ⏰ ${displayTime} • 📍 ${escapeHtml(exam.venue || 'Online')}</p></div>${userRole === 'rep' || userRole === 'assistant' ? `<button onclick="deleteExam(${exam.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>` : ''}</div></div>`;});
     html += `</div>`;
-    if(userRole === 'rep'){html += `<button onclick="openExamModal()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500">+ Schedule Exam</button>`;}
+    if(userRole === 'rep' || userRole === 'assistant'){html += `<button onclick="openExamModal()" class="w-full mt-4 glass-panel py-2 rounded-xl text-orange-500">+ Schedule Exam</button>`;}
     container.innerHTML = html;
 }
 
@@ -352,6 +402,8 @@ async function loadUserClass(){
     currentUser=user;
     const{data:createdClass}=await sb.from('classes').select('*').eq('created_by',user.id).maybeSingle();
     if(createdClass){userRole='rep';currentClass=createdClass;return'rep';}
+    const{data:assistantCheck}=await sb.from('class_assistants').select('class_id').eq('user_id',user.id).maybeSingle();
+    if(assistantCheck){const{data:classData}=await sb.from('classes').select('*').eq('id',assistantCheck.class_id).single();if(classData){userRole='assistant';currentClass=classData;return'assistant';}}
     const{data:memberData}=await sb.from('class_members').select('class_id').eq('user_id',user.id).maybeSingle();
     if(memberData){const{data:classData}=await sb.from('classes').select('*').eq('id',memberData.class_id).single();if(classData){userRole='member';currentClass=classData;return'member';}}
     userRole='none';return'none';
@@ -359,7 +411,7 @@ async function loadUserClass(){
 
 function renderBottomNav(){
     const nav = document.getElementById('bottomNav');
-    if(userRole === 'rep'){
+    if(userRole === 'rep' || userRole === 'assistant'){
         nav.innerHTML = `<a href="#" data-page="home"><i class="fas fa-home"></i><span>Home</span></a><a href="#" data-page="timetable"><i class="fas fa-calendar-alt"></i><span>Timetable</span></a><a href="#" data-page="tests"><i class="fas fa-pen-fancy"></i><span>Tests</span></a><a href="#" data-page="ranks"><i class="fas fa-trophy"></i><span>Ranks</span></a><a href="#" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>`;
     } else if(userRole === 'member'){
         nav.innerHTML = `<a href="#" data-page="home"><i class="fas fa-home"></i><span>Home</span></a><a href="#" data-page="timetable"><i class="fas fa-calendar-alt"></i><span>Timetable</span></a><a href="#" data-page="tests"><i class="fas fa-pen-fancy"></i><span>Tests</span></a><a href="#" data-page="ranks"><i class="fas fa-trophy"></i><span>Ranks</span></a><a href="#" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>`;
