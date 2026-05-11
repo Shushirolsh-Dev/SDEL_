@@ -1,695 +1,338 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <script>
-        (function() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'sunlight') {
-                document.documentElement.classList.add('sunlight-mode');
-            }
-        })();
-    </script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sdel | Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no"><title>The Vault - Dashboard</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none}
+html,body{position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;background-color:#000;color:#fff;font-family:'Plus Jakarta Sans',sans-serif}
+#app{position:relative;width:100%;height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.glass-panel{background:rgba(18,18,18,.8);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.05)}
+.nav-active{color:#ff6600!important}.nav-active i{color:#ff6600!important}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes slideIn{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+.animate-fade{animation:fadeIn .4s ease-out}
+.animate-slide{animation:slideIn .3s ease-out}
+.lecture-card{transition:all 0.3s ease}
+.lecture-completed{opacity:0.5;background:rgba(50,50,50,0.5);border-color:#444;text-decoration:none}
+.lecture-live{border:2px solid #10b981;background:rgba(16,185,129,0.1);box-shadow:0 0 10px rgba(16,185,129,0.3)}
+.lecture-upcoming{border-left:3px solid #3b82f6;background:rgba(59,130,246,0.05)}
+.tab-active{color:#ff6600;border-bottom:2px solid #ff6600;padding-bottom:8px}
+.bottom-nav-fix{position:fixed;bottom:0;left:0;right:0;z-index:100;padding-bottom:env(safe-area-inset-bottom,10px);background:transparent;pointer-events:none}
+.bottom-nav-fix .nav-container{pointer-events:auto;width:92%;margin:0 auto 12px auto;background:rgba(18,18,18,.95);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.08);border-radius:28px;padding:10px 16px;display:flex;justify-content:space-around;align-items:center}
+.bottom-nav-fix a{display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;color:#6b7280;transition:all 0.2s ease}
+.bottom-nav-fix a i{font-size:1.25rem}
+.bottom-nav-fix a span{font-size:9px;font-weight:800;text-transform:uppercase}
+.bottom-nav-fix a.nav-active{color:#ff6600}
+.content-pb{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+.custom-toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#ff6600;color:#000;padding:12px 24px;border-radius:50px;font-weight:bold;z-index:1000;animation:fadeIn 0.3s ease-out;white-space:nowrap}
+.custom-alert-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(8px);z-index:1000;display:flex;align-items:center;justify-content:center}
+.custom-alert{background:#1a1a1a;border:1px solid #ff6600;border-radius:24px;padding:24px;max-width:90%;width:320px;text-align:center}
+.custom-alert h3{color:#ff6600;margin-bottom:16px;font-size:20px;font-weight:800}
+.custom-alert p{margin-bottom:24px;color:#fff;word-wrap:break-word}
+.custom-alert button{background:#ff6600;color:#000;border:none;padding:12px 24px;border-radius:12px;font-weight:800;cursor:pointer;margin:0 8px}
+.custom-alert .cancel-btn{background:#333;color:#fff}
+.member-card{cursor:pointer;transition:all 0.2s ease}
+.member-card:hover{background:rgba(255,102,0,0.1)}
+.profile-initials{width:80px;height:80px;border-radius:50%;background:rgba(255,102,0,0.2);border:2px solid #ff6600;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#ff6600;margin:0 auto 16px}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);backdrop-filter:blur(12px);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-content{background:rgba(18,18,18,0.95);border:1px solid rgba(255,102,0,0.3);border-radius:24px;padding:24px;max-width:90%;width:400px;max-height:80vh;overflow-y:auto}
+.modal-content input,.modal-content select,.modal-content textarea{background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:14px;color:#fff;width:100%;margin-bottom:16px;outline:none}
+.modal-content input:focus,.modal-content select:focus,.modal-content textarea:focus{border-color:#ff6600}
+.edit-item{cursor:pointer}
+.edit-item:hover{background:rgba(255,102,0,0.1)}
+.announcement-card{background:rgba(255,102,0,0.1);border-left:3px solid #ff6600;padding:16px;border-radius:12px;margin-bottom:0;word-wrap:break-word;overflow-wrap:break-word}
+.btn-black-text{color:#000!important;font-weight:800!important}
+.role-badge{color:#10b981}
+.role-rep-badge{color:#ff6600}
+.learn-material-card{background:rgba(255,102,0,0.05);border:1px solid rgba(255,102,0,0.2);padding:16px;margin-bottom:12px;border-radius:12px}
+.learn-material-card .open-link-btn{display:block;text-align:center;margin-top:12px;padding:8px;background:rgba(255,102,0,0.1);border-radius:8px;color:#ff6600;font-size:12px;font-weight:600;text-decoration:none}
+.home-tab-header{display:flex;gap:16px;border-bottom:1px solid rgba(255,255,255,0.1);margin-bottom:16px}
+.home-tab{font-weight:800;padding:8px 4px;cursor:pointer;color:#6b7280}
+.home-tab.active{color:#ff6600;border-bottom:2px solid #ff6600}
+.notification-dot{display:inline-block;width:8px;height:8px;background:#ff6600;border-radius:50%;margin-left:6px;animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+</style></head><body><div id="app" class="content-pb"><div class="p-5"><header class="flex justify-between items-start mb-6"><div><h1 class="text-2xl font-extrabold tracking-tight">Hey, <span class="text-orange-500" id="userFirstName">---</span></h1><p class="text-gray-500 text-xs font-medium uppercase tracking-widest h-5" id="dynamic-greeting"></p></div><div class="glass-panel px-4 py-2 rounded-xl text-right"><p class="text-xl font-black text-white" id="clock">00:00</p></div></header>
+
+<main class="animate-fade" id="main-content"></main>
+
+<!-- Modals -->
+<div id="createModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Create New Class</h3><button onclick="closeCreateModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="createClassForm"><input type="text" id="className" placeholder="Class Name" required><textarea id="classDescription" placeholder="Class Description" rows="3"></textarea><div class="mb-4 space-y-2"><label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer"><input type="radio" name="joinType" value="open" checked class="mr-3"><span> Anyone can join</span></label><label class="flex items-center p-3 bg-black/30 rounded-xl cursor-pointer"><input type="radio" name="joinType" value="approval" class="mr-3"><span> Approval required</span></label></div><button type="submit" class="w-full bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Create Class</button></form><div id="createMessage" class="mt-3 text-sm"></div></div></div>
+
+<div id="joinModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Join a Class</h3><button onclick="closeJoinModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div><input type="text" id="joinClassCode" placeholder="Enter class code" class="font-mono"><button onclick="submitJoin()" class="w-full bg-blue-600 text-black font-bold py-3 rounded-xl btn-black-text">Join Class</button></div><div id="joinMessage" class="mt-3 text-sm"></div></div></div>
+
+<div id="announcementModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white" id="announcementModalTitle">Make Announcement</h3><button onclick="closeAnnouncementModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><input type="hidden" id="editAnnouncementId" value=""><input type="text" id="announcementTitle" placeholder="Title" required class="w-full"><textarea id="announcementText" rows="3" placeholder="Content" required class="w-full"></textarea><input type="datetime-local" id="announcementEnd" required class="w-full"><p class="text-xs text-gray-400 mb-3">Announcement will be active until this time</p><button onclick="saveAnnouncement()" class="w-full bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Save Announcement</button><div id="announcementMessage" class="mt-3 text-sm"></div></div></div>
+
+<div id="lectureModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white" id="lectureModalTitle">Add Lecture</h3><button onclick="closeLectureModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="lectureForm"><input type="hidden" id="editLectureId" value=""><input type="text" id="lectureTitle" placeholder="Title" required><select id="lectureDay" required><option value="">Select Day</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option></select><input type="time" id="lectureTime" required><input type="text" id="lectureDuration" placeholder="Duration" required><input type="text" id="lectureVenue" placeholder="Venue" required><button type="submit" class="w-full bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Save Lecture</button></form><div id="lectureMessage" class="mt-3 text-sm"></div></div></div>
+
+<div id="examModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white" id="examModalTitle">Schedule Exam</h3><button onclick="closeExamModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><form id="examForm"><input type="hidden" id="editExamId" value=""><input type="text" id="examTitle" placeholder="Exam Title" required><input type="date" id="examDate" required><input type="time" id="examTime" required><input type="text" id="examVenue" placeholder="Venue" required><button type="submit" class="w-full bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Save Exam</button></form><div id="examMessage" class="mt-3 text-sm"></div></div></div>
+
+<div id="editClassModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Edit Class</h3><button onclick="closeEditModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><input type="text" id="editClassName" placeholder="Class Name"><textarea id="editClassDescription" rows="4" placeholder="Class Description"></textarea><button onclick="saveClassEdits()" class="w-full bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Save Changes</button></div></div>
+
+<div id="membersModal" class="modal-overlay"><div class="modal-content max-h-[80vh] overflow-y-auto"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Class Members <span id="memberCount"></span></h3><button onclick="closeMembersModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div id="membersListModal" class="space-y-2"></div><button onclick="closeMembersModal()" class="w-full mt-4 glass-panel py-2 rounded-xl text-gray-400">Close</button></div></div>
+
+<div id="memberActionsModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Member Actions</h3><button onclick="closeMemberActionsModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div id="memberActionsContent"></div></div></div>
+
+<div id="personalInfoModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Personal Info</h3><button onclick="closePersonalInfoModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><input type="text" id="editFirstName" placeholder="First Name" value=""><input type="text" id="editLastName" placeholder="Last Name" value=""><button onclick="savePersonalInfo()" class="w-full bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Save Changes</button></div></div>
+
+<div id="securityModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Update Password</h3><button onclick="closeSecurityModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><input type="password" id="newPassword" placeholder="New Password"><input type="password" id="confirmPassword" placeholder="Confirm Password"><button onclick="updatePassword()" class="w-full bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Update Password</button><button onclick="openDeleteAccountModal()" class="w-full mt-3 bg-red-600/20 text-red-500 font-bold py-3 rounded-xl">Delete Account</button></div></div>
+
+<div id="deleteAccountModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white text-red-500">Delete Account</h3><button onclick="closeDeleteAccountModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div class="bg-red-500/10 p-4 rounded-xl mb-4"><p class="text-red-400 text-sm font-bold">WARNING: This action is permanent!</p><p class="text-gray-400 text-xs mt-2">All your data will be permanently deleted.</p></div><input type="password" id="deletePassword" placeholder="Enter your password to confirm"><button onclick="confirmDeleteAccount()" class="w-full bg-red-600 text-black font-bold py-3 rounded-xl btn-black-text">Permanently Delete Account</button></div></div>
+
+<div id="learnModal" class="modal-overlay"><div class="modal-content max-h-[80vh] overflow-y-auto"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Manage Learning Materials</h3><button onclick="closeLearnModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div class="mb-4 flex gap-2 border-b border-white/10"><button onclick="switchLearnTab('class')" id="learnClassTab" class="pb-2 px-3 font-bold tab-active">Class Materials</button><button onclick="switchLearnTab('public')" id="learnPublicTab" class="pb-2 px-3 font-bold text-gray-400">Public Materials</button></div><div id="learnContent" class="space-y-4"></div><button onclick="openAddLearnModal()" id="addLearnBtn" class="w-full mt-4 bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text"><i class="fas fa-plus"></i> Add Learning Material</button></div></div>
+
+<div id="addLearnModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Add Learning Material</h3><button onclick="closeAddLearnModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><select id="learnType" class="w-full mb-3"><option value="class">Class Material</option><option value="public">Public Material</option></select><input type="text" id="learnTitle" placeholder="Title" class="w-full"><textarea id="learnDescription" rows="3" placeholder="Description"></textarea><input type="text" id="learnLink" placeholder="Link (optional)"><button onclick="saveLearningMaterial()" class="w-full bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Save</button></div></div>
+
+<div id="subscriptionModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Subscription Plans</h3><button onclick="closeSubscriptionModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div id="subscriptionPlansList" class="space-y-3"></div></div></div>
+
+<div id="editPricesModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Edit Subscription Prices</h3><button onclick="closeEditPricesModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div id="priceEditList" class="space-y-3"></div><button onclick="saveAllPrices()" class="w-full mt-4 bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Save All Changes</button></div></div>
+
+<div id="linkDisclaimerModal" class="modal-overlay"><div class="modal-content"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold text-white">Disclaimer</h3><button onclick="closeDisclaimerModal()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button></div><div class="mb-4"><p class="text-gray-300 mb-3">Thesdel is not responsible for the content, accuracy, or security of external links. Proceed at your own discretion.</p><p class="text-xs text-gray-500">Thesdel does not endorse or verify third-party content.</p></div><div class="flex gap-3"><button onclick="closeDisclaimerModal()" class="flex-1 bg-gray-600 text-white font-bold py-2 rounded-xl">Reject</button><button onclick="proceedToLink()" class="flex-1 bg-orange-600 text-black font-bold py-2 rounded-xl btn-black-text">Proceed</button></div></div></div>
+
+</div></div>
+
+<div class="bottom-nav-fix"><div class="nav-container" id="bottomNav"></div></div>
+
+<script>
+const _URL="https://lgfyrlfjoazedwymjpfc.supabase.co";
+const _KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw";
+const sb=supabase.createClient(_URL,_KEY);
+let currentUser=null;
+let currentClass=null;
+let userRole=null;
+let currentPage='home';
+let timetableTab='lectures';
+let currentAnnouncement=null;
+let userProfileData=null;
+let userSubscription=null;
+let subscriptionPrices={};
+let pendingLinkUrl=null;
+let currentLearnTab='class';
+let lastAnnouncementCount=0;
+let announcementCheckInterval=null;
+
+function showToast(msg){const toast=document.createElement('div');toast.className='custom-toast';toast.innerText=msg;document.body.appendChild(toast);setTimeout(()=>toast.remove(),3000);}
+
+function customAlert(message,title="Notice",onConfirm=null){const overlay=document.createElement('div');overlay.className='custom-alert-overlay';overlay.innerHTML=`<div class="custom-alert"><h3>${title}</h3><p>${message}</p><button onclick="this.closest('.custom-alert-overlay').remove()">OK</button></div>`;document.body.appendChild(overlay);if(onConfirm)overlay.querySelector('button').onclick=()=>{overlay.remove();onConfirm();};}
+
+function customConfirm(message,title="Confirm",onConfirm,onCancel=null){const overlay=document.createElement('div');overlay.className='custom-alert-overlay';overlay.innerHTML=`<div class="custom-alert"><h3>${title}</h3><p>${message}</p><button class="confirm-btn">Confirm</button><button class="cancel-btn">Cancel</button></div>`;document.body.appendChild(overlay);overlay.querySelector('.confirm-btn').onclick=()=>{overlay.remove();if(onConfirm)onConfirm();};overlay.querySelector('.cancel-btn').onclick=()=>{overlay.remove();if(onCancel)onCancel();};}
+
+function generateClassCode(){const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';let result='';for(let i=0;i<10;i++){result+=chars.charAt(Math.floor(Math.random()*chars.length));}return'THESDEL-'+result;}
+
+async function initializeSubscriptionData(){const{data:prices}=await sb.from('subscription_prices').select('*');if(!prices||prices.length===0){await sb.from('subscription_prices').insert([{tier:'freemium',price:0},{tier:'basic',price:2000},{tier:'premium',price:5000}]);}}
+
+async function loadUserProfile(){const{data:{user}}=await sb.auth.getUser();if(!user)return;const{data:profile}=await sb.from('profile').select('first_name, last_name, subscription_tier').eq('id',user.id).single();userProfileData=profile;userSubscription=profile?.subscription_tier||'freemium';const firstName=profile?.first_name || user.email?.split('@')[0] || 'User';document.getElementById('userFirstName').innerText=firstName;return profile;}
+
+async function loadSubscriptionPrices(){const{data:prices}=await sb.from('subscription_prices').select('*');if(prices){subscriptionPrices={};prices.forEach(p=>{subscriptionPrices[p.tier]=p.price;});}}
+
+async function updateSubscriptionTier(tier){const{error}=await sb.from('profile').update({subscription_tier:tier}).eq('id',currentUser.id);if(error){customAlert('Error: '+error.message,"Error");return false;}userSubscription=tier;showToast(`Subscribed to ${tier} plan!`);return true;}
+
+function canCreateMultipleClasses(){return userSubscription==='premium'||userSubscription==='basic';}
+
+function navigateTo(page){if(currentPage===page)return;currentPage=page;const container=document.getElementById('main-content');container.style.animation='none';container.offsetHeight;container.style.animation='slideIn 0.3s ease-out';renderPage();updateBottomNavActive();refreshAllData();}
+
+function updateBottomNavActive(){document.querySelectorAll('#bottomNav a').forEach(link=>{const page=link.getAttribute('data-page');if(page===currentPage)link.classList.add('nav-active');else link.classList.remove('nav-active');});}
+
+async function refreshAllData(){if(currentClass){await loadAnnouncements();if(currentPage==='home'){if(userRole==='member'||userRole==='rep')await loadTodayLectures();}else if(currentPage==='timetable'){if(timetableTab==='lectures')await loadLecturesTimetable();else await loadExamsTimetable();}else if(currentPage==='learn'){await loadLearningMaterials();}}}
+
+function renderPage(){const container=document.getElementById('main-content');if(currentPage==='home')container.innerHTML=renderHomePage();else if(currentPage==='timetable')container.innerHTML=renderTimetablePage();else if(currentPage==='tests')container.innerHTML=renderTestsPage();else if(currentPage==='learn')container.innerHTML=renderLearnPage();else if(currentPage==='profile')container.innerHTML=renderProfilePage();attachPageEvents();}
+
+function renderHomePage(){
+    const firstName=userProfileData?.first_name||'';
+    if(userRole==='rep' || userRole==='assistant' || userRole==='member'){
+        return `<div class="glass-panel p-5 rounded-2xl mb-5"><div><h2 class="text-xl font-black">${escapeHtml(currentClass?.name||'Class')}</h2><p class="text-gray-400 text-sm">${escapeHtml(currentClass?.description||'No description')}</p>${userRole==='rep'?`<div class="flex gap-2 mt-3"><code class="text-xs bg-black/50 px-2 py-1 rounded font-mono text-orange-500">${currentClass?.class_code||''}</code><button onclick="openEditModal()" class="text-xs bg-white/10 px-2 py-1 rounded"><i class="fas fa-edit"></i></button><button onclick="openMembersModal()" class="text-xs bg-white/10 px-2 py-1 rounded"><i class="fas fa-users"></i></button><button onclick="shareInviteLink()" class="text-xs bg-orange-600 text-black px-2 py-1 rounded btn-black-text"><i class="fas fa-share-alt"></i> Share</button></div>`:userRole==='assistant'?`<div class="flex gap-2 mt-3"><code class="text-xs bg-black/50 px-2 py-1 rounded font-mono text-orange-500">${currentClass?.class_code||''}</code><button onclick="openMembersModal()" class="text-xs bg-white/10 px-2 py-1 rounded"><i class="fas fa-users"></i></button></div>`:`<div class="mt-3"><span class="text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded-full"><i class="fas fa-user-check"></i> Member</span><button onclick="leaveClass()" class="ml-2 text-xs bg-red-500/20 text-red-500 px-3 py-1 rounded-full"><i class="fas fa-sign-out-alt"></i> Leave</button></div>`}</div></div><div class="home-tab-header"><div class="home-tab active" onclick="switchHomeTab('lectures')" id="homeLecturesTab">📚 Today's Lectures</div><div class="home-tab" onclick="switchHomeTab('announcements')" id="homeAnnouncementsTab">📢 Announcements <span id="announcementDot" style="display:none" class="notification-dot"></span></div></div><div id="homeTabContent"><div class="text-center text-gray-400 py-8"><i class="fas fa-spinner fa-spin"></i> Loading...</div></div>`;
+    }else{
+        const canCreate=canCreateMultipleClasses();const classLimitMsg=!canCreate&&userSubscription!=='premium'?'<p class="text-xs text-gray-400 mt-2">Free users can only create/join 1 class. Upgrade to Premium for unlimited classes.</p>':'';
+        return `<div class="glass-panel p-8 rounded-2xl text-center"><div class="w-20 h-20 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-graduation-cap text-3xl text-orange-500"></i></div><h2 class="text-2xl font-black mb-2">Join or Create a Class</h2>${classLimitMsg}<div class="grid grid-cols-2 gap-4 mt-6"><button onclick="showJoinModal()" class="bg-blue-600 text-black font-bold py-3 rounded-xl btn-black-text">Join Class</button><button onclick="showCreateModal()" class="bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text">Create Class</button></div></div>`;
+    }
+}
+
+function switchHomeTab(tab){
+    document.getElementById('homeLecturesTab').classList.remove('active');
+    document.getElementById('homeAnnouncementsTab').classList.remove('active');
+    if(tab==='lectures'){
+        document.getElementById('homeLecturesTab').classList.add('active');
+        loadTodayLectures();
+    }else{
+        document.getElementById('homeAnnouncementsTab').classList.add('active');
+        displaySingleAnnouncement(currentAnnouncement);
+    }
+}
+
+function renderTimetablePage(){return `<div class="glass-panel p-5 rounded-2xl"><div class="flex gap-4 mb-5 border-b border-white/10"><button onclick="switchTimetableTab('lectures')" id="lecturesTab" class="pb-2 px-3 font-bold tab-active"> Lectures</button><button onclick="switchTimetableTab('exams')" id="examsTab" class="pb-2 px-3 font-bold text-gray-400"> Exams</button></div><div id="timetableContent"><div class="text-center text-gray-400 py-8"><i class="fas fa-spinner fa-spin"></i> Loading...</div></div></div>`;}
+function renderTestsPage(){return `<div class="glass-panel p-5 rounded-2xl text-center"><i class="fas fa-pen-fancy text-4xl text-orange-500 mb-4"></i><h2 class="text-xl font-bold mb-2">Tests Coming Soon</h2><p class="text-gray-400 text-sm">Class tests and quizzes will appear here.</p></div>`;}
+function renderLearnPage(){return `<div class="space-y-4"><div class="glass-panel p-5 rounded-2xl"><div class="flex gap-4 mb-4 border-b border-white/10"><button onclick="switchLearnPageTab('class')" id="learnPageClassTab" class="pb-2 px-3 font-bold tab-active">📘 Class Materials</button><button onclick="switchLearnPageTab('public')" id="learnPagePublicTab" class="pb-2 px-3 font-bold text-gray-400">🌍 Public Materials</button></div><div id="learningMaterialsList" class="space-y-3"></div></div><button onclick="openLearnModal()" id="manageMaterialsBtn" class="w-full glass-panel py-3 rounded-xl text-orange-500 font-bold"><i class="fas fa-plus"></i> Manage Materials</button></div>`;}
+function switchLearnPageTab(tab){currentLearnTab=tab;const classTab=document.getElementById('learnPageClassTab');const publicTab=document.getElementById('learnPagePublicTab');const manageBtn=document.getElementById('manageMaterialsBtn');if(tab==='class'){classTab.classList.add('tab-active');classTab.classList.remove('text-gray-400');publicTab.classList.remove('tab-active');publicTab.classList.add('text-gray-400');if(manageBtn)manageBtn.style.display='block';}else{publicTab.classList.add('tab-active');publicTab.classList.remove('text-gray-400');classTab.classList.remove('tab-active');classTab.classList.add('text-gray-400');if(manageBtn)manageBtn.style.display='none';}loadLearningMaterials();}
+
+function renderProfilePage(){
+    const firstName=userProfileData?.first_name||'User';
+    const lastName=userProfileData?.last_name||'';
+    const fullName=`${firstName} ${lastName}`.trim();
+    const initial=firstName.charAt(0).toUpperCase();
+    const tierDisplay={freemium:'Freemium',basic:'Basic',premium:'Premium'};
+    const roleText=userRole==='rep'?'Class Representative':userRole==='assistant'?'Assistant Rep':'Member';
+    const roleColor=userRole==='rep'?'role-rep-badge':'role-badge';
+    return `<div class="glass-panel p-5 rounded-2xl text-center mb-4"><div class="profile-initials">${initial}</div><h2 class="text-xl font-black">${escapeHtml(fullName)}</h2><p class="text-gray-400 text-sm">${currentUser?.email}</p><div class="flex justify-center gap-2 mt-2"><span class="text-xs ${roleColor} px-2 py-1 rounded-full font-bold"><i class="fas ${userRole==='rep'?'fa-crown':'fa-user-check'}"></i> ${roleText}</span><span class="text-xs bg-orange-500/20 text-orange-500 px-2 py-1 rounded-full"><i class="fas fa-tag"></i> ${tierDisplay[userSubscription]||'Freemium'}</span></div></div><div class="glass-panel p-5 rounded-2xl mb-4"><h3 class="font-bold mb-2">Class Info</h3><div class="space-y-2 text-sm"><div class="flex justify-between"><span class="text-gray-400">Class Name:</span><span>${currentClass?.name||'No class'}</span></div><div class="flex justify-between"><span class="text-gray-400">Class Code:</span><code class="text-orange-500">${currentClass?.class_code||'None'}</code></div><div class="flex justify-between"><span class="text-gray-400">Role:</span><span class="${roleColor} font-bold">${roleText}</span></div></div></div><div class="glass-panel p-5 rounded-2xl mb-4"><h3 class="font-bold mb-2">Account Settings</h3><div class="space-y-2"><div onclick="openPersonalInfoModal()" class="flex items-center justify-between p-3 bg-white/5 rounded-xl cursor-pointer edit-item"><div><i class="fas fa-user text-orange-500 mr-3"></i><span class="font-semibold">Personal Info</span></div><i class="fas fa-chevron-right text-gray-500"></i></div><div onclick="openSecurityModal()" class="flex items-center justify-between p-3 bg-white/5 rounded-xl cursor-pointer edit-item"><div><i class="fas fa-shield-alt text-blue-500 mr-3"></i><span class="font-semibold">Security</span></div><i class="fas fa-chevron-right text-gray-500"></i></div></div></div><div class="glass-panel p-5 rounded-2xl mb-4"><div class="flex justify-between items-center mb-2"><h3 class="font-bold">Subscription</h3><button onclick="openSubscriptionModal()" class="text-xs text-orange-500">Change Plan</button>${currentUser?.email==='admin@sdel.com'?`<button onclick="openEditPricesModal()" class="text-xs text-blue-500">Edit Prices</button>`:''}</div><div id="subscriptionDetails" class="space-y-2"></div></div><button onclick="logout()" class="w-full mt-4 bg-red-600/20 text-red-500 py-3 rounded-xl font-bold"><i class="fas fa-sign-out-alt"></i> Logout</button>`;
+}
+
+async function loadSubscriptionDisplay(){const container=document.getElementById('subscriptionDetails');if(!container)return;const tier=userSubscription||'freemium';const prices=await getSubscriptionPrices();const priceMap={freemium:0,basic:prices.basic||0,premium:prices.premium||0};container.innerHTML=`<div class="flex justify-between items-center p-3 bg-white/5 rounded-xl"><div><i class="fas ${tier==='premium'?'fa-gem text-orange-500':tier==='basic'?'fa-star text-blue-500':'fa-user text-gray-500'} mr-3"></i><span class="font-semibold capitalize">${tier}</span></div><div class="text-right"><span class="text-orange-500 font-bold">₦${priceMap[tier].toLocaleString()}</span><p class="text-xs text-gray-500">/month</p></div></div>`;}
+
+async function getSubscriptionPrices(){const{data:prices}=await sb.from('subscription_prices').select('*');const priceObj={};if(prices){prices.forEach(p=>{priceObj[p.tier]=p.price;});}else{priceObj.freemium=0;priceObj.basic=2000;priceObj.premium=5000;}return priceObj;}
+
+async function openSubscriptionModal(){const prices=await getSubscriptionPrices();const container=document.getElementById('subscriptionPlansList');const currentTier=userSubscription||'freemium';container.innerHTML=`<div class="p-4 rounded-xl ${currentTier==='freemium'?'bg-orange-500/20 border border-orange-500':'bg-white/5'} cursor-pointer" onclick="selectSubscriptionTier('freemium')"><div class="flex justify-between items-center"><div><h4 class="font-bold">Freemium</h4><p class="text-xs text-gray-400">Basic access, 1 class limit</p></div><div class="text-right"><span class="text-orange-500 font-bold">₦${prices.freemium.toLocaleString()}</span><p class="text-xs text-gray-500">/month</p></div></div>${currentTier==='freemium'?'<p class="text-xs text-green-500 mt-2">Current Plan</p>':''}</div><div class="p-4 rounded-xl ${currentTier==='basic'?'bg-orange-500/20 border border-orange-500':'bg-white/5'} cursor-pointer" onclick="selectSubscriptionTier('basic')"><div class="flex justify-between items-center"><div><h4 class="font-bold">Basic</h4><p class="text-xs text-gray-400">More features, multiple classes</p></div><div class="text-right"><span class="text-orange-500 font-bold">₦${prices.basic.toLocaleString()}</span><p class="text-xs text-gray-500">/month</p></div></div>${currentTier==='basic'?'<p class="text-xs text-green-500 mt-2">Current Plan</p>':''}</div><div class="p-4 rounded-xl ${currentTier==='premium'?'bg-orange-500/20 border border-orange-500':'bg-white/5'} cursor-pointer" onclick="selectSubscriptionTier('premium')"><div class="flex justify-between items-center"><div><h4 class="font-bold">Premium</h4><p class="text-xs text-gray-400">Unlimited classes, all features</p></div><div class="text-right"><span class="text-orange-500 font-bold">₦${prices.premium.toLocaleString()}</span><p class="text-xs text-gray-500">/month</p></div></div>${currentTier==='premium'?'<p class="text-xs text-green-500 mt-2">Current Plan</p>':''}</div>`;document.getElementById('subscriptionModal').style.display='flex';}
+
+async function selectSubscriptionTier(tier){if(tier===userSubscription){customAlert(`You are already on the ${tier} plan`,"Current Plan");return;}const prices=await getSubscriptionPrices();const price=tier==='freemium'?0:tier==='basic'?prices.basic:prices.premium;customConfirm(`Switch to ${tier} plan for ₦${price.toLocaleString()}/month?`,"Confirm Subscription",async()=>{window.open(`/payment.html?plan=${tier}&amount=${price}`,'_blank');});}
+function closeSubscriptionModal(){document.getElementById('subscriptionModal').style.display='none';}
+function openEditPricesModal(){if(currentUser?.email!=='admin@sdel.com'){customAlert("Only admin can edit prices","Access Denied");return;}loadPricesForEdit();}
+async function loadPricesForEdit(){const prices=await getSubscriptionPrices();const container=document.getElementById('priceEditList');container.innerHTML=`<div><label class="text-xs text-gray-400">Freemium Price (₦)</label><input type="number" id="price_freemium" value="${prices.freemium}" class="w-full"></div><div><label class="text-xs text-gray-400">Basic Price (₦)</label><input type="number" id="price_basic" value="${prices.basic}" class="w-full"></div><div><label class="text-xs text-gray-400">Premium Price (₦)</label><input type="number" id="price_premium" value="${prices.premium}" class="w-full"></div>`;document.getElementById('editPricesModal').style.display='flex';}
+function closeEditPricesModal(){document.getElementById('editPricesModal').style.display='none';}
+async function saveAllPrices(){const freemium=document.getElementById('price_freemium').value;const basic=document.getElementById('price_basic').value;const premium=document.getElementById('price_premium').value;for(const[tier,price]of Object.entries({freemium,basic,premium})){const{error}=await sb.from('subscription_prices').upsert({tier,price:parseInt(price)},{onConflict:'tier'});if(error){customAlert('Error: '+error.message,"Error");return;}}showToast('Prices updated!');closeEditPricesModal();}
+
+function switchTimetableTab(tab){timetableTab=tab;const lecturesTab=document.getElementById('lecturesTab');const examsTab=document.getElementById('examsTab');if(tab==='lectures'){lecturesTab.classList.add('tab-active');lecturesTab.classList.remove('text-gray-400');examsTab.classList.remove('tab-active');examsTab.classList.add('text-gray-400');loadLecturesTimetable();}else{examsTab.classList.add('tab-active');examsTab.classList.remove('text-gray-400');lecturesTab.classList.remove('tab-active');lecturesTab.classList.add('text-gray-400');loadExamsTimetable();}}
+
+function openLectureModal(lecture=null){if(lecture){document.getElementById('lectureModalTitle').innerText='Edit Lecture';document.getElementById('editLectureId').value=lecture.id;document.getElementById('lectureTitle').value=lecture.title;document.getElementById('lectureDay').value=lecture.day_of_week;document.getElementById('lectureTime').value=lecture.time;document.getElementById('lectureDuration').value=lecture.duration;document.getElementById('lectureVenue').value=lecture.venue;}else{document.getElementById('lectureModalTitle').innerText='Add Lecture';document.getElementById('editLectureId').value='';document.getElementById('lectureForm').reset();}document.getElementById('lectureModal').style.display='flex';}
+function closeLectureModal(){document.getElementById('lectureModal').style.display='none';document.getElementById('lectureForm').reset();}
+function openExamModal(exam=null){if(exam){document.getElementById('examModalTitle').innerText='Edit Exam';document.getElementById('editExamId').value=exam.id;document.getElementById('examTitle').value=exam.title;document.getElementById('examDate').value=exam.exam_date;document.getElementById('examTime').value=exam.time;document.getElementById('examVenue').value=exam.venue;}else{document.getElementById('examModalTitle').innerText='Schedule Exam';document.getElementById('editExamId').value='';document.getElementById('examForm').reset();}document.getElementById('examModal').style.display='flex';}
+function closeExamModal(){document.getElementById('examModal').style.display='none';document.getElementById('examForm').reset();}
+function openEditModal(){document.getElementById('editClassName').value=currentClass?.name||'';document.getElementById('editClassDescription').value=currentClass?.description||'';document.getElementById('editClassModal').style.display='flex';}
+function closeEditModal(){document.getElementById('editClassModal').style.display='none';}
+function openMembersModal(){document.getElementById('membersModal').style.display='flex';loadMembersList();}
+function closeMembersModal(){document.getElementById('membersModal').style.display='none';}
+
+let selectedMemberId=null,selectedMemberEmail=null;
+function openMemberActionsModal(memberId,memberEmail,isRep,isAssistant){selectedMemberId=memberId;selectedMemberEmail=memberEmail;const container=document.getElementById('memberActionsContent');let actions='<div class="space-y-3">';if(userRole==='rep'&&memberId!==currentUser?.id){if(!isAssistant)actions+=`<button onclick="makeAssistantFromModal()" class="w-full bg-blue-600 text-black font-bold py-3 rounded-xl btn-black-text"><i class="fas fa-user-shield"></i> Make Assistant Rep</button>`;actions+=`<button onclick="removeMemberFromModal()" class="w-full bg-red-600 text-black font-bold py-3 rounded-xl btn-black-text"><i class="fas fa-user-minus"></i> Remove Member</button>`;actions+=`<button onclick="transferRepFromModal()" class="w-full bg-orange-600 text-black font-bold py-3 rounded-xl btn-black-text"><i class="fas fa-crown"></i> Transfer Class Rep</button>`;}actions+=`<button onclick="closeMemberActionsModal()" class="w-full glass-panel py-3 rounded-xl text-gray-400">Cancel</button></div>`;container.innerHTML=actions;document.getElementById('memberActionsModal').style.display='flex';}
+function closeMemberActionsModal(){document.getElementById('memberActionsModal').style.display='none';selectedMemberId=null;}
+async function makeAssistantFromModal(){if(!selectedMemberId)return;await sb.from('class_assistants').insert([{class_id:currentClass.id,user_id:selectedMemberId,added_by:currentUser.id}]);showToast('Assistant rep added!');closeMemberActionsModal();loadMembersList();}
+async function removeMemberFromModal(){customConfirm(`Remove ${selectedMemberEmail||'this member'}?`,"Confirm",async()=>{await sb.from('class_members').delete().eq('class_id',currentClass.id).eq('user_id',selectedMemberId);await sb.from('class_assistants').delete().eq('class_id',currentClass.id).eq('user_id',selectedMemberId);showToast('Member removed!');closeMemberActionsModal();loadMembersList();});}
+async function transferRepFromModal(){customConfirm(`Transfer ownership to ${selectedMemberEmail||'this member'}?`,"Confirm",async()=>{await sb.from('classes').update({created_by:selectedMemberId}).eq('id',currentClass.id);await sb.from('class_assistants').delete().eq('class_id',currentClass.id).eq('user_id',selectedMemberId);showToast('Rep transferred! Reloading...');setTimeout(()=>location.reload(),1500);});}
+
+async function saveClassEdits(){const newName=document.getElementById('editClassName').value.trim();const newDesc=document.getElementById('editClassDescription').value.trim();if(!newName){customAlert("Class name required","Error");return;}const{error}=await sb.from('classes').update({name:newName,description:newDesc}).eq('id',currentClass.id);if(error){customAlert('Error: '+error.message,"Error");}else{currentClass.name=newName;currentClass.description=newDesc;closeEditModal();renderPage();showToast('Class updated!');}}
+
+// CORRECTION 4: Updated deleteClass function with proper rules
+async function deleteClass(){
+    const{data:members}=await sb.from('class_members').select('*').eq('class_id',currentClass.id);
+    const memberCount = members?.length || 0;
     
-    <style>
-        * { font-family: 'Poppins', sans-serif; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; box-sizing: border-box; }
-        body { background-color: #000; color: #fff; transition: background-color 0.3s; padding-bottom: 85px; }
-        .text-sdel { color: #FF6600; }
-        .bg-sdel { background-color: #FF6600; }
-        .card-glass { background: rgba(18, 18, 18, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
-        .header-text { font-weight: 900; letter-spacing: -0.02em; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
+    if(memberCount === 1){
+        // Only CR alone - delete directly
+        customConfirm(`Delete class "${currentClass.name}"?`, "Confirm", async()=>{
+            await sb.from('classes').delete().eq('id', currentClass.id);
+            showToast('Class deleted!');
+            setTimeout(()=>location.reload(), 1500);
+        });
+    } else if(memberCount >= 2){
+        // 2+ members - must transfer CR first
+        customAlert("You must transfer Class Rep role to another member before deleting this class.", "Cannot Delete");
+        return;
+    }
+}
+
+// CORRECTION 11: Updated leaveClass function with localStorage tracking
+async function leaveClass(){
+    customConfirm('Leave this class? You can rejoin with the invite link.',"Confirm Leave",async()=>{
+        // Delete membership
+        await sb.from('class_members').delete().eq('class_id',currentClass.id).eq('user_id',currentUser.id);
+        await sb.from('class_assistants').delete().eq('class_id',currentClass.id).eq('user_id',currentUser.id);
         
-        /* Story Rings */
-        .ring-blue-rotate { border-color: transparent !important; background: linear-gradient(#000, #000) padding-box, conic-gradient(#3b82f6, transparent) border-box; border: 2px solid transparent; animation: spin 2s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes gold-glow { 0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); } }
-        .sdel-pulse { animation: gold-glow 2s infinite; }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-        ::-webkit-scrollbar-thumb { background: #FF6600; border-radius: 10px; }
-        
-        /* Sunlight Mode */
-        .sunlight-mode body { background-color: #f5f5f5; color: #121212; }
-        .sunlight-mode .card-glass { background: rgba(255,255,255,0.9); border-color: #e4e4e7; }
-        .sunlight-mode .bg-black\/90 { background-color: rgba(255,255,255,0.9); }
-        .sunlight-mode .border-white\/10 { border-color: #e4e4e7; }
-        .sunlight-mode .text-white { color: #121212; }
-        .sunlight-mode .bg-white\/5 { background-color: #e4e4e7; }
-        .sunlight-mode .text-zinc-500 { color: #71717a; }
-        
-        /* Stats Card */
-        .stat-card {
-            background: rgba(255,255,255,0.03);
-            border-radius: 20px;
-            padding: 16px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-        .sunlight-mode .stat-card { background: white; border-color: #e4e4e7; }
-        
-        /* Ad Banner */
-        #ad-banner {
-            transition: opacity 0.5s ease;
+        // Mark that user left to prevent counting in "joined classes"
+        const leftClasses = JSON.parse(localStorage.getItem('left_classes') || '[]');
+        if(!leftClasses.includes(currentClass.id)){
+            leftClasses.push(currentClass.id);
+            localStorage.setItem('left_classes', JSON.stringify(leftClasses));
         }
         
-        /* Order Items */
-        .order-item {
-            transition: all 0.2s;
-        }
-        .order-item:active { transform: scale(0.98); }
-        
-        /* Modal */
-        .modal-overlay {
-            background: rgba(0,0,0,0.95);
-            backdrop-filter: blur(20px);
-        }
-        .sunlight-mode .modal-overlay { background: rgba(255,255,255,0.95); }
+        location.reload();
+    });
+}
 
-        /* ========== BOTTOM NAVIGATION - STRAIGHT LINE, WARM SOFT COLORS, CUSTOM ICONS ========== */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: rgba(20, 15, 12, 0.92);
-            backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(255, 140, 60, 0.25);
-            padding: 10px 20px 20px;
-            z-index: 1000;
-            transition: all 0.3s ease;
-            /* Warm gradient background that softly shifts colors */
-            background: linear-gradient(135deg, #2a1a0e, #1f1408, #2d1c0f);
-            background-size: 200% 200%;
-            animation: warmBottomShift 12s ease infinite;
-        }
+async function loadMembersList(){const{data:members}=await sb.from('class_members').select('user_id,user_email').eq('class_id',currentClass.id);const uniqueMembers=[];const seen=new Set();for(const member of members||[]){if(!seen.has(member.user_id)){seen.add(member.user_id);uniqueMembers.push(member);}}const{data:assistants}=await sb.from('class_assistants').select('user_id').eq('class_id',currentClass.id);const assistantIds=new Set(assistants?.map(a=>a.user_id)||[]);const container=document.getElementById('membersListModal');const memberCountSpan=document.getElementById('memberCount');if(memberCountSpan)memberCountSpan.innerText=`(${uniqueMembers.length})`;if(!uniqueMembers||uniqueMembers.length===0){container.innerHTML='<p class="text-gray-400">No members yet</p>';return;}container.innerHTML=uniqueMembers.map(m=>`<div class="member-card glass-panel p-3 rounded-xl flex justify-between items-center" onclick="openMemberActionsModal('${m.user_id}','${escapeHtml(m.user_email)}',${m.user_id===currentClass?.created_by},${assistantIds.has(m.user_id)})"><div><p class="font-medium">${escapeHtml(m.user_email?.split('@')[0]||'User')}</p><p class="text-xs text-gray-500">${escapeHtml(m.user_email)}</p>${m.user_id===currentClass?.created_by?'<span class="text-xs text-orange-500 mt-1 inline-block"> Class Rep</span>':(assistantIds.has(m.user_id)?'<span class="text-xs text-blue-500 mt-1 inline-block"> Assistant Rep</span>':'')}</div><i class="fas fa-chevron-right text-gray-500"></i></div>`).join('');}
 
-        /* Soft shifting animation for bottom nav background */
-        @keyframes warmBottomShift {
-            0% {
-                background-position: 0% 50%;
-                background-color: #2a1a0e;
-            }
-            50% {
-                background-position: 100% 50%;
-                background-color: #3d2616;
-            }
-            100% {
-                background-position: 0% 50%;
-                background-color: #2a1a0e;
-            }
-        }
+document.getElementById('lectureForm')?.addEventListener('submit',async(e)=>{e.preventDefault();const id=document.getElementById('editLectureId').value;const title=document.getElementById('lectureTitle').value.trim();const day_of_week=document.getElementById('lectureDay').value;const time=document.getElementById('lectureTime').value;const duration=document.getElementById('lectureDuration').value.trim();const venue=document.getElementById('lectureVenue').value.trim();if(!title||!day_of_week||!time||!duration||!venue){document.getElementById('lectureMessage').innerHTML='<div class="text-red-500">All fields required</div>';return;}let error;if(id){const{error:updateError}=await sb.from('class_lectures').update({title,day_of_week,time,duration,venue}).eq('id',id);error=updateError;}else{const{error:insertError}=await sb.from('class_lectures').insert([{class_id:currentClass.id,title,day_of_week,time,duration,venue}]);error=insertError;}if(error){document.getElementById('lectureMessage').innerHTML='<div class="text-red-500">Error: '+error.message+'</div>';}else{closeLectureModal();if(timetableTab==='lectures')loadLecturesTimetable();showToast(id?'Lecture updated!':'Lecture added!');}});
 
-        /* Sunlight mode adjustment for bottom nav */
-        .sunlight-mode .bottom-nav {
-            background: linear-gradient(135deg, #fff0e6, #ffe6d9, #fff0e6);
-            background-size: 200% 200%;
-            animation: warmBottomShiftLight 12s ease infinite;
-            border-top: 1px solid rgba(255, 102, 0, 0.3);
-        }
+document.getElementById('examForm')?.addEventListener('submit',async(e)=>{e.preventDefault();const id=document.getElementById('editExamId').value;const title=document.getElementById('examTitle').value.trim();const exam_date=document.getElementById('examDate').value;const time=document.getElementById('examTime').value;const venue=document.getElementById('examVenue').value.trim();if(!title||!exam_date||!time||!venue){document.getElementById('examMessage').innerHTML='<div class="text-red-500">All fields required</div>';return;}let error;if(id){const{error:updateError}=await sb.from('class_exams').update({title,exam_date,time,venue}).eq('id',id);error=updateError;}else{const{error:insertError}=await sb.from('class_exams').insert([{class_id:currentClass.id,title,exam_date,time,venue}]);error=insertError;}if(error){document.getElementById('examMessage').innerHTML='<div class="text-red-500">Error: '+error.message+'</div>';}else{closeExamModal();if(timetableTab==='exams')loadExamsTimetable();showToast(id?'Exam updated!':'Exam scheduled!');}});
 
-        @keyframes warmBottomShiftLight {
-            0% { background-position: 0% 50%; background-color: #fff0e6; }
-            50% { background-position: 100% 50%; background-color: #ffe0d0; }
-            100% { background-position: 0% 50%; background-color: #fff0e6; }
-        }
+let lastAnnouncementId=null;
 
-        /* Nav container - straight line horizontal layout */
-        .nav-container {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: space-around;
-            gap: 4px;
-            width: 100%;
-            max-width: 500px;
-            margin: 0 auto;
-        }
+async function loadAnnouncements(){if(!currentClass)return;const now=new Date().toISOString();const{data:announcement}=await sb.from('class_announcements').select('*').eq('class_id',currentClass.id).gte('end_time',now).order('created_at',{ascending:false}).limit(1).single();currentAnnouncement=announcement;if(document.getElementById('homeTabContent') && document.getElementById('homeAnnouncementsTab')?.classList.contains('active')){displaySingleAnnouncement(announcement);}const dot=document.getElementById('announcementDot');if(dot){if(lastAnnouncementId===null)lastAnnouncementId=announcement?.id;else if(lastAnnouncementId!==announcement?.id && announcement){dot.style.display='inline-block';setTimeout(()=>{if(dot)dot.style.display='none';},5000);}else{dot.style.display='none';}}}
+function displaySingleAnnouncement(announcement){const container=document.getElementById('homeTabContent');if(!container)return;if(!announcement){container.innerHTML='<div class="text-center text-gray-400 py-8"><i class="fas fa-bullhorn"></i> No active announcements</div>';return;}const timeSince=Math.floor((new Date()-new Date(announcement.created_at))/60000);const canEdit=userRole==='rep'&&timeSince<=15;container.innerHTML=`<div class="announcement-card"><div class="flex justify-between items-start mb-2 flex-wrap gap-2"><h4 class="font-bold text-orange-500 text-sm"><i class="fas fa-bullhorn"></i> ${escapeHtml(announcement.title)}</h4>${canEdit?`<div class="flex gap-2"><button onclick="editAnnouncement(${announcement.id})" class="text-blue-500 text-xs px-2 py-1 bg-blue-500/10 rounded"><i class="fas fa-edit"></i> Edit</button><button onclick="deleteAnnouncementImmediately(${announcement.id})" class="text-red-500 text-xs px-2 py-1 bg-red-500/10 rounded"><i class="fas fa-trash"></i> Delete</button></div>`:(userRole==='rep'?`<button onclick="deleteAnnouncementImmediately(${announcement.id})" class="text-red-500 text-xs px-2 py-1 bg-red-500/10 rounded"><i class="fas fa-trash"></i> Delete</button>`:'')}</div><p class="text-sm break-words">${escapeHtml(announcement.content)}</p><p class="text-xs text-gray-500 mt-2"><i class="far fa-clock"></i> Expires: ${new Date(announcement.end_time).toLocaleString()}</p></div>`;}
+async function deleteAnnouncementImmediately(id){customConfirm("Delete this announcement immediately? All members will no longer see it.","Confirm",async()=>{await sb.from('class_announcements').delete().eq('id',id);showToast('Announcement deleted!');loadAnnouncements();});}
+function openAnnouncementModal(announcement=null){if(announcement){document.getElementById('announcementModalTitle').innerText='Edit Announcement';document.getElementById('editAnnouncementId').value=announcement.id;document.getElementById('announcementTitle').value=announcement.title;document.getElementById('announcementText').value=announcement.content;document.getElementById('announcementEnd').value=announcement.end_time.slice(0,16);}else{document.getElementById('announcementModalTitle').innerText='Make Announcement';document.getElementById('editAnnouncementId').value='';document.getElementById('announcementTitle').value='';document.getElementById('announcementText').value='';document.getElementById('announcementEnd').value='';}document.getElementById('announcementModal').style.display='flex';}
+function closeAnnouncementModal(){document.getElementById('announcementModal').style.display='none';}
+async function saveAnnouncement(){const id=document.getElementById('editAnnouncementId').value;const title=document.getElementById('announcementTitle').value.trim();const content=document.getElementById('announcementText').value.trim();const end_time=document.getElementById('announcementEnd').value;if(!title||!content||!end_time){customAlert("All fields required","Error");return;}const start_time=new Date().toISOString();let error;if(id){const{error:updateError}=await sb.from('class_announcements').update({title,content,start_time,end_time}).eq('id',id);error=updateError;}else{const{data:existing}=await sb.from('class_announcements').select('id').eq('class_id',currentClass.id).gte('end_time',new Date().toISOString());if(existing&&existing.length>0){customAlert("You already have an active announcement. Delete it first to post a new one.","Cannot Post");return;}const{error:insertError}=await sb.from('class_announcements').insert([{class_id:currentClass.id,title,content,start_time,end_time,created_by:currentUser.id}]);error=insertError;}if(error){customAlert('Error: '+error.message,"Error");}else{closeAnnouncementModal();loadAnnouncements();showToast(id?'Announcement updated!':'Announcement posted!');if(id)lastAnnouncementId=null;}}
+async function editAnnouncement(id){const{data:ann}=await sb.from('class_announcements').select('*').eq('id',id).single();if(ann)openAnnouncementModal(ann);}
 
-        /* Individual nav item - pure straight line */
-        .nav-item-bottom {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            flex: 1;
-            text-decoration: none;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 6px 0 4px;
-            border-radius: 40px;
-            transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
-            color: rgba(255, 200, 160, 0.7);
-        }
+// CORRECTION 10: Fixed URL handling for links with disclaimer
+function openLinkWithDisclaimer(url){
+    // Ensure URL is absolute
+    let finalUrl = url;
+    if(url && !url.startsWith('http://') && !url.startsWith('https://')){
+        finalUrl = 'https://' + url;
+    }
+    pendingLinkUrl = finalUrl;
+    document.getElementById('linkDisclaimerModal').style.display='flex';
+}
+function closeDisclaimerModal(){pendingLinkUrl=null;document.getElementById('linkDisclaimerModal').style.display='none';}
+function proceedToLink(){if(pendingLinkUrl){window.open(pendingLinkUrl,'_blank');closeDisclaimerModal();}}
 
-        /* Nav icon styling - crisp vector-only (no emojis) */
-        .nav-item-bottom i {
-            font-size: 22px;
-            transition: transform 0.2s ease, color 0.2s;
-            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
-        }
+async function loadLecturesTimetable(){const container=document.getElementById('timetableContent');const{data:lectures}=await sb.from('class_lectures').select('*').eq('class_id',currentClass?.id).order('day_of_week',{ascending:true}).order('time',{ascending:true});if(!lectures||lectures.length===0){container.innerHTML=`<div class="text-center text-gray-400 py-8"><p>No lectures scheduled</p>${(userRole==='rep'||userRole==='assistant')?'<button onclick="openLectureModal()" class="mt-4 bg-orange-600 text-black font-bold px-4 py-2 rounded-lg text-sm btn-black-text"><i class="fas fa-plus"></i> Add Lecture</button>':''}</div>`;return;}const days=['Monday','Tuesday','Wednesday','Thursday','Friday'];let html='';days.forEach(day=>{const dayLectures=lectures.filter(l=>l.day_of_week===day);if(dayLectures.length>0){html+=`<div class="mb-5"><h3 class="font-bold mb-2 text-orange-500">${day}</h3><div class="space-y-2">`;dayLectures.forEach(lecture=>{let displayTime=lecture.time;if(lecture.time&&!lecture.time.includes('AM')&&!lecture.time.includes('PM')){const[hour,minute]=lecture.time.split(':');let h=parseInt(hour);const ampm=h>=12?'PM':'AM';h=h%12||12;displayTime=`${h}:${minute} ${ampm}`;}html+=`<div class="glass-panel p-3 rounded-xl flex justify-between items-center"><div><h4 class="font-bold text-sm">${escapeHtml(lecture.title)}</h4><p class="text-xs text-gray-400">${displayTime} • ${lecture.duration} • ${escapeHtml(lecture.venue||'Online')}</p></div><div class="flex gap-2">${(userRole==='rep'||userRole==='assistant')?`<button onclick="openLectureModal(${JSON.stringify(lecture).replace(/"/g,'&quot;')})" class="text-blue-500 text-sm"><i class="fas fa-edit"></i></button><button onclick="deleteLecture(${lecture.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>`:''}</div></div>`;});html+=`</div></div>`;}});if(userRole==='rep'||userRole==='assistant'){html+=`<button onclick="openLectureModal()" class="w-full mt-4 bg-orange-600 text-black font-bold py-2 rounded-xl btn-black-text"><i class="fas fa-plus"></i> Add Lecture</button>`;}container.innerHTML=html;}
+async function loadExamsTimetable(){const container=document.getElementById('timetableContent');const{data:exams}=await sb.from('class_exams').select('*').eq('class_id',currentClass?.id).order('exam_date',{ascending:true});if(!exams||exams.length===0){container.innerHTML=`<div class="text-center text-gray-400 py-8"><p>No exams scheduled</p>${(userRole==='rep'||userRole==='assistant')?'<button onclick="openExamModal()" class="mt-4 bg-orange-600 text-black font-bold px-4 py-2 rounded-lg text-sm btn-black-text"><i class="fas fa-plus"></i> Schedule Exam</button>':''}</div>`;return;}let html=`<div class="space-y-3">`;exams.forEach(exam=>{const examDate=new Date(exam.exam_date);const isPast=examDate<new Date();let displayTime=exam.time;if(exam.time&&!exam.time.includes('AM')&&!exam.time.includes('PM')){const[hour,minute]=exam.time.split(':');let h=parseInt(hour);const ampm=h>=12?'PM':'AM';h=h%12||12;displayTime=`${h}:${minute} ${ampm}`;}html+=`<div class="glass-panel p-4 rounded-xl ${isPast?'opacity-50':''}"><div class="flex justify-between items-start"><div><h4 class="font-bold">${escapeHtml(exam.title)}</h4><p class="text-xs text-gray-400 mt-1"><i class="far fa-calendar-alt"></i> ${new Date(exam.exam_date).toLocaleDateString()} • <i class="far fa-clock"></i> ${displayTime} • <i class="fas fa-map-marker-alt"></i> ${escapeHtml(exam.venue||'Online')}</p></div><div class="flex gap-2">${(userRole==='rep'||userRole==='assistant')?`<button onclick="openExamModal(${JSON.stringify(exam).replace(/"/g,'&quot;')})" class="text-blue-500 text-sm"><i class="fas fa-edit"></i></button><button onclick="deleteExam(${exam.id})" class="text-red-500 text-sm"><i class="fas fa-trash"></i></button>`:''}</div></div></div>`;});html+=`</div>`;if(userRole==='rep'||userRole==='assistant'){html+=`<button onclick="openExamModal()" class="w-full mt-4 bg-orange-600 text-black font-bold py-2 rounded-xl btn-black-text"><i class="fas fa-plus"></i> Schedule Exam</button>`;}container.innerHTML=html;}
+function deleteLecture(id){customConfirm("Delete this lecture?","Confirm",()=>{sb.from('class_lectures').delete().eq('id',id).then(()=>loadLecturesTimetable());});}
+function deleteExam(id){customConfirm("Delete this exam?","Confirm",()=>{sb.from('class_exams').delete().eq('id',id).then(()=>loadExamsTimetable());});}
 
-        .nav-item-bottom span {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-            transition: all 0.2s;
-        }
+async function loadLearningMaterials(){if(!currentClass&&currentLearnTab!=='public')return;const container=document.getElementById('learningMaterialsList');if(!container)return;let materials=[];if(currentLearnTab==='class'){if(currentClass){const{data}=await sb.from('class_learning').select('*').eq('class_id',currentClass.id).order('created_at',{ascending:false});materials=data||[];}}else{const{data}=await sb.from('public_learning').select('*').order('created_at',{ascending:false});materials=data||[];}if(!materials||materials.length===0){container.innerHTML='<p class="text-gray-400 text-center py-4"><i class="fas fa-book-open"></i> No learning materials yet</p>';return;}container.innerHTML=materials.map(m=>`<div class="learn-material-card"><h4 class="font-bold text-orange-500"><i class="fas fa-file-alt"></i> ${escapeHtml(m.title)}</h4><p class="text-sm text-gray-300 mt-1 break-words">${escapeHtml(m.description)}</p>${m.link?`<a href="#" onclick="openLinkWithDisclaimer('${escapeHtml(m.link)}'); return false;" class="open-link-btn"><i class="fas fa-external-link-alt"></i> Open Link</a>`:''}</div>`).join('');}
+async function openLearnModal(){await loadLearnMaterialsList();document.getElementById('learnModal').style.display='flex';}
+function closeLearnModal(){document.getElementById('learnModal').style.display='none';}
+function switchLearnTab(tab){currentLearnTab=tab;const classTab=document.getElementById('learnClassTab');const publicTab=document.getElementById('learnPublicTab');const addBtn=document.getElementById('addLearnBtn');if(tab==='class'){classTab.classList.add('tab-active');classTab.classList.remove('text-gray-400');publicTab.classList.remove('tab-active');publicTab.classList.add('text-gray-400');if(addBtn)addBtn.style.display='block';}else{publicTab.classList.add('tab-active');publicTab.classList.remove('text-gray-400');classTab.classList.remove('tab-active');classTab.classList.add('text-gray-400');if(addBtn)addBtn.style.display='block';}loadLearnMaterialsList();}
+async function loadLearnMaterialsList(){if(!currentClass&&currentLearnTab==='class')return;const container=document.getElementById('learnContent');let materials=[];if(currentLearnTab==='class'){if(currentClass){const{data}=await sb.from('class_learning').select('*').eq('class_id',currentClass.id).order('created_at',{ascending:false});materials=data||[];}}else{const{data}=await sb.from('public_learning').select('*').order('created_at',{ascending:false});materials=data||[];}if(!materials||materials.length===0){container.innerHTML='<p class="text-gray-400 text-center py-4">No materials added yet</p>';return;}container.innerHTML=materials.map(m=>`<div class="glass-panel p-3 rounded-xl"><div class="flex justify-between items-start"><div class="flex-1"><h4 class="font-bold text-orange-500"><i class="fas fa-file-alt"></i> ${escapeHtml(m.title)}</h4><p class="text-sm text-gray-300 break-words">${escapeHtml(m.description)}</p>${m.link?`<a href="#" onclick="openLinkWithDisclaimer('${escapeHtml(m.link)}'); return false;" class="open-link-btn inline-block mt-2 text-orange-500 text-xs"><i class="fas fa-external-link-alt"></i> Open Link</a>`:''}</div><button onclick="deleteLearningMaterial(${m.id})" class="text-red-500 ml-2"><i class="fas fa-trash"></i></button></div></div>`).join('');}
+function openAddLearnModal(){document.getElementById('addLearnModal').style.display='flex';document.getElementById('learnType').value='class';}
+function closeAddLearnModal(){document.getElementById('addLearnModal').style.display='none';document.getElementById('learnTitle').value='';document.getElementById('learnDescription').value='';document.getElementById('learnLink').value='';}
+async function saveLearningMaterial(){const type=document.getElementById('learnType').value;const title=document.getElementById('learnTitle').value.trim();const description=document.getElementById('learnDescription').value.trim();const link=document.getElementById('learnLink').value.trim();if(!title||!description){customAlert("Title and description required","Error");return;}let error;if(type==='class'){if(!currentClass){customAlert("No class selected","Error");return;}const{error:insertError}=await sb.from('class_learning').insert([{class_id:currentClass.id,title,description,link,created_by:currentUser.id}]);error=insertError;}else{const{error:insertError}=await sb.from('public_learning').insert([{title,description,link,created_by:currentUser.id}]);error=insertError;}if(error){customAlert('Error: '+error.message,"Error");}else{closeAddLearnModal();await loadLearnMaterialsList();if(currentLearnTab===type||(type==='class'&&currentLearnTab==='class'))loadLearningMaterials();showToast('Learning material added!');}}
+async function deleteLearningMaterial(id){let table=currentLearnTab==='class'?'class_learning':'public_learning';customConfirm("Delete this material?","Confirm",async()=>{await sb.from(table).delete().eq('id',id);await loadLearnMaterialsList();if(currentLearnTab===currentLearnTab)loadLearningMaterials();showToast('Deleted!');});}
 
-        /* Active state - warm orange glow */
-        .nav-item-bottom.active {
-            color: #FF884D;
-            transform: translateY(-2px);
-        }
+function openPersonalInfoModal(){if(userProfileData){document.getElementById('editFirstName').value=userProfileData.first_name||'';document.getElementById('editLastName').value=userProfileData.last_name||'';}document.getElementById('personalInfoModal').style.display='flex';}
+function closePersonalInfoModal(){document.getElementById('personalInfoModal').style.display='none';}
+async function savePersonalInfo(){const firstName=document.getElementById('editFirstName').value.trim();const lastName=document.getElementById('editLastName').value.trim();if(!firstName){customAlert("First name required","Error");return;}const{error}=await sb.from('profile').update({first_name:firstName,last_name:lastName}).eq('id',currentUser.id);if(error){customAlert('Error: '+error.message,"Error");}else{userProfileData={...userProfileData,first_name:firstName,last_name:lastName};await loadUserProfile();closePersonalInfoModal();renderPage();showToast('Personal info updated!');}}
+function openSecurityModal(){document.getElementById('securityModal').style.display='flex';document.getElementById('newPassword').value='';document.getElementById('confirmPassword').value='';}
+function closeSecurityModal(){document.getElementById('securityModal').style.display='none';}
+async function updatePassword(){const newPassword=document.getElementById('newPassword').value;const confirmPassword=document.getElementById('confirmPassword').value;if(!newPassword||!confirmPassword){customAlert("Please fill in both fields","Error");return;}if(newPassword!==confirmPassword){customAlert("Passwords do not match","Error");return;}if(newPassword.length<6){customAlert("Password must be at least 6 characters","Error");return;}const{error}=await sb.auth.updateUser({password:newPassword});if(error){customAlert('Error: '+error.message,"Error");}else{closeSecurityModal();showToast('Password updated!');}}
+function openDeleteAccountModal(){document.getElementById('deleteAccountModal').style.display='flex';document.getElementById('deletePassword').value='';}
+function closeDeleteAccountModal(){document.getElementById('deleteAccountModal').style.display='none';}
+async function confirmDeleteAccount(){const password=document.getElementById('deletePassword').value;if(!password){customAlert("Please enter your password","Error");return;}const{error:signInError}=await sb.auth.signInWithPassword({email:currentUser.email,password:password});if(signInError){customAlert("Incorrect password","Error");return;}customConfirm("Permanently delete your account? This cannot be undone.","Final Warning",async()=>{await sb.from('profile').delete().eq('id',currentUser.id);await sb.auth.signOut();localStorage.clear();sessionStorage.clear();window.location.href='login.html?deleted=true';});}
 
-        .nav-item-bottom.active i {
-            color: #FF884D;
-            text-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
-            transform: scale(1.05);
-        }
+async function logout(){customConfirm("Logout of your account?","Confirm",async()=>{await sb.auth.signOut();localStorage.clear();sessionStorage.clear();window.location.href='login.html';});}
+function attachPageEvents(){if(currentPage==='home' && (userRole==='member'||userRole==='rep'||userRole==='assistant')){switchHomeTab('lectures');}if(currentPage==='timetable'){if(timetableTab==='lectures')loadLecturesTimetable();else loadExamsTimetable();}if(currentClass&&(userRole==='rep'||userRole==='member'||userRole==='assistant'))loadAnnouncements();if(currentPage==='learn'){currentLearnTab='class';loadLearningMaterials();}if(currentPage==='profile')loadSubscriptionDisplay();}
 
-        .nav-item-bottom.active span {
-            color: #FF884D;
-            font-weight: 800;
-        }
+function getLectureStatus(lectureTime, lectureDuration){const now=new Date();const[hour,minute]=lectureTime.split(':');let lectureHour=parseInt(hour);let lectureMinute=parseInt(minute)||0;const lectureStart=new Date();lectureStart.setHours(lectureHour,lectureMinute,0,0);const lectureEnd=new Date(lectureStart);const durationMatch=lectureDuration.match(/(\d+)/);if(durationMatch){lectureEnd.setMinutes(lectureEnd.getMinutes()+parseInt(durationMatch[0]));}if(now>lectureEnd)return'completed';if(now>=lectureStart && now<=lectureEnd)return'live';return'upcoming';}
 
-        /* Hover / tap feedback */
-        .nav-item-bottom:hover {
-            background: rgba(255, 140, 60, 0.15);
-            border-radius: 40px;
-            transform: translateY(-1px);
-        }
+function formatTimeUntil(startTime){const now=new Date();const diff=startTime-now;if(diff<=0)return'Starting now';const hours=Math.floor(diff/(1000*60*60));const minutes=Math.floor((diff%(1000*60*60))/(1000*60));if(hours>0)return`${hours}h ${minutes}m`;return`${minutes}m`;}
 
-        .nav-item-bottom:active {
-            transform: scale(0.96);
-            transition: 0.05s;
-        }
+async function loadTodayLectures(){const firstName=userProfileData?.first_name||'';const today=new Date().toLocaleDateString('en-US',{weekday:'long'});const{data:lectures}=await sb.from('class_lectures').select('*').eq('class_id',currentClass?.id).eq('day_of_week',today);const container=document.getElementById('homeTabContent');if(!container)return;if(!lectures||lectures.length===0){container.innerHTML=`<div class="text-center text-gray-400 py-8"><i class="fas fa-calendar-day"></i> ${firstName ? firstName+', ' : ''}no lectures today</div>`;return;}const now=new Date();let html='<div class="space-y-3">';lectures.forEach(lecture=>{let[hour,minute]=lecture.time.split(':');let lectureHour=parseInt(hour);let lectureMinute=parseInt(minute)||0;const lectureStart=new Date();lectureStart.setHours(lectureHour,lectureMinute,0,0);let displayTime=lecture.time;if(lecture.time&&!lecture.time.includes('AM')&&!lecture.time.includes('PM')){let h=lectureHour;const ampm=h>=12?'PM':'AM';h=h%12||12;displayTime=`${h}:${lectureMinute.toString().padStart(2,'0')} ${ampm}`;}const status=getLectureStatus(lecture.time, lecture.duration);let statusClass='',statusText='',statusIcon='',extraContent='';if(status==='completed'){statusClass='lecture-completed';statusText='Completed';statusIcon='fa-check-circle';}else if(status==='live'){statusClass='lecture-live';statusText='LIVE NOW';statusIcon='fa-circle';extraContent='<div class="text-xs text-green-500 mt-1 animate-pulse"><i class="fas fa-video"></i> Class in session</div>';}else{statusClass='lecture-upcoming';const timeLeft=formatTimeUntil(lectureStart);statusText=`Starts in ${timeLeft}`;statusIcon='fa-hourglass-half';}html+=`<div class="lecture-card glass-panel p-3 rounded-xl ${statusClass}"><div class="flex justify-between items-start"><div><h4 class="font-bold text-sm"><i class="fas fa-chalkboard-teacher"></i> ${escapeHtml(lecture.title)}</h4><p class="text-xs text-gray-400 mt-1"><i class="far fa-clock"></i> ${displayTime} • <i class="fas fa-hourglass-half"></i> ${lecture.duration} • <i class="fas fa-map-marker-alt"></i> ${escapeHtml(lecture.venue)}</p>${extraContent}</div><span class="text-xs ${status==='live'?'text-green-500':status==='completed'?'text-gray-500':'text-blue-500'}"><i class="fas ${statusIcon}"></i> ${statusText}</span></div></div>`;});html+='</div>';container.innerHTML=html;}
 
-        /* Remove focus outline and keep accessible ring */
-        .nav-item-bottom:focus-visible {
-            outline: 2px solid #FF884D;
-            outline-offset: 2px;
-            border-radius: 40px;
-        }
+function shareInviteLink(){if(currentClass){const link=`${window.location.origin}/join.html?code=${currentClass.class_code}`;navigator.clipboard.writeText(link);showToast('Invite link copied!');}}
+function showCreateModal(){document.getElementById('createModal').style.display='flex';}
+function closeCreateModal(){document.getElementById('createModal').style.display='none';document.getElementById('createClassForm').reset();}
+function showJoinModal(){document.getElementById('joinModal').style.display='flex';}
+function closeJoinModal(){document.getElementById('joinModal').style.display='none';document.getElementById('joinClassCode').value='';}
 
-        /* Responsive adjustments */
-        @media (max-width: 480px) {
-            .nav-item-bottom i { font-size: 20px; }
-            .nav-item-bottom span { font-size: 9px; }
-            .bottom-nav { padding: 8px 12px 18px; }
-        }
-    </style>
-</head>
-<body>
-    
-    <!-- Navigation -->
-    <nav class="px-5 py-4 flex justify-between items-center sticky top-0 bg-black/90 backdrop-blur-xl z-50 border-b border-white/10">
-        <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-sdel/30 shadow-lg">
-                <img id="user-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky" class="w-full h-full object-cover">
-            </div>
-            <div>
-                <p class="text-[10px] font-black uppercase text-zinc-500 tracking-wider">Welcome back,</p>
-                <h1 class="text-lg font-black tracking-tighter"><span id="user-name" class="text-sdel">...</span></h1>
-            </div>
-        </div>
-        <div class="flex items-center gap-4">
-            <button onclick="location.href='homies.html'" class="p-2 rounded-full bg-white/5">
-                <i data-lucide="users" size="20" class="text-sdel"></i>
-            </button>
-            <div class="relative cursor-pointer" onclick="location.href='messages.html'">
-                <button class="p-2 rounded-full bg-white/5">
-                    <i data-lucide="bell" size="20" class="text-sdel"></i>
-                </button>
-                <span id="notif-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-[9px] font-black text-white w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">0</span>
-            </div>
-        </div>
-    </nav>
+// CORRECTION 11: Updated submitJoin with premium rejoin check
+async function submitJoin(){const code=document.getElementById('joinClassCode').value.trim();const msgDiv=document.getElementById('joinMessage');if(!code){msgDiv.innerHTML='<div class="text-red-500">Enter class code</div>';return;}const{data:classData,error}=await sb.from('classes').select('*').eq('class_code',code).single();if(error||!classData){msgDiv.innerHTML='<div class="text-red-500">Invalid class code</div>';return;}const{data:existingMember}=await sb.from('class_members').select('*').eq('class_id',classData.id).eq('user_id',currentUser.id).single();if(existingMember){msgDiv.innerHTML='<div class="text-yellow-500">Already a member! Redirecting...</div>';setTimeout(()=>location.reload(),1500);return;}
 
-    <!-- Wallet & XP Row -->
-    <div class="px-5 pt-5">
-        <div class="grid grid-cols-2 gap-3">
-            <div class="card-glass rounded-2xl p-4">
-                <div class="flex items-center gap-2 mb-2">
-                    <i data-lucide="wallet" size="16" class="text-sdel"></i>
-                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">Balance</span>
-                </div>
-                <p id="wallet-pill" class="text-2xl font-black tracking-tighter">₦0</p>
-            </div>
-            <div class="card-glass rounded-2xl p-4">
-                <div class="flex items-center gap-2 mb-2">
-                    <i data-lucide="award" size="16" class="text-sdel"></i>
-                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">XP Points</span>
-                </div>
-                <p id="xp-count" class="text-2xl font-black tracking-tighter">0</p>
-            </div>
-        </div>
-    </div>
+// Check if user left this class before
+const leftClasses = JSON.parse(localStorage.getItem('left_classes') || '[]');
+if(leftClasses.includes(classData.id)){
+    if(userSubscription !== 'premium'){
+        msgDiv.innerHTML = '<div class="text-red-500">You left this class. Premium subscription required to rejoin.</div>';
+        return;
+    }
+}
 
-    <!-- Stories Section -->
-    <section class="px-5 mt-6">
-        <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-                <i data-lucide="circle-play" size="16" class="text-sdel"></i>
-                <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Stories</h2>
-            </div>
-            <button onclick="location.href='post-story.html'" class="text-[8px] font-black uppercase text-sdel">Post Story</button>
-        </div>
-        <div class="flex space-x-4 overflow-x-auto no-scrollbar pb-2" id="story-rail-content">
-            <div class="flex-shrink-0 flex flex-col items-center gap-2">
-                <div class="w-16 h-16 rounded-full bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center">
-                    <i data-lucide="plus" size="24" class="text-sdel"></i>
-                </div>
-                <span class="text-[8px] font-black uppercase text-zinc-500">Your Story</span>
-            </div>
-        </div>
-    </section>
+if(!canCreateMultipleClasses()){const{data:userClasses}=await sb.from('class_members').select('class_id').eq('user_id',currentUser.id);if(userClasses&&userClasses.length>=1){msgDiv.innerHTML='<div class="text-red-500">Free users can only join 1 class. Upgrade to Premium for unlimited classes.</div>';return;}}if(classData.join_type==='open'){const{error:joinErr}=await sb.from('class_members').insert([{class_id:classData.id,user_id:currentUser.id,user_email:currentUser.email}]);if(joinErr){msgDiv.innerHTML='<div class="text-red-500">Error joining class</div>';}else{msgDiv.innerHTML='<div class="text-green-500">Joined! Redirecting...</div>';setTimeout(()=>location.reload(),1500);}}else{await sb.from('class_requests').insert([{class_id:classData.id,user_id:currentUser.id,user_email:currentUser.email,user_name:currentUser.email?.split('@')[0],status:'pending'}]);msgDiv.innerHTML='<div class="text-yellow-500">Request sent! Wait for approval.</div>';setTimeout(()=>location.reload(),2000);}}
 
-    <!-- Rank Card -->
-    <section class="px-5 mt-6">
-        <div class="card-glass rounded-2xl p-4">
-            <div class="flex justify-between items-center mb-3">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="trophy" size="16" class="text-sdel"></i>
-                    <span class="text-[8px] font-black uppercase text-zinc-500 tracking-wider">Current Rank</span>
-                </div>
-                <span id="rank-badge" class="px-3 py-1 rounded-full text-[9px] font-black uppercase bg-sdel/20 text-sdel">CITIZEN</span>
-            </div>
-            <div class="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                <div id="xp-progress-bar" class="h-full bg-sdel rounded-full transition-all duration-700" style="width: 0%"></div>
-            </div>
-            <p class="text-[8px] text-zinc-500 mt-2 text-right">Next level: More XP</p>
-        </div>
-    </section>
+document.getElementById('createClassForm')?.addEventListener('submit',async(e)=>{e.preventDefault();const name=document.getElementById('className').value.trim();const desc=document.getElementById('classDescription').value;const joinType=document.querySelector('input[name="joinType"]:checked').value;if(!name){document.getElementById('createMessage').innerHTML='<div class="text-red-500">Class name required</div>';return;}if(!canCreateMultipleClasses()){const{data:existingClasses}=await sb.from('classes').select('id').eq('created_by',currentUser.id);if(existingClasses&&existingClasses.length>=1){document.getElementById('createMessage').innerHTML='<div class="text-red-500">Free users can only create 1 class. Upgrade to Premium for unlimited classes.</div>';return;}}const code=generateClassCode();const{data:newClass,error}=await sb.from('classes').insert([{name,description:desc,join_type:joinType,class_code:code,created_by:currentUser.id,created_at:new Date()}]).select().single();if(error){document.getElementById('createMessage').innerHTML='<div class="text-red-500">Error: '+error.message+'</div>';}else{await sb.from('class_members').insert([{class_id:newClass.id,user_id:currentUser.id,user_email:currentUser.email}]);showToast('Class created!');location.reload();}});
 
-    <!-- Sponsored Ad -->
-    <section class="px-5 mt-6">
-        <a id="ad-link" href="#" target="_blank" class="block">
-            <div id="ad-banner" class="w-full h-[200px] rounded-2xl bg-cover bg-center relative overflow-hidden" style="display: none; background-image: url('');">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
-                <div class="absolute bottom-0 left-0 right-0 p-4">
-                    <span class="text-[7px] font-black uppercase bg-sdel text-black px-2 py-0.5 rounded mb-2 inline-block">Sponsored</span>
-                    <p id="ad-text" class="text-sm font-black text-white tracking-tighter">Loading...</p>
-                </div>
-            </div>
-        </a>
-    </section>
+async function loadUserClass(){const{data:{user}}=await sb.auth.getUser();if(!user)return null;currentUser=user;const{data:createdClass}=await sb.from('classes').select('*').eq('created_by',user.id).maybeSingle();if(createdClass){userRole='rep';currentClass=createdClass;return'rep';}const{data:assistantCheck}=await sb.from('class_assistants').select('class_id').eq('user_id',user.id).maybeSingle();if(assistantCheck){const{data:classData}=await sb.from('classes').select('*').eq('id',assistantCheck.class_id).single();if(classData){userRole='assistant';currentClass=classData;return'assistant';}}const{data:memberData}=await sb.from('class_members').select('class_id').eq('user_id',user.id).maybeSingle();if(memberData){const{data:classData}=await sb.from('classes').select('*').eq('id',memberData.class_id).single();if(classData){userRole='member';currentClass=classData;return'member';}}userRole='none';return'none';}
 
-    <!-- Order History -->
-    <section class="px-5 mt-6">
-        <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-                <i data-lucide="package" size="16" class="text-sdel"></i>
-                <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Recent Orders</h2>
-            </div>
-            <button onclick="toggleAllOrders(true)" class="text-[8px] font-black uppercase text-sdel">View All</button>
-        </div>
-        <div class="space-y-2" id="order-history-list"></div>
-    </section>
+function renderBottomNav(){const nav=document.getElementById('bottomNav');nav.innerHTML=`<a href="#" data-page="home"><i class="fas fa-home"></i><span>Home</span></a><a href="#" data-page="timetable"><i class="fas fa-calendar-alt"></i><span>Schedule</span></a><a href="#" data-page="tests"><i class="fas fa-pen-fancy"></i><span>Tests</span></a><a href="#" data-page="learn"><i class="fas fa-book"></i><span>Learn</span></a><a href="#" data-page="profile"><i class="fas fa-user"></i><span>Profile</span></a>`;document.querySelectorAll('#bottomNav a').forEach(link=>{link.addEventListener('click',(e)=>{e.preventDefault();const page=link.getAttribute('data-page');navigateTo(page);});});updateBottomNavActive();}
+function escapeHtml(str){if(!str)return '';return str.replace(/[&<>]/g,function(m){if(m==='&')return'&amp;';if(m==='<')return'&lt;';if(m==='>')return'&gt;';return m;});}
 
-    <!-- Global Feed -->
-    <section class="px-5 mt-6">
-        <div class="flex items-center gap-2 mb-3">
-            <i data-lucide="radio" size="16" class="text-sdel"></i>
-            <h2 class="text-[10px] font-black uppercase tracking-wider text-zinc-500">Global Feed</h2>
-        </div>
-        <div id="global-feed" class="space-y-4 pb-4"></div>
-    </section>
-
-    <!-- All Orders Modal -->
-    <div id="all-orders-modal" class="fixed inset-0 z-[100] hidden modal-overlay p-6 overflow-y-auto">
-        <div class="flex justify-between items-center mb-6 sticky top-0 bg-black/90 backdrop-blur-md py-4 -mt-2">
-            <h2 class="text-lg font-black tracking-tighter">Order History</h2>
-            <button onclick="toggleAllOrders(false)" class="p-2 rounded-full bg-white/5">
-                <i data-lucide="x" size="20" class="text-sdel"></i>
-            </button>
-        </div>
-        <div id="full-order-list" class="space-y-3 pb-20"></div>
-    </div>
-
-    <!-- ========== BOTTOM NAVIGATION - STRAIGHT LINE LAYOUT, WARM SOFT COLOR SHIFT, FAVICON ICONS ========== -->
-    <div class="bottom-nav">
-        <div class="nav-container">
-            <!-- Home Icon (custom vector) -->
-            <button class="nav-item-bottom" data-nav="home" id="bottomNavHome">
-                <i data-lucide="home" size="22"></i>
-                <span>Home</span>
-            </button>
-            <!-- Explore Icon - DIFFERENT FAVICON: using Globe + Compass hybrid but distinct. Specifically 'compass' is explore favicon -->
-            <button class="nav-item-bottom" data-nav="explore" id="bottomNavExplore">
-                <i data-lucide="compass" size="22"></i>
-                <span>Explore</span>
-            </button>
-            <!-- Shop/Cart Icon -->
-            <button class="nav-item-bottom" data-nav="shop" id="bottomNavShop">
-                <i data-lucide="shopping-bag" size="22"></i>
-                <span>Shop</span>
-            </button>
-            <!-- Feed/Activity Icon -->
-            <button class="nav-item-bottom" data-nav="feed" id="bottomNavFeed">
-                <i data-lucide="activity" size="22"></i>
-                <span>Feed</span>
-            </button>
-            <!-- Profile Icon -->
-            <button class="nav-item-bottom" data-nav="profile" id="bottomNavProfile">
-                <i data-lucide="user" size="22"></i>
-                <span>Profile</span>
-            </button>
-        </div>
-    </div>
-
-    <script type="module">
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-        const supabase = createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
-
-        let currentUserId = null;
-        let activeAds = [];
-        let currentAdIndex = 0;
-        let allOrdersData = [];
-
-        async function init() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) return window.location.href = 'login.html';
-            currentUserId = session.user.id;
-
-            const { data: profile } = await supabase.from('profile').select('*').eq('id', currentUserId).single();
-            
-            const displayName = profile?.first_name || session.user.user_metadata?.first_name || "CHAMP";
-            document.getElementById('user-name').innerText = displayName;
-
-            if(profile) {
-                document.getElementById('wallet-pill').innerText = `₦${(profile.wallet_balance || 0).toLocaleString()}`;
-                if (profile.avatar_url) document.getElementById('user-avatar').src = profile.avatar_url;
-                document.getElementById('xp-count').innerText = profile.xp || 0;
-                updatePrestige(profile.xp || 0);
-            }
-
-            loadStories();
-            loadFeed();
-            loadAds(); 
-            loadOrders();
-            getUnreadCount(); 
-            initBottomNav();  // Initialize bottom nav interactions
-        }
-
-        // Bottom Navigation Handler - Straight line with warm colors and different favicon for explore
-        function initBottomNav() {
-            const navItems = document.querySelectorAll('.nav-item-bottom');
-            const sections = {
-                home: () => { window.scrollTo({ top: 0, behavior: 'smooth' }); },
-                explore: () => { 
-                    // Explore action: scroll to global feed section or open explore modal
-                    const feedSection = document.getElementById('global-feed');
-                    if(feedSection) feedSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    else window.scrollTo({ top: 600, behavior: 'smooth' });
-                },
-                shop: () => { 
-                    // Navigate to shop or order section
-                    const orderSection = document.querySelector('#order-history-list');
-                    if(orderSection) orderSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                },
-                feed: () => {
-                    const globalFeed = document.getElementById('global-feed');
-                    if(globalFeed) globalFeed.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                },
-                profile: () => { window.location.href = 'profile.html'; }
-            };
-
-            // Set active based on scroll or manual
-            function setActiveNav(navValue) {
-                navItems.forEach(item => {
-                    if(item.getAttribute('data-nav') === navValue) {
-                        item.classList.add('active');
-                    } else {
-                        item.classList.remove('active');
-                    }
-                });
-            }
-
-            // Default active home
-            setActiveNav('home');
-
-            // Add click handlers
-            navItems.forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const navValue = item.getAttribute('data-nav');
-                    if (navValue && sections[navValue]) {
-                        sections[navValue]();
-                        setActiveNav(navValue);
-                        // Add subtle animation to bottom nav background flash (warm glow effect)
-                        const bottomNav = document.querySelector('.bottom-nav');
-                        if(bottomNav) {
-                            bottomNav.style.transform = 'scale(0.99)';
-                            setTimeout(() => { if(bottomNav) bottomNav.style.transform = 'scale(1)'; }, 100);
-                        }
-                    }
-                });
-            });
-
-            // Optional: detect scroll to update active based on visible section
-            window.addEventListener('scroll', () => {
-                const scrollPos = window.scrollY;
-                const homeTop = 0;
-                const exploreTop = document.getElementById('global-feed')?.offsetTop - 100 || 600;
-                const shopTop = document.querySelector('#order-history-list')?.offsetTop - 100 || 1100;
-                const feedTop = document.getElementById('global-feed')?.offsetTop - 80 || 600;
-                
-                if(scrollPos < exploreTop - 100) setActiveNav('home');
-                else if(scrollPos >= exploreTop - 80 && scrollPos < shopTop - 80) setActiveNav('explore');
-                else if(scrollPos >= shopTop - 80 && scrollPos < feedTop + 300) setActiveNav('shop');
-                else if(scrollPos >= feedTop - 50) setActiveNav('feed');
-            });
-        }
-
-        async function loadStories() {
-            const now = new Date().toISOString();
-            
-            const { data: follows } = await supabase.from('followers').select('following_id').eq('follower_id', currentUserId);
-            const homieIds = follows ? follows.map(f => f.following_id) : [];
-
-            const { data: viewed } = await supabase.from('story_views').select('story_id').eq('user_id', currentUserId);
-            const viewedSet = new Set(viewed?.map(v => v.story_id));
-
-            const { data: stories } = await supabase
-                .from('stories')
-                .select('*, profile:profile(first_name, is_official)')
-                .gt('expires_at', now)
-                .or(`is_official_post.eq.true,author_id.eq.${currentUserId},author_id.in.(${homieIds.join(',') || '00000000-0000-0000-0000-000000000000'})`);
-
-            const rail = document.getElementById('story-rail-content');
-            if (stories && stories.length > 0) {
-                const userLatestMap = new Map();
-                stories.sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).forEach(s => {
-                    if(!userLatestMap.has(s.author_id)) userLatestMap.set(s.author_id, s);
-                });
-                let uniqueStories = Array.from(userLatestMap.values());
-
-                uniqueStories.sort((a, b) => {
-                    const aIsSdel = a.is_official_post || a.profile?.is_official;
-                    const bIsSdel = b.is_official_post || b.profile?.is_official;
-                    const aIsMe = a.author_id === currentUserId;
-                    const bIsMe = b.author_id === currentUserId;
-                    const aWatched = viewedSet.has(a.id);
-                    const bWatched = viewedSet.has(b.id);
-
-                    if (aIsSdel && !bIsSdel) return -1;
-                    if (!aIsSdel && bIsSdel) return 1;
-                    if (aIsMe && !bIsMe) return -1;
-                    if (!aIsMe && bIsMe) return 1;
-                    if (!aWatched && bWatched) return -1;
-                    if (aWatched && !bWatched) return 1;
-                    return new Date(b.created_at) - new Date(a.created_at);
-                });
-
-                const extraStories = uniqueStories.map(s => {
-                    const isSdel = s.is_official_post || s.profile?.is_official;
-                    const isMe = s.author_id === currentUserId;
-                    const isWatched = viewedSet.has(s.id);
-                    
-                    let ringStyle = "";
-                    if (isSdel) ringStyle = isWatched ? "border-green-500" : "sdel-pulse";
-                    else if (isMe) ringStyle = "border-zinc-600";
-                    else ringStyle = isWatched ? "border-zinc-600" : "ring-blue-rotate";
-
-                    return `
-                        <div class="flex-shrink-0 flex flex-col items-center gap-2" onclick="watchStory('${s.id}')">
-                            <div class="w-16 h-16 rounded-full border-2 ${ringStyle} overflow-hidden">
-                                <img src="${s.media_url}" class="w-full h-full object-cover bg-zinc-900">
-                            </div>
-                            <span class="text-[8px] font-black uppercase truncate w-16 text-center ${isSdel ? 'text-sdel' : 'text-zinc-400'}">
-                                ${isSdel ? 'SDEL' : (s.profile?.first_name || 'HOMIE')}
-                            </span>
-                        </div>`;
-                }).join('');
-                
-                rail.innerHTML += extraStories;
-            }
-            lucide.createIcons();
-        }
-
-        window.watchStory = async (id) => {
-            await supabase.from('story_views').upsert({ user_id: currentUserId, story_id: id });
-            location.href = `view-story.html?id=${id}`;
-        };
-
-        async function getUnreadCount() {
-            if (!currentUserId) return;
-            const { data: profile } = await supabase.from('profile').select('last_read_general, last_read_team').eq('id', currentUserId).single();
-            const lastGen = new Date(profile?.last_read_general || 0);
-            const lastTeam = new Date(profile?.last_read_team || 0);
-            const { data: messages } = await supabase.from('messages').select('type, created_at').or(`recipient_id.is.null,recipient_id.eq.${currentUserId}`);
-            if (!messages) return;
-            const unreadGen = messages.filter(m => m.type === 'general' && new Date(m.created_at) > lastGen).length;
-            const unreadTeam = messages.filter(m => m.type === 'team' && new Date(m.created_at) > lastTeam).length;
-            const totalUnread = unreadGen + unreadTeam;
-            const badge = document.getElementById('notif-badge');
-            if (totalUnread > 0) {
-                badge.innerText = totalUnread > 9 ? '9+' : totalUnread;
-                badge.classList.remove('hidden');
-                badge.style.display = 'flex';
-            } else {
-                badge.classList.add('hidden');
-                badge.style.display = 'none';
-            }
-        }
-
-        async function loadAds() {
-            const { data: ads, error } = await supabase.from('promoted_ads').select('*').eq('active', true);
-            if (error || !ads || ads.length === 0) return;
-            let weightedAds = [];
-            ads.forEach(ad => {
-                const weight = Math.max(1, Math.floor((ad.price || 0) / 100)); 
-                for(let i=0; i<weight; i++) { weightedAds.push(ad); }
-            });
-            activeAds = weightedAds.sort(() => Math.random() - 0.5);
-            displayNextAd();
-            setInterval(displayNextAd, 5000);
-        }
-
-        function displayNextAd() {
-            if (activeAds.length === 0) return;
-            const ad = activeAds[currentAdIndex];
-            const banner = document.getElementById('ad-banner');
-            const adLink = document.getElementById('ad-link');
-            banner.classList.add('opacity-0');
-            setTimeout(() => {
-                banner.style.backgroundImage = `url(${ad.media_url})`;
-                document.getElementById('ad-text').innerText = ad.title;
-                adLink.href = ad.link_url || '#';
-                banner.classList.remove('opacity-0');
-                banner.style.display = 'flex';
-            }, 300);
-            currentAdIndex = (currentAdIndex + 1) % activeAds.length;
-        }
-
-        async function loadOrders() {
-            const { data: orders } = await supabase.from('orders').select('*').eq('user_id', currentUserId).order('created_at', { ascending: false });
-            if (!orders) return;
-            allOrdersData = orders;
-            renderOrderList(orders.slice(0, 3), 'order-history-list');
-        }
-
-        function renderOrderList(data, targetId) {
-            const container = document.getElementById(targetId);
-            if (!container) return;
-            if (data.length === 0) {
-                container.innerHTML = `<div class="card-glass rounded-xl p-6 text-center"><i data-lucide="package-x" size="24" class="mx-auto text-zinc-600 mb-2"></i><p class="text-[9px] font-black uppercase text-zinc-500">No orders yet</p></div>`;
-                lucide.createIcons();
-                return;
-            }
-            container.innerHTML = data.map(o => {
-                const displayId = o.order_code || `ID: ${o.id.slice(0,8)}`;
-                const itemNames = o.items ? JSON.parse(JSON.stringify(o.items)).map(i => i.name).join(', ') : 'Market Item';
-                let statusColor = 'bg-zinc-500/20 text-zinc-400 border-zinc-500/20';
-                let statusText = o.status?.toUpperCase() || 'PENDING';
-                if(o.status === 'accepted') { statusColor = 'bg-green-500/20 text-green-500 border-green-500/20'; statusText = 'ACCEPTED'; }
-                if(o.status === 'rejected') { statusColor = 'bg-red-500/20 text-red-500 border-red-500/20'; statusText = 'REJECTED'; }
-                if(o.status === 'pending') { statusColor = 'bg-sdel/20 text-sdel border-sdel/20'; statusText = 'PENDING'; }
-                return `
-                    <div class="order-item card-glass rounded-xl p-3 flex justify-between items-center">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-[8px] font-black text-zinc-500 uppercase mb-1">${displayId}</p>
-                            <p class="text-[10px] font-bold truncate">${itemNames}</p>
-                        </div>
-                        <span class="px-2 py-1 rounded-full text-[7px] font-black uppercase border ${statusColor} ml-2 flex-shrink-0">${statusText}</span>
-                    </div>
-                `;
-            }).join('');
-            lucide.createIcons();
-        }
-
-        window.toggleAllOrders = (show) => {
-            const modal = document.getElementById('all-orders-modal');
-            if(show) { 
-                renderOrderList(allOrdersData, 'full-order-list'); 
-                modal.classList.remove('hidden'); 
-            } else { 
-                modal.classList.add('hidden'); 
-            }
-        }
-
-        function updatePrestige(xp) {
-            const badge = document.getElementById('rank-badge');
-            const progress = document.getElementById('xp-progress-bar');
-            let rank = { n: "CITIZEN", p: (xp/500)*100 };
-            if (xp >= 10000) rank = { n: "OVERLORD", p: 100 };
-            else if (xp >= 5000) rank = { n: "MYTHIC", p: (xp/10000)*100 };
-            else if (xp >= 2500) rank = { n: "ELITE", p: (xp/5000)*100 };
-            else if (xp >= 1000) rank = { n: "WRAITH", p: (xp/2500)*100 };
-            else if (xp >= 500) rank = { n: "SCOUT", p: (xp/1000)*100 };
-            badge.innerText = rank.n;
-            progress.style.width = `${Math.min(rank.p, 100)}%`;
-        }
-
-        async function loadFeed() {
-            const { data: posts } = await supabase.from('posts').select('*, profile(first_name, avatar_url, xp)').order('created_at', { ascending: false });
-            const feed = document.getElementById('global-feed');
-            if (posts && posts.length > 0) {
-                feed.innerHTML = posts.map(p => `
-                    <div class="card-glass rounded-2xl overflow-hidden">
-                        ${p.media_url ? `<img src="${p.media_url}" class="w-full h-64 object-cover">` : ''}
-                        <div class="p-4">
-                            <div class="flex items-center gap-3 mb-3">
-                                <img src="${p.profile?.avatar_url || 'https://api.dicebear.com/7.x/initials/svg?seed='+p.profile?.first_name}" class="w-8 h-8 rounded-full border border-white/10">
-                                <div>
-                                    <p class="text-[10px] font-black">${p.profile?.first_name || 'Scholar'}</p>
-                                    <p class="text-[7px] text-zinc-500 uppercase">${formatDate(p.created_at)}</p>
-                                </div>
-                            </div>
-                            <p class="text-[11px] font-medium leading-relaxed">${p.content}</p>
-                        </div>
-                    </div>
-                `).join('');
-                lucide.createIcons();
-            } else {
-                feed.innerHTML = `<div class="card-glass rounded-2xl p-8 text-center"><i data-lucide="image" size="32" class="mx-auto text-zinc-600 mb-3"></i><p class="text-[9px] font-black uppercase text-zinc-500">No posts yet</p></div>`;
-                lucide.createIcons();
-            }
-        }
-        
-        function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            const now = new Date();
-            const diff = now - date;
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            if (days === 0) return 'Today';
-            if (days === 1) return 'Yesterday';
-            if (days < 7) return `${days} days ago`;
-            return date.toLocaleDateString();
-        }
-
-        init();
-    </script>
-    <script>lucide.createIcons();</script>
-</body>
-</html>
+async function init(){function updateClock(){document.getElementById('clock').innerText=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',hour12:false});const h=new Date().getHours();document.getElementById('dynamic-greeting').innerText=h<12?"Good morning":h<18?"Good afternoon":"Good evening";}updateClock();setInterval(updateClock,1000);const{data:{session}}=await sb.auth.getSession();const{data:{user}}=await sb.auth.getUser();if(!session||!user){window.location.href='login.html';return;}currentUser=user;await initializeSubscriptionData();await loadUserProfile();await loadSubscriptionPrices();await loadUserClass();renderBottomNav();renderPage();setInterval(()=>{if(currentClass)refreshAllData();},30000);setInterval(()=>{if(currentPage==='home' && document.getElementById('homeLecturesTab')?.classList.contains('active'))loadTodayLectures();},60000);}
+init();
+</script>
+</body></html>
