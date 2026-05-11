@@ -121,12 +121,25 @@ async function initializeSubscriptionData(){const{data:prices}=await sb.from('su
 async function loadUserProfile(){
     const{data:{user}}=await sb.auth.getUser();
     if(!user)return;
-    const{data:profile}=await sb.from('profile').select('first_name, last_name, subscription_tier').eq('id',user.id).single();
+    let{data:profile}=await sb.from('profile').select('first_name, last_name, subscription_tier').eq('id',user.id).single();
+    
+    if(!profile){
+        const{data:newProfile}=await sb.from('profile').insert([{id:user.id, first_name:'', last_name:'', subscription_tier:'freemium'}]).select().single();
+        profile = newProfile;
+    }
+    
     userProfileData=profile;
     userSubscription=profile?.subscription_tier||'freemium';
-    // STRICT: Only use profile first_name, NEVER email fallback
-    const firstName = (profile?.first_name && profile.first_name.trim() !== '') ? profile.first_name : 'User';
-    document.getElementById('userFirstName').innerText = firstName;
+    
+    if(!profile?.first_name || profile.first_name.trim() === ''){
+        customAlert("Please set your first name to continue", "Welcome!", () => {
+            openPersonalInfoModal();
+        });
+        document.getElementById('userFirstName').innerText = 'Set Name';
+    } else {
+        document.getElementById('userFirstName').innerText = profile.first_name;
+    }
+    
     return profile;
 }
 
@@ -136,7 +149,6 @@ async function updateSubscriptionTier(tier){const{error}=await sb.from('profile'
 
 function canCreateMultipleClasses(){return userSubscription==='premium'||userSubscription==='basic';}
 
-// Get user's CURRENT active class count (excluding left classes)
 async function getUserActiveClassCount(){
     const {data:memberships} = await sb.from('class_members').select('class_id').eq('user_id', currentUser.id);
     const leftClasses = JSON.parse(localStorage.getItem('left_classes') || '[]');
@@ -237,14 +249,11 @@ async function deleteClass(){
     }
 }
 
-// FIXED: Leave class - properly removes from tracking so user can join another class
 async function leaveClass(){
     customConfirm('Leave this class? You can join another class after leaving.',"Confirm Leave",async()=>{
-        // Delete membership
         await sb.from('class_members').delete().eq('class_id',currentClass.id).eq('user_id',currentUser.id);
         await sb.from('class_assistants').delete().eq('class_id',currentClass.id).eq('user_id',currentUser.id);
         
-        // Mark this class as left so it doesn't count toward limit
         const leftClasses = JSON.parse(localStorage.getItem('left_classes') || '[]');
         if(!leftClasses.includes(currentClass.id)){
             leftClasses.push(currentClass.id);
@@ -300,7 +309,24 @@ async function deleteLearningMaterial(id){let table=currentLearnTab==='class'?'c
 
 function openPersonalInfoModal(){if(userProfileData){document.getElementById('editFirstName').value=userProfileData.first_name||'';document.getElementById('editLastName').value=userProfileData.last_name||'';}document.getElementById('personalInfoModal').style.display='flex';}
 function closePersonalInfoModal(){document.getElementById('personalInfoModal').style.display='none';}
-async function savePersonalInfo(){const firstName=document.getElementById('editFirstName').value.trim();const lastName=document.getElementById('editLastName').value.trim();if(!firstName){customAlert("First name required","Error");return;}const{error}=await sb.from('profile').update({first_name:firstName,last_name:lastName}).eq('id',currentUser.id);if(error){customAlert('Error: '+error.message,"Error");}else{userProfileData={...userProfileData,first_name:firstName,last_name:lastName};await loadUserProfile();closePersonalInfoModal();renderPage();showToast('Personal info updated!');}}
+async function savePersonalInfo(){
+    const firstName=document.getElementById('editFirstName').value.trim();
+    const lastName=document.getElementById('editLastName').value.trim();
+    if(!firstName){
+        customAlert("First name required","Error");
+        return;
+    }
+    const{error}=await sb.from('profile').update({first_name:firstName,last_name:lastName}).eq('id',currentUser.id);
+    if(error){
+        customAlert('Error: '+error.message,"Error");
+    }else{
+        userProfileData={...userProfileData,first_name:firstName,last_name:lastName};
+        document.getElementById('userFirstName').innerText = firstName;
+        closePersonalInfoModal();
+        renderPage();
+        showToast('Personal info updated!');
+    }
+}
 function openSecurityModal(){document.getElementById('securityModal').style.display='flex';document.getElementById('newPassword').value='';document.getElementById('confirmPassword').value='';}
 function closeSecurityModal(){document.getElementById('securityModal').style.display='none';}
 async function updatePassword(){const newPassword=document.getElementById('newPassword').value;const confirmPassword=document.getElementById('confirmPassword').value;if(!newPassword||!confirmPassword){customAlert("Please fill in both fields","Error");return;}if(newPassword!==confirmPassword){customAlert("Passwords do not match","Error");return;}if(newPassword.length<6){customAlert("Password must be at least 6 characters","Error");return;}const{error}=await sb.auth.updateUser({password:newPassword});if(error){customAlert('Error: '+error.message,"Error");}else{closeSecurityModal();showToast('Password updated!');}}
@@ -323,10 +349,8 @@ function closeCreateModal(){document.getElementById('createModal').style.display
 function showJoinModal(){document.getElementById('joinModal').style.display='flex';}
 function closeJoinModal(){document.getElementById('joinModal').style.display='none';document.getElementById('joinClassCode').value='';}
 
-// FIXED: submitJoin - properly checks active class count (excluding left classes)
 async function submitJoin(){const code=document.getElementById('joinClassCode').value.trim();const msgDiv=document.getElementById('joinMessage');if(!code){msgDiv.innerHTML='<div class="text-red-500">Enter class code</div>';return;}const{data:classData,error}=await sb.from('classes').select('*').eq('class_code',code).single();if(error||!classData){msgDiv.innerHTML='<div class="text-red-500">Invalid class code</div>';return;}const{data:existingMember}=await sb.from('class_members').select('*').eq('class_id',classData.id).eq('user_id',currentUser.id).single();if(existingMember){msgDiv.innerHTML='<div class="text-yellow-500">Already a member! Redirecting...</div>';setTimeout(()=>location.reload(),1500);return;}
 
-// Get active class count (excluding classes the user left)
 const leftClasses = JSON.parse(localStorage.getItem('left_classes') || '[]');
 const {data:allMemberships} = await sb.from('class_members').select('class_id').eq('user_id', currentUser.id);
 const activeClassCount = (allMemberships || []).filter(m => !leftClasses.includes(m.class_id)).length;
