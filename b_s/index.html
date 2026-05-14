@@ -9,13 +9,11 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background-color: #000; color: white; overflow-x: hidden; position: relative; }
-        body.modal-open { overflow: hidden; }
         
         .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
         .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
@@ -25,28 +23,29 @@
         .bg-sdel { background-color: #FF6600; }
         .bold-shadow { text-shadow: 0px 4px 12px rgba(0,0,0,1); }
         .glass-nav { background: rgba(0,0,0,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-
-        .typing-dot { width: 6px; height: 6px; background: #FF6600; border-radius: 50%; display: inline-block; animation: typing 1s infinite; }
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes typing { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
         /* Carousel Styles */
         .carousel-container {
             position: relative;
             overflow: hidden;
             border-radius: 24px;
+            touch-action: pan-y pinch-zoom;
         }
         
         .carousel-track {
             display: flex;
-            transition: transform 0.5s ease-in-out;
+            transition: transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            cursor: grab;
+        }
+        
+        .carousel-track:active {
+            cursor: grabbing;
         }
         
         .carousel-slide {
             flex: 0 0 100%;
             min-width: 0;
+            user-select: none;
         }
         
         .carousel-dots {
@@ -83,125 +82,9 @@
             font-weight: 700;
             color: #FF6600;
             z-index: 10;
+            pointer-events: none;
         }
 
-        /* Chat Modal - No scroll under fix */
-        .chat-modal {
-            position: fixed;
-            bottom: 90px;
-            right: 24px;
-            width: 360px;
-            background: #0a0a0a;
-            border: 1px solid rgba(255,102,0,0.3);
-            border-radius: 24px;
-            z-index: 1000;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-        }
-        
-        .chat-modal.hidden {
-            display: none;
-        }
-        
-        .chat-header {
-            background: #FF6600;
-            padding: 16px 20px;
-            border-radius: 24px 24px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .chat-content {
-            height: 320px;
-            overflow-y: auto;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .chat-message-bot {
-            background: #1a1a1a;
-            padding: 12px 16px;
-            border-radius: 16px;
-            border-left: 3px solid #FF6600;
-            font-size: 13px;
-            line-height: 1.5;
-            color: #e0e0e0;
-        }
-        
-        .chat-message-user {
-            background: #FF6600;
-            color: #000;
-            padding: 8px 12px;
-            border-radius: 16px;
-            font-size: 11px;
-            font-weight: 700;
-            align-self: flex-end;
-        }
-        
-        .chat-options {
-            padding: 16px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .chat-btn {
-            text-align: left;
-            padding: 10px 14px;
-            font-size: 11px;
-            font-weight: 700;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px;
-            background: transparent;
-            color: white;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .chat-btn:hover {
-            background: #FF6600;
-            color: #000;
-            border-color: #FF6600;
-        }
-        
-        .chat-fact {
-            font-size: 9px;
-            color: #666;
-            padding: 8px 12px;
-            text-align: center;
-        }
-        
-        .chat-toggle-btn {
-            width: 56px;
-            height: 56px;
-            background: #FF6600;
-            border-radius: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: transform 0.2s ease;
-            box-shadow: 0 4px 12px rgba(255,102,0,0.3);
-        }
-        
-        .chat-toggle-btn:hover {
-            transform: scale(1.05);
-        }
-        
-        /* Social links - Professional */
-        .social-icon {
-            transition: all 0.2s ease;
-            opacity: 0.6;
-        }
-        
-        .social-icon:hover {
-            opacity: 1;
-            transform: translateY(-2px);
-        }
-        
         /* Feature cards */
         .feature-card {
             transition: all 0.3s ease;
@@ -211,6 +94,24 @@
             border-color: rgba(255,102,0,0.5);
             transform: translateY(-4px);
         }
+        
+        /* Nav - prevent wrapping */
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-shrink: 0;
+        }
+        
+        @media (max-width: 480px) {
+            .nav-links {
+                gap: 0.75rem;
+            }
+            .nav-links a {
+                font-size: 0.75rem;
+                padding: 0.5rem 1rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -218,17 +119,19 @@
 
     <nav class="flex justify-between items-center p-6 glass-nav sticky top-0 z-50">
         <div class="flex items-center">
-            <span class="text-3xl font-black tracking-tighter">THESDEL</span>
+            <span class="text-2xl font-black tracking-tighter">
+                <span class="text-white">T</span><span class="text-sdel">hesdel</span>
+            </span>
         </div>
-        <div class="flex items-center space-x-4">
-            <a href="login.html" class="text-sm font-bold hover:text-sdel transition">LOG IN</a>
-            <a href="signup.html" class="bg-sdel text-black px-6 py-2 rounded-xl font-bold text-sm transition-all hover:scale-105">JOIN NOW</a>
+        <div class="nav-links">
+            <a href="login.html" class="text-sm font-bold hover:text-sdel transition whitespace-nowrap">LOG IN</a>
+            <a href="signup.html" class="bg-sdel text-black px-5 py-2 rounded-xl font-bold text-sm transition-all hover:scale-105 whitespace-nowrap">JOIN NOW</a>
         </div>
     </nav>
 
     <section class="relative pt-24 pb-16 px-6 text-center">
         <div class="max-w-4xl mx-auto">
-            <!-- Install Button - No emoji -->
+            <!-- Install Button -->
             <button id="pwa-install-btn" class="hidden mx-auto mb-8 border-2 border-sdel text-sdel px-8 py-3 rounded-2xl font-bold text-sm transition-all hover:bg-sdel hover:text-black tracking-wider animate__animated animate__bounceIn">
                 Install Thesdel App
             </button>
@@ -242,12 +145,12 @@
             
             <!-- CAROUSEL SECTION -->
             <div class="max-w-2xl mx-auto mb-16">
-                <div class="carousel-container bg-zinc-900/70 border-2 border-sdel rounded-3xl backdrop-blur-md">
+                <div class="carousel-container bg-zinc-900/70 border-2 border-sdel rounded-3xl backdrop-blur-md" id="carouselContainer">
                     <div class="carousel-track" id="carouselTrack">
                         <!-- Slide 1 -->
                         <div class="carousel-slide p-8 text-center">
                             <div class="flex items-center justify-center space-x-2 mb-4">
-                                <i data-lucide="layout-dashboard" class="text-sdel w-6 h-6"></i>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF6600" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
                                 <span class="text-sdel font-bold uppercase tracking-widest text-sm">Class Dashboard</span>
                             </div>
                             <h3 class="text-2xl font-black mb-2">Everything in one view</h3>
@@ -256,7 +159,7 @@
                         <!-- Slide 2 -->
                         <div class="carousel-slide p-8 text-center">
                             <div class="flex items-center justify-center space-x-2 mb-4">
-                                <i data-lucide="calendar" class="text-sdel w-6 h-6"></i>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF6600" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                                 <span class="text-sdel font-bold uppercase tracking-widest text-sm">Smart Schedule</span>
                             </div>
                             <h3 class="text-2xl font-black mb-2">Never miss a class</h3>
@@ -265,7 +168,7 @@
                         <!-- Slide 3 -->
                         <div class="carousel-slide p-8 text-center">
                             <div class="flex items-center justify-center space-x-2 mb-4">
-                                <i data-lucide="megaphone" class="text-sdel w-6 h-6"></i>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF6600" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                                 <span class="text-sdel font-bold uppercase tracking-widest text-sm">Instant Updates</span>
                             </div>
                             <h3 class="text-2xl font-black mb-2">Class announcements</h3>
@@ -274,7 +177,7 @@
                         <!-- Slide 4 -->
                         <div class="carousel-slide p-8 text-center">
                             <div class="flex items-center justify-center space-x-2 mb-4">
-                                <i data-lucide="book-open" class="text-sdel w-6 h-6"></i>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#FF6600" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
                                 <span class="text-sdel font-bold uppercase tracking-widest text-sm">Learning Hub</span>
                             </div>
                             <h3 class="text-2xl font-black mb-2">Materials at your fingertips</h3>
@@ -288,81 +191,47 @@
                 <div class="carousel-dots" id="carouselDots"></div>
             </div>
 
-            <a href="signup.html" class="bg-sdel text-black px-10 py-4 rounded-2xl font-bold inline-block text-lg uppercase transition-all hover:scale-105">Get Started</a>
+            <a href="signup.html" class="bg-sdel text-black px-10 py-4 rounded-2xl font-bold inline-block text-lg transition-all hover:scale-105">Get Started</a>
         </div>
     </section>
 
     <section class="max-w-6xl mx-auto px-6 py-20 border-t border-white/10">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div class="feature-card p-8 rounded-3xl bg-zinc-950 border border-zinc-800">
-                <i data-lucide="calendar" class="text-sdel w-10 h-10 mb-4"></i>
-                <h4 class="text-sdel font-bold text-xl mb-4 tracking-tight">01. Lectures & Exams</h4>
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF6600" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <h4 class="text-sdel font-bold text-xl mb-4 mt-4 tracking-tight">01. Lectures & Exams</h4>
                 <p class="text-white font-medium text-sm leading-relaxed">Full timetable management. Live indicators show what's happening now. Never miss a class again.</p>
             </div>
             <div class="feature-card p-8 rounded-3xl bg-zinc-950 border border-zinc-800">
-                <i data-lucide="megaphone" class="text-sdel w-10 h-10 mb-4"></i>
-                <h4 class="text-sdel font-bold text-xl mb-4 tracking-tight">02. Announcements</h4>
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF6600" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                <h4 class="text-sdel font-bold text-xl mb-4 mt-4 tracking-tight">02. Announcements</h4>
                 <p class="text-white font-medium text-sm leading-relaxed">Class reps post announcements. Members see them instantly. Time-sensitive alerts that matter.</p>
             </div>
             <div class="feature-card p-8 rounded-3xl bg-zinc-950 border border-zinc-800">
-                <i data-lucide="users" class="text-sdel w-10 h-10 mb-4"></i>
-                <h4 class="text-sdel font-bold text-xl mb-4 tracking-tight">03. Class Rep System</h4>
+                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF6600" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                <h4 class="text-sdel font-bold text-xl mb-4 mt-4 tracking-tight">03. Class Rep System</h4>
                 <p class="text-white font-medium text-sm leading-relaxed">Class reps and assistants manage classes. Transfer ownership, add assistants, remove members.</p>
             </div>
         </div>
     </section>
 
-    <!-- Chat Bot - Fixed with no scroll under -->
-    <div class="fixed bottom-6 right-6 z-[1000]" id="chatContainer">
-        <div id="chatModal" class="chat-modal hidden">
-            <div class="chat-header">
-                <div class="flex items-center space-x-2">
-                    <span class="font-bold text-black text-sm">Thesdel Assistant</span>
-                </div>
-                <div class="flex items-center space-x-3">
-                    <span class="w-2 h-2 bg-green-700 rounded-full animate-pulse"></span>
-                    <span class="text-[10px] font-bold text-black">ONLINE</span>
-                    <button onclick="toggleChat()" class="text-black">
-                        <i data-lucide="x" size="16"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <div id="chatContent" class="chat-content">
-                <div class="chat-message-bot">
-                    Welcome to Thesdel. Your class management platform. Select an option below to learn more.
-                </div>
-            </div>
-            
-            <div class="chat-options">
-                <button onclick="askBot('what-is')" class="chat-btn">What is Thesdel?</button>
-                <button onclick="askBot('features')" class="chat-btn">What can I do here?</button>
-                <button onclick="askBot('join')" class="chat-btn">How do I get started?</button>
-            </div>
-        </div>
-        
-        <div class="chat-toggle-btn" onclick="toggleChat()">
-            <i data-lucide="message-circle" class="text-black w-6 h-6"></i>
-        </div>
-    </div>
-
     <footer class="border-t border-white/10 mt-20 py-16 bg-black">
         <div class="container mx-auto px-6 text-center">
             <div class="flex justify-center space-x-8 mb-10">
-                <a href="https://instagram.com/thesdel" target="_blank" rel="noopener noreferrer" class="social-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500">
+                <a href="https://instagram.com/thesdel" target="_blank" rel="noopener noreferrer" class="social-icon opacity-60 hover:opacity-100 transition">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
                         <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
                         <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
                         <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
                     </svg>
                 </a>
-                <a href="https://twitter.com/thesdel" target="_blank" rel="noopener noreferrer" class="social-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500">
+                <a href="https://twitter.com/thesdel" target="_blank" rel="noopener noreferrer" class="social-icon opacity-60 hover:opacity-100 transition">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
                         <path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path>
                     </svg>
                 </a>
-                <a href="https://tiktok.com/@thesdel" target="_blank" rel="noopener noreferrer" class="social-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-500">
+                <a href="https://tiktok.com/@thesdel" target="_blank" rel="noopener noreferrer" class="social-icon opacity-60 hover:opacity-100 transition">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
                         <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path>
                     </svg>
                 </a>
@@ -379,8 +248,6 @@
     </footer>
 
     <script>
-        lucide.createIcons();
-
         function createStars() {
             const container = document.getElementById('stars');
             for (let i = 0; i < 120; i++) {
@@ -397,82 +264,21 @@
         }
         createStars();
 
-        function toggleChat() {
-            const modal = document.getElementById('chatModal');
-            const body = document.body;
-            
-            modal.classList.toggle('hidden');
-            
-            if (!modal.classList.contains('hidden')) {
-                body.classList.add('modal-open');
-                // Re-init icons after showing
-                setTimeout(() => lucide.createIcons(), 10);
-            } else {
-                body.classList.remove('modal-open');
-            }
-        }
-
-        const responses = {
-            'what-is': "Thesdel is a complete class management platform. Create classes, manage members, post announcements, schedule lectures and exams, share learning materials — all in one place.",
-            'features': "Full class dashboard\nLecture & exam timetable\nLive announcements\nLearning materials hub\nMember management with Class Rep & Assistant roles\nSubscription plans for advanced features",
-            'join': "Getting started is easy! Click 'Join Now' to create an account. Once logged in, you can create your own class or join an existing one using a class code."
-        };
-
-        const facts = [
-            "Class reps can post announcements and manage members.",
-            "Assistant reps can help manage the class too.",
-            "Share learning materials with your entire class.",
-            "Live indicators show if a lecture is happening now."
-        ];
-
-        function askBot(key) {
-            const content = document.getElementById('chatContent');
-            const buttons = document.querySelectorAll('.chat-btn');
-            
-            buttons.forEach(b => b.disabled = true);
-            
-            const typingId = 'typing-' + Date.now();
-            content.insertAdjacentHTML('beforeend', `
-                <div class="chat-message-user">Analyzing...</div>
-                <div id="${typingId}" class="chat-message-bot">
-                    <div class="flex space-x-1"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>
-                </div>
-            `);
-            content.scrollTop = content.scrollHeight;
-            
-            setTimeout(() => {
-                const typingElement = document.getElementById(typingId);
-                if(typingElement) typingElement.remove();
-                
-                const responseText = responses[key] || "Try signing up to explore all features!";
-                const formattedResponse = responseText.replace(/\n/g, '<br>');
-                
-                content.insertAdjacentHTML('beforeend', `
-                    <div class="chat-message-bot">
-                        ${formattedResponse}
-                        <div class="mt-3 pt-3 border-t border-zinc-800">
-                            <a href="signup.html" class="text-sdel underline text-[10px] font-bold">Join Thesdel Now →</a>
-                        </div>
-                    </div>
-                    <div class="chat-fact">${facts[Math.floor(Math.random() * facts.length)]}</div>
-                `);
-                
-                content.scrollTop = content.scrollHeight;
-                buttons.forEach(b => b.disabled = false);
-                lucide.createIcons();
-            }, 2000);
-        }
-
-        // Carousel Logic
+        // CAROUSEL WITH SWIPE
         let currentSlide = 0;
         let autoSlideInterval;
         let isPaused = false;
         let hoverTimeout;
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+        let dragThreshold = 50;
         
         const track = document.getElementById('carouselTrack');
         const slides = document.querySelectorAll('.carousel-slide');
         const dotsContainer = document.getElementById('carouselDots');
         const pauseIndicator = document.getElementById('pauseIndicator');
+        const carouselContainer = document.getElementById('carouselContainer');
         const slideCount = slides.length;
         
         function createDots() {
@@ -512,6 +318,14 @@
             updateDots();
         }
         
+        function prevSlide() {
+            if (isPaused) return;
+            currentSlide = (currentSlide - 1 + slideCount) % slideCount;
+            const translateValue = -currentSlide * 100;
+            track.style.transform = `translateX(${translateValue}%)`;
+            updateDots();
+        }
+        
         function startAutoSlide() {
             if (autoSlideInterval) clearInterval(autoSlideInterval);
             autoSlideInterval = setInterval(nextSlide, 5000);
@@ -528,7 +342,6 @@
             isPaused = true;
             if (pauseIndicator) {
                 pauseIndicator.innerHTML = 'Paused';
-                pauseIndicator.style.opacity = '1';
             }
             if (hoverTimeout) clearTimeout(hoverTimeout);
         }
@@ -544,12 +357,99 @@
             }, 300);
         }
         
-        const carouselContainer = document.querySelector('.carousel-container');
+        // Touch/Swipe events
+        function handleTouchStart(e) {
+            startX = e.touches[0].clientX;
+            isDragging = true;
+            track.style.transition = 'none';
+            pauseAutoSlide();
+        }
+        
+        function handleTouchMove(e) {
+            if (!isDragging) return;
+            currentX = e.touches[0].clientX;
+            const diff = currentX - startX;
+            const currentTranslate = -currentSlide * 100;
+            const newTranslate = currentTranslate + (diff / carouselContainer.offsetWidth * 100);
+            track.style.transform = `translateX(${newTranslate}%)`;
+        }
+        
+        function handleTouchEnd(e) {
+            if (!isDragging) {
+                resumeAutoSlide();
+                return;
+            }
+            isDragging = false;
+            track.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1)';
+            
+            const diff = currentX - startX;
+            if (Math.abs(diff) > dragThreshold) {
+                if (diff > 0) {
+                    prevSlide();
+                } else {
+                    nextSlide();
+                }
+            } else {
+                goToSlide(currentSlide);
+            }
+            
+            startX = 0;
+            currentX = 0;
+            setTimeout(() => resumeAutoSlide(), 500);
+        }
+        
+        // Mouse events for desktop swipe
+        function handleMouseDown(e) {
+            startX = e.clientX;
+            isDragging = true;
+            track.style.transition = 'none';
+            pauseAutoSlide();
+            e.preventDefault();
+        }
+        
+        function handleMouseMove(e) {
+            if (!isDragging) return;
+            currentX = e.clientX;
+            const diff = currentX - startX;
+            const currentTranslate = -currentSlide * 100;
+            const newTranslate = currentTranslate + (diff / carouselContainer.offsetWidth * 100);
+            track.style.transform = `translateX(${newTranslate}%)`;
+        }
+        
+        function handleMouseUp(e) {
+            if (!isDragging) {
+                resumeAutoSlide();
+                return;
+            }
+            isDragging = false;
+            track.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.9, 0.4, 1.1)';
+            
+            const diff = currentX - startX;
+            if (Math.abs(diff) > dragThreshold) {
+                if (diff > 0) {
+                    prevSlide();
+                } else {
+                    nextSlide();
+                }
+            } else {
+                goToSlide(currentSlide);
+            }
+            
+            startX = 0;
+            currentX = 0;
+            setTimeout(() => resumeAutoSlide(), 500);
+        }
+        
+        // Attach events
         if (carouselContainer) {
+            carouselContainer.addEventListener('touchstart', handleTouchStart);
+            carouselContainer.addEventListener('touchmove', handleTouchMove);
+            carouselContainer.addEventListener('touchend', handleTouchEnd);
+            carouselContainer.addEventListener('mousedown', handleMouseDown);
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
             carouselContainer.addEventListener('mouseenter', pauseAutoSlide);
             carouselContainer.addEventListener('mouseleave', resumeAutoSlide);
-            carouselContainer.addEventListener('touchstart', pauseAutoSlide);
-            carouselContainer.addEventListener('touchend', resumeAutoSlide);
         }
         
         createDots();
