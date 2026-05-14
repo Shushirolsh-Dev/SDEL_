@@ -1,1 +1,822 @@
-hi
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thesdel | Class Management, Upgraded</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; position: relative; }
+        
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(100vh); } }
+
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .bold-shadow { text-shadow: 0px 4px 12px rgba(0,0,0,1); }
+        .glass-nav { background: rgba(0,0,0,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+        .typing-dot { width: 6px; height: 6px; background: #FF6600; border-radius: 50%; display: inline-block; animation: typing 1s infinite; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+        /* Carousel Styles */
+        .carousel-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+        }
+        
+        .carousel-track {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+        }
+        
+        .carousel-slide {
+            flex: 0 0 100%;
+            min-width: 0;
+        }
+        
+        .carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .carousel-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .carousel-dot.active {
+            width: 24px;
+            border-radius: 4px;
+            background: #FF6600;
+        }
+        
+        .carousel-pause-indicator {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 10px;
+            font-weight: 800;
+            color: #FF6600;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+
+    <nav class="flex justify-between items-center p-6 glass-nav sticky top-0 z-50">
+        <div class="flex items-center">
+            <span class="text-3xl font-black tracking-tighter uppercase">T<span class="text-sdel">hesdel</span></span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <a href="login.html" class="text-sm font-black hover:text-sdel transition uppercase">Log In</a>
+            <a href="signup.html" class="bg-sdel text-black px-6 py-2 rounded-xl font-black text-sm transition-all hover:scale-105 uppercase">Join Now</a>
+        </div>
+    </nav>
+
+    <section class="relative pt-24 pb-16 px-6 text-center">
+        <div class="max-w-4xl mx-auto">
+            <!-- Install Button - Bigger now -->
+            <button id="pwa-install-btn" class="hidden mx-auto mb-8 border-2 border-sdel text-sdel px-8 py-3 rounded-2xl font-black text-sm transition-all hover:bg-sdel hover:text-black uppercase tracking-widest animate__animated animate__bounceIn">
+                <i class="inline-block mr-2">📱</i> Install Thesdel App
+            </button>
+
+            <h1 class="text-4xl md:text-6xl font-black mb-6 tracking-tight bold-shadow uppercase">
+                YOUR CLASS <span class="text-sdel">HEADQUARTERS.</span>
+            </h1>
+            <p class="text-gray-100 text-lg md:text-xl font-black mb-10 leading-relaxed bold-shadow">
+                Lectures. Exams. Announcements. <span class="text-sdel">All in one place.</span>
+            </p>
+            
+            <!-- CAROUSEL SECTION -->
+            <div class="max-w-2xl mx-auto mb-16">
+                <div class="carousel-container bg-zinc-900/70 border-2 border-sdel rounded-3xl backdrop-blur-md">
+                    <div class="carousel-track" id="carouselTrack">
+                        <!-- Slide 1 -->
+                        <div class="carousel-slide p-8 text-center">
+                            <div class="flex items-center justify-center space-x-2 mb-4">
+                                <i data-lucide="graduation-cap" class="text-sdel"></i>
+                                <span class="text-sdel font-black uppercase tracking-widest text-sm italic">Class Dashboard</span>
+                            </div>
+                            <h3 class="text-2xl font-black mb-2 uppercase italic">Everything in one view</h3>
+                            <p class="text-gray-300 font-bold mb-6">Today's lectures, active announcements, and upcoming exams — all on your home screen.</p>
+                            <div class="text-4xl">📚</div>
+                        </div>
+                        <!-- Slide 2 -->
+                        <div class="carousel-slide p-8 text-center">
+                            <div class="flex items-center justify-center space-x-2 mb-4">
+                                <i data-lucide="calendar" class="text-sdel"></i>
+                                <span class="text-sdel font-black uppercase tracking-widest text-sm italic">Smart Schedule</span>
+                            </div>
+                            <h3 class="text-2xl font-black mb-2 uppercase italic">Never miss a class</h3>
+                            <p class="text-gray-300 font-bold mb-6">Full timetable with lectures & exams. Live indicators show what's happening NOW.</p>
+                            <div class="text-4xl">⏰</div>
+                        </div>
+                        <!-- Slide 3 -->
+                        <div class="carousel-slide p-8 text-center">
+                            <div class="flex items-center justify-center space-x-2 mb-4">
+                                <i data-lucide="megaphone" class="text-sdel"></i>
+                                <span class="text-sdel font-black uppercase tracking-widest text-sm italic">Instant Updates</span>
+                            </div>
+                            <h3 class="text-2xl font-black mb-2 uppercase italic">Class announcements</h3>
+                            <p class="text-gray-300 font-bold mb-6">Class reps post announcements. You see them immediately. Time-sensitive and important.</p>
+                            <div class="text-4xl">📢</div>
+                        </div>
+                        <!-- Slide 4 -->
+                        <div class="carousel-slide p-8 text-center">
+                            <div class="flex items-center justify-center space-x-2 mb-4">
+                                <i data-lucide="book-open" class="text-sdel"></i>
+                                <span class="text-sdel font-black uppercase tracking-widest text-sm italic">Learning Hub</span>
+                            </div>
+                            <h3 class="text-2xl font-black mb-2 uppercase italic">Materials at your fingertips</h3>
+                            <p class="text-gray-300 font-bold mb-6">Class materials, public resources, and external links — all organized for easy access.</p>
+                            <div class="text-4xl">📖</div>
+                        </div>
+                    </div>
+                    <div class="carousel-pause-indicator" id="pauseIndicator">
+                        ▶️ Auto-sliding
+                    </div>
+                </div>
+                <div class="carousel-dots" id="carouselDots"></div>
+            </div>
+
+            <a href="signup.html" class="bg-sdel text-black px-10 py-4 rounded-2xl font-black inline-block text-lg uppercase transition-all hover:scale-105">Get Started →</a>
+        </div>
+    </section>
+
+    <section class="max-w-6xl mx-auto px-6 py-20 border-t border-white/10">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="p-8 rounded-3xl bg-zinc-950 border border-zinc-800 hover:border-sdel/50 transition-all duration-300">
+                <div class="text-4xl mb-4">📋</div>
+                <h4 class="text-sdel font-black text-xl mb-4 uppercase italic tracking-tighter">01. Lectures & Exams</h4>
+                <p class="text-white font-black text-sm leading-snug">Full timetable management. Live indicators show what's happening NOW. Never miss a class again.</p>
+            </div>
+            <div class="p-8 rounded-3xl bg-zinc-950 border border-zinc-800 hover:border-sdel/50 transition-all duration-300">
+                <div class="text-4xl mb-4">📢</div>
+                <h4 class="text-sdel font-black text-xl mb-4 uppercase italic tracking-tighter">02. Announcements</h4>
+                <p class="text-white font-black text-sm leading-snug">Class reps post announcements. Members see them instantly. Time-sensitive alerts that matter.</p>
+            </div>
+            <div class="p-8 rounded-3xl bg-zinc-950 border border-zinc-800 hover:border-sdel/50 transition-all duration-300">
+                <div class="text-4xl mb-4">👑</div>
+                <h4 class="text-sdel font-black text-xl mb-4 uppercase italic tracking-tighter">03. Class Rep System</h4>
+                <p class="text-white font-black text-sm leading-snug">Class reps and assistants manage classes. Transfer ownership, add assistants, remove members.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Floating Chat Bot -->
+    <div class="fixed bottom-6 right-6 z-[60]">
+        <div id="ai-chat" class="hidden mb-4 w-80 bg-black border-2 border-sdel rounded-3xl overflow-hidden bold-shadow animate__animated animate__fadeInUp">
+            <div class="bg-sdel p-4 flex justify-between items-center">
+                <div class="flex items-center space-x-1.5 text-black">
+                    <i data-lucide="bot" size="18"></i>
+                    <span class="font-black uppercase text-[10px] tracking-widest">Thesdel Assistant</span>
+                    <div class="bg-white rounded-full p-[2px] flex items-center justify-center">
+                        <i data-lucide="check" class="text-sdel" style="stroke-width: 4px;" size="8"></i>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-2 h-2 bg-green-900 rounded-full animate-pulse"></span>
+                    <span class="text-[8px] font-black text-black uppercase">Live</span>
+                    <button onclick="toggleChat()" class="text-black ml-2"><i data-lucide="x" size="18"></i></button>
+                </div>
+            </div>
+            
+            <div id="chat-content" class="p-4 h-72 overflow-y-auto text-xs space-y-4 font-black scrollbar-hide bg-zinc-950 border-b border-zinc-900">
+                <div class="bg-zinc-900 p-3 rounded-2xl border-l-4 border-sdel">
+                    Welcome to Thesdel. Your class management hub. Click below to learn more.
+                </div>
+            </div>
+            
+            <div id="chat-options" class="p-3 bg-black grid grid-cols-1 gap-2">
+                <button onclick="askBot('what-is')" class="bot-btn text-left p-2 text-[9px] border border-zinc-800 rounded-lg hover:bg-sdel hover:text-black transition uppercase font-black tracking-tighter">What is Thesdel?</button>
+                <button onclick="askBot('features')" class="bot-btn text-left p-2 text-[9px] border border-zinc-800 rounded-lg hover:bg-sdel hover:text-black transition uppercase font-black tracking-tighter">What can I do here?</button>
+                <button onclick="askBot('join')" class="bot-btn text-left p-2 text-[9px] border border-zinc-800 rounded-lg hover:bg-sdel hover:text-black transition uppercase font-black tracking-tighter">How do I get started?</button>
+            </div>
+        </div>
+        <button onclick="toggleChat()" class="bg-sdel w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all hover:scale-110 border-4 border-black">
+            <i data-lucide="sparkles" class="text-black" size="28"></i>
+        </button>
+    </div>
+
+    <footer class="border-t border-white/10 mt-20 py-16 bg-black">
+        <div class="container mx-auto px-6 text-center">
+            <div class="flex justify-center space-x-8 mb-10">
+                <a href="https://instagram.com/thesdel" class="text-gray-500 hover:text-sdel transition"><i data-lucide="instagram"></i></a>
+                <a href="https://twitter.com/thesdel" class="text-gray-500 hover:text-sdel transition"><i data-lucide="twitter"></i></a>
+                <a href="https://tiktok.com/@thesdel" class="text-gray-500 hover:text-sdel transition">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path></svg>
+                </a>
+            </div>
+            <div class="flex justify-center space-x-10 mb-10 text-[10px] font-black uppercase tracking-widest text-gray-600">
+                <a href="/about" class="hover:text-white transition text-sdel">About</a>
+                <a href="/terms" class="hover:text-white transition">Terms</a>
+                <a href="/privacy" class="hover:text-white transition">Privacy</a>
+            </div>
+            <p class="mt-6 tracking-[0.4em] text-[10px] text-gray-600 font-black uppercase">
+                ENGINEERED BY <span class="text-sdel font-black underline decoration-2">SHUSHIROLSH</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 120; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const size = Math.random() * 2 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}vw`;
+                star.style.top = `${Math.random() * 100}vh`;
+                star.style.animationDuration = `${Math.random() * 100 + 60}s`;
+                container.appendChild(star);
+            }
+        }
+        createStars();
+
+        function toggleChat() {
+            document.getElementById('ai-chat').classList.toggle('hidden');
+        }
+
+        // --- UPDATED BOT RESPONSES (matches Thesdel SPA) ---
+        const responses = {
+            'what-is': "Thesdel is a complete class management platform. Create classes, manage members, post announcements, schedule lectures and exams, share learning materials — all in one place.",
+            'features': "• Full class dashboard\n• Lecture & exam timetable\n• Live announcements\n• Learning materials hub\n• Member management with Class Rep & Assistant roles\n• Subscription plans for advanced features",
+            'join': "Getting started is easy! Click 'Join Now' to create an account. Once logged in, you can create your own class or join an existing one using a class code."
+        };
+
+        const facts = [
+            "💡 Pro Tip: Class reps can post announcements and manage members.",
+            "🎓 Fact: Assistant reps can help manage the class too.",
+            "📚 Fact: You can share learning materials with your entire class.",
+            "⏰ Fact: Live indicators show if a lecture is happening NOW."
+        ];
+
+        function askBot(key) {
+            const content = document.getElementById('chat-content');
+            const buttons = document.querySelectorAll('.bot-btn');
+            
+            buttons.forEach(b => b.disabled = true);
+            
+            content.innerHTML += `<div class="text-right"><span class="bg-zinc-800 border border-sdel text-sdel px-3 py-1 rounded-full inline-block mb-2 uppercase text-[8px]">Analyzing...</span></div>`;
+            
+            const typingId = 'typing-' + Date.now();
+            content.innerHTML += `<div id="${typingId}" class="bg-zinc-900 p-3 rounded-2xl border-l-4 border-zinc-700">
+                <div class="typing-dot"></div> <div class="typing-dot"></div> <div class="typing-dot"></div>
+            </div>`;
+            content.scrollTop = content.scrollHeight;
+            
+            setTimeout(() => {
+                const typingElement = document.getElementById(typingId);
+                if(typingElement) typingElement.remove();
+                
+                const responseText = responses[key] || "Try signing up to explore all features!";
+                const formattedResponse = responseText.replace(/\n/g, '<br>');
+                
+                content.innerHTML += `<div class="bg-zinc-900 p-3 rounded-2xl border-l-4 border-sdel animate__animated animate__fadeIn">
+                    ${formattedResponse}
+                    <div class="mt-3 pt-3 border-t border-zinc-800">
+                        <a href="signup.html" class="text-sdel underline uppercase text-[8px] font-black">Join Thesdel Now →</a>
+                    </div>
+                </div>`;
+                
+                const randomFact = facts[Math.floor(Math.random() * facts.length)];
+                content.innerHTML += `<div class="text-[7px] text-gray-500 italic px-2 animate__animated animate__fadeInUp">${randomFact}</div>`;
+                
+                content.scrollTop = content.scrollHeight;
+                buttons.forEach(b => b.disabled = false);
+            }, 2000);
+        }
+
+        // --- CAROUSEL LOGIC ---
+        let currentSlide = 0;
+        let autoSlideInterval;
+        let isPaused = false;
+        let hoverTimeout;
+        
+        const track = document.getElementById('carouselTrack');
+        const slides = document.querySelectorAll('.carousel-slide');
+        const dotsContainer = document.getElementById('carouselDots');
+        const pauseIndicator = document.getElementById('pauseIndicator');
+        const slideCount = slides.length;
+        
+        // Create dots
+        function createDots() {
+            for (let i = 0; i < slideCount; i++) {
+                const dot = document.createElement('div');
+                dot.classList.add('carousel-dot');
+                if (i === 0) dot.classList.add('active');
+                dot.addEventListener('click', () => goToSlide(i));
+                dotsContainer.appendChild(dot);
+            }
+        }
+        
+        // Update dots
+        function updateDots() {
+            const dots = document.querySelectorAll('.carousel-dot');
+            dots.forEach((dot, index) => {
+                if (index === currentSlide) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        }
+        
+        // Go to specific slide
+        function goToSlide(index) {
+            currentSlide = index;
+            const translateValue = -currentSlide * 100;
+            track.style.transform = `translateX(${<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thesdel | Class Management, Upgraded</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: #000; color: white; overflow-x: hidden; position: relative; }
+        
+        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+        .star { position: absolute; background-color: white; border-radius: 50%; animation: fall linear infinite; }
+        @keyframes fall { to { transform: translateY(100vh); } }
+
+        .text-sdel { color: #FF6600; }
+        .bg-sdel { background-color: #FF6600; }
+        .bold-shadow { text-shadow: 0px 4px 12px rgba(0,0,0,1); }
+        .glass-nav { background: rgba(0,0,0,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+        .typing-dot { width: 6px; height: 6px; background: #FF6600; border-radius: 50%; display: inline-block; animation: typing 1s infinite; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+        /* Carousel Styles */
+        .carousel-container {
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+        }
+        
+        .carousel-track {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+        }
+        
+        .carousel-slide {
+            flex: 0 0 100%;
+            min-width: 0;
+        }
+        
+        .carousel-dots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .carousel-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .carousel-dot.active {
+            width: 24px;
+            border-radius: 4px;
+            background: #FF6600;
+        }
+        
+        .carousel-pause-indicator {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 10px;
+            font-weight: 800;
+            color: #FF6600;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars" id="stars"></div>
+
+    <nav class="flex justify-between items-center p-6 glass-nav sticky top-0 z-50">
+        <div class="flex items-center">
+            <span class="text-3xl font-black tracking-tighter uppercase">T<span class="text-sdel">hesdel</span></span>
+        </div>
+        <div class="flex items-center space-x-4">
+            <a href="login.html" class="text-sm font-black hover:text-sdel transition uppercase">Log In</a>
+            <a href="signup.html" class="bg-sdel text-black px-6 py-2 rounded-xl font-black text-sm transition-all hover:scale-105 uppercase">Join Now</a>
+        </div>
+    </nav>
+
+    <section class="relative pt-24 pb-16 px-6 text-center">
+        <div class="max-w-4xl mx-auto">
+            <!-- Install Button - Bigger now -->
+            <button id="pwa-install-btn" class="hidden mx-auto mb-8 border-2 border-sdel text-sdel px-8 py-3 rounded-2xl font-black text-sm transition-all hover:bg-sdel hover:text-black uppercase tracking-widest animate__animated animate__bounceIn">
+                <i class="inline-block mr-2">📱</i> Install Thesdel App
+            </button>
+
+            <h1 class="text-4xl md:text-6xl font-black mb-6 tracking-tight bold-shadow uppercase">
+                YOUR CLASS <span class="text-sdel">HEADQUARTERS.</span>
+            </h1>
+            <p class="text-gray-100 text-lg md:text-xl font-black mb-10 leading-relaxed bold-shadow">
+                Lectures. Exams. Announcements. <span class="text-sdel">All in one place.</span>
+            </p>
+            
+            <!-- CAROUSEL SECTION -->
+            <div class="max-w-2xl mx-auto mb-16">
+                <div class="carousel-container bg-zinc-900/70 border-2 border-sdel rounded-3xl backdrop-blur-md">
+                    <div class="carousel-track" id="carouselTrack">
+                        <!-- Slide 1 -->
+                        <div class="carousel-slide p-8 text-center">
+                            <div class="flex items-center justify-center space-x-2 mb-4">
+                                <i data-lucide="graduation-cap" class="text-sdel"></i>
+                                <span class="text-sdel font-black uppercase tracking-widest text-sm italic">Class Dashboard</span>
+                            </div>
+                            <h3 class="text-2xl font-black mb-2 uppercase italic">Everything in one view</h3>
+                            <p class="text-gray-300 font-bold mb-6">Today's lectures, active announcements, and upcoming exams — all on your home screen.</p>
+                            <div class="text-4xl">📚</div>
+                        </div>
+                        <!-- Slide 2 -->
+                        <div class="carousel-slide p-8 text-center">
+                            <div class="flex items-center justify-center space-x-2 mb-4">
+                                <i data-lucide="calendar" class="text-sdel"></i>
+                                <span class="text-sdel font-black uppercase tracking-widest text-sm italic">Smart Schedule</span>
+                            </div>
+                            <h3 class="text-2xl font-black mb-2 uppercase italic">Never miss a class</h3>
+                            <p class="text-gray-300 font-bold mb-6">Full timetable with lectures & exams. Live indicators show what's happening NOW.</p>
+                            <div class="text-4xl">⏰</div>
+                        </div>
+                        <!-- Slide 3 -->
+                        <div class="carousel-slide p-8 text-center">
+                            <div class="flex items-center justify-center space-x-2 mb-4">
+                                <i data-lucide="megaphone" class="text-sdel"></i>
+                                <span class="text-sdel font-black uppercase tracking-widest text-sm italic">Instant Updates</span>
+                            </div>
+                            <h3 class="text-2xl font-black mb-2 uppercase italic">Class announcements</h3>
+                            <p class="text-gray-300 font-bold mb-6">Class reps post announcements. You see them immediately. Time-sensitive and important.</p>
+                            <div class="text-4xl">📢</div>
+                        </div>
+                        <!-- Slide 4 -->
+                        <div class="carousel-slide p-8 text-center">
+                            <div class="flex items-center justify-center space-x-2 mb-4">
+                                <i data-lucide="book-open" class="text-sdel"></i>
+                                <span class="text-sdel font-black uppercase tracking-widest text-sm italic">Learning Hub</span>
+                            </div>
+                            <h3 class="text-2xl font-black mb-2 uppercase italic">Materials at your fingertips</h3>
+                            <p class="text-gray-300 font-bold mb-6">Class materials, public resources, and external links — all organized for easy access.</p>
+                            <div class="text-4xl">📖</div>
+                        </div>
+                    </div>
+                    <div class="carousel-pause-indicator" id="pauseIndicator">
+                        ▶️ Auto-sliding
+                    </div>
+                </div>
+                <div class="carousel-dots" id="carouselDots"></div>
+            </div>
+
+            <a href="signup.html" class="bg-sdel text-black px-10 py-4 rounded-2xl font-black inline-block text-lg uppercase transition-all hover:scale-105">Get Started →</a>
+        </div>
+    </section>
+
+    <section class="max-w-6xl mx-auto px-6 py-20 border-t border-white/10">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="p-8 rounded-3xl bg-zinc-950 border border-zinc-800 hover:border-sdel/50 transition-all duration-300">
+                <div class="text-4xl mb-4">📋</div>
+                <h4 class="text-sdel font-black text-xl mb-4 uppercase italic tracking-tighter">01. Lectures & Exams</h4>
+                <p class="text-white font-black text-sm leading-snug">Full timetable management. Live indicators show what's happening NOW. Never miss a class again.</p>
+            </div>
+            <div class="p-8 rounded-3xl bg-zinc-950 border border-zinc-800 hover:border-sdel/50 transition-all duration-300">
+                <div class="text-4xl mb-4">📢</div>
+                <h4 class="text-sdel font-black text-xl mb-4 uppercase italic tracking-tighter">02. Announcements</h4>
+                <p class="text-white font-black text-sm leading-snug">Class reps post announcements. Members see them instantly. Time-sensitive alerts that matter.</p>
+            </div>
+            <div class="p-8 rounded-3xl bg-zinc-950 border border-zinc-800 hover:border-sdel/50 transition-all duration-300">
+                <div class="text-4xl mb-4">👑</div>
+                <h4 class="text-sdel font-black text-xl mb-4 uppercase italic tracking-tighter">03. Class Rep System</h4>
+                <p class="text-white font-black text-sm leading-snug">Class reps and assistants manage classes. Transfer ownership, add assistants, remove members.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Floating Chat Bot -->
+    <div class="fixed bottom-6 right-6 z-[60]">
+        <div id="ai-chat" class="hidden mb-4 w-80 bg-black border-2 border-sdel rounded-3xl overflow-hidden bold-shadow animate__animated animate__fadeInUp">
+            <div class="bg-sdel p-4 flex justify-between items-center">
+                <div class="flex items-center space-x-1.5 text-black">
+                    <i data-lucide="bot" size="18"></i>
+                    <span class="font-black uppercase text-[10px] tracking-widest">Thesdel Assistant</span>
+                    <div class="bg-white rounded-full p-[2px] flex items-center justify-center">
+                        <i data-lucide="check" class="text-sdel" style="stroke-width: 4px;" size="8"></i>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="w-2 h-2 bg-green-900 rounded-full animate-pulse"></span>
+                    <span class="text-[8px] font-black text-black uppercase">Live</span>
+                    <button onclick="toggleChat()" class="text-black ml-2"><i data-lucide="x" size="18"></i></button>
+                </div>
+            </div>
+            
+            <div id="chat-content" class="p-4 h-72 overflow-y-auto text-xs space-y-4 font-black scrollbar-hide bg-zinc-950 border-b border-zinc-900">
+                <div class="bg-zinc-900 p-3 rounded-2xl border-l-4 border-sdel">
+                    Welcome to Thesdel. Your class management hub. Click below to learn more.
+                </div>
+            </div>
+            
+            <div id="chat-options" class="p-3 bg-black grid grid-cols-1 gap-2">
+                <button onclick="askBot('what-is')" class="bot-btn text-left p-2 text-[9px] border border-zinc-800 rounded-lg hover:bg-sdel hover:text-black transition uppercase font-black tracking-tighter">What is Thesdel?</button>
+                <button onclick="askBot('features')" class="bot-btn text-left p-2 text-[9px] border border-zinc-800 rounded-lg hover:bg-sdel hover:text-black transition uppercase font-black tracking-tighter">What can I do here?</button>
+                <button onclick="askBot('join')" class="bot-btn text-left p-2 text-[9px] border border-zinc-800 rounded-lg hover:bg-sdel hover:text-black transition uppercase font-black tracking-tighter">How do I get started?</button>
+            </div>
+        </div>
+        <button onclick="toggleChat()" class="bg-sdel w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all hover:scale-110 border-4 border-black">
+            <i data-lucide="sparkles" class="text-black" size="28"></i>
+        </button>
+    </div>
+
+    <footer class="border-t border-white/10 mt-20 py-16 bg-black">
+        <div class="container mx-auto px-6 text-center">
+            <div class="flex justify-center space-x-8 mb-10">
+                <a href="https://instagram.com/thesdel" class="text-gray-500 hover:text-sdel transition"><i data-lucide="instagram"></i></a>
+                <a href="https://twitter.com/thesdel" class="text-gray-500 hover:text-sdel transition"><i data-lucide="twitter"></i></a>
+                <a href="https://tiktok.com/@thesdel" class="text-gray-500 hover:text-sdel transition">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5"></path></svg>
+                </a>
+            </div>
+            <div class="flex justify-center space-x-10 mb-10 text-[10px] font-black uppercase tracking-widest text-gray-600">
+                <a href="/about" class="hover:text-white transition text-sdel">About</a>
+                <a href="/terms" class="hover:text-white transition">Terms</a>
+                <a href="/privacy" class="hover:text-white transition">Privacy</a>
+            </div>
+            <p class="mt-6 tracking-[0.4em] text-[10px] text-gray-600 font-black uppercase">
+                ENGINEERED BY <span class="text-sdel font-black underline decoration-2">SHUSHIROLSH</span>
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        function createStars() {
+            const container = document.getElementById('stars');
+            for (let i = 0; i < 120; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const size = Math.random() * 2 + 1;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}vw`;
+                star.style.top = `${Math.random() * 100}vh`;
+                star.style.animationDuration = `${Math.random() * 100 + 60}s`;
+                container.appendChild(star);
+            }
+        }
+        createStars();
+
+        function toggleChat() {
+            document.getElementById('ai-chat').classList.toggle('hidden');
+        }
+
+        // --- UPDATED BOT RESPONSES (matches Thesdel SPA) ---
+        const responses = {
+            'what-is': "Thesdel is a complete class management platform. Create classes, manage members, post announcements, schedule lectures and exams, share learning materials — all in one place.",
+            'features': "• Full class dashboard\n• Lecture & exam timetable\n• Live announcements\n• Learning materials hub\n• Member management with Class Rep & Assistant roles\n• Subscription plans for advanced features",
+            'join': "Getting started is easy! Click 'Join Now' to create an account. Once logged in, you can create your own class or join an existing one using a class code."
+        };
+
+        const facts = [
+            "💡 Pro Tip: Class reps can post announcements and manage members.",
+            "🎓 Fact: Assistant reps can help manage the class too.",
+            "📚 Fact: You can share learning materials with your entire class.",
+            "⏰ Fact: Live indicators show if a lecture is happening NOW."
+        ];
+
+        function askBot(key) {
+            const content = document.getElementById('chat-content');
+            const buttons = document.querySelectorAll('.bot-btn');
+            
+            buttons.forEach(b => b.disabled = true);
+            
+            content.innerHTML += `<div class="text-right"><span class="bg-zinc-800 border border-sdel text-sdel px-3 py-1 rounded-full inline-block mb-2 uppercase text-[8px]">Analyzing...</span></div>`;
+            
+            const typingId = 'typing-' + Date.now();
+            content.innerHTML += `<div id="${typingId}" class="bg-zinc-900 p-3 rounded-2xl border-l-4 border-zinc-700">
+                <div class="typing-dot"></div> <div class="typing-dot"></div> <div class="typing-dot"></div>
+            </div>`;
+            content.scrollTop = content.scrollHeight;
+            
+            setTimeout(() => {
+                const typingElement = document.getElementById(typingId);
+                if(typingElement) typingElement.remove();
+                
+                const responseText = responses[key] || "Try signing up to explore all features!";
+                const formattedResponse = responseText.replace(/\n/g, '<br>');
+                
+                content.innerHTML += `<div class="bg-zinc-900 p-3 rounded-2xl border-l-4 border-sdel animate__animated animate__fadeIn">
+                    ${formattedResponse}
+                    <div class="mt-3 pt-3 border-t border-zinc-800">
+                        <a href="signup.html" class="text-sdel underline uppercase text-[8px] font-black">Join Thesdel Now →</a>
+                    </div>
+                </div>`;
+                
+                const randomFact = facts[Math.floor(Math.random() * facts.length)];
+                content.innerHTML += `<div class="text-[7px] text-gray-500 italic px-2 animate__animated animate__fadeInUp">${randomFact}</div>`;
+                
+                content.scrollTop = content.scrollHeight;
+                buttons.forEach(b => b.disabled = false);
+            }, 2000);
+        }
+
+        // --- CAROUSEL LOGIC ---
+        let currentSlide = 0;
+        let autoSlideInterval;
+        let isPaused = false;
+        let hoverTimeout;
+        
+        const track = document.getElementById('carouselTrack');
+        const slides = document.querySelectorAll('.carousel-slide');
+        const dotsContainer = document.getElementById('carouselDots');
+        const pauseIndicator = document.getElementById('pauseIndicator');
+        const slideCount = slides.length;
+        
+        // Create dots
+        function createDots() {
+            for (let i = 0; i < slideCount; i++) {
+                const dot = document.createElement('div');
+                dot.classList.add('carousel-dot');
+                if (i === 0) dot.classList.add('active');
+                dot.addEventListener('click', () => goToSlide(i));
+                dotsContainer.appendChild(dot);
+            }
+        }
+        
+        // Update dots
+        function updateDots() {
+            const dots = document.querySelectorAll('.carousel-dot');
+            dots.forEach((dot, index) => {
+                if (index === currentSlide) {
+                    dot.classList.add('active');
+                } else {
+                    dot.classList.remove('active');
+                }
+            });
+        }
+        
+        // Go to specific slide
+        function goToSlide(index) {
+            currentSlide = index;
+            const translateValue = -currentSlide * 100;
+            track.style.transform = `translateX(${translateValue}%)`;
+            updateDots();
+            resetAutoSlide();
+        }
+        
+        // Next slide
+        function nextSlide() {
+            if (isPaused) return;
+            currentSlide = (currentSlide + 1) % slideCount;
+            const translateValue = -currentSlide * 100;
+            track.style.transform = `translateX(${translateValue}%)`;
+            updateDots();
+        }
+        
+        // Start auto-slide
+        function startAutoSlide() {
+            if (autoSlideInterval) clearInterval(autoSlideInterval);
+            autoSlideInterval = setInterval(nextSlide, 5000); // 5 seconds
+        }
+        
+        // Reset auto-slide timer
+        function resetAutoSlide() {
+            if (autoSlideInterval) {
+                clearInterval(autoSlideInterval);
+                startAutoSlide();
+            }
+        }
+        
+        // Pause on hover
+        function pauseAutoSlide() {
+            isPaused = true;
+            if (pauseIndicator) {
+                pauseIndicator.innerHTML = '⏸️ Paused';
+                pauseIndicator.style.opacity = '1';
+            }
+            if (hoverTimeout) clearTimeout(hoverTimeout);
+        }
+        
+        // Resume after hover
+        function resumeAutoSlide() {
+            if (hoverTimeout) clearTimeout(hoverTimeout);
+            hoverTimeout = setTimeout(() => {
+                isPaused = false;
+                if (pauseIndicator) {
+                    pauseIndicator.innerHTML = '▶️ Auto-sliding';
+                }
+                resetAutoSlide();
+            }, 300);
+        }
+        
+        // Attach hover events to carousel container
+        const carouselContainer = document.querySelector('.carousel-container');
+        if (carouselContainer) {
+            carouselContainer.addEventListener('mouseenter', pauseAutoSlide);
+            carouselContainer.addEventListener('mouseleave', resumeAutoSlide);
+            // For touch devices
+            carouselContainer.addEventListener('touchstart', pauseAutoSlide);
+            carouselContainer.addEventListener('touchend', resumeAutoSlide);
+        }
+        
+        // Initialize carousel
+        createDots();
+        startAutoSlide();
+
+        // --- PWA INSTALL BUTTON LOGIC ---
+        let deferredPrompt;
+        const pwaBtn = document.getElementById('pwa-install-btn');
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            pwaBtn.classList.remove('hidden');
+        });
+
+        pwaBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    pwaBtn.classList.add('hidden');
+                }
+                deferredPrompt = null;
+            }
+        });
+    </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then(reg => {
+                if (reg.active) {
+                    caches.open('sdel-v1').then(cache => {
+                        fetch('/offline.html').then(response => {
+                            if (response.ok) {
+                                cache.put('/offline.html', response);
+                            }
+                        });
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
