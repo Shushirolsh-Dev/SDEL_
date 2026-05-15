@@ -3,43 +3,303 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sdel - Join</title>
+    <title>THESDEL - Join</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;900&display=swap" rel="stylesheet">
     <style>
-        body { background: #000; color: white; font-family: 'Poppins', sans-serif; margin: 0; overflow: hidden; }
-        .stars { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
-        .star { position: absolute; background: white; border-radius: 50%; animation: fall linear infinite; }
-        @keyframes fall { 0% { transform: translateY(-10vh); } 100% { transform: translateY(110vh); } }
-        .login-card { background: #0a0a0a; border: 1px solid #222; border-radius: 28px; padding: 35px; width: 95%; max-width: 450px; z-index: 10; position: relative; max-height: 95vh; overflow-y: auto; }
-        .sdel-input { background: #161616; border: 1px solid #333; border-radius: 14px; padding: 16px; width: 100%; color: white; outline: none; font-size: 16px; }
-        .btn-orange { background: #FF6600; color: black; font-weight: 900; width: 100%; padding: 18px; border-radius: 14px; text-transform: uppercase; cursor: pointer; border: none; font-size: 16px; letter-spacing: 1px; }
-        .btn-orange:disabled { background: #555; cursor: not-allowed; }
-        .eye-box { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; z-index: 100; padding: 10px; }
-        .hidden { display: none !important; }
-        .phone-container { display: flex; align-items: center; background: #161616; border: 1px solid #333; border-radius: 14px; overflow: hidden; }
-        .prefix { padding-left: 16px; color: #888; font-weight: 900; font-size: 16px; }
-        .phone-input { background: transparent; border: none; padding: 16px 12px; width: 100%; color: white; outline: none; font-size: 16px; }
+        *,
+        *::before,
+        *::after {
+            font-style: normal !important;
+            font-family: 'Poppins', sans-serif;
+        }
+        body { 
+            background: #000; 
+            color: white; 
+            margin: 0; 
+            overflow: hidden; 
+        }
+        .stars { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: -1; 
+            pointer-events: none; 
+        }
+        .star { 
+            position: absolute; 
+            background: white; 
+            border-radius: 50%; 
+            animation: fall linear infinite; 
+        }
+        @keyframes fall { 
+            0% { transform: translateY(-10vh); } 
+            100% { transform: translateY(110vh); } 
+        }
+        .login-card { 
+            background: #0a0a0a; 
+            border: 1px solid #222; 
+            border-radius: 28px; 
+            padding: 35px; 
+            width: 95%; 
+            max-width: 450px; 
+            z-index: 10; 
+            position: relative; 
+            max-height: 95vh; 
+            overflow-y: auto; 
+        }
+        .sdel-input { 
+            background: #161616; 
+            border: 1px solid #333; 
+            border-radius: 14px; 
+            padding: 16px; 
+            width: 100%; 
+            color: white; 
+            outline: none; 
+            font-size: 16px; 
+        }
+        .btn-orange { 
+            background: #FF6600; 
+            color: black; 
+            font-weight: 900; 
+            width: 100%; 
+            padding: 18px; 
+            border-radius: 14px; 
+            text-transform: uppercase; 
+            cursor: pointer; 
+            border: none; 
+            font-size: 16px; 
+            letter-spacing: 1px; 
+        }
+        .btn-orange:disabled { 
+            background: #555; 
+            cursor: not-allowed; 
+        }
+        .eye-box { 
+            position: absolute; 
+            right: 12px; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            cursor: pointer; 
+            z-index: 100; 
+            padding: 10px; 
+        }
+        .hidden { 
+            display: none !important; 
+        }
+        /* Phone container with searchable dropdown */
+        .phone-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #161616;
+            border: 1px solid #333;
+            border-radius: 14px;
+            overflow: visible;
+        }
+        .country-code-btn {
+            background: #1a1a1a;
+            border: none;
+            border-right: 1px solid #333;
+            padding: 16px 12px;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+            min-width: 105px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            font-family: 'Poppins', sans-serif;
+        }
+        .country-code-btn:hover {
+            background: #252525;
+        }
+        .dropdown-arrow {
+            font-size: 10px;
+            margin-left: 4px;
+        }
+        .country-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: #0f0f0f;
+            border: 1px solid #333;
+            border-radius: 14px;
+            width: 280px;
+            max-height: 280px;
+            overflow-y: auto;
+            z-index: 1000;
+            margin-top: 5px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .country-search {
+            padding: 12px;
+            border-bottom: 1px solid #222;
+            position: sticky;
+            top: 0;
+            background: #0f0f0f;
+        }
+        .country-search input {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            color: white;
+            outline: none;
+            font-size: 13px;
+        }
+        .country-list {
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .country-option {
+            padding: 12px 14px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            border-bottom: 1px solid #1a1a1a;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .country-option:hover {
+            background: #FF6600;
+            color: black;
+        }
+        .country-code-small {
+            color: #FF6600;
+            font-weight: 800;
+            margin-left: auto;
+        }
+        .country-option:hover .country-code-small {
+            color: black;
+        }
+        .phone-input {
+            background: transparent;
+            border: none;
+            padding: 16px 12px;
+            width: 100%;
+            color: white;
+            outline: none;
+            font-size: 16px;
+        }
         
-        .criteria-item { font-size: 15px; font-weight: 900; text-transform: uppercase; margin-right: 15px; transition: color 0.3s; }
-        .valid { color: #22c55e; } 
-        .invalid { color: #ffffff33; }
+        .criteria-item { 
+            font-size: 15px; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            margin-right: 15px; 
+            transition: color 0.3s; 
+        }
+        .valid { 
+            color: #22c55e; 
+        } 
+        .invalid { 
+            color: #ffffff33; 
+        }
         
-        .login-card::-webkit-scrollbar { width: 5px; }
-        .login-card::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
-        .live-msg { text-transform: uppercase; font-size: 10px; font-weight: 900; margin-top: 4px; padding-left: 5px; }
+        .login-card::-webkit-scrollbar { 
+            width: 5px; 
+        }
+        .login-card::-webkit-scrollbar-thumb { 
+            background: #333; 
+            border-radius: 10px; 
+        }
+        .live-msg { 
+            text-transform: uppercase; 
+            font-size: 10px; 
+            font-weight: 900; 
+            margin-top: 4px; 
+            padding-left: 5px; 
+        }
 
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-5px); }
             75% { transform: translateX(5px); }
         }
-        .shake-error { animation: shake 0.2s ease-in-out 2; }
+        .shake-error { 
+            animation: shake 0.2s ease-in-out 2; 
+        }
 
-        #school-results { position: absolute; left: 0; right: 0; background: #111; border: 1px solid #333; border-radius: 14px; mt: 5px; z-index: 1000; max-height: 200px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        .uni-item { padding: 15px; font-size: 11px; font-weight: 900; text-transform: uppercase; border-bottom: 1px solid #222; cursor: pointer; }
-        .uni-item:hover { background: #FF6600; color: black; }
+        #school-results { 
+            position: absolute; 
+            left: 0; 
+            right: 0; 
+            background: #111; 
+            border: 1px solid #333; 
+            border-radius: 14px; 
+            margin-top: 5px; 
+            z-index: 1000; 
+            max-height: 200px; 
+            overflow-y: auto; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+        }
+        .uni-item { 
+            padding: 15px; 
+            font-size: 11px; 
+            font-weight: 900; 
+            text-transform: uppercase; 
+            border-bottom: 1px solid #222; 
+            cursor: pointer; 
+        }
+        .uni-item:hover { 
+            background: #FF6600; 
+            color: black; 
+        }
+
+        .thesdel-logo-wrapper {
+            display: inline-flex;
+            align-items: baseline;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0px;
+        }
+        .t-white {
+            color: white;
+            font-weight: 900;
+            font-size: 2.25rem;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+        }
+        .hesdel-orange {
+            color: #FF6600;
+            font-weight: 900;
+            font-size: 2.25rem;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+        }
+        .join-white {
+            color: white;
+            font-weight: 900;
+            font-size: 2.25rem;
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            margin-left: 6px;
+        }
+        @media (max-width: 480px) {
+            .t-white, .hesdel-orange, .join-white {
+                font-size: 1.75rem;
+            }
+            .country-code-btn {
+                min-width: 85px;
+                font-size: 12px;
+                padding: 16px 8px;
+            }
+            .country-dropdown {
+                width: 260px;
+            }
+        }
+        .t-white, .hesdel-orange, .join-white {
+            font-style: normal !important;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
@@ -47,7 +307,9 @@
     <div class="login-card">
         <a href="index.html" class="text-[12px] font-black text-white hover:text-[#FF6600] uppercase tracking-[0.4em] transition block mb-6">← Back</a>
         <div class="text-center mb-8">
-            <h1 class="text-4xl font-black italic uppercase tracking-tighter">S<span class="text-[#FF6600]">DEL</span> JOIN</h1>
+            <h1 class="thesdel-logo-wrapper">
+                <span class="t-white">T</span><span class="hesdel-orange">HESDEL</span><span class="join-white"> JOIN</span>
+            </h1>
             <p class="text-[12px] font-bold text-gray-400 uppercase tracking-[0.2em] mt-3">Create your account</p>
         </div>
         <div id="msg" class="hidden p-4 mb-5 rounded text-sm font-black text-center uppercase"></div>
@@ -67,10 +329,21 @@
                 <p id="u-msg" class="live-msg hidden"></p>
             </div>
 
+            <!-- SEARCHABLE COUNTRY CODE DROPDOWN with abbreviations -->
             <div>
-                <div class="phone-container">
-                    <span class="prefix">+234</span>
-                    <input type="tel" id="ph" placeholder="8012345678" maxlength="10" class="phone-input" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onblur="liveCheck('phone', '+234'+this.value, 'p-msg')">
+                <div class="phone-wrapper" id="phone-wrapper">
+                    <button type="button" id="country-btn" class="country-code-btn">
+                        <span id="selected-flag">🇳🇬</span>
+                        <span id="selected-code">+234</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </button>
+                    <div id="country-dropdown" class="country-dropdown hidden">
+                        <div class="country-search">
+                            <input type="text" id="country-search-input" placeholder="Search country, code or abbreviation (US, UK, NG...)">
+                        </div>
+                        <div id="country-list" class="country-list"></div>
+                    </div>
+                    <input type="tel" id="ph" placeholder="Phone number" maxlength="15" class="phone-input" oninput="this.value = this.value.replace(/[^0-9]/g, '')" onblur="validatePhone()">
                 </div>
                 <p id="p-msg" class="live-msg hidden"></p>
             </div>
@@ -109,17 +382,139 @@
         </div>
     </div>
     <script>
+        // Starfield
         const f = document.getElementById('star-field');
         for(let i=0; i<80; i++) {
             const s = document.createElement('div'); s.className = 'star';
             s.style.width = s.style.height = (Math.random()*2+1.5)+'px';
-            s.style.left = Math.random()*100+'vw'; s.style.animationDuration = (Math.random()*20+25)+'s';
+            s.style.left = Math.random()*100+'vw'; 
+            s.style.animationDuration = (Math.random()*20+25)+'s';
             f.appendChild(s);
         }
 
         const sb = window.supabase.createClient('https://lgfyrlfjoazedwymjpfc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw');
 
-        const nigerianUniversities = ["Obafemi Awolowo University (OAU)", "University of Lagos (UNILAG)", "University of Ibadan (UI)", "University of Ilorin (UNILORIN)", "University of Benin (UNIBEN)", "University of Nigeria, Nsukka (UNN)", "Ahmadu Bello University (ABU)", "Bayero University (BUK)", "Federal University of Technology, Akure (FUTA)", "Federal University of Technology, Minna (FUTMINNA)", "Federal University of Technology, Owerri (FUTO)", "University of Port Harcourt (UNIPORT)", "University of Abuja (UNIABUJA)", "University of Jos (UNIJOS)", "University of Maiduguri (UNIMAID)", "University of Uyo (UNIUYO)", "University of Calabar (UNICAL)", "Nnamdi Azikiwe University (UNIZIK)", "Lagos State University (LASU)", "Ladoke Akintola University (LAUTECH)", "Olabisi Onabanjo University (OOU)", "Ekiti State University (EKSU)", "Kwara State University (KWASU)", "Delta State University (DELSU)", "Rivers State University (RSU)", "Ambrose Alli University (AAU)", "Covenant University", "Babcock University", "Afe Babalola University (ABUAD)", "Bowen University", "Pan-Atlantic University", "Nile University of Nigeria", "Baze University", "American University of Nigeria (AUN)", "Landmark University", "Redeemer's University", "Bells University of Technology", "Mountain Top University", "Veritas University", "Benson Idahosa University", "Igbinedion University", "Lead City University", "Adeleke University", "Bingham University", "Caleb University", "Ajayi Crowther University", "Anchor University", "Augustine University", "Chrisland University", "Christopher University", "Coal City University", "Dominion University", "Edusoko University", "Edwin Clark University", "Elizade University", "Evangel University", "Fountain University", "Godfrey Okoye University", "Greenfield University", "Gregory University", "Hallmark University", "Hezekiah University", "Kings University", "Kwararafa University", "Legacy University", "McPherson University", "Mewar International University", "Novena University", "Oduduwa University", "PAMO University of Medical Sciences", "Paul University", "Philomath University", "Precious Cornerstone University", "Renaissance University", "Rhema University", "Ritman University", "Salem University", "Sam Maris University", "Skyline University Nigeria", "Southwestern University", "Spiritan University", "Summit University", "Tansian University", "Topfaith University", "Trinity University", "Wellspring University", "Wesley University", "Western Delta University", "Wigwe University", "Abia State University", "Adamawa State University", "Akwa Ibom State University", "Bauchi State University", "Benue State University", "Borno State University", "Chukwuemeka Odumegwu Ojukwu University", "Cross River University of Technology", "Ebonyi State University", "Edo State University", "Enugu State University of Science and Technology", "Gombe State University", "Ibrahim Badamasi Babangida University", "Ignatius Ajuru University", "Imo State University", "Kaduna State University", "Kano University of Science and Technology", "Kebbi State University of Science and Technology", "Kogi State University", "Maitama Sule University", "Nasarawa State University", "Niger Delta University", "Osun State University", "Plateau State University", "Sokoto State University", "Tai Solarin University of Education", "Taraba State University", "Umaru Musa Yar'Adua University", "Yobe State University", "Zamfara State University", "Maritime University, Okerenkoko", "Nigeria Police Academy, Wudil", "Nigerian Defence Academy (NDA)", "Air Force Institute of Technology", "CUNY LC New York", "Federal University, Birnin Kebbi", "Federal University, Dutse", "Federal University, Dutsin-Ma", "Federal University, Gashua", "Federal University, Gusau", "Federal University, Kashere", "Federal University, Lafia", "Federal University, Lokoja", "Federal University, Otuoke", "Federal University, Oye-Ekiti", "Federal University, Wukari", "Other / Not Listed"];
+        // COUNTRIES with abbreviations (ISO codes), flags, and dial codes
+        const countries = [
+            { code: "+1", abbr: "US", name: "United States", flag: "🇺🇸" },
+            { code: "+1", abbr: "CA", name: "Canada", flag: "🇨🇦" },
+            { code: "+44", abbr: "GB", name: "United Kingdom", flag: "🇬🇧" },
+            { code: "+91", abbr: "IN", name: "India", flag: "🇮🇳" },
+            { code: "+234", abbr: "NG", name: "Nigeria", flag: "🇳🇬" },
+            { code: "+27", abbr: "ZA", name: "South Africa", flag: "🇿🇦" },
+            { code: "+61", abbr: "AU", name: "Australia", flag: "🇦🇺" },
+            { code: "+49", abbr: "DE", name: "Germany", flag: "🇩🇪" },
+            { code: "+33", abbr: "FR", name: "France", flag: "🇫🇷" },
+            { code: "+39", abbr: "IT", name: "Italy", flag: "🇮🇹" },
+            { code: "+34", abbr: "ES", name: "Spain", flag: "🇪🇸" },
+            { code: "+55", abbr: "BR", name: "Brazil", flag: "🇧🇷" },
+            { code: "+52", abbr: "MX", name: "Mexico", flag: "🇲🇽" },
+            { code: "+81", abbr: "JP", name: "Japan", flag: "🇯🇵" },
+            { code: "+86", abbr: "CN", name: "China", flag: "🇨🇳" },
+            { code: "+82", abbr: "KR", name: "South Korea", flag: "🇰🇷" },
+            { code: "+7", abbr: "RU", name: "Russia", flag: "🇷🇺" },
+            { code: "+62", abbr: "ID", name: "Indonesia", flag: "🇮🇩" },
+            { code: "+63", abbr: "PH", name: "Philippines", flag: "🇵🇭" },
+            { code: "+92", abbr: "PK", name: "Pakistan", flag: "🇵🇰" },
+            { code: "+880", abbr: "BD", name: "Bangladesh", flag: "🇧🇩" },
+            { code: "+90", abbr: "TR", name: "Turkey", flag: "🇹🇷" },
+            { code: "+966", abbr: "SA", name: "Saudi Arabia", flag: "🇸🇦" },
+            { code: "+971", abbr: "AE", name: "UAE", flag: "🇦🇪" },
+            { code: "+972", abbr: "IL", name: "Israel", flag: "🇮🇱" },
+            { code: "+20", abbr: "EG", name: "Egypt", flag: "🇪🇬" },
+            { code: "+212", abbr: "MA", name: "Morocco", flag: "🇲🇦" },
+            { code: "+254", abbr: "KE", name: "Kenya", flag: "🇰🇪" },
+            { code: "+233", abbr: "GH", name: "Ghana", flag: "🇬🇭" },
+            { code: "+1-868", abbr: "TT", name: "Trinidad", flag: "🇹🇹" },
+            { code: "+1-876", abbr: "JM", name: "Jamaica", flag: "🇯🇲" },
+            { code: "+64", abbr: "NZ", name: "New Zealand", flag: "🇳🇿" },
+            { code: "+65", abbr: "SG", name: "Singapore", flag: "🇸🇬" },
+            { code: "+60", abbr: "MY", name: "Malaysia", flag: "🇲🇾" },
+            { code: "+66", abbr: "TH", name: "Thailand", flag: "🇹🇭" },
+            { code: "+84", abbr: "VN", name: "Vietnam", flag: "🇻🇳" },
+            { code: "+353", abbr: "IE", name: "Ireland", flag: "🇮🇪" },
+            { code: "+31", abbr: "NL", name: "Netherlands", flag: "🇳🇱" },
+            { code: "+32", abbr: "BE", name: "Belgium", flag: "🇧🇪" },
+            { code: "+41", abbr: "CH", name: "Switzerland", flag: "🇨🇭" },
+            { code: "+46", abbr: "SE", name: "Sweden", flag: "🇸🇪" },
+            { code: "+47", abbr: "NO", name: "Norway", flag: "🇳🇴" },
+            { code: "+45", abbr: "DK", name: "Denmark", flag: "🇩🇰" },
+            { code: "+358", abbr: "FI", name: "Finland", flag: "🇫🇮" },
+            { code: "+48", abbr: "PL", name: "Poland", flag: "🇵🇱" },
+            { code: "+420", abbr: "CZ", name: "Czechia", flag: "🇨🇿" },
+            { code: "+36", abbr: "HU", name: "Hungary", flag: "🇭🇺" },
+            { code: "+30", abbr: "GR", name: "Greece", flag: "🇬🇷" },
+            { code: "+351", abbr: "PT", name: "Portugal", flag: "🇵🇹" },
+            { code: "+54", abbr: "AR", name: "Argentina", flag: "🇦🇷" },
+            { code: "+56", abbr: "CL", name: "Chile", flag: "🇨🇱" },
+            { code: "+57", abbr: "CO", name: "Colombia", flag: "🇨🇴" },
+            { code: "+58", abbr: "VE", name: "Venezuela", flag: "🇻🇪" },
+            { code: "+51", abbr: "PE", name: "Peru", flag: "🇵🇪" }
+        ];
+
+        // Sort by name
+        countries.sort((a,b) => a.name.localeCompare(b.name));
+
+        let selectedCountry = countries.find(c => c.code === "+234" && c.abbr === "NG") || countries[0];
+        
+        function renderCountryList(searchTerm = "") {
+            const container = document.getElementById('country-list');
+            const term = searchTerm.toLowerCase();
+            const filtered = countries.filter(c => 
+                c.name.toLowerCase().includes(term) || 
+                c.code.includes(term) || 
+                c.abbr.toLowerCase().includes(term)
+            );
+            container.innerHTML = "";
+            filtered.forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'country-option';
+                div.innerHTML = `
+                    <span>${c.flag}</span>
+                    <span><strong>${c.abbr}</strong> - ${c.name}</span>
+                    <span class="country-code-small">${c.code}</span>
+                `;
+                div.onclick = () => selectCountry(c);
+                container.appendChild(div);
+            });
+        }
+
+        function selectCountry(country) {
+            selectedCountry = country;
+            document.getElementById('selected-flag').innerText = country.flag;
+            document.getElementById('selected-code').innerText = country.code;
+            document.getElementById('country-dropdown').classList.add('hidden');
+            validatePhone(); // re-check phone uniqueness when country changes
+        }
+
+        // Toggle dropdown
+        const btn = document.getElementById('country-btn');
+        const dropdown = document.getElementById('country-dropdown');
+        const searchInput = document.getElementById('country-search-input');
+        
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('hidden');
+            if (!dropdown.classList.contains('hidden')) {
+                renderCountryList("");
+                searchInput.value = "";
+                searchInput.focus();
+            }
+        });
+        
+        searchInput.addEventListener('input', (e) => {
+            renderCountryList(e.target.value);
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!btn.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+        
+        renderCountryList("");
+
+        const nigerianUniversities = ["Obafemi Awolowo University (OAU)", "University of Lagos (UNILAG)", "University of Ibadan (UI)", "University of Ilorin (UNILORIN)", "University of Benin (UNIBEN)", "University of Nigeria, Nsukka (UNN)", "Ahmadu Bello University (ABU)", "Bayero University (BUK)", "Federal University of Technology, Akure (FUTA)", "Covenant University", "Babcock University", "Other / Not Listed"];
 
         const schoolInp = document.getElementById('school-search');
         const schoolRes = document.getElementById('school-results');
@@ -143,9 +538,22 @@
 
         let isUnique = { username: true, phone: true, email: true };
 
+        function getFullPhoneNumber() {
+            return selectedCountry.code + document.getElementById('ph').value;
+        }
+
+        function validatePhone() {
+            const fullPhone = getFullPhoneNumber();
+            const phoneNum = document.getElementById('ph').value;
+            if (phoneNum.length >= 5) {
+                liveCheck('phone', fullPhone, 'p-msg');
+            }
+            return fullPhone;
+        }
+
         async function liveCheck(col, val, msgId) {
             const msgEl = document.getElementById(msgId);
-            if (!val || val.length < 3) { msgEl.classList.add('hidden'); return; }
+            if (!val || val.length < 5) { msgEl.classList.add('hidden'); return; }
             const { data } = await sb.from('profile').select(col).eq(col, val).maybeSingle();
             msgEl.classList.remove('hidden');
             if (data) {
@@ -169,7 +577,7 @@
             document.getElementById('c-up').className = `criteria-item ${up ? 'valid' : 'invalid'}`;
             document.getElementById('c-low').className = `criteria-item ${low ? 'valid' : 'invalid'}`;
             document.getElementById('c-sym').className = `criteria-item ${sym ? 'valid' : 'invalid'}`;
-            return { all: (len && up && low && sym), len, up, low, sym };
+            return { all: (len && up && low && sym) };
         }
 
         function checkMatch() {
@@ -195,44 +603,31 @@
             const ln = document.getElementById('lname').value;
             const un = document.getElementById('uname').value;
             const sc = document.getElementById('school-search').value;
-            const ph = document.getElementById('ph').value;
+            const phoneNumberOnly = document.getElementById('ph').value;
+            const fullPhone = getFullPhoneNumber();
             const em = document.getElementById('em').value;
             const pw = document.getElementById('pw').value;
             const rpw = document.getElementById('rpw').value;
             const agree = document.getElementById('agree').checked;
             const btn = document.getElementById('s-btn');
 
-            if(!fn || !ln || !un || !sc || !ph || !em || !pw || !rpw) return showMsg("FILL ALL FIELDS", "red");
+            if(!fn || !ln || !un || !sc || !phoneNumberOnly || !em || !pw || !rpw) return showMsg("FILL ALL FIELDS", "red");
             if(!isUnique.username || !isUnique.phone || !isUnique.email) return showMsg("SOME DATA IS ALREADY REGISTERED", "red");
-            if(ph.length !== 10) return showMsg("PHONE MUST BE 10 DIGITS", "red");
+            if(phoneNumberOnly.length < 5) return showMsg("ENTER VALID PHONE NUMBER", "red");
             
-            const pCheck = validatePassword();
-            if(!pCheck.all) {
-                let missing = [];
-                if(!pCheck.len) missing.push("6+ DIGITS");
-                if(!pCheck.up) missing.push("UPPERCASE");
-                if(!pCheck.low) missing.push("LOWERCASE");
-                if(!pCheck.sym) missing.push("SYMBOL");
-                const cBox = document.getElementById('criteria-box');
-                cBox.classList.add('shake-error');
-                setTimeout(() => cBox.classList.remove('shake-error'), 400);
-                return showMsg("MISSING: " + missing.join(", "), "red");
-            }
-
+            if(!validatePassword().all) return showMsg("PASSWORD MUST HAVE 6+ CHARS, UPPER, LOWER & SYMBOL", "red");
             if(pw !== rpw) return showMsg("PASSWORDS MUST MATCH", "red");
             if(!agree) return showMsg("AGREE TO TERMS FIRST", "red");
 
             btn.innerText = "PROCESSING..."; btn.disabled = true;
             
-            const { data, error } = await sb.auth.signUp({
+            const { error } = await sb.auth.signUp({
                 email: em, password: pw,
-                options: { data: { first_name: fn, last_name: ln, username: un, phone: "+234"+ph, school_name: sc } }
+                options: { data: { first_name: fn, last_name: ln, username: un, phone: fullPhone, school_name: sc } }
             });
 
             if (error) { 
-                // DIAGNOSTIC ALERT: Shows the RAW error so we know EXACTLY what Postgres is saying.
-                console.error("DEBUG:", error);
-                showMsg(error.message + (error.status ? " (Status: "+error.status+")" : ""), "red"); 
+                showMsg(error.message, "red"); 
                 btn.innerText = "CREATE ACCOUNT"; btn.disabled = false; 
             } else { 
                 showMsg("SUCCESS! REDIRECTING...", "green");
@@ -245,8 +640,8 @@
             m.innerText = t.toUpperCase();
             m.className = `p-4 mb-5 rounded border text-sm font-black text-center uppercase block ${type === 'red' ? 'bg-red-900/20 text-red-500 border-red-500/30' : 'bg-green-900/20 text-green-500 border-green-500/30'}`;
             m.classList.remove('hidden');
-            setTimeout(() => { m.classList.add('hidden'); }, 4000);
+            setTimeout(() => m.classList.add('hidden'), 4000);
         }
     </script>
 </body>
-              </html>
+</html>
