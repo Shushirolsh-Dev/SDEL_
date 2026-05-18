@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Register Your School · Asperthan Enterprise</title>
+  <title>Register Your School · Asperthan</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * {
       margin: 0;
@@ -49,6 +50,11 @@
       text-decoration: none;
       font-size: 0.875rem;
       font-weight: 500;
+      cursor: pointer;
+    }
+
+    .help-link:hover {
+      text-decoration: underline;
     }
 
     .user-badge {
@@ -222,17 +228,20 @@
       border-radius: 12px;
       padding: 0 8px;
     }
+
     .phone-single select {
       border: none;
       background: transparent;
       width: auto;
       padding: 12px 4px 12px 0;
     }
+
     .phone-single input {
       border: none;
       flex: 1;
       padding: 12px 8px;
     }
+
     .phone-single:focus-within {
       border-color: #DEB887;
       box-shadow: 0 0 0 3px rgba(222,184,135,0.2);
@@ -425,9 +434,74 @@
       color: #166534;
     }
 
-    .loading {
-      opacity: 0.6;
-      pointer-events: none;
+    .alert-info {
+      background: #fefce8;
+      border-left: 3px solid #eab308;
+      color: #854d0e;
+    }
+
+    /* Processing Page Styles */
+    .processing-container {
+      max-width: 800px;
+      margin: 60px auto;
+      padding: 48px 32px;
+      background: white;
+      border-radius: 32px;
+      border: 1px solid #ede4d9;
+      text-align: center;
+    }
+
+    .processing-icon {
+      width: 80px;
+      height: 80px;
+      background: #fefaf5;
+      border-radius: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 3rem;
+    }
+
+    .processing-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .processing-message {
+      color: #5f5548;
+      margin-bottom: 32px;
+      line-height: 1.6;
+    }
+
+    .timeline {
+      background: #f8f6f2;
+      border-radius: 20px;
+      padding: 24px;
+      margin: 32px 0;
+      text-align: left;
+    }
+
+    .timeline-item {
+      display: flex;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid #ede4d9;
+    }
+
+    .timeline-item:last-child {
+      border-bottom: none;
+    }
+
+    .timeline-day {
+      width: 120px;
+      font-weight: 700;
+      color: #b87c3a;
+    }
+
+    .timeline-text {
+      flex: 1;
     }
 
     @media (max-width: 700px) {
@@ -436,10 +510,9 @@
       .form-grid { grid-template-columns: 1fr; }
       .form-field.full-width { grid-column: span 1; }
       .progress-steps { display: none; }
-      .section-body { padding: 20px; }
-      .section-header { padding: 16px 20px; }
-      .submit-area { padding: 20px; }
       .billing-toggle { width: 100%; justify-content: center; }
+      .timeline-item { flex-direction: column; gap: 8px; }
+      .timeline-day { width: auto; }
     }
   </style>
 </head>
@@ -448,181 +521,67 @@
 <div class="navbar">
   <a href="index.html" class="logo">ASPER·THAN</a>
   <div class="nav-actions">
-    <a href="#" class="help-link">Help Center</a>
+    <div class="help-link" id="helpCenterLink">Help Centre</div>
     <div class="user-badge">School Admin</div>
   </div>
 </div>
 
-<div class="registration-container">
-  <div class="registration-header">
-    <h1>Register your institution</h1>
-    <p>Complete the form below to activate your Asperthan trust layer. All fields marked with * are required.</p>
-  </div>
-
-  <div class="progress-steps">
-    <div class="step active" id="step1"><div class="step-number">1</div><span>School Details</span></div>
-    <div class="step" id="step2"><div class="step-number">2</div><span>Subscription Plan</span></div>
-    <div class="step" id="step3"><div class="step-number">3</div><span>Administrator</span></div>
-    <div class="step" id="step4"><div class="step-number">4</div><span>Confirmation</span></div>
-  </div>
-
-  <form id="schoolRegistrationForm">
-    <!-- SECTION 1: SCHOOL DETAILS -->
-    <div class="form-section">
-      <div class="section-header"><h2>School Information</h2><p>Official details of your educational institution</p></div>
-      <div class="section-body">
-        <div class="form-grid">
-          <div class="form-field full-width">
-            <label>Legal name of institution <span class="required">*</span></label>
-            <input type="text" id="schoolName" placeholder="e.g., Maputo International School" required>
-          </div>
-          <div class="form-field">
-            <label>Region <span class="required">*</span></label>
-            <select id="region" required>
-              <option value="">Select region</option>
-              <option value="West Africa">West Africa</option>
-              <option value="East Africa">East Africa</option>
-              <option value="Southern Africa">Southern Africa</option>
-              <option value="Central Africa">Central Africa</option>
-              <option value="North Africa">North Africa</option>
-            </select>
-          </div>
-          <div class="form-field">
-            <label>Country <span class="required">*</span></label>
-            <select id="country" required>
-              <option value="">Select country</option>
-            </select>
-          </div>
-          <div class="form-field full-width">
-            <label>Physical address</label>
-            <input type="text" id="address" placeholder="Street, city, postal code">
-          </div>
-          <div class="form-field full-width">
-            <label>Official phone number</label>
-            <div class="phone-single">
-              <select id="phoneCode"></select>
-              <input type="tel" id="phoneNumber" placeholder="801 234 5678">
-            </div>
-          </div>
-          <div class="form-field">
-            <label>School email domain</label>
-            <input type="text" id="emailDomain" placeholder="@school.edu (optional)">
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECTION 2: SUBSCRIPTION PLAN -->
-    <div class="form-section">
-      <div class="section-header"><h2>Subscription Plan</h2><p>Select your student capacity and billing preference</p></div>
-      <div class="section-body">
-        <div class="form-grid">
-          <div class="form-field full-width">
-            <label>Student enrollment <span class="required">*</span></label>
-            <div class="capacity-wrapper">
-              <select id="studentRangeSelect" class="capacity-select">
-                <option value="0-100">0 - 100 students</option>
-                <option value="101-200">101 - 200 students</option>
-                <option value="201-300" selected>201 - 300 students</option>
-                <option value="301-400">301 - 400 students</option>
-                <option value="401-500">401 - 500 students</option>
-                <option value="501-600">501 - 600 students</option>
-                <option value="601-700">601 - 700 students</option>
-                <option value="701-800">701 - 800 students</option>
-                <option value="801-900">801 - 900 students</option>
-                <option value="901-1000">901 - 1,000 students</option>
-                <option value="1000+">1,000+ students</option>
-                <option value="custom">Custom (enter exact number)</option>
-              </select>
-              <div class="capacity-custom" id="customCapacityDiv">
-                <input type="number" id="customStudentCount" placeholder="Enter number" min="1">
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="billing-toggle">
-          <div class="billing-option active" data-billing="term">Per Term (3 months)</div>
-          <div class="billing-option" data-billing="session">Per Session (9 months)</div>
-        </div>
-
-        <div class="pricing-preview" id="pricingPreview">
-          <div class="pricing-row"><span>Base fee (per 100 students)</span><span><strong id="baseFeeDisplay">₦0</strong> / block</span></div>
-          <div class="pricing-row"><span>Number of blocks (100 students each)</span><span><span id="blocksCount">0</span> blocks</span></div>
-          <div class="pricing-row total"><span>Total subscription</span><span><strong id="totalDisplay">₦0</strong> / <span id="periodLabel">term</span></span></div>
-          <div class="pricing-note" id="pricingNote">Loading pricing from database...</div>
-        </div>
-
-        <div class="parent-premium-card" id="parentPremiumCard">
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div><strong style="font-size: 0.875rem;">Parent Premium (Optional Add-On)</strong><p style="font-size: 0.75rem; color: #8f806e; margin-top: 4px;">Parents subscribe directly to Asperthan</p></div>
-            <div><span style="font-size: 1.25rem; font-weight: 700; color: #b87c3a;" id="parentPremiumDisplay">₦0</span><span style="font-size: 0.75rem;"> / month per parent</span></div>
-          </div>
-        </div>
-
-        <div class="disclaimer" id="currencyDisclaimer">Loading exchange rates...</div>
-      </div>
-    </div>
-
-    <!-- SECTION 3: ADMINISTRATOR ACCOUNT -->
-    <div class="form-section">
-      <div class="section-header"><h2>Primary Administrator</h2><p>This person will receive all official communications</p></div>
-      <div class="section-body">
-        <div class="form-grid">
-          <div class="form-field"><label>Full name <span class="required">*</span></label><input type="text" id="adminName" placeholder="e.g., Dr. Sarah Okafor" required></div>
-          <div class="form-field"><label>Job title <span class="required">*</span></label>
-            <select id="adminTitle" required>
-              <option value="">Select job title</option>
-              <option value="principal">Principal / Head of School</option>
-              <option value="vice_principal">Vice Principal</option>
-              <option value="administrator">School Administrator</option>
-              <option value="it_director">IT Director / Manager</option>
-              <option value="registrar">Registrar</option>
-              <option value="proprietor">Proprietor / Owner</option>
-              <option value="finance_officer">Finance Officer</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div class="form-field full-width"><label>Work email <span class="required">*</span></label><input type="email" id="adminEmail" placeholder="admin@school.edu" required></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SECTION 4: CONFIRMATION & TERMS -->
-    <div class="form-section">
-      <div class="section-header"><h2>Review & Confirm</h2><p>Please review the terms before submitting</p></div>
-      <div class="section-body">
-        <div class="checkbox-row"><input type="checkbox" id="agreeAccuracy" required><label>I confirm that the information provided is accurate and I have authority to register this institution.</label></div>
-        <div class="checkbox-row"><input type="checkbox" id="agreePricing" required><label>I understand the pricing structure and agree to the subscription terms.</label></div>
-        <div class="checkbox-row"><input type="checkbox" id="agreeTerms" required><label>I have read and accept the <a href="#" target="_blank">Terms of Service</a>, <a href="#" target="_blank">Data Processing Agreement</a>, and <a href="#" target="_blank">Privacy Policy</a>.</label></div>
-        <hr>
-        <div class="disclaimer"><strong>Legal Disclaimer:</strong> By registering your institution, you enter into a binding agreement with Asperthan. All school data is protected under applicable data protection laws. Subscription fees are non-refundable except as required by law.</div>
-      </div>
-    </div>
-
-    <div class="submit-area">
-      <button type="button" class="btn-secondary" onclick="window.location.href='index.html'">Cancel</button>
-      <button type="submit" class="btn-primary" id="submitBtn">Register Institution</button>
-    </div>
-    <div id="statusMessage"></div>
-  </form>
+<div id="appRoot">
+  <!-- Dynamic content loaded here -->
+  <div style="text-align: center; padding: 60px;">Loading...</div>
 </div>
 
 <script>
+  // YOUR SUPABASE CREDENTIALS
+  const SUPABASE_URL = 'https://aqzwirdiksjswvujtjvp.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxendpcmRpa3Nqc3d2dWp0anZwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NzA5NzEsImV4cCI6MjA5NDI0Njk3MX0.zOrM_95Yj9XWH44V8v6F1eSK49IkPOslCE28zNVNmnY';
+  
+  // Initialize Supabase client
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  
   // Global state
-  let pricingData = { pricePerBlock: 8000, sessionPremium: 10, parentPremiumNgn: 500 };
-  let countriesData = [];
-  let currentExchangeRate = 1;
-  let currentCurrency = { code: 'NGN', symbol: '₦', name: 'Nigeria' };
   let currentBilling = 'term';
-
+  let currentRegistrationId = null;
+  
+  // Pricing data (will be fetched from DB)
+  let pricingData = {
+    pricePerBlock: 8000,
+    sessionPremium: 10,
+    parentPremiumNgn: 500
+  };
+  
+  // Countries data
+  let countriesData = [];
+  
+  // Helper functions
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+  
   // Fetch countries from Supabase
   async function fetchCountries() {
     try {
       const { data, error } = await supabase.from('countries').select('*').eq('is_active', true);
       if (error) throw error;
-      countriesData = data;
-      populateCountrySelects();
+      if (data && data.length > 0) {
+        countriesData = data;
+      } else {
+        // Fallback data
+        countriesData = [
+          { code: 'NG', name: 'Nigeria', currency_code: 'NGN', currency_symbol: '₦', phone_code: '+234' },
+          { code: 'MZ', name: 'Mozambique', currency_code: 'MZN', currency_symbol: 'MT', phone_code: '+258' },
+          { code: 'KE', name: 'Kenya', currency_code: 'KES', currency_symbol: 'KSh', phone_code: '+254' },
+          { code: 'GH', name: 'Ghana', currency_code: 'GHS', currency_symbol: '₵', phone_code: '+233' },
+          { code: 'ZA', name: 'South Africa', currency_code: 'ZAR', currency_symbol: 'R', phone_code: '+27' }
+        ];
+      }
+      return true;
     } catch (error) {
       console.error('Error fetching countries:', error);
       // Fallback data
@@ -631,215 +590,324 @@
         { code: 'MZ', name: 'Mozambique', currency_code: 'MZN', currency_symbol: 'MT', phone_code: '+258' },
         { code: 'KE', name: 'Kenya', currency_code: 'KES', currency_symbol: 'KSh', phone_code: '+254' }
       ];
-      populateCountrySelects();
+      return true;
     }
   }
-
-  function populateCountrySelects() {
-    const countrySelect = document.getElementById('country');
-    const phoneCodeSelect = document.getElementById('phoneCode');
-    
-    countrySelect.innerHTML = '<option value="">Select country</option>';
-    phoneCodeSelect.innerHTML = '';
-    
-    countriesData.forEach(country => {
-      countrySelect.innerHTML += `<option value="${country.code}" data-currency="${country.currency_code}" data-symbol="${country.currency_symbol}" data-phone="${country.phone_code}">${country.name}</option>`;
-      phoneCodeSelect.innerHTML += `<option value="${country.phone_code}">${country.phone_code}</option>`;
-    });
-    
-    // Set default phone code to first country
-    if (countriesData.length > 0) {
-      phoneCodeSelect.value = countriesData[0].phone_code;
-    }
-    
-    countrySelect.addEventListener('change', onCountryChange);
-  }
-
-  async function onCountryChange() {
-    const select = document.getElementById('country');
-    const selectedOption = select.options[select.selectedIndex];
-    const currencyCode = selectedOption.getAttribute('data-currency');
-    const currencySymbol = selectedOption.getAttribute('data-symbol');
-    const countryName = selectedOption.text;
-    
-    currentCurrency = { code: currencyCode, symbol: currencySymbol, name: countryName };
-    
-    if (currencyCode && currencyCode !== 'NGN') {
-      await fetchExchangeRate(currencyCode);
-    } else {
-      currentExchangeRate = 1;
-      updateCurrencyDisplay();
-    }
-  }
-
-  async function fetchExchangeRate(targetCurrency) {
-    try {
-      // Using free ExchangeRate-API (no key needed for basic, but limited)
-      const response = await fetch(`https://api.exchangerate-api.com/v4/latest/NGN`);
-      const data = await response.json();
-      if (data.rates && data.rates[targetCurrency]) {
-        currentExchangeRate = data.rates[targetCurrency];
-      } else {
-        currentExchangeRate = 1;
-      }
-    } catch (error) {
-      console.error('Exchange rate fetch failed:', error);
-      currentExchangeRate = 1;
-    }
-    updateCurrencyDisplay();
-  }
-
-  function updateCurrencyDisplay() {
-    const termPrice = calculateTermPrice();
-    const sessionPrice = calculateSessionPrice();
-    const convertedTerm = termPrice * currentExchangeRate;
-    const convertedSession = sessionPrice * currentExchangeRate;
-    const convertedParentPremium = pricingData.parentPremiumNgn * currentExchangeRate;
-    
-    document.getElementById('baseFeeDisplay').innerHTML = `${currentCurrency.symbol}${(pricingData.pricePerBlock * currentExchangeRate).toLocaleString()}`;
-    document.getElementById('totalDisplay').innerHTML = `${currentCurrency.symbol}${(currentBilling === 'term' ? convertedTerm : convertedSession).toLocaleString()}`;
-    document.getElementById('parentPremiumDisplay').innerHTML = `${currentCurrency.symbol}${Math.round(convertedParentPremium).toLocaleString()}`;
-    
-    const disclaimer = document.getElementById('currencyDisclaimer');
-    if (currentCurrency.code !== 'NGN') {
-      disclaimer.innerHTML = `Currency conversion: 1 NGN = ${currentExchangeRate.toFixed(4)} ${currentCurrency.code}. All prices shown in ${currentCurrency.symbol}${currentCurrency.name} are approximate. Actual billing in Nigerian Naira (₦).`;
-    } else {
-      disclaimer.innerHTML = `All prices in Nigerian Naira (₦). Parent premium is optional and billed separately to parents.`;
-    }
-  }
-
-  function getStudentCount() {
-    const selectedValue = document.getElementById('studentRangeSelect').value;
-    if (selectedValue === 'custom') {
-      let customVal = parseInt(document.getElementById('customStudentCount').value);
-      return (!isNaN(customVal) && customVal > 0) ? customVal : 100;
-    }
-    const rangeMap = { '0-100': 100, '101-200': 200, '201-300': 300, '301-400': 400, '401-500': 500, '501-600': 600, '601-700': 700, '701-800': 800, '801-900': 900, '901-1000': 1000, '1000+': 1200 };
-    return rangeMap[selectedValue] || 100;
-  }
-
-  function calculateTermPrice() {
-    const studentCount = getStudentCount();
-    const blocks = Math.ceil(studentCount / 100);
-    return blocks * pricingData.pricePerBlock;
-  }
-
-  function calculateSessionPrice() {
-    const termPrice = calculateTermPrice();
-    return Math.round(termPrice * 3 * (1 + pricingData.sessionPremium / 100));
-  }
-
-  function updatePricing() {
-    const blocks = Math.ceil(getStudentCount() / 100);
-    document.getElementById('blocksCount').innerText = blocks;
-    
-    const termPrice = calculateTermPrice();
-    const sessionPrice = calculateSessionPrice();
-    const displayAmount = currentBilling === 'term' ? termPrice : sessionPrice;
-    const convertedAmount = displayAmount * currentExchangeRate;
-    
-    document.getElementById('totalDisplay').innerHTML = `${currentCurrency.symbol}${convertedAmount.toLocaleString()}`;
-    document.getElementById('periodLabel').innerText = currentBilling === 'term' ? 'term' : 'session';
-    
-    const note = document.getElementById('pricingNote');
-    if (currentBilling === 'session') {
-      note.innerHTML = `<strong>Session pricing (9 months):</strong> ${blocks} block(s) × ₦${pricingData.pricePerBlock.toLocaleString()} per block per term × 3 terms = ₦${(blocks * pricingData.pricePerBlock * 3).toLocaleString()} + ${pricingData.sessionPremium}% premium = ₦${sessionPrice.toLocaleString()} for the full session.`;
-    } else {
-      note.innerHTML = `<strong>Term pricing (3 months):</strong> ${blocks} block(s) of 100 students × ₦${pricingData.pricePerBlock.toLocaleString()} = ₦${termPrice.toLocaleString()} per term.`;
-    }
-  }
-
+  
   // Fetch pricing from Supabase reg_fee table
   async function fetchPricing() {
     try {
       const { data, error } = await supabase.from('reg_fee').select('*').eq('is_active', true).order('student_range_min');
       if (error) throw error;
       if (data && data.length > 0) {
-        pricingData.pricePerBlock = data[0].price_per_100_ngn;
+        pricingData.pricePerBlock = data[0].price_per_100_ngn || 8000;
         pricingData.sessionPremium = data[0].session_premium_percent || 10;
         pricingData.parentPremiumNgn = data[0].parent_premium_monthly_ngn || 500;
       }
     } catch (error) {
       console.error('Error fetching pricing, using defaults:', error);
     }
-    updatePricing();
-    updateCurrencyDisplay();
   }
-
+  
+  // Calculate term price
+  function calculateTermPrice(studentCount) {
+    const blocks = Math.ceil(studentCount / 100);
+    return blocks * pricingData.pricePerBlock;
+  }
+  
+  // Calculate session price
+  function calculateSessionPrice(studentCount) {
+    const termPrice = calculateTermPrice(studentCount);
+    return Math.round(termPrice * 3 * (1 + pricingData.sessionPremium / 100));
+  }
+  
+  // Show Help Centre
+  function showHelpCentre() {
+    document.getElementById('appRoot').innerHTML = `
+      <div class="processing-container">
+        <div class="processing-icon">📖</div>
+        <h1 class="processing-title">Help Centre</h1>
+        <p class="processing-message">Find answers to common questions about registration, pricing, and platform features.</p>
+        
+        <div class="timeline" style="text-align: left;">
+          <div class="timeline-item">
+            <div class="timeline-day">Registration</div>
+            <div class="timeline-text"><strong>How long does verification take?</strong><br>Typically within 7 working days. Some applications are approved same-day.</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-day">Pricing</div>
+            <div class="timeline-text"><strong>How is pricing calculated?</strong><br>₦${pricingData.pricePerBlock.toLocaleString()} per 100 students per term. Session (9 months) includes ${pricingData.sessionPremium}% premium.</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-day">Support</div>
+            <div class="timeline-text"><strong>Need immediate assistance?</strong><br>Email: support@asperthan.com<br>WhatsApp: +234 801 234 5678</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-day">Documents</div>
+            <div class="timeline-text"><strong>Required documents for verification</strong><br>• School registration certificate<br>• Tax identification number<br>• Authorized signatory ID</div>
+          </div>
+        </div>
+        
+        <div class="disclaimer" style="margin-top: 24px;">
+          <strong>Can't find what you're looking for?</strong><br>
+          Contact our support team directly at <a href="mailto:support@asperthan.com">support@asperthan.com</a>
+        </div>
+        
+        <div style="margin-top: 32px;">
+          <button class="btn-secondary" onclick="showRegistrationForm()">Back to Registration</button>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Show processing page after successful registration
+  function showProcessingPage(registrationId, adminEmail, schoolName) {
+    const expectedDate = new Date();
+    expectedDate.setDate(expectedDate.getDate() + 7);
+    const formattedDate = expectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    
+    document.getElementById('appRoot').innerHTML = `
+      <div class="processing-container">
+        <div class="processing-icon">📋</div>
+        <h1 class="processing-title">Registration Received</h1>
+        <p class="processing-message">
+          Thank you for registering <strong>${escapeHtml(schoolName)}</strong> with Asperthan.<br>
+          Your application is now under review.
+        </p>
+        
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-day">Today</div>
+            <div class="timeline-text"><strong>Application submitted</strong><br>We've received your registration and sent a confirmation to ${escapeHtml(adminEmail)}</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-day">Within 7 working days</div>
+            <div class="timeline-text"><strong>Team review</strong><br>Our compliance team will verify your institution's information</div>
+          </div>
+          <div class="timeline-item">
+            <div class="timeline-day">After approval</div>
+            <div class="timeline-text"><strong>Dashboard access granted</strong><br>You'll receive an email with login instructions</div>
+          </div>
+        </div>
+        
+        <div class="alert alert-info">
+          <strong>What happens next?</strong><br><br>
+          • Our team will review your application within <strong>7 working days</strong><br>
+          • You will receive an email notification once a decision is made<br>
+          • If approved, you'll get immediate access to your admin dashboard<br>
+          • If we need more information, we'll contact you at ${escapeHtml(adminEmail)}<br>
+          • Approval can happen the same day depending on verification speed
+        </div>
+        
+        <div class="disclaimer" style="margin-top: 24px; text-align: left;">
+          <strong>Need help?</strong> Contact our support team at <a href="mailto:support@asperthan.com">support@asperthan.com</a> or visit our <a href="#" id="helpLinkInline">Help Centre</a>.
+        </div>
+        
+        <div style="margin-top: 32px;">
+          <button class="btn-secondary" onclick="checkStatus('${registrationId}')">Check Status</button>
+          <button class="btn-primary" onclick="window.location.href='index.html'" style="margin-left: 12px;">Return Home</button>
+        </div>
+      </div>
+    `;
+    
+    document.getElementById('helpLinkInline')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      showHelpCentre();
+    });
+  }
+  
+  // Check registration status
+  async function checkStatus(registrationId) {
+    if (!registrationId) {
+      const email = prompt('Enter the email address used for registration:');
+      if (email) {
+        const { data, error } = await supabase
+          .from('school_registrations')
+          .select('id, review_status, school_name')
+          .eq('admin_email', email)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        if (error || !data || data.length === 0) {
+          alert('No registration found with that email address.');
+          return;
+        }
+        
+        if (data[0].review_status === 'approved') {
+          alert(`Your application for ${data[0].school_name} has been APPROVED! You can now log in.`);
+        } else if (data[0].review_status === 'rejected') {
+          alert(`Your application for ${data[0].school_name} was not approved. Please contact support.`);
+        } else {
+          alert(`Your application is ${data[0].review_status?.replace('_', ' ') || 'pending review'}. We'll email you once verified.`);
+        }
+      }
+      return;
+    }
+    
+    const { data, error } = await supabase
+      .from('school_registrations')
+      .select('review_status, school_name')
+      .eq('id', registrationId)
+      .single();
+    
+    if (error) {
+      alert('Unable to fetch status. Please try again.');
+      return;
+    }
+    
+    if (data.review_status === 'approved') {
+      alert(`CONGRATULATIONS! ${data.school_name} has been APPROVED! You can now log in to your dashboard.`);
+    } else if (data.review_status === 'rejected') {
+      alert(`Your application for ${data.school_name} was not approved. Please check your email for details.`);
+    } else {
+      alert(`Status: ${data.review_status?.replace('_', ' ') || 'Pending review'}. You will receive an email once verified.`);
+    }
+  }
+  
+  // Get student count from form
+  function getStudentCount() {
+    const select = document.getElementById('studentRangeSelect');
+    if (!select) return 100;
+    const selectedValue = select.value;
+    if (selectedValue === 'custom') {
+      let customVal = parseInt(document.getElementById('customStudentCount')?.value);
+      return (!isNaN(customVal) && customVal > 0) ? customVal : 100;
+    }
+    const rangeMap = {
+      '0-100': 100, '101-200': 200, '201-300': 300, '301-400': 400,
+      '401-500': 500, '501-600': 600, '601-700': 700, '701-800': 800,
+      '801-900': 900, '901-1000': 1000, '1000+': 1200
+    };
+    return rangeMap[selectedValue] || 100;
+  }
+  
+  // Update pricing display
+  function updatePricingDisplay() {
+    const studentCount = getStudentCount();
+    const blocks = Math.ceil(studentCount / 100);
+    const termPrice = calculateTermPrice(studentCount);
+    const sessionPrice = calculateSessionPrice(studentCount);
+    const displayAmount = currentBilling === 'term' ? termPrice : sessionPrice;
+    
+    const baseFeeSpan = document.getElementById('baseFeeDisplay');
+    const blocksSpan = document.getElementById('blocksCount');
+    const totalSpan = document.getElementById('totalDisplay');
+    const periodSpan = document.getElementById('periodLabel');
+    const parentSpan = document.getElementById('parentPremiumDisplay');
+    
+    if (baseFeeSpan) baseFeeSpan.innerHTML = `₦${pricingData.pricePerBlock.toLocaleString()}`;
+    if (blocksSpan) blocksSpan.innerText = blocks;
+    if (totalSpan) totalSpan.innerHTML = `₦${displayAmount.toLocaleString()}`;
+    if (periodSpan) periodSpan.innerText = currentBilling === 'term' ? 'term' : 'session';
+    if (parentSpan) parentSpan.innerHTML = `₦${pricingData.parentPremiumNgn.toLocaleString()}`;
+    
+    const noteSpan = document.getElementById('pricingNote');
+    if (noteSpan) {
+      if (currentBilling === 'session') {
+        noteSpan.innerHTML = `<strong>Session pricing (9 months):</strong> ${blocks} block(s) × ₦${pricingData.pricePerBlock.toLocaleString()} per block per term × 3 terms = ₦${(blocks * pricingData.pricePerBlock * 3).toLocaleString()} + ${pricingData.sessionPremium}% premium = ₦${sessionPrice.toLocaleString()} for the full session.`;
+      } else {
+        noteSpan.innerHTML = `<strong>Term pricing (3 months):</strong> ${blocks} block(s) of 100 students × ₦${pricingData.pricePerBlock.toLocaleString()} = ₦${termPrice.toLocaleString()} per term.`;
+      }
+    }
+  }
+  
+  // Toggle custom capacity input
+  function toggleCustomCapacity() {
+    const select = document.getElementById('studentRangeSelect');
+    const customDiv = document.getElementById('customCapacityDiv');
+    if (select && customDiv) {
+      if (select.value === 'custom') {
+        customDiv.classList.add('active');
+      } else {
+        customDiv.classList.remove('active');
+      }
+    }
+    updatePricingDisplay();
+  }
+  
+  // Populate country dropdowns
+  function populateCountrySelects() {
+    const countrySelect = document.getElementById('country');
+    const phoneCodeSelect = document.getElementById('phoneCode');
+    
+    if (!countrySelect || !phoneCodeSelect) return;
+    
+    countrySelect.innerHTML = '<option value="">Select country</option>';
+    phoneCodeSelect.innerHTML = '';
+    
+    countriesData.forEach(country => {
+      countrySelect.innerHTML += `<option value="${country.code}" data-phone="${country.phone_code}" data-symbol="${country.currency_symbol}">${country.name}</option>`;
+      phoneCodeSelect.innerHTML += `<option value="${country.phone_code}">${country.phone_code}</option>`;
+    });
+    
+    if (countriesData.length > 0) {
+      phoneCodeSelect.value = countriesData[0].phone_code;
+    }
+  }
+  
+  // Update progress steps
   function updateProgressStep() {
     let filledCount = 0;
-    const schoolName = document.getElementById('schoolName').value.trim();
-    const region = document.getElementById('region').value;
-    const country = document.getElementById('country').value;
-    const adminName = document.getElementById('adminName').value.trim();
-    const adminTitle = document.getElementById('adminTitle').value;
-    const adminEmail = document.getElementById('adminEmail').value.trim();
+    const schoolName = document.getElementById('schoolName')?.value.trim();
+    const region = document.getElementById('region')?.value;
+    const country = document.getElementById('country')?.value;
+    const adminName = document.getElementById('adminName')?.value.trim();
+    const adminTitle = document.getElementById('adminTitle')?.value;
+    const adminEmail = document.getElementById('adminEmail')?.value.trim();
     
     if (schoolName && region && country) filledCount++;
     filledCount++;
     if (adminName && adminTitle && adminEmail && adminEmail.includes('@')) filledCount++;
-    if (document.getElementById('agreeAccuracy').checked && document.getElementById('agreePricing').checked && document.getElementById('agreeTerms').checked) filledCount++;
+    if (document.getElementById('agreeAccuracy')?.checked && document.getElementById('agreePricing')?.checked && document.getElementById('agreeTerms')?.checked) filledCount++;
     
-    [1,2,3,4].forEach((step, idx) => {
+    [1, 2, 3, 4].forEach((step, idx) => {
       const stepEl = document.getElementById(`step${step}`);
       if (stepEl) {
-        if (idx < filledCount) { stepEl.classList.add('completed'); stepEl.classList.remove('active'); }
-        else if (idx === filledCount) { stepEl.classList.add('active'); stepEl.classList.remove('completed'); }
-        else { stepEl.classList.remove('active', 'completed'); }
+        if (idx < filledCount) {
+          stepEl.classList.add('completed');
+          stepEl.classList.remove('active');
+        } else if (idx === filledCount) {
+          stepEl.classList.add('active');
+          stepEl.classList.remove('completed');
+        } else {
+          stepEl.classList.remove('active', 'completed');
+        }
       }
     });
   }
-
-  // Event listeners
-  document.getElementById('studentRangeSelect').addEventListener('change', () => {
-    const customDiv = document.getElementById('customCapacityDiv');
-    if (document.getElementById('studentRangeSelect').value === 'custom') customDiv.classList.add('active');
-    else customDiv.classList.remove('active');
-    updatePricing();
-  });
-  document.getElementById('customStudentCount')?.addEventListener('input', updatePricing);
-  document.querySelectorAll('.billing-option').forEach(opt => {
-    opt.addEventListener('click', () => {
-      document.querySelectorAll('.billing-option').forEach(o => o.classList.remove('active'));
-      opt.classList.add('active');
-      currentBilling = opt.getAttribute('data-billing');
-      updatePricing();
-    });
-  });
-  document.querySelectorAll('#schoolRegistrationForm input, #schoolRegistrationForm select').forEach(el => {
-    el.addEventListener('change', updateProgressStep);
-    el.addEventListener('input', updateProgressStep);
-  });
-
-  // Form submission to Supabase
+  
+  // Handle form submission
   async function handleSubmit(event) {
     event.preventDefault();
     
-    const schoolName = document.getElementById('schoolName').value.trim();
-    const region = document.getElementById('region').value;
-    const countryCode = document.getElementById('country').value;
-    const address = document.getElementById('address').value;
-    const phoneCode = document.getElementById('phoneCode').value;
-    const phoneNumber = document.getElementById('phoneNumber').value.trim();
-    const emailDomain = document.getElementById('emailDomain').value;
-    const adminName = document.getElementById('adminName').value.trim();
-    const adminTitle = document.getElementById('adminTitle').value;
-    const adminEmail = document.getElementById('adminEmail').value.trim();
-    const agreeAccuracy = document.getElementById('agreeAccuracy').checked;
-    const agreePricingCheck = document.getElementById('agreePricing').checked;
-    const agreeTerms = document.getElementById('agreeTerms').checked;
+    const schoolName = document.getElementById('schoolName')?.value.trim();
+    const region = document.getElementById('region')?.value;
+    const countryCode = document.getElementById('country')?.value;
+    const address = document.getElementById('address')?.value;
+    const phoneCode = document.getElementById('phoneCode')?.value;
+    const phoneNumber = document.getElementById('phoneNumber')?.value.trim();
+    const emailDomain = document.getElementById('emailDomain')?.value;
+    const adminName = document.getElementById('adminName')?.value.trim();
+    const adminTitle = document.getElementById('adminTitle')?.value;
+    const adminEmail = document.getElementById('adminEmail')?.value.trim();
+    const agreeAccuracy = document.getElementById('agreeAccuracy')?.checked;
+    const agreePricingCheck = document.getElementById('agreePricing')?.checked;
+    const agreeTerms = document.getElementById('agreeTerms')?.checked;
     
-    if (!schoolName || !region || !countryCode || !adminName || !adminTitle || !adminEmail || !adminEmail.includes('@') || !agreeAccuracy || !agreePricingCheck || !agreeTerms) {
-      document.getElementById('statusMessage').innerHTML = '<div class="alert alert-error">Please complete all required fields and accept the terms.</div>';
-      return;
-    }
+    if (!schoolName) { showError('Please enter your school name.'); return; }
+    if (!region) { showError('Please select a region.'); return; }
+    if (!countryCode) { showError('Please select a country.'); return; }
+    if (!adminName) { showError('Please enter administrator name.'); return; }
+    if (!adminTitle) { showError('Please select a job title.'); return; }
+    if (!adminEmail || !adminEmail.includes('@')) { showError('Please enter a valid work email.'); return; }
+    if (!agreeAccuracy || !agreePricingCheck || !agreeTerms) { showError('Please accept all terms to continue.'); return; }
     
     const fullPhoneNumber = phoneNumber ? `${phoneCode} ${phoneNumber}` : null;
     const studentCount = getStudentCount();
-    const termPrice = calculateTermPrice();
-    const sessionPrice = calculateSessionPrice();
-    const finalAmount = currentBilling === 'term' ? termPrice : sessionPrice;
     const blocks = Math.ceil(studentCount / 100);
+    const termPrice = calculateTermPrice(studentCount);
+    const sessionPrice = calculateSessionPrice(studentCount);
+    const finalAmount = currentBilling === 'term' ? termPrice : sessionPrice;
     
     const registrationData = {
       school_name: schoolName,
@@ -851,8 +919,7 @@
       student_count: studentCount,
       billing_period: currentBilling,
       subscription_amount_ngn: finalAmount,
-      subscription_amount_local: Math.round(finalAmount * currentExchangeRate),
-      currency_code: currentCurrency.code,
+      currency_code: 'NGN',
       blocks_count: blocks,
       session_premium_applied: currentBilling === 'session',
       admin_name: adminName,
@@ -860,11 +927,10 @@
       admin_email: adminEmail,
       parent_premium_enabled: true,
       parent_premium_monthly_ngn: pricingData.parentPremiumNgn,
-      parent_premium_monthly_local: Math.round(pricingData.parentPremiumNgn * currentExchangeRate),
-      registration_status: 'pending_verification',
+      registration_status: 'pending_review',
+      review_status: 'pending_review',
       terms_accepted: true,
       terms_accepted_at: new Date().toISOString(),
-      ip_address: 'client_collected',
       user_agent: navigator.userAgent
     };
     
@@ -874,29 +940,230 @@
     
     try {
       const { data, error } = await supabase.from('school_registrations').insert([registrationData]).select();
+      
       if (error) throw error;
       
-      document.getElementById('statusMessage').innerHTML = `<div class="alert alert-success">✓ Registration submitted successfully!<br><br>Institution "${schoolName}" has been registered. A confirmation email has been sent to ${adminEmail}.<br><br>Reference ID: ${data[0]?.id?.slice(0,8) || 'pending'}</div>`;
-      document.getElementById('statusMessage').scrollIntoView({ behavior: 'smooth' });
-      submitBtn.innerText = 'Registration Complete';
+      if (data && data[0]) {
+        showProcessingPage(data[0].id, adminEmail, schoolName);
+      } else {
+        throw new Error('No data returned');
+      }
     } catch (error) {
       console.error('Supabase error:', error);
-      document.getElementById('statusMessage').innerHTML = `<div class="alert alert-error">✗ Registration failed: ${error.message}. Please try again.</div>`;
-      submitBtn.innerText = 'Register Institution';
+      showError(`Registration failed: ${error.message}. Please try again.`);
       submitBtn.disabled = false;
+      submitBtn.innerText = 'Register Institution';
     }
   }
-
-  // Initialize Supabase client
-  const supabaseUrl = 'https://your-project.supabase.co';
-  const supabaseKey = 'your-anon-key-here';
-  const supabase = window.supabase?.createClient(supabaseUrl, supabaseKey);
   
-  // Load data
-  fetchCountries();
-  fetchPricing();
-  document.getElementById('schoolRegistrationForm').addEventListener('submit', handleSubmit);
-  updateProgressStep();
+  function showError(msg) {
+    const statusDiv = document.getElementById('statusMessage');
+    if (statusDiv) {
+      statusDiv.innerHTML = `<div class="alert alert-error">✗ ${escapeHtml(msg)}</div>`;
+      statusDiv.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      alert(msg);
+    }
+  }
+  
+  // Show registration form
+  async function showRegistrationForm() {
+    await fetchCountries();
+    await fetchPricing();
+    populateCountrySelects();
+    
+    const formHtml = `
+      <div class="registration-container">
+        <div class="registration-header">
+          <h1>Register your institution</h1>
+          <p>Complete the form below to activate your Asperthan trust layer. All fields marked with * are required.</p>
+        </div>
+        
+        <div class="progress-steps">
+          <div class="step active" id="step1"><div class="step-number">1</div><span>School Details</span></div>
+          <div class="step" id="step2"><div class="step-number">2</div><span>Subscription Plan</span></div>
+          <div class="step" id="step3"><div class="step-number">3</div><span>Administrator</span></div>
+          <div class="step" id="step4"><div class="step-number">4</div><span>Confirmation</span></div>
+        </div>
+        
+        <form id="schoolRegistrationForm">
+          <!-- SECTION 1: SCHOOL DETAILS -->
+          <div class="form-section">
+            <div class="section-header"><h2>School Information</h2><p>Official details of your educational institution</p></div>
+            <div class="section-body">
+              <div class="form-grid">
+                <div class="form-field full-width">
+                  <label>Legal name of institution <span class="required">*</span></label>
+                  <input type="text" id="schoolName" placeholder="e.g., Maputo International School" required>
+                </div>
+                <div class="form-field">
+                  <label>Region <span class="required">*</span></label>
+                  <select id="region" required>
+                    <option value="">Select region</option>
+                    <option value="West Africa">West Africa</option>
+                    <option value="East Africa">East Africa</option>
+                    <option value="Southern Africa">Southern Africa</option>
+                    <option value="Central Africa">Central Africa</option>
+                    <option value="North Africa">North Africa</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label>Country <span class="required">*</span></label>
+                  <select id="country" required></select>
+                </div>
+                <div class="form-field full-width">
+                  <label>Physical address</label>
+                  <input type="text" id="address" placeholder="Street, city, postal code">
+                </div>
+                <div class="form-field full-width">
+                  <label>Official phone number</label>
+                  <div class="phone-single">
+                    <select id="phoneCode"></select>
+                    <input type="tel" id="phoneNumber" placeholder="801 234 5678">
+                  </div>
+                </div>
+                <div class="form-field">
+                  <label>School email domain</label>
+                  <input type="text" id="emailDomain" placeholder="@school.edu (optional)">
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- SECTION 2: SUBSCRIPTION PLAN -->
+          <div class="form-section">
+            <div class="section-header"><h2>Subscription Plan</h2><p>Select your student capacity and billing preference</p></div>
+            <div class="section-body">
+              <div class="form-grid">
+                <div class="form-field full-width">
+                  <label>Student enrollment <span class="required">*</span></label>
+                  <div class="capacity-wrapper">
+                    <select id="studentRangeSelect" class="capacity-select">
+                      <option value="0-100">0 - 100 students</option>
+                      <option value="101-200">101 - 200 students</option>
+                      <option value="201-300" selected>201 - 300 students</option>
+                      <option value="301-400">301 - 400 students</option>
+                      <option value="401-500">401 - 500 students</option>
+                      <option value="501-600">501 - 600 students</option>
+                      <option value="601-700">601 - 700 students</option>
+                      <option value="701-800">701 - 800 students</option>
+                      <option value="801-900">801 - 900 students</option>
+                      <option value="901-1000">901 - 1,000 students</option>
+                      <option value="1000+">1,000+ students</option>
+                      <option value="custom">Custom (enter exact number)</option>
+                    </select>
+                    <div class="capacity-custom" id="customCapacityDiv">
+                      <input type="number" id="customStudentCount" placeholder="Enter number" min="1">
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="billing-toggle">
+                <div class="billing-option active" data-billing="term">Per Term (3 months)</div>
+                <div class="billing-option" data-billing="session">Per Session (9 months)</div>
+              </div>
+              
+              <div class="pricing-preview" id="pricingPreview">
+                <div class="pricing-row"><span>Base fee (per 100 students)</span><span><strong id="baseFeeDisplay">₦0</strong> / block</span></div>
+                <div class="pricing-row"><span>Number of blocks (100 students each)</span><span><span id="blocksCount">0</span> blocks</span></div>
+                <div class="pricing-row total"><span>Total subscription</span><span><strong id="totalDisplay">₦0</strong> / <span id="periodLabel">term</span></span></div>
+                <div class="pricing-note" id="pricingNote">Loading pricing...</div>
+              </div>
+              
+              <div class="parent-premium-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                  <div><strong style="font-size: 0.875rem;">Parent Premium (Optional Add-On)</strong><p style="font-size: 0.75rem; color: #8f806e; margin-top: 4px;">Parents subscribe directly to Asperthan</p></div>
+                  <div><span style="font-size: 1.25rem; font-weight: 700; color: #b87c3a;" id="parentPremiumDisplay">₦0</span><span style="font-size: 0.75rem;"> / month per parent</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- SECTION 3: ADMINISTRATOR ACCOUNT -->
+          <div class="form-section">
+            <div class="section-header"><h2>Primary Administrator</h2><p>This person will receive all official communications</p></div>
+            <div class="section-body">
+              <div class="form-grid">
+                <div class="form-field"><label>Full name <span class="required">*</span></label><input type="text" id="adminName" placeholder="e.g., Dr. Sarah Okafor" required></div>
+                <div class="form-field"><label>Job title <span class="required">*</span></label>
+                  <select id="adminTitle" required>
+                    <option value="">Select job title</option>
+                    <option value="principal">Principal / Head of School</option>
+                    <option value="vice_principal">Vice Principal</option>
+                    <option value="administrator">School Administrator</option>
+                    <option value="it_director">IT Director / Manager</option>
+                    <option value="registrar">Registrar</option>
+                    <option value="proprietor">Proprietor / Owner</option>
+                    <option value="finance_officer">Finance Officer</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div class="form-field full-width"><label>Work email <span class="required">*</span></label><input type="email" id="adminEmail" placeholder="admin@school.edu" required></div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- SECTION 4: CONFIRMATION & TERMS -->
+          <div class="form-section">
+            <div class="section-header"><h2>Review & Confirm</h2><p>Please review the terms before submitting</p></div>
+            <div class="section-body">
+              <div class="checkbox-row"><input type="checkbox" id="agreeAccuracy" required><label>I confirm that the information provided is accurate and I have authority to register this institution.</label></div>
+              <div class="checkbox-row"><input type="checkbox" id="agreePricing" required><label>I understand the pricing structure and agree to the subscription terms.</label></div>
+              <div class="checkbox-row"><input type="checkbox" id="agreeTerms" required><label>I have read and accept the <a href="#" target="_blank">Terms of Service</a>, <a href="#" target="_blank">Data Processing Agreement</a>, and <a href="#" target="_blank">Privacy Policy</a>.</label></div>
+              <hr>
+              <div class="disclaimer"><strong>Legal Disclaimer:</strong> By registering your institution, you enter into a binding agreement with Asperthan. All school data is protected under applicable data protection laws.</div>
+            </div>
+          </div>
+          
+          <div class="submit-area">
+            <button type="button" class="btn-secondary" onclick="window.location.href='index.html'">Cancel</button>
+            <button type="submit" class="btn-primary" id="submitBtn">Register Institution</button>
+          </div>
+          <div id="statusMessage"></div>
+        </form>
+      </div>
+    `;
+    
+    document.getElementById('appRoot').innerHTML = formHtml;
+    
+    // Re-attach event listeners
+    document.getElementById('studentRangeSelect')?.addEventListener('change', () => {
+      toggleCustomCapacity();
+      updatePricingDisplay();
+    });
+    document.getElementById('customStudentCount')?.addEventListener('input', updatePricingDisplay);
+    
+    document.querySelectorAll('.billing-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        document.querySelectorAll('.billing-option').forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        currentBilling = opt.getAttribute('data-billing');
+        updatePricingDisplay();
+      });
+    });
+    
+    document.querySelectorAll('#schoolRegistrationForm input, #schoolRegistrationForm select').forEach(el => {
+      el.addEventListener('change', updateProgressStep);
+      el.addEventListener('input', updateProgressStep);
+    });
+    
+    document.getElementById('schoolRegistrationForm')?.addEventListener('submit', handleSubmit);
+    
+    toggleCustomCapacity();
+    updatePricingDisplay();
+    updateProgressStep();
+    populateCountrySelects();
+  }
+  
+  // Initialize
+  window.onload = () => {
+    showRegistrationForm();
+    document.getElementById('helpCenterLink')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      showHelpCentre();
+    });
+  };
 </script>
 </body>
 </html>
