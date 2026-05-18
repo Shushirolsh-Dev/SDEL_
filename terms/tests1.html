@@ -16,15 +16,14 @@
 
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: white;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
 
     .navbar {
-      background: rgba(222, 184, 135, 0.95);
-      backdrop-filter: blur(10px);
+      background: #DEB887;
       padding: 18px 48px;
       display: flex;
       justify-content: space-between;
@@ -68,8 +67,8 @@
       background: white;
       border-radius: 32px;
       padding: 48px 40px;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
-      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.05);
+      border: 1px solid #f0e4d6;
     }
 
     h1 {
@@ -123,6 +122,12 @@
       outline: none;
       border-color: #DEB887;
       box-shadow: 0 0 0 3px rgba(222,184,135,0.2);
+    }
+
+    input:disabled {
+      background: #f5f0ea;
+      color: #4a3b2c;
+      cursor: not-allowed;
     }
 
     .toggle-password {
@@ -203,19 +208,14 @@
       font-weight: 500;
     }
 
-    .role-badge {
-      text-align: center;
-      margin-top: 16px;
-      padding: 8px;
-      background: #fef6ed;
-      border-radius: 40px;
-      font-size: 0.8rem;
-      color: #b87c3a;
-      display: none;
-    }
-
-    .role-badge.show {
-      display: block;
+    .role-box {
+      background: #f5f0ea;
+      border: 1.5px solid #e8dfd5;
+      border-radius: 16px;
+      padding: 14px 16px;
+      font-size: 1rem;
+      color: #4a3b2c;
+      font-weight: 500;
     }
 
     .footer {
@@ -223,8 +223,7 @@
       padding: 24px;
       font-size: 0.75rem;
       color: #7f6e5c;
-      border-top: 1px solid rgba(255,255,255,0.2);
-      background: rgba(0,0,0,0.05);
+      border-top: 1px solid #ece4db;
     }
 
     .toast {
@@ -288,7 +287,12 @@
             </button>
           </div>
         </div>
-        <div class="role-badge" id="roleBadge"></div>
+        <div class="input-group">
+          <label>Role (auto-detected)</label>
+          <div class="role-box" id="roleBox">
+            <span id="roleText">—</span>
+          </div>
+        </div>
         <button type="submit" class="btn-login" id="loginBtn">Log in →</button>
       </form>
       <div class="signup-prompt">
@@ -313,7 +317,7 @@
     const passwordInput = document.getElementById('password');
     const loginBtn = document.getElementById('loginBtn');
     const loginForm = document.getElementById('loginForm');
-    const roleBadge = document.getElementById('roleBadge');
+    const roleText = document.getElementById('roleText');
     const toastEl = document.getElementById('toast');
     
     // Password visibility toggle
@@ -342,8 +346,7 @@
           await autoDetectRole(email);
         }, 500);
       } else {
-        roleBadge.classList.remove('show');
-        roleBadge.innerHTML = '';
+        roleText.textContent = '—';
       }
     });
     
@@ -358,30 +361,14 @@
         
         if (data && !error) {
           const role = data.role;
-          const roleEmoji = {
-            student: '🎓',
-            teacher: '🍎',
-            parent: '🏠'
-          };
-          const roleName = {
-            student: 'Student',
-            teacher: 'Teacher',
-            parent: 'Parent'
-          };
-          roleBadge.innerHTML = `
-            <span style="display: inline-flex; align-items: center; gap: 8px;">
-              <span>${roleEmoji[role]}</span>
-              <span>Account type: <strong>${roleName[role]}</strong></span>
-              <span>✓</span>
-            </span>
-          `;
-          roleBadge.classList.add('show');
+          // Capitalize first letter
+          const formattedRole = role.charAt(0).toUpperCase() + role.slice(1);
+          roleText.textContent = formattedRole;
         } else {
-          roleBadge.classList.remove('show');
+          roleText.textContent = '—';
         }
       } catch (error) {
-        // Email not found yet - that's fine
-        roleBadge.classList.remove('show');
+        roleText.textContent = '—';
       }
     }
     
@@ -519,7 +506,7 @@
         
         showToast(`✅ Welcome back, ${profile.full_name}!`);
         
-        // Redirect based on role
+        // Redirect to dashboard
         setTimeout(() => {
           window.location.href = 'dashboard.html';
         }, 1500);
