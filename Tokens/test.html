@@ -21,7 +21,6 @@
             --text-main: #f0f0f0;
             --text-secondary: #888888;
             --soft-warning: rgba(255, 102, 0, 0.15);
-            --error-red: rgba(255, 70, 70, 0.2);
             --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
         }
 
@@ -375,16 +374,10 @@
             display: flex;
             align-items: center;
             border-radius: 50%;
+            transition: transform 0.1s;
         }
         .mic-button:active { transform: scale(0.92); }
 
-        .error-message {
-            background: rgba(255, 70, 70, 0.1);
-            border-left: 3px solid #ff6666;
-            padding: 10px;
-            border-radius: 12px;
-            color: #ffaaaa;
-        }
         .rate-limit-warning {
             font-size: 0.7rem;
             color: var(--text-secondary);
@@ -393,6 +386,14 @@
         }
         .retry-spinning svg { animation: spin 0.7s linear infinite !important; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Voice message fade styling */
+        .voice-message-temp {
+            transition: opacity 0.3s ease;
+        }
+        .voice-message-temp.fade-out {
+            opacity: 0;
+        }
 
         @media (max-width: 480px) {
             .chat-messages { padding: 16px 12px; gap: 18px; }
@@ -446,52 +447,137 @@
         let pendingRetryMessage = null;
         let firstUserMessageSent = false;
         
-        // --- TYPING IN & TYPING OUT PLACEHOLDER (Turpin style: type in, pause, type out, switch phrase) ---
-        let placeholderInterval = null;
+        // Voice handling: prevent spam, single message with fade, browser speech
+        let activeVoiceMessageDiv = null;
+        let voiceMessageTimeout = null;
+        let isVoicePlaying = false;
+        
+        function speakText(text) {
+            if (!window.speechSynthesis) return;
+            // Cancel any ongoing speech to avoid overlapping
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.95;
+            utterance.pitch = 1.0;
+            utterance.volume = 0.9;
+            utterance.lang = 'en-US';
+            utterance.onend = () => { isVoicePlaying = false; };
+            utterance.onerror = () => { isVoicePlaying = false; };
+            isVoicePlaying = true;
+            window.speechSynthesis.speak(utterance);
+        }
+        
+        function showVoiceMessage(message, shouldSpeak = true) {
+            // Clear any existing voice message and timeout
+            if (activeVoiceMessageDiv) {
+                if (voiceMessageTimeout) clearTimeout(voiceMessageTimeout);
+                activeVoiceMessageDiv.remove();
+                activeVoiceMessageDiv = null;
+            }
+            if (voiceMessageTimeout) clearTimeout(voiceMessageTimeout);
+            
+            // Create temporary Litheral message
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message Litheral voice-message-temp';
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'message-username';
+            nameDiv.textContent = 'Litheral';
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble';
+            bubbleDiv.textContent = message;
+            msgDiv.appendChild(nameDiv);
+            msgDiv.appendChild(bubbleDiv);
+            chatMessages.appendChild(msgDiv);
+            activeVoiceMessageDiv = msgDiv;
+            scrollToBottom();
+            
+            // Speak if requested
+            if (shouldSpeak) {
+                speakText(message);
+            }
+            
+            // Fade out and remove after 5 seconds
+            voiceMessageTimeout = setTimeout(() => {
+                if (activeVoiceMessageDiv) {
+                    activeVoiceMessageDiv.classList.add('fade-out');
+                    setTimeout(() => {
+                        if (activeVoiceMessageDiv) activeVoiceMessageDiv.remove();
+                        if (activeVoiceMessageDiv === msgDiv) activeVoiceMessageDiv = null;
+                    }, 300);
+                }
+                voiceMessageTimeout = null;
+            }, 5000);
+        }
+        
+        // Debounced voice button: prevents spam, only shows message once per click, handles rapid clicks gracefully
+        let lastVoiceClick = 0;
+        let voiceCooldown = false;
+        
+        function handleVoiceClick() {
+            if (voiceCooldown) {
+                // If clicked during cooldown, just flash? no: just ignore or fade existing message stays
+                // We can also briefly pulse the mic button to indicate it's busy
+                micButton.style.transform = 'scale(0.95)';
+                setTimeout(() => { micButton.style.transform = ''; }, 150);
+                return;
+            }
+            
+            voiceCooldown = true;
+            const voiceMessage = "Voice input isn't available yet. Type your message instead for clarity.";
+            showVoiceMessage(voiceMessage, true);
+            
+            // Cooldown to prevent spam (1 second cooldown, but message stays unique)
+            setTimeout(() => {
+                voiceCooldown = false;
+            }, 1200);
+        }
+        
+        // --- Placeholder typing IN & OUT with longer pauses ---
         let currentPhraseIndex = 0;
         let isAnimatingPlaceholder = false;
         let currentPlaceholderText = "";
         let currentDisplayLength = 0;
         let isDeleting = false;
+        let placeholderTimer = null;
         
         const placeholderPhrases = [
             "Ask with clarity",
-            "Speak your truth", 
-            "Seek insight",
+            "Seek what matters",
             "Clarity over noise",
-            "Think freely"
+            "Think freely",
+            "Speak your truth"
         ];
         
-        function animatePlaceholder() {
+        function animatePlaceholderLoop() {
             if (isAnimatingPlaceholder) return;
             isAnimatingPlaceholder = true;
             
-            function updatePlaceholder() {
+            function updateStep() {
                 if (!isDeleting) {
                     // Typing in
                     if (currentDisplayLength < currentPlaceholderText.length) {
                         currentDisplayLength++;
                         chatInput.placeholder = currentPlaceholderText.substring(0, currentDisplayLength);
-                        setTimeout(updatePlaceholder, 65);
+                        placeholderTimer = setTimeout(updateStep, 70);
                     } else {
-                        // Fully typed — pause
-                        setTimeout(() => {
+                        // Fully typed — pause LONGER (3 seconds)
+                        placeholderTimer = setTimeout(() => {
                             isDeleting = true;
-                            updatePlaceholder();
-                        }, 1800);
+                            updateStep();
+                        }, 2800);
                     }
                 } else {
                     // Typing out (deleting)
                     if (currentDisplayLength > 0) {
                         currentDisplayLength--;
                         chatInput.placeholder = currentPlaceholderText.substring(0, currentDisplayLength);
-                        setTimeout(updatePlaceholder, 45);
+                        placeholderTimer = setTimeout(updateStep, 45);
                     } else {
-                        // Move to next phrase
+                        // Move to next phrase after short pause
                         currentPhraseIndex = (currentPhraseIndex + 1) % placeholderPhrases.length;
                         currentPlaceholderText = placeholderPhrases[currentPhraseIndex];
                         isDeleting = false;
-                        setTimeout(updatePlaceholder, 200);
+                        placeholderTimer = setTimeout(updateStep, 300);
                     }
                 }
             }
@@ -499,13 +585,12 @@
             currentPlaceholderText = placeholderPhrases[currentPhraseIndex];
             currentDisplayLength = 0;
             isDeleting = false;
-            updatePlaceholder();
+            updateStep();
         }
         
-        // Start the type-in/type-out cycle
-        animatePlaceholder();
+        animatePlaceholderLoop();
         
-        // Helpers
+        // Helper functions
         function getHumanReadableErrorMessage(errorObj) {
             const message = errorObj?.message || errorObj?.toString() || '';
             if (message.includes('insufficient_coins')) return "Not enough coins. Tap 'add' to continue.";
@@ -612,7 +697,6 @@
         function debouncedScroll() { setTimeout(scrollToBottom, 40); }
         function showCopyToast() { copyToast.style.opacity = '1'; setTimeout(() => { copyToast.style.opacity = '0'; }, 1500); }
         
-        // Icons
         const editIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3L21 7L7 21H3V17L17 3Z"/><path d="M15 5L19 9"/></svg>';
         const copyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
         const shareIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
@@ -736,10 +820,9 @@
         
         chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } });
         sendButton.addEventListener('click', handleSend);
-        micButton.addEventListener('click', () => typeMessage("Voice input coming soon.", false, false));
+        micButton.addEventListener('click', handleVoiceClick);
         document.getElementById('buyCoinsBtn').addEventListener('click', () => window.location.href = '/Tokens');
         
-        // Jump to bottom logic
         chatMessages.addEventListener('scroll', () => {
             const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 150;
             if (!isNearBottom) jumpBtn.classList.add('visible');
@@ -747,7 +830,6 @@
         });
         jumpBtn.addEventListener('click', () => { chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }); jumpBtn.classList.remove('visible'); });
         
-        // Init: default messages without action buttons
         async function init() {
             const ok = await initSupabaseAuth();
             if (ok && navigator.onLine) {
@@ -767,9 +849,14 @@
             if(!firstUserMessageSent && chatMessages.children.length === 0) init();
             sendButton.disabled = false;
         });
-        window.addEventListener('beforeunload', () => { if(currentAbortController) currentAbortController.abort(); if(typingAnimationFrame) clearTimeout(typingAnimationFrame); if(rateLimitTimeout) clearTimeout(rateLimitTimeout); });
+        window.addEventListener('beforeunload', () => { 
+            if(currentAbortController) currentAbortController.abort(); 
+            if(typingAnimationFrame) clearTimeout(typingAnimationFrame); 
+            if(rateLimitTimeout) clearTimeout(rateLimitTimeout);
+            if(placeholderTimer) clearTimeout(placeholderTimer);
+            window.speechSynthesis.cancel();
+        });
     })();
 </script>
 </body>
 </html>
-
