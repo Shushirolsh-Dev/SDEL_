@@ -21,8 +21,7 @@
             --text-main: #ffffff;
             --text-secondary: #888888;
             --soft-warning: rgba(255, 102, 0, 0.15);
-            --error-bg: rgba(255, 50, 50, 0.12);
-            --error-border: rgba(255, 80, 80, 0.3);
+            --error-red: rgba(255, 70, 70, 0.2);
             --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
         }
 
@@ -188,17 +187,6 @@
         .message.user .message-bubble {
             text-align: right;
             color: #cccccc;
-        }
-
-        /* Error message styling - friendly and clear */
-        .error-message {
-            background: var(--error-bg);
-            border-left: 3px solid #ff5555;
-            padding: 12px 14px;
-            border-radius: 12px;
-            margin: 4px 0;
-            font-size: 0.9rem;
-            color: #ffaaaa;
         }
 
         .message-actions {
@@ -400,6 +388,16 @@
             border: 1px solid rgba(255, 102, 0, 0.3);
         }
 
+        .error-message {
+            background: rgba(255, 70, 70, 0.15);
+            border-left: 3px solid #ff4444;
+            padding: 12px;
+            border-radius: 12px;
+            margin: 8px 0;
+            font-size: 0.85rem;
+            color: #ffaaaa;
+        }
+
         .rate-limit-warning {
             font-size: 0.7rem;
             color: var(--text-secondary);
@@ -480,65 +478,70 @@
         let userName = null;
         let pendingRetryMessage = null;
         
-        // Friendly error translator - turns technical errors into human-readable messages
-        function getFriendlyErrorMessage(error, context = {}) {
-            const errorMsg = error?.message || String(error);
+        // Human-readable error explanation for file/API errors (no raw codes)
+        function getHumanReadableErrorMessage(errorObj) {
+            const message = errorObj?.message || errorObj?.toString() || '';
+            const status = errorObj?.status || errorObj?.statusCode;
             
-            if (errorMsg.includes('422') || errorMsg.includes('validation') || errorMsg.includes('unprocessable')) {
-                return "⚠️ Message non valide. Essaie un message plus simple (évite les caractères spéciaux).";
+            // Common API error scenarios explained in English
+            if (message.includes('insufficient_coins')) {
+                return "You don't have enough coins to send this message. Tap the 'add' button to get more coins and continue the conversation.";
             }
-            if (errorMsg.includes('429') || errorMsg.includes('rate limit') || errorMsg.includes('trop de requêtes')) {
-                return "⏳ Trop de messages trop vite. Attends quelques secondes avant d'envoyer un nouveau message.";
+            if (message.includes('offline') || !navigator.onLine) {
+                return "You're currently offline. Please check your internet connection and try again once you're back online.";
             }
-            if (errorMsg.includes('500') || errorMsg.includes('internal server')) {
-                return "🔧 Le serveur rencontre un problème technique. Réessaie dans une minute.";
+            if (message.includes('Rate limited') || message.includes('rate limit') || message.includes('too many requests')) {
+                return "You're sending messages too quickly. Please wait a moment before your next message. The system will automatically retry when ready.";
             }
-            if (errorMsg.includes('401') || errorMsg.includes('unauthorized')) {
-                return "🔐 Session expirée. Rafraîchis la page pour te reconnecter.";
+            if (message.includes('NetworkError') || message.includes('fetch') || message.includes('Failed to fetch')) {
+                return "Network connection issue. The server might be unreachable — check your internet or try again in a few seconds.";
             }
-            if (errorMsg.includes('403') || errorMsg.includes('forbidden')) {
-                return "🚫 Action non autorisée. Vérifie ton compte.";
+            if (status === 401 || message.includes('unauthorized') || message.includes('token')) {
+                return "Session expired. Refreshing your login — this should only take a moment.";
             }
-            if (errorMsg.includes('404') || errorMsg.includes('not found')) {
-                return "🌐 Service indisponible pour le moment. Réessaie plus tard.";
+            if (status === 402) {
+                return "Coin balance too low. Add more coins using the 'add' button to continue.";
             }
-            if (errorMsg.includes('408') || errorMsg.includes('timeout')) {
-                return "⏱️ Le serveur met trop de temps à répondre. Vérifie ta connexion internet.";
+            if (status === 403) {
+                return "Access denied. Please refresh the page and try again.";
             }
-            if (errorMsg.includes('insufficient_coins') || errorMsg.includes('coins')) {
-                return "💰 Pas assez de coins. Appuie sur le bouton « add » pour en obtenir.";
+            if (status === 404) {
+                return "Service temporarily unavailable. The AI endpoint could not be reached. Please try again in a minute.";
             }
-            if (errorMsg.includes('offline') || errorMsg.includes('network') || !navigator.onLine) {
-                return "📡 Pas de connexion internet. Vérifie ton Wi-Fi ou données mobiles.";
+            if (status === 500 || status === 502 || status === 503 || status === 504) {
+                return "Our server is under heavy load or experiencing issues. Please wait a few seconds and try again. Your message hasn't been lost.";
             }
-            if (errorMsg.includes('empty') || (context.isEmpty && context.isEmpty === true)) {
-                return "✏️ Tu n'as rien écrit. Tape ton message avant d'envoyer.";
+            if (message.includes('timeout') || message.includes('Timed out')) {
+                return "The request took too long. The AI is thinking deeply — please retry in a moment.";
             }
-            if (errorMsg.includes('too long') || (userMessage && userMessage.length > 2000)) {
-                return "📏 Message trop long (max 2000 caractères). Réessaie avec un texte plus court.";
+            if (message.includes('aborted')) {
+                return "Previous request was cancelled. Feel free to send a new message.";
+            }
+            if (message.includes('JSON') || message.includes('parse')) {
+                return "Received an unexpected response from the server. Please try again.";
             }
             
-            return `❓ ${errorMsg}`;
-        }
-        
-        // Display error as a friendly Litheral message
-        async function displayFriendlyError(rawError, customContext = {}) {
-            const friendlyMsg = getFriendlyErrorMessage(rawError, customContext);
-            // Create an error-styled message in chat
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'message Litheral';
-            const nameDiv = document.createElement('div');
-            nameDiv.className = 'message-username';
-            nameDiv.textContent = 'Litheral';
-            const bubbleDiv = document.createElement('div');
-            bubbleDiv.className = 'message-bubble error-message';
-            bubbleDiv.textContent = friendlyMsg;
-            errorDiv.appendChild(nameDiv);
-            errorDiv.appendChild(bubbleDiv);
-            chatMessages.appendChild(errorDiv);
-            scrollToBottom();
-            // Keep message in chat history as pseudo entry to maintain context
-            return friendlyMsg;
+            // Fallback for any raw API code appearance (ensures we never show "API ###")
+            const rawCodeMatch = message.match(/API[:\s]*(\d{3})/i) || message.match(/error[:\s]*(\d{3})/i);
+            if (rawCodeMatch) {
+                const code = rawCodeMatch[1];
+                const codeExplanations = {
+                    '400': "The request was invalid. Please rephrase your message and try again.",
+                    '401': "Authentication issue. Refreshing your session...",
+                    '403': "You don't have permission for this action. Try reloading.",
+                    '404': "The AI service endpoint is temporarily offline.",
+                    '429': "Too many requests. Please wait a moment before sending another message.",
+                    '500': "Internal server error. Our team has been notified — please retry.",
+                    '502': "Bad gateway. The AI service is restarting, wait a few seconds.",
+                    '503': "Service is temporarily overloaded. Please wait and retry.",
+                    '504': "Gateway timeout. The AI is taking longer than expected."
+                };
+                return codeExplanations[code] || `Something went wrong (server responded with error ${code}). Please refresh the page or try again later.`;
+            }
+            
+            // Default clean message
+            if (message && !message.includes('API')) return message;
+            return "Unable to process your request. Please try again in a moment.";
         }
         
         async function fetchRandomQuote() {
@@ -601,7 +604,7 @@
                     return true;
                 }
             } catch (error) {
-                await displayFriendlyError(error);
+                await typeMessage("Connection issue. Please refresh and ensure you're online.");
                 return false;
             }
         }
@@ -614,24 +617,20 @@
             const options = { method, headers: { 'Authorization': `Bearer ${supabaseAccessToken}`, 'Content-Type': 'application/json' }, signal: currentAbortController.signal };
             if (body && method === 'POST') options.body = JSON.stringify(body);
             const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-            
-            // Handle 422 specifically with friendly error
-            if (response.status === 422) {
-                const errorData = await response.json().catch(() => ({}));
-                console.warn('422 error details:', errorData);
-                throw new Error(`422 - validation error: ${JSON.stringify(errorData)}`);
-            }
             if (response.status === 402) throw new Error('insufficient_coins');
-            if (response.status === 429) throw new Error('rate_limit_exceeded');
             if (response.status === 401) {
                 const { data: { session } } = await supabase.auth.refreshSession();
                 if (session) supabaseAccessToken = session.access_token;
                 return callAPI(endpoint, body, method);
             }
-            if (response.status === 500 || response.status === 502 || response.status === 503) {
-                throw new Error(`Server error ${response.status}`);
+            if (!response.ok) {
+                let errorDetail = `Request failed with status ${response.status}`;
+                try {
+                    const errorJson = await response.json();
+                    if (errorJson.message) errorDetail = errorJson.message;
+                } catch(e) {}
+                throw new Error(errorDetail);
             }
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.json();
         }
         
@@ -647,16 +646,13 @@
         }
         
         async function sendToLitheral(userMessage, isRetry = false) {
-            if (!userMessage || userMessage.trim().length === 0) throw new Error('empty_message');
-            if (userMessage.length > 2000) throw new Error('message_too_long');
             if (!navigator.onLine) throw new Error('offline');
-            
             const now = Date.now();
             const timeSinceLastRequest = now - lastRequestTime;
             if (timeSinceLastRequest < 12000) {
                 const waitSeconds = Math.ceil((12000 - timeSinceLastRequest) / 1000);
                 sendButton.disabled = true; micButton.disabled = true;
-                rateLimitWarning.textContent = `⏳ Attends ${waitSeconds} secondes avant d'envoyer...`;
+                rateLimitWarning.textContent = `Slow down — please wait ${waitSeconds}s before sending another message.`;
                 if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
                 rateLimitTimeout = setTimeout(() => {
                     sendButton.disabled = false; micButton.disabled = false;
@@ -667,17 +663,17 @@
                         handleSendWithText(msg);
                     }
                 }, 12000 - timeSinceLastRequest);
-                throw new Error('rate_limit_exceeded');
+                throw new Error('Rate limited');
             }
             lastRequestTime = now;
-            const requestBody = { message: userMessage.trim(), chat_history: chatHistory.slice(-30) };
+            const requestBody = { message: userMessage, chat_history: chatHistory };
             const data = await callAPI('/ai/chat', requestBody);
             if (data.balance_remaining !== undefined) {
                 currentBalance = data.balance_remaining;
                 balanceAmountSpan.textContent = currentBalance.toFixed(4);
             }
             if (!isRetry) {
-                chatHistory.push({ role: "user", content: userMessage.trim() }, { role: "model", content: data.response });
+                chatHistory.push({ role: "user", content: userMessage }, { role: "model", content: data.response });
             } else {
                 if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
                 chatHistory.push({ role: "model", content: data.response });
@@ -714,11 +710,12 @@
             debouncedScroll();
         }
         
-        async function typeMessage(text) {
+        async function typeMessage(text, isError = false) {
             return new Promise((resolve) => {
                 const messageDiv = document.createElement('div'); messageDiv.className = 'message Litheral';
                 const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'Litheral';
                 const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble typing-active';
+                if (isError) bubbleDiv.style.color = '#ffaaaa';
                 messageDiv.appendChild(nameDiv); messageDiv.appendChild(bubbleDiv);
                 chatMessages.appendChild(messageDiv);
                 let i = 0;
@@ -741,30 +738,33 @@
                         copyBtn.onclick = () => { navigator.clipboard.writeText(text); showCopyToast(); };
                         shareBtn.onclick = () => { if(navigator.share) navigator.share({text}); else copyBtn.click(); };
                         
-                        retryBtn.onclick = async () => {
-                            const lastUserMsgElem = [...chatMessages.querySelectorAll('.message.user')].pop();
-                            if (lastUserMsgElem) {
-                                const originalMessage = lastUserMsgElem.querySelector('.message-bubble')?.textContent;
-                                if (originalMessage) {
-                                    if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
-                                    messageDiv.remove();
-                                    showThinkingAnimation();
-                                    retryBtn.classList.add('retry-spinning');
-                                    try {
-                                        const newResponse = await sendToLitheral(originalMessage, true);
-                                        hideThinkingAnimation();
-                                        await typeMessage(newResponse);
-                                    } catch(err) { 
-                                        hideThinkingAnimation(); 
-                                        await displayFriendlyError(err);
-                                    } finally {
-                                        retryBtn.classList.remove('retry-spinning');
-                                        retryBtn.innerHTML = staticRetryIcon;
+                        if (!isError) {
+                            retryBtn.onclick = async (e) => {
+                                const lastUserMsgElem = [...chatMessages.querySelectorAll('.message.user')].pop();
+                                if (lastUserMsgElem) {
+                                    const originalMessage = lastUserMsgElem.querySelector('.message-bubble')?.textContent;
+                                    if (originalMessage) {
+                                        if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
+                                        messageDiv.remove();
+                                        showThinkingAnimation();
+                                        retryBtn.classList.add('retry-spinning');
+                                        try {
+                                            const newResponse = await sendToLitheral(originalMessage, true);
+                                            hideThinkingAnimation();
+                                            await typeMessage(newResponse);
+                                        } catch(err) { 
+                                            hideThinkingAnimation(); 
+                                            await typeMessage(getHumanReadableErrorMessage(err), true);
+                                        } finally {
+                                            retryBtn.classList.remove('retry-spinning');
+                                            retryBtn.innerHTML = staticRetryIcon;
+                                        }
                                     }
                                 }
-                            }
-                        };
-                        actionsDiv.appendChild(retryBtn); actionsDiv.appendChild(copyBtn); actionsDiv.appendChild(shareBtn);
+                            };
+                            actionsDiv.appendChild(retryBtn);
+                        }
+                        actionsDiv.appendChild(copyBtn); actionsDiv.appendChild(shareBtn);
                         messageDiv.appendChild(actionsDiv);
                         resolve();
                     }
@@ -787,10 +787,9 @@
         
         async function handleSendWithText(userMessage) {
             if (!userMessage.trim()) return;
-            if (!supabaseAccessToken) { await displayFriendlyError("Connexion en cours..."); return; }
+            if (!supabaseAccessToken) { await typeMessage("Connecting to secure session..."); return; }
             sendButton.disabled = true; micButton.disabled = true;
             addUserMessage(userMessage);
-            // Clear input automatically after sending
             chatInput.value = '';
             chatInput.style.height = 'auto';
             showThinkingAnimation();
@@ -801,8 +800,9 @@
                 pendingRetryMessage = null;
             } catch (error) {
                 hideThinkingAnimation();
-                await displayFriendlyError(error, { isEmpty: !userMessage.trim() });
-                if (error.message === 'rate_limit_exceeded') {
+                const friendlyMsg = getHumanReadableErrorMessage(error);
+                await typeMessage(friendlyMsg, true);
+                if (error.message === 'Rate limited') {
                     pendingRetryMessage = userMessage;
                 }
             } finally {
@@ -813,9 +813,7 @@
         
         async function handleSend() { 
             const messageText = chatInput.value.trim();
-            if (messageText) {
-                await handleSendWithText(messageText);
-            }
+            if (messageText) await handleSendWithText(messageText);
         }
         
         chatInput.addEventListener('keydown', (e) => {
@@ -827,19 +825,19 @@
         
         sendButton.addEventListener('click', handleSend);
         micButton.addEventListener('click', () => {
-            displayFriendlyError("Fonctionnalité microphone à venir bientôt !");
+            typeMessage("Voice input is under development. Stay tuned for voice clarity.", false);
         });
         document.getElementById('buyCoinsBtn').addEventListener('click', () => window.location.href = '/Tokens');
         
         window.addEventListener('online', async () => {
             document.getElementById('offlineMsg')?.remove();
-            await typeMessage("✅ Connexion rétablie.");
+            await typeMessage("Connection restored. You can continue chatting.");
             await initSupabaseAuth(); await fetchBalance();
             sendButton.disabled = false; micButton.disabled = false;
         });
         window.addEventListener('offline', () => {
             const offlineDiv = document.createElement('div'); offlineDiv.id = 'offlineMsg'; offlineDiv.className = 'soft-warning';
-            offlineDiv.innerHTML = '📡 Hors ligne — reconnexion automatique...';
+            offlineDiv.innerHTML = '📡 You are offline. Reconnect to continue.';
             chatMessages.appendChild(offlineDiv); scrollToBottom();
             sendButton.disabled = true; micButton.disabled = true;
         });
@@ -851,8 +849,8 @@
                 const greeting = getTimeBasedGreeting();
                 const quote = await fetchRandomQuote();
                 await typeMessage(`${greeting}, ${userName}. ${quote}`);
-                if (currentBalance > 0) await typeMessage(`💰 Tu as ${currentBalance.toFixed(4)} coins. Chaque message utilise un petit montant.`);
-            } else if (!navigator.onLine) { await displayFriendlyError("Mode hors ligne — connecte-toi à internet."); }
+                if (currentBalance > 0) await typeMessage(`You have ${currentBalance.toFixed(4)} coins. Each message uses a small amount.`);
+            } else if (!navigator.onLine) { await typeMessage("Offline mode — connect to the internet to talk with Litheral."); }
             sendButton.disabled = false; micButton.disabled = false;
         }
         init();
