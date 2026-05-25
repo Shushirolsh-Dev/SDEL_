@@ -24,6 +24,7 @@
             --border-color: #222;
             --text-main: #ffffff;
             --text-secondary: #888888;
+            --soft-warning: rgba(255, 102, 0, 0.15);
             --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
             --safe-area-inset-top: env(safe-area-inset-top, 0px);
         }
@@ -87,47 +88,6 @@
             font-weight: 700;
             color: var(--primary-orange);
             letter-spacing: 0.5px;
-        }
-
-        .balance-container {
-            background: rgba(255, 102, 0, 0.12);
-            padding: 6px 12px;
-            border-radius: 24px;
-            border: 1px solid rgba(255, 102, 0, 0.3);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            backdrop-filter: blur(10px);
-        }
-
-        .balance-label {
-            color: var(--text-secondary);
-            font-size: 0.7rem;
-            font-weight: 500;
-        }
-
-        .balance-amount {
-            color: var(--primary-orange);
-            font-weight: 700;
-            font-size: 0.85rem;
-        }
-
-        .buy-coins-btn {
-            background: var(--primary-orange);
-            border: none;
-            color: black;
-            padding: 4px 10px;
-            border-radius: 16px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-
-        .buy-coins-btn:active {
-            transform: scale(0.95);
-            opacity: 0.8;
         }
 
         .chat-messages {
@@ -297,14 +257,15 @@
             transform: none;
         }
 
-        .error-message {
-            color: #ff4444;
+        .soft-warning {
+            color: var(--primary-orange);
             font-size: 0.85rem;
             padding: 12px;
-            background: rgba(255, 68, 68, 0.1);
+            background: var(--soft-warning);
             border-radius: 12px;
             margin: 8px 0;
             text-align: center;
+            border: 1px solid rgba(255, 102, 0, 0.3);
         }
 
         .rate-limit-warning {
@@ -340,38 +301,6 @@
             .message-bubble {
                 font-size: 0.9rem;
             }
-            
-            .balance-container {
-                padding: 4px 10px;
-            }
-            
-            .balance-amount {
-                font-size: 0.8rem;
-            }
-        }
-
-        @media (max-width: 380px) {
-            .balance-label {
-                display: none;
-            }
-            
-            .buy-coins-btn {
-                padding: 3px 8px;
-                font-size: 0.65rem;
-            }
-        }
-
-        .offline-banner {
-            background: rgba(255, 68, 68, 0.9);
-            color: white;
-            text-align: center;
-            padding: 8px;
-            font-size: 0.8rem;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
         }
     </style>
 </head>
@@ -381,11 +310,6 @@
             <div class="header-left">
                 <div class="header-logo"></div>
                 <h1>Litheral</h1>
-            </div>
-            <div class="balance-container">
-                <span class="balance-label">Coins:</span>
-                <span class="balance-amount" id="balanceAmount">0.00</span>
-                <button class="buy-coins-btn" id="buyCoinsBtn">Buy</button>
             </div>
         </div>
         <div class="chat-messages" id="chatMessages"></div>
@@ -410,9 +334,8 @@
     <script>
         (function() {
             // ========== SUPABASE CONFIGURATION ==========
-            const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co'; // 
-            
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'; //
+            const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
             
             const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             
@@ -424,18 +347,62 @@
             const chatInput = document.getElementById('chatInput');
             const sendButton = document.getElementById('sendButton');
             const micButton = document.getElementById('micButton');
-            const balanceAmountSpan = document.getElementById('balanceAmount');
             const rateLimitWarning = document.getElementById('rateLimitWarning');
             
             // ========== STATE MANAGEMENT ==========
             let currentAbortController = null;
             let typingAnimationFrame = null;
             let chatHistory = [];
-            let currentBalance = 0;
             let lastRequestTime = 0;
             let rateLimitTimeout = null;
             let supabaseAccessToken = null;
             let isOffline = !navigator.onLine;
+            let userName = null;
+            let todaysAdvice = null;
+            
+            // ========== DAILY ADVICE ==========
+            const adviceList = [
+                "The quality of your thoughts shapes the quality of your life.",
+                "Clarity emerges when you stop chasing noise and start listening.",
+                "Every meaningful sentence begins with a moment of silence.",
+                "Truth doesn't need validation, only observation.",
+                "Your attention is your most valuable currency. Spend it wisely.",
+                "The present moment is the only place where life actually happens.",
+                "Speak only when your words are better than silence.",
+                "Restoring sanity starts with one clear thought at a time.",
+                "Doubt kills more dreams than failure ever will.",
+                "The strongest force in the universe is a focused mind.",
+                "Progress happens one conversation at a time.",
+                "Let go of what no longer serves your growth.",
+                "Your next level requires a different version of you.",
+                "Small daily improvements create extraordinary results.",
+                "Clarity over comfort. Truth over convenience."
+            ];
+            
+            function getDailyAdvice() {
+                const today = new Date().toDateString();
+                const stored = localStorage.getItem('litheral_daily_advice');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed.date === today) {
+                        return parsed.advice;
+                    }
+                }
+                const randomAdvice = adviceList[Math.floor(Math.random() * adviceList.length)];
+                localStorage.setItem('litheral_daily_advice', JSON.stringify({
+                    date: today,
+                    advice: randomAdvice
+                }));
+                return randomAdvice;
+            }
+            
+            // ========== TIME-BASED GREETING ==========
+            function getTimeBasedGreeting() {
+                const hour = new Date().getHours();
+                if (hour < 12) return "Good morning";
+                if (hour < 17) return "Good afternoon";
+                return "Good evening";
+            }
             
             // ========== FUN PLACEHOLDER TYPING ANIMATION ==========
             const placeholders = [
@@ -477,10 +444,40 @@
             
             typePlaceholder();
             
+            // ========== FETCH USER PROFILE ==========
+            async function fetchUserProfile() {
+                try {
+                    const { data: { user }, error: userError } = await supabase.auth.getUser();
+                    if (userError) throw userError;
+                    
+                    if (user) {
+                        const { data: profile, error: profileError } = await supabase
+                            .from('profile')
+                            .select('first_name')
+                            .eq('id', user.id)
+                            .single();
+                        
+                        if (profileError && profileError.code !== 'PGRST116') {
+                            console.error('Profile fetch error:', profileError);
+                        }
+                        
+                        if (profile && profile.first_name) {
+                            userName = profile.first_name;
+                        } else {
+                            userName = user.email ? user.email.split('@')[0] : 'there';
+                        }
+                    } else {
+                        userName = 'there';
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch profile:', error);
+                    userName = 'there';
+                }
+            }
+            
             // ========== AUTHENTICATION ==========
             async function initSupabaseAuth() {
                 try {
-                    // Check if offline first
                     if (!navigator.onLine) {
                         throw new Error('offline');
                     }
@@ -491,19 +488,21 @@
                     
                     if (session) {
                         supabaseAccessToken = session.access_token;
+                        await fetchUserProfile();
                         return true;
                     } else {
                         const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
                         if (signInError) throw signInError;
                         supabaseAccessToken = signInData.session.access_token;
+                        userName = 'there';
                         return true;
                     }
                 } catch (error) {
                     console.error('Auth error:', error);
                     if (error.message === 'offline' || !navigator.onLine) {
-                        await typeMessage("🔌 No internet connection. Please check your network and refresh.");
+                        await typeMessage("No internet connection. Please check your network and refresh.");
                     } else {
-                        await typeMessage("⚠️ Unable to authenticate. Please check your Supabase configuration and refresh the page.");
+                        await typeMessage("Unable to authenticate. Please check your configuration and refresh the page.");
                     }
                     return false;
                 }
@@ -514,17 +513,18 @@
                 isOffline = false;
                 const offlineMsg = document.getElementById('offlineMsg');
                 if (offlineMsg) offlineMsg.remove();
-                await typeMessage("✅ Internet connection restored. I'm back!");
+                await typeMessage("Internet connection restored. I am back.");
                 await initSupabaseAuth();
-                await fetchBalance();
+                sendButton.disabled = false;
+                micButton.disabled = false;
             });
             
             window.addEventListener('offline', () => {
                 isOffline = true;
                 const offlineDiv = document.createElement('div');
                 offlineDiv.id = 'offlineMsg';
-                offlineDiv.className = 'error-message';
-                offlineDiv.innerHTML = '🔌 You are offline. Please check your internet connection.';
+                offlineDiv.className = 'soft-warning';
+                offlineDiv.innerHTML = 'You are offline. Please check your internet connection.';
                 chatMessages.appendChild(offlineDiv);
                 scrollToBottom();
                 sendButton.disabled = true;
@@ -582,25 +582,6 @@
                 }
             }
             
-            async function fetchBalance() {
-                if (!supabaseAccessToken || !navigator.onLine) return;
-                
-                try {
-                    const data = await callAPI('/coins/balance', null, 'GET');
-                    if (data && data.balance !== undefined) {
-                        currentBalance = data.balance;
-                        balanceAmountSpan.textContent = currentBalance.toFixed(4);
-                        
-                        if (currentBalance <= 0) {
-                            showBuyCoinsPrompt();
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch balance:', error);
-                    balanceAmountSpan.textContent = '?';
-                }
-            }
-            
             async function sendToLitheral(userMessage) {
                 if (!navigator.onLine) {
                     throw new Error('offline');
@@ -613,7 +594,7 @@
                     const waitSeconds = Math.ceil((12000 - timeSinceLastRequest) / 1000);
                     sendButton.disabled = true;
                     micButton.disabled = true;
-                    rateLimitWarning.textContent = `⏱️ Please wait ${waitSeconds}s before sending another message`;
+                    rateLimitWarning.textContent = `Please wait ${waitSeconds}s before sending another message`;
                     
                     if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
                     rateLimitTimeout = setTimeout(() => {
@@ -634,15 +615,6 @@
                 
                 const data = await callAPI('/ai/chat', requestBody);
                 
-                if (data.balance_remaining !== undefined) {
-                    currentBalance = data.balance_remaining;
-                    balanceAmountSpan.textContent = currentBalance.toFixed(4);
-                    
-                    if (currentBalance <= 0) {
-                        showBuyCoinsPrompt();
-                    }
-                }
-                
                 chatHistory.push(
                     { role: "user", content: userMessage },
                     { role: "model", content: data.response }
@@ -651,15 +623,15 @@
                 return data.response;
             }
             
-            function showBuyCoinsPrompt() {
-                const warningDiv = document.createElement('div');
-                warningDiv.className = 'error-message';
-                warningDiv.innerHTML = '⚠️ Insufficient coins! Please buy more to continue. ⚠️';
-                chatMessages.appendChild(warningDiv);
+            function showSoftPrompt(message) {
+                const promptDiv = document.createElement('div');
+                promptDiv.className = 'soft-warning';
+                promptDiv.innerHTML = message;
+                chatMessages.appendChild(promptDiv);
                 scrollToBottom();
                 
                 setTimeout(() => {
-                    if (warningDiv.parentNode) warningDiv.remove();
+                    if (promptDiv.parentNode) promptDiv.remove();
                 }, 4000);
             }
             
@@ -779,12 +751,7 @@
                 if (!userMessage) return;
                 
                 if (!supabaseAccessToken) {
-                    await typeMessage("⚠️ Please wait, I'm still connecting...");
-                    return;
-                }
-                
-                if (currentBalance <= 0 && currentBalance !== undefined) {
-                    showBuyCoinsPrompt();
+                    await typeMessage("Please wait, I am still connecting...");
                     return;
                 }
                 
@@ -801,13 +768,13 @@
                 } catch (error) {
                     hideTypingIndicator();
                     if (error.message === 'offline' || !navigator.onLine) {
-                        await typeMessage("🔌 No internet connection. Please check your network.");
+                        await typeMessage("No internet connection. Please check your network.");
                     } else if (error.message === 'Rate limited') {
                         // Already handled
                     } else if (error.message.includes('Authentication')) {
-                        await typeMessage("⚠️ Authentication issue. Please refresh the page.");
+                        await typeMessage("Authentication issue. Please refresh the page.");
                     } else {
-                        await typeMessage(`⚠️ ${error.message}`);
+                        await typeMessage(`${error.message}`);
                     }
                     console.error('Send error:', error);
                 } finally {
@@ -830,7 +797,7 @@
                 comingSoonMsg.style.transition = 'opacity 0.3s ease';
                 comingSoonMsg.innerHTML = `
                     <div class="message-username">Litheral</div>
-                    <div class="message-bubble">🎙️ Voice input feature is coming soon! Stay tuned for updates.</div>
+                    <div class="message-bubble">Voice input feature is coming soon. Stay tuned for updates.</div>
                 `;
                 chatMessages.appendChild(comingSoonMsg);
                 
@@ -845,11 +812,6 @@
                 }, 3000);
             });
             
-            // ========== BUY COINS ==========
-            document.getElementById('buyCoinsBtn').addEventListener('click', () => {
-                window.location.href = '/Tokens';
-            });
-            
             // ========== EVENT LISTENERS ==========
             sendButton.addEventListener('click', handleSend);
             chatInput.addEventListener('keypress', (e) => { 
@@ -861,19 +823,17 @@
             
             // ========== INITIALIZATION ==========
             async function init() {
-                // Show welcome message
-                await typeMessage("✨ Litheral — Ask me anything.");
-                
                 const authSuccess = await initSupabaseAuth();
+                todaysAdvice = getDailyAdvice();
                 
                 if (authSuccess && navigator.onLine) {
-                    await fetchBalance();
-                    await typeMessage(`💰 Your balance: ${currentBalance.toFixed(4)} coins.`);
+                    const greeting = getTimeBasedGreeting();
+                    await typeMessage(`${greeting}, ${userName}. I am Litheral.`);
+                    await typeMessage(`${todaysAdvice}`);
                 } else if (!navigator.onLine) {
-                    await typeMessage("🔌 You appear to be offline. Connect to the internet to start chatting.");
+                    await typeMessage("You appear to be offline. Connect to the internet to start chatting.");
                 }
                 
-                // Enable input after init
                 sendButton.disabled = false;
                 micButton.disabled = false;
             }
