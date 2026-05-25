@@ -190,6 +190,54 @@
             color: #cccccc;
         }
 
+        /* UNIQUE LITHERAL THINKING ANIMATION - Orange Pulse Ring */
+        .litheral-thinking {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .thinking-ring {
+            position: relative;
+            width: 24px;
+            height: 24px;
+        }
+
+        .thinking-ring svg {
+            width: 100%;
+            height: 100%;
+            animation: litheralPulse 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes litheralPulse {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.3;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0.8);
+                opacity: 0.3;
+            }
+        }
+
+        .thinking-text {
+            color: var(--primary-orange);
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            animation: textFade 1.2s ease-in-out infinite;
+        }
+
+        @keyframes textFade {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
         .typing-active::after {
             content: "▊";
             display: inline-block;
@@ -202,6 +250,7 @@
             50% { opacity: 0; }
         }
 
+        /* Old typing indicator - kept for compatibility but not used */
         .typing-indicator {
             display: flex;
             gap: 6px;
@@ -409,42 +458,64 @@
             let supabaseAccessToken = null;
             let isOffline = !navigator.onLine;
             let userName = null;
-            let todaysAdvice = null;
+            let todaysQuote = null;
             
-            // ========== DAILY ADVICE ==========
-            const adviceList = [
-                "The quality of your thoughts shapes the quality of your life.",
-                "Clarity emerges when you stop chasing noise and start listening.",
-                "Every meaningful sentence begins with a moment of silence.",
-                "Truth doesn't need validation, only observation.",
-                "Your attention is your most valuable currency. Spend it wisely.",
-                "The present moment is the only place where life actually happens.",
-                "Speak only when your words are better than silence.",
-                "Restoring sanity starts with one clear thought at a time.",
-                "Doubt kills more dreams than failure ever will.",
-                "The strongest force in the universe is a focused mind.",
-                "Progress happens one conversation at a time.",
-                "Let go of what no longer serves your growth.",
-                "Your next level requires a different version of you.",
-                "Small daily improvements create extraordinary results.",
-                "Clarity over comfort. Truth over convenience."
-            ];
-            
-            function getDailyAdvice() {
-                const today = new Date().toDateString();
-                const stored = localStorage.getItem('litheral_daily_advice');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    if (parsed.date === today) {
-                        return parsed.advice;
+            // ========== FETCH QUOTE FROM SUPABASE QUOTES TABLE ==========
+            async function fetchDailyQuote() {
+                try {
+                    // Get today's date string
+                    const today = new Date().toDateString();
+                    const stored = localStorage.getItem('litheral_daily_quote');
+                    
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        if (parsed.date === today) {
+                            return parsed.quote;
+                        }
                     }
+                    
+                    // Fetch random quote from Supabase quotes table
+                    const { data, error } = await supabase
+                        .from('quotes')
+                        .select('quote_text')
+                        .limit(1);
+                    
+                    if (error) throw error;
+                    
+                    let quote = null;
+                    if (data && data.length > 0) {
+                        // Pick random quote from results
+                        const randomIndex = Math.floor(Math.random() * data.length);
+                        quote = data[randomIndex].quote_text;
+                    } else {
+                        // Fallback quotes if table is empty
+                        const fallbackQuotes = [
+                            "The quality of your thoughts shapes the quality of your life.",
+                            "Clarity emerges when you stop chasing noise and start listening.",
+                            "Truth doesn't need validation, only observation.",
+                            "Your attention is your most valuable currency. Spend it wisely.",
+                            "The present moment is the only place where life actually happens.",
+                            "Speak only when your words are better than silence.",
+                            "Restoring sanity starts with one clear thought at a time.",
+                            "The strongest force in the universe is a focused mind.",
+                            "Progress happens one conversation at a time.",
+                            "Small daily improvements create extraordinary results."
+                        ];
+                        quote = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
+                    }
+                    
+                    // Store in localStorage for today
+                    localStorage.setItem('litheral_daily_quote', JSON.stringify({
+                        date: today,
+                        quote: quote
+                    }));
+                    
+                    return quote;
+                } catch (error) {
+                    console.error('Failed to fetch quote:', error);
+                    // Fallback quote
+                    return "Clarity over comfort. Truth over convenience.";
                 }
-                const randomAdvice = adviceList[Math.floor(Math.random() * adviceList.length)];
-                localStorage.setItem('litheral_daily_advice', JSON.stringify({
-                    date: today,
-                    advice: randomAdvice
-                }));
-                return randomAdvice;
             }
             
             // ========== TIME-BASED GREETING ==========
@@ -789,13 +860,14 @@
                 debouncedScroll();
             }
             
-            function showTypingIndicator() {
-                const existing = document.getElementById('typingIndicator');
+            // UNIQUE LITHERAL THINKING ANIMATION - Orange Pulse Ring
+            function showThinkingAnimation() {
+                const existing = document.getElementById('thinkingAnimation');
                 if (existing) return;
                 
-                const typingDiv = document.createElement('div');
-                typingDiv.className = 'message Litheral';
-                typingDiv.id = 'typingIndicator';
+                const thinkingDiv = document.createElement('div');
+                thinkingDiv.className = 'message Litheral';
+                thinkingDiv.id = 'thinkingAnimation';
                 
                 const nameDiv = document.createElement('div');
                 nameDiv.className = 'message-username';
@@ -804,23 +876,33 @@
                 const bubbleDiv = document.createElement('div');
                 bubbleDiv.className = 'message-bubble';
                 
-                const indicator = document.createElement('div');
-                indicator.className = 'typing-indicator';
-                for (let i = 0; i < 3; i++) {
-                    const dot = document.createElement('div');
-                    dot.className = 'typing-dot';
-                    indicator.appendChild(dot);
-                }
-                bubbleDiv.appendChild(indicator);
-                typingDiv.appendChild(nameDiv);
-                typingDiv.appendChild(bubbleDiv);
+                const animationContainer = document.createElement('div');
+                animationContainer.className = 'litheral-thinking';
                 
-                chatMessages.appendChild(typingDiv);
-                debouncedScroll();
+                // Orange pulsing ring SVG (unique to Litheral)
+                animationContainer.innerHTML = `
+                    <div class="thinking-ring">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="8" stroke="#FF6600" stroke-width="2" stroke-dasharray="4 4"/>
+                            <circle cx="12" cy="12" r="4" fill="#FF6600" fill-opacity="0.3">
+                                <animate attributeName="r" values="3;5;3" dur="1.2s" repeatCount="indefinite"/>
+                                <animate attributeName="fill-opacity" values="0.3;0.6;0.3" dur="1.2s" repeatCount="indefinite"/>
+                            </circle>
+                        </svg>
+                    </div>
+                    <span class="thinking-text">thinking</span>
+                `;
+                
+                bubbleDiv.appendChild(animationContainer);
+                thinkingDiv.appendChild(nameDiv);
+                thinkingDiv.appendChild(bubbleDiv);
+                
+                chatMessages.appendChild(thinkingDiv);
+                scrollToBottom();
             }
             
-            function hideTypingIndicator() {
-                const el = document.getElementById('typingIndicator');
+            function hideThinkingAnimation() {
+                const el = document.getElementById('thinkingAnimation');
                 if (el) el.remove();
             }
             
@@ -844,14 +926,14 @@
                 micButton.disabled = true;
                 
                 addUserMessage(userMessage);
-                showTypingIndicator();
+                showThinkingAnimation(); // New unique animation
                 
                 try {
                     const response = await sendToLitheral(userMessage);
-                    hideTypingIndicator();
+                    hideThinkingAnimation();
                     await typeMessage(response);
                 } catch (error) {
-                    hideTypingIndicator();
+                    hideThinkingAnimation();
                     if (error.message === 'insufficient_coins') {
                         await typeMessage("You don't have enough coins for this message. Please tap the 'add' button in the top right to get more coins.");
                         showSoftPrompt("Need more coins? Tap 'add' to continue our conversation.");
@@ -917,13 +999,13 @@
             // ========== INITIALIZATION ==========
             async function init() {
                 const authSuccess = await initSupabaseAuth();
-                todaysAdvice = getDailyAdvice();
+                todaysQuote = await fetchDailyQuote();
                 
                 if (authSuccess && navigator.onLine) {
                     await fetchBalance();
                     const greeting = getTimeBasedGreeting();
-                    await typeMessage(`${greeting}, ${userName}. I am Litheral.`);
-                    await typeMessage(`${todaysAdvice}`);
+                    // Combined greeting + quote in ONE message
+                    await typeMessage(`${greeting}, ${userName}. ${todaysQuote}`);
                     
                     if (currentBalance > 0) {
                         await typeMessage(`You have ${currentBalance.toFixed(4)} coins. Each message uses a small amount.`);
