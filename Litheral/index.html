@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Litheral AI</title>
+    <title>Litheral</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6600'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z'/%3E%3C/svg%3E">
     <style>
         * {
@@ -11,6 +11,10 @@
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
 
         :root {
@@ -52,7 +56,6 @@
             position: relative;
         }
 
-        /* Mobile-optimized header */
         .chat-header {
             padding: 16px 20px;
             border-bottom: 1px solid var(--border-color);
@@ -127,7 +130,6 @@
             opacity: 0.8;
         }
 
-        /* Mobile-optimized messages area */
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -188,7 +190,6 @@
             color: #cccccc;
         }
 
-        /* Typing indicator */
         .typing-active::after {
             content: "▊";
             display: inline-block;
@@ -224,7 +225,6 @@
             100% { opacity: 0.2; transform: scale(0.8); }
         }
 
-        /* Mobile-optimized input area */
         .chat-input-area {
             padding: 16px 16px calc(16px + var(--safe-area-inset-bottom));
             background: var(--bg-dark);
@@ -263,6 +263,7 @@
         .chat-input::placeholder {
             color: #444;
             font-size: 0.9rem;
+            transition: opacity 0.2s ease;
         }
 
         .send-button, .mic-button {
@@ -313,7 +314,6 @@
             margin-top: 10px;
         }
 
-        /* Mobile-friendly scrollbar */
         .chat-messages::-webkit-scrollbar {
             width: 4px;
         }
@@ -327,7 +327,6 @@
             border-radius: 10px;
         }
 
-        /* Responsive adjustments */
         @media (max-width: 480px) {
             .chat-header {
                 padding: 12px 16px;
@@ -361,6 +360,19 @@
                 font-size: 0.65rem;
             }
         }
+
+        .offline-banner {
+            background: rgba(255, 68, 68, 0.9);
+            color: white;
+            text-align: center;
+            padding: 8px;
+            font-size: 0.8rem;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -379,7 +391,7 @@
         <div class="chat-messages" id="chatMessages"></div>
         <div class="chat-input-area">
             <div class="input-container">
-                <input type="text" class="chat-input" id="chatInput" placeholder="Type a message..." autocomplete="off">
+                <input type="text" class="chat-input" id="chatInput" placeholder="" autocomplete="off">
                 <button class="mic-button" id="micButton">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -393,17 +405,15 @@
         </div>
     </div>
 
-    <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         (function() {
             // ========== SUPABASE CONFIGURATION ==========
-            // IMPORTANT: Replace these with your actual Supabase credentials
-            const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Replace with your Supabase URL
-            const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your Supabase anon key
+            const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co'; // 
             
-            // Initialize Supabase client
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw'; //
+            
             const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             
             // ========== CONFIGURATION ==========
@@ -425,57 +435,110 @@
             let lastRequestTime = 0;
             let rateLimitTimeout = null;
             let supabaseAccessToken = null;
-            let currentSession = null;
+            let isOffline = !navigator.onLine;
+            
+            // ========== FUN PLACEHOLDER TYPING ANIMATION ==========
+            const placeholders = [
+                "Think Clearly", "Clarity over noise", "Defiant Reality", 
+                "Truth survives comfort", "Make the next sentence meaningful", 
+                "Speak with intent", "Foolishness is a choice", "I am Litheral", 
+                "Let's chat", "Restoring Sanity", "Ask me anything", 
+                "What's on your mind?", "Speak freely", "No filters here"
+            ];
+            let placeholderIndex = 0;
+            let isTyping = true;
+            let currentText = "";
+            let typingTimeout = null;
+            
+            function typePlaceholder() {
+                const targetText = placeholders[placeholderIndex];
+                
+                if (isTyping) {
+                    if (currentText.length < targetText.length) {
+                        currentText = targetText.substring(0, currentText.length + 1);
+                        chatInput.placeholder = currentText;
+                        typingTimeout = setTimeout(typePlaceholder, 100);
+                    } else {
+                        isTyping = false;
+                        typingTimeout = setTimeout(typePlaceholder, 3000);
+                    }
+                } else {
+                    if (currentText.length > 0) {
+                        currentText = currentText.substring(0, currentText.length - 1);
+                        chatInput.placeholder = currentText;
+                        typingTimeout = setTimeout(typePlaceholder, 50);
+                    } else {
+                        placeholderIndex = (placeholderIndex + 1) % placeholders.length;
+                        isTyping = true;
+                        typingTimeout = setTimeout(typePlaceholder, 500);
+                    }
+                }
+            }
+            
+            typePlaceholder();
             
             // ========== AUTHENTICATION ==========
             async function initSupabaseAuth() {
                 try {
-                    // Get current session
+                    // Check if offline first
+                    if (!navigator.onLine) {
+                        throw new Error('offline');
+                    }
+                    
                     const { data: { session }, error } = await supabase.auth.getSession();
                     
                     if (error) throw error;
                     
                     if (session) {
-                        currentSession = session;
                         supabaseAccessToken = session.access_token;
-                        console.log('✅ Authenticated with Supabase');
                         return true;
                     } else {
-                        // No active session, try to sign in anonymously or redirect to login
-                        console.log('⚠️ No active session, attempting anonymous sign in...');
                         const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
-                        
                         if (signInError) throw signInError;
-                        
-                        currentSession = signInData.session;
                         supabaseAccessToken = signInData.session.access_token;
-                        console.log('✅ Anonymous session created');
                         return true;
                     }
                 } catch (error) {
-                    console.error('❌ Auth error:', error);
-                    await typeMessage('⚠️ Authentication failed. Please check your Supabase configuration.');
+                    console.error('Auth error:', error);
+                    if (error.message === 'offline' || !navigator.onLine) {
+                        await typeMessage("🔌 No internet connection. Please check your network and refresh.");
+                    } else {
+                        await typeMessage("⚠️ Unable to authenticate. Please check your Supabase configuration and refresh the page.");
+                    }
                     return false;
                 }
             }
             
-            // Listen for auth changes
-            supabase.auth.onAuthStateChange(async (event, session) => {
-                if (session) {
-                    currentSession = session;
-                    supabaseAccessToken = session.access_token;
-                    console.log('Auth state changed:', event);
-                    
-                    if (event === 'SIGNED_IN') {
-                        await fetchBalance();
-                    }
-                }
+            // Monitor online/offline status
+            window.addEventListener('online', async () => {
+                isOffline = false;
+                const offlineMsg = document.getElementById('offlineMsg');
+                if (offlineMsg) offlineMsg.remove();
+                await typeMessage("✅ Internet connection restored. I'm back!");
+                await initSupabaseAuth();
+                await fetchBalance();
+            });
+            
+            window.addEventListener('offline', () => {
+                isOffline = true;
+                const offlineDiv = document.createElement('div');
+                offlineDiv.id = 'offlineMsg';
+                offlineDiv.className = 'error-message';
+                offlineDiv.innerHTML = '🔌 You are offline. Please check your internet connection.';
+                chatMessages.appendChild(offlineDiv);
+                scrollToBottom();
+                sendButton.disabled = true;
+                micButton.disabled = true;
             });
             
             // ========== API FUNCTIONS ==========
             async function callAPI(endpoint, body, method = 'POST') {
                 if (!supabaseAccessToken) {
                     throw new Error('Not authenticated');
+                }
+                
+                if (!navigator.onLine) {
+                    throw new Error('offline');
                 }
                 
                 if (currentAbortController) {
@@ -500,14 +563,12 @@
                     const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
                     
                     if (response.status === 401) {
-                        // Token expired, try to refresh session
                         const { data: { session }, error } = await supabase.auth.refreshSession();
                         if (session && !error) {
                             supabaseAccessToken = session.access_token;
-                            // Retry the request
                             return callAPI(endpoint, body, method);
                         } else {
-                            throw new Error('Authentication expired. Please refresh the page.');
+                            throw new Error('Authentication expired');
                         }
                     }
                     
@@ -522,6 +583,8 @@
             }
             
             async function fetchBalance() {
+                if (!supabaseAccessToken || !navigator.onLine) return;
+                
                 try {
                     const data = await callAPI('/coins/balance', null, 'GET');
                     if (data && data.balance !== undefined) {
@@ -534,12 +597,16 @@
                     }
                 } catch (error) {
                     console.error('Failed to fetch balance:', error);
-                    balanceAmountSpan.textContent = 'Error';
+                    balanceAmountSpan.textContent = '?';
                 }
             }
             
             async function sendToLitheral(userMessage) {
-                // Rate limiting check
+                if (!navigator.onLine) {
+                    throw new Error('offline');
+                }
+                
+                // Rate limiting
                 const now = Date.now();
                 const timeSinceLastRequest = now - lastRequestTime;
                 if (timeSinceLastRequest < 12000) {
@@ -591,9 +658,6 @@
                 chatMessages.appendChild(warningDiv);
                 scrollToBottom();
                 
-                sendButton.disabled = true;
-                micButton.disabled = true;
-                
                 setTimeout(() => {
                     if (warningDiv.parentNode) warningDiv.remove();
                 }, 4000);
@@ -632,7 +696,7 @@
                     chatMessages.appendChild(messageDiv);
                     
                     let i = 0;
-                    const typingSpeed = 20;
+                    const typingSpeed = 25;
                     
                     function type() {
                         if (i < text.length) {
@@ -714,7 +778,12 @@
                 const userMessage = chatInput.value.trim();
                 if (!userMessage) return;
                 
-                if (currentBalance <= 0) {
+                if (!supabaseAccessToken) {
+                    await typeMessage("⚠️ Please wait, I'm still connecting...");
+                    return;
+                }
+                
+                if (currentBalance <= 0 && currentBalance !== undefined) {
                     showBuyCoinsPrompt();
                     return;
                 }
@@ -731,7 +800,13 @@
                     await typeMessage(response);
                 } catch (error) {
                     hideTypingIndicator();
-                    if (error.message !== 'Rate limited') {
+                    if (error.message === 'offline' || !navigator.onLine) {
+                        await typeMessage("🔌 No internet connection. Please check your network.");
+                    } else if (error.message === 'Rate limited') {
+                        // Already handled
+                    } else if (error.message.includes('Authentication')) {
+                        await typeMessage("⚠️ Authentication issue. Please refresh the page.");
+                    } else {
                         await typeMessage(`⚠️ ${error.message}`);
                     }
                     console.error('Send error:', error);
@@ -741,7 +816,6 @@
                 }
                 
                 chatInput.value = '';
-                chatInput.style.color = '#ffffff';
                 
                 if (currentAbortController) {
                     currentAbortController.abort();
@@ -750,26 +824,23 @@
             
             // ========== VOICE RECOGNITION (Coming Soon) ==========
             micButton.addEventListener('click', async () => {
-                // Show "Feature coming soon" message
-                const tempMessage = document.createElement('div');
-                tempMessage.className = 'message Litheral';
-                tempMessage.style.opacity = '0';
-                tempMessage.innerHTML = `
+                const comingSoonMsg = document.createElement('div');
+                comingSoonMsg.className = 'message Litheral';
+                comingSoonMsg.style.opacity = '0';
+                comingSoonMsg.style.transition = 'opacity 0.3s ease';
+                comingSoonMsg.innerHTML = `
                     <div class="message-username">Litheral</div>
-                    <div class="message-bubble">🎙️ Voice input feature is coming soon! Stay tuned.</div>
+                    <div class="message-bubble">🎙️ Voice input feature is coming soon! Stay tuned for updates.</div>
                 `;
-                chatMessages.appendChild(tempMessage);
+                chatMessages.appendChild(comingSoonMsg);
                 
-                // Fade in
-                setTimeout(() => { tempMessage.style.opacity = '1'; }, 10);
+                setTimeout(() => { comingSoonMsg.style.opacity = '1'; }, 10);
                 scrollToBottom();
                 
-                // Fade out and remove after 3 seconds
                 setTimeout(() => {
-                    tempMessage.style.transition = 'opacity 0.3s';
-                    tempMessage.style.opacity = '0';
+                    comingSoonMsg.style.opacity = '0';
                     setTimeout(() => {
-                        if (tempMessage.parentNode) tempMessage.remove();
+                        if (comingSoonMsg.parentNode) comingSoonMsg.remove();
                     }, 300);
                 }, 3000);
             });
@@ -790,27 +861,21 @@
             
             // ========== INITIALIZATION ==========
             async function init() {
-                // Show loading message
-                const loadingMsg = document.createElement('div');
-                loadingMsg.className = 'message Litheral';
-                loadingMsg.innerHTML = `
-                    <div class="message-username">Litheral</div>
-                    <div class="message-bubble">🔐 Authenticating...</div>
-                `;
-                chatMessages.appendChild(loadingMsg);
+                // Show welcome message
+                await typeMessage("✨ Litheral — Ask me anything.");
                 
                 const authSuccess = await initSupabaseAuth();
                 
-                if (authSuccess) {
-                    loadingMsg.remove();
+                if (authSuccess && navigator.onLine) {
                     await fetchBalance();
-                    await typeMessage(`✨ Litheral is ready. Your balance: ${currentBalance.toFixed(4)} coins. Ask me anything!`);
-                } else {
-                    loadingMsg.innerHTML = `
-                        <div class="message-username">Litheral</div>
-                        <div class="message-bubble">❌ Authentication failed. Please check your Supabase configuration in the code.</div>
-                    `;
+                    await typeMessage(`💰 Your balance: ${currentBalance.toFixed(4)} coins.`);
+                } else if (!navigator.onLine) {
+                    await typeMessage("🔌 You appear to be offline. Connect to the internet to start chatting.");
                 }
+                
+                // Enable input after init
+                sendButton.disabled = false;
+                micButton.disabled = false;
             }
             
             init();
@@ -821,6 +886,7 @@
                     currentAbortController.abort();
                 }
                 if (typingAnimationFrame) clearTimeout(typingAnimationFrame);
+                if (typingTimeout) clearTimeout(typingTimeout);
                 if (scrollTimeout) clearTimeout(scrollTimeout);
                 if (scrollRAF) cancelAnimationFrame(scrollRAF);
                 if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
