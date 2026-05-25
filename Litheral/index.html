@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Litheral AI</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6600'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z'/%3E%3C/svg%3E">
+    <style>
+        :root {
+            --primary-orange: #FF6600;
+            --bg-dark: #000000;
+            --card-bg: #000000;
+            --border-color: #222;
+            --text-main: #ffffff;
+            --text-secondary: #888888;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body { height: 100%; width: 100%; background: var(--bg-dark); }
+
+        body {
+            font-family: -apple-system, 'Segoe UI', 'Inter', 'Menlo', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 100%;
+            background: var(--card-bg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            contain: layout style paint;
+            position: relative;
+        }
+
+        .chat-header {
+            padding: 20px 0;
+            margin: 0 32px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo { width: 20px; height: 20px; background: var(--primary-orange); border-radius: 2px; will-change: transform; }
+
+        .chat-header h1 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--primary-orange);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .balance-container {
+            background: rgba(255, 102, 0, 0.1);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 102, 0, 0.3);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .balance-label {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            margin-right: 6px;
+        }
+
+        .balance-amount {
+            color: var(--primary-orange);
+            font-weight: 700;
+        }
+
+        .buy-coins-btn {
+            background: var(--primary-orange);
+            border: none;
+            color: black;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-left: 8px;
+            transition: opacity 0.2s;
+        }
+
+        .buy-coins-btn:hover { opacity: 0.8; }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            min-height: 0;
+            scroll-behavior: smooth;
+            contain: layout style paint;
+        }
+
+        .message { display: flex; flex-direction: column; gap: 8px; max-width: 100%; will-change: transform; }
+
+        .message-username {
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .message.Litheral .message-username { color: var(--primary-orange); }
+        .message.user .message-username { color: var(--text-main); text-align: right; }
+
+        .message-bubble {
+            line-height: 1.6;
+            font-size: 1rem;
+            max-width: 100%;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            color: var(--text-main);
+        }
+
+        .message.user .message-bubble { text-align: right; color: #cccccc; }
+
+        .typing-active::after {
+            content: "▊";
+            display: inline-block;
+            color: var(--primary-orange);
+            margin-left: 4px;
+            animation: blink-cursor 0.8s step-start infinite;
+        }
+
+        @keyframes blink-cursor { 50% { opacity: 0; } }
+
+        .typing-indicator { display: flex; gap: 6px; padding-top: 4px; }
+
+        .typing-dot {
+            width: 4px;
+            height: 4px;
+            background-color: var(--primary-orange);
+            border-radius: 50%;
+            animation: dot-blink 1.4s infinite both;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dot-blink {
+            0% { opacity: 0.1; transform: scale(0.8); }
+            20% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0.1; transform: scale(0.8); }
+        }
+
+        .chat-input-area {
+            padding: 24px 32px;
+            background: var(--bg-dark);
+            flex-shrink: 0;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            background: #0a0a0a;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            align-items: center;
+            transition: border-color 0.2s ease;
+        }
+
+        .input-container:focus-within { border-color: var(--primary-orange); }
+
+        .chat-input {
+            flex: 1;
+            padding: 8px 0;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .chat-input::placeholder { 
+            color: #444;
+            transition: opacity 0.2s ease;
+        }
+
+        .send-button {
+            background: transparent;
+            border: none;
+            color: var(--primary-orange);
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            padding: 0 5px;
+            transition: opacity 0.2s ease;
+        }
+
+        .send-button:disabled, .mic-button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .send-button:hover:not(:disabled) { opacity: 0.8; }
+
+        .mic-button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 0 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s ease;
+        }
+
+        .mic-button:hover:not(:disabled) { opacity: 0.8; }
+
+        .mic-button svg {
+            display: block;
+            pointer-events: none;
+        }
+
+        .error-message {
+            color: #ff4444;
+            font-size: 0.9rem;
+            padding: 12px;
+            background: rgba(255, 68, 68, 0.1);
+            border-radius: 6px;
+            margin: 10px;
+        }
+
+        .rate-limit-warning {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="header-left">
+                <div class="header-logo"></div>
+                <h1>Litheral</h1>
+            </div>
+            <div class="balance-container">
+                <span class="balance-label">Coins:</span>
+                <span class="balance-amount" id="balanceAmount">0.00</span>
+                <button class="buy-coins-btn" id="buyCoinsBtn">Buy</button>
+            </div>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-area">
+            <div class="input-container">
+                <input type="text" class="chat-input" id="chatInput" placeholder="" autocomplete="off">
+                <button class="mic-button" id="micButton">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 22V19" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <button class="send-button" id="sendButton">Send</button>
+            </div>
+            <div class="rate-limit-warning" id="rateLimitWarning"></div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // ========== CONFIGURATION ==========
+            const API_BASE_URL = 'https://sdel.onrender.com';
+            
+            // ========== DOM ELEMENTS ==========
+            const chatMessages = document.getElementById('chatMessages');
+            const chatInput = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendButton');
+            const micButton = document.getElementById('micButton');
+            const balanceAmountSpan = document.getElementById('balanceAmount');
+            const rateLimitWarning = document.getElementById('rateLimitWarning');
+            
+            // ========== STATE MANAGEMENT ==========
+            let currentAbortController = null;
+            let typingAnimationFrame = null;
+            let chatHistory = []; // Stores conversation history
+            let currentBalance = 0;
+            let lastRequestTime = 0;
+            let isRateLimited = false;
+            let rateLimitTimeout = null;
+            
+            // ========== SUPABASE AUTH (Replace with your actual Supabase setup) ==========
+            // IMPORTANT: You need to initialize Supabase and get the JWT token
+            // This is a placeholder - replace with your actual Supabase initialization
+            let supabaseAccessToken = null;
+            
+            // Example of how to get token from Supabase (you need to implement this):
+            // const { data: { session } } = await supabase.auth.getSession();
+            // supabaseAccessToken = session.access_token;
+            
+            // For now, we'll prompt for token (in production, get from Supabase automatically)
+            async function getAuthToken() {
+                if (supabaseAccessToken) return supabaseAccessToken;
+                
+                // Try to get from localStorage first (for demo)
+                const savedToken = localStorage.getItem('litheral_auth_token');
+                if (savedToken) {
+                    supabaseAccessToken = savedToken;
+                    return supabaseAccessToken;
+                }
+                
+                // Prompt for token (only once per session)
+                const token = prompt('Enter your Supabase JWT token to start chatting with Litheral:');
+                if (token) {
+                    supabaseAccessToken = token;
+                    localStorage.setItem('litheral_auth_token', token);
+                    return token;
+                }
+                return null;
+            }
+            
+            // ========== API FUNCTIONS ==========
+            async function callAPI(endpoint, body, method = 'POST') {
+                const token = await getAuthToken();
+                if (!token) {
+                    throw new Error('Authentication required');
+                }
+                
+                if (currentAbortController) {
+                    currentAbortController.abort();
+                }
+                currentAbortController = new AbortController();
+                
+                const options = {
+                    method: method,
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    signal: currentAbortController.signal
+                };
+                
+                if (body && method === 'POST') {
+                    options.body = JSON.stringify(body);
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                    
+                    if (response.status === 401) {
+                        // Token expired or invalid
+                        localStorage.removeItem('litheral_auth_token');
+                        supabaseAccessToken = null;
+                        throw new Error('Authentication expired. Please refresh the page and login again.');
+                    }
+                    
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status}`);
+                    }
+                    
+                    return await response.json();
+                } finally {
+                    currentAbortController = null;
+                }
+            }
+            
+            async function fetchBalance() {
+                try {
+                    const data = await callAPI('/coins/balance', null, 'GET');
+                    if (data && data.balance !== undefined) {
+                        currentBalance = data.balance;
+                        balanceAmountSpan.textContent = currentBalance.toFixed(4);
+                        
+                        // Check if balance is 0
+                        if (currentBalance <= 0) {
+                            showBuyCoinsPrompt();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch balance:', error);
+                    balanceAmountSpan.textContent = 'Error';
+                }
+            }
+            
+            async function sendToLitheral(userMessage) {
+                // Rate limiting check (5 requests per minute = 1 every 12 seconds minimum)
+                const now = Date.now();
+                const timeSinceLastRequest = now - lastRequestTime;
+                if (timeSinceLastRequest < 12000) { // 12 seconds minimum between requests
+                    const waitSeconds = Math.ceil((12000 - timeSinceLastRequest) / 1000);
+                    isRateLimited = true;
+                    sendButton.disabled = true;
+                    micButton.disabled = true;
+                    rateLimitWarning.textContent = `Rate limit: Please wait ${waitSeconds} seconds before sending another message.`;
+                    
+                    if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
+                    rateLimitTimeout = setTimeout(() => {
+                        isRateLimited = false;
+                        sendButton.disabled = false;
+                        micButton.disabled = false;
+                        rateLimitWarning.textContent = '';
+                    }, 12000 - timeSinceLastRequest);
+                    
+                    throw new Error('Rate limited. Please wait.');
+                }
+                
+                lastRequestTime = now;
+                
+                // Prepare request body with chat history
+                const requestBody = {
+                    message: userMessage,
+                    chat_history: chatHistory
+                };
+                
+                const data = await callAPI('/ai/chat', requestBody);
+                
+                // Update balance from response
+                if (data.balance_remaining !== undefined) {
+                    currentBalance = data.balance_remaining;
+                    balanceAmountSpan.textContent = currentBalance.toFixed(4);
+                    
+                    if (currentBalance <= 0) {
+                        showBuyCoinsPrompt();
+                    }
+                }
+                
+                // Update chat history
+                chatHistory.push(
+                    { role: "user", content: userMessage },
+                    { role: "model", content: data.response }
+                );
+                
+                return data.response;
+            }
+            
+            function showBuyCoinsPrompt() {
+                const warningDiv = document.createElement('div');
+                warningDiv.className = 'error-message';
+                warningDiv.innerHTML = '⚠️ You\'ve run out of coins! Please buy more coins to continue chatting. ⚠️';
+                chatMessages.appendChild(warningDiv);
+                scrollToBottom();
+                
+                // Disable sending
+                sendButton.disabled = true;
+                micButton.disabled = true;
+                
+                setTimeout(() => {
+                    if (warningDiv.parentNode) warningDiv.remove();
+                }, 5000);
+            }
+            
+            // ========== UI FUNCTIONS ==========
+            let scrollRAF = null;
+            function scrollToBottom() {
+                if (scrollRAF) cancelAnimationFrame(scrollRAF);
+                scrollRAF = requestAnimationFrame(() => {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    scrollRAF = null;
+                });
+            }
+            
+            let scrollTimeout = null;
+            function debouncedScroll() {
+                if (scrollTimeout) clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(scrollToBottom, 50);
+            }
+            
+            function typeMessage(text) {
+                return new Promise((resolve) => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message Litheral';
+                    
+                    const nameDiv = document.createElement('div');
+                    nameDiv.className = 'message-username';
+                    nameDiv.textContent = 'Litheral';
+                    
+                    const bubbleDiv = document.createElement('div');
+                    bubbleDiv.className = 'message-bubble typing-active';
+                    
+                    messageDiv.appendChild(nameDiv);
+                    messageDiv.appendChild(bubbleDiv);
+                    chatMessages.appendChild(messageDiv);
+                    
+                    let i = 0;
+                    const typingSpeed = 25;
+                    
+                    function type() {
+                        if (i < text.length) {
+                            bubbleDiv.textContent += text[i];
+                            debouncedScroll();
+                            i++;
+                            typingAnimationFrame = setTimeout(type, typingSpeed);
+                        } else {
+                            bubbleDiv.classList.remove('typing-active');
+                            clearTimeout(typingAnimationFrame);
+                            resolve();
+                        }
+                    }
+                    type();
+                });
+            }
+            
+            function addUserMessage(content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message user';
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'message-username';
+                nameDiv.textContent = 'You';
+                
+                const bubbleDiv = document.createElement('div');
+                bubbleDiv.className = 'message-bubble';
+                bubbleDiv.textContent = escapeHtml(content);
+                
+                messageDiv.appendChild(nameDiv);
+                messageDiv.appendChild(bubbleDiv);
+                chatMessages.appendChild(messageDiv);
+                debouncedScroll();
+            }
+            
+            function showTypingIndicator() {
+                const existing = document.getElementById('typingIndicator');
+                if (existing) return;
+                
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'message Litheral';
+                typingDiv.id = 'typingIndicator';
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'message-username';
+                nameDiv.textContent = 'Litheral';
+                
+                const bubbleDiv = document.createElement('div');
+                bubbleDiv.className = 'message-bubble';
+                
+                const indicator = document.createElement('div');
+                indicator.className = 'typing-indicator';
+                for (let i = 0; i < 3; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'typing-dot';
+                    indicator.appendChild(dot);
+                }
+                bubbleDiv.appendChild(indicator);
+                typingDiv.appendChild(nameDiv);
+                typingDiv.appendChild(bubbleDiv);
+                
+                chatMessages.appendChild(typingDiv);
+                debouncedScroll();
+            }
+            
+            function hideTypingIndicator() {
+                const el = document.getElementById('typingIndicator');
+                if (el) {
+                    el.remove();
+                    void el.offsetHeight;
+                }
+            }
+            
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
+            
+            // ========== MESSAGE HANDLING ==========
+            async function handleSend() {
+                const userMessage = chatInput.value.trim();
+                if (!userMessage) return;
+                
+                // Check balance before sending
+                if (currentBalance <= 0) {
+                    showBuyCoinsPrompt();
+                    return;
+                }
+                
+                // Disable buttons during request
+                sendButton.disabled = true;
+                micButton.disabled = true;
+                
+                addUserMessage(userMessage);
+                showTypingIndicator();
+                
+                try {
+                    const response = await sendToLitheral(userMessage);
+                    hideTypingIndicator();
+                    await typeMessage(response);
+                } catch (error) {
+                    hideTypingIndicator();
+                    if (error.message === 'Rate limited. Please wait.') {
+                        // Rate limit handled, don't show error
+                        console.log('Rate limited');
+                    } else if (error.message.includes('Authentication')) {
+                        await typeMessage('Authentication failed. Please refresh the page and login again.');
+                    } else {
+                        await typeMessage(`Error: ${error.message}`);
+                    }
+                    console.error('Send error:', error);
+                } finally {
+                    sendButton.disabled = false;
+                    micButton.disabled = false;
+                }
+                
+                chatInput.value = '';
+                chatInput.style.color = '#ffffff';
+                
+                if (currentAbortController) {
+                    currentAbortController.abort();
+                }
+            }
+            
+            // ========== PLACEHOLDER TYPING ANIMATION ==========
+            const placeholders = ["Think Clearly", "Clarity over noise", "Defiant Reality", "Truth survives comfort", "Make the next sentence meaningful", "Speak with intent", "Foolishness is a choice", "I am Litheral", "Let's chat", "Restoring Sanity"];
+            let placeholderIndex = 0;
+            let isTyping = true;
+            let currentText = "";
+            let typingTimeout = null;
+            
+            function typePlaceholder() {
+                const targetText = placeholders[placeholderIndex];
+                
+                if (isTyping) {
+                    if (currentText.length < targetText.length) {
+                        currentText = targetText.substring(0, currentText.length + 1);
+                        chatInput.placeholder = currentText;
+                        typingTimeout = setTimeout(typePlaceholder, 120);
+                    } else {
+                        isTyping = false;
+                        typingTimeout = setTimeout(typePlaceholder, 9000);
+                    }
+                } else {
+                    if (currentText.length > 0) {
+                        currentText = currentText.substring(0, currentText.length - 1);
+                        chatInput.placeholder = currentText;
+                        typingTimeout = setTimeout(typePlaceholder, 50);
+                    } else {
+                        placeholderIndex = (placeholderIndex + 1) % placeholders.length;
+                        isTyping = true;
+                        typingTimeout = setTimeout(typePlaceholder, 500);
+                    }
+                }
+            }
+            
+            typePlaceholder();
+            
+            // ========== VOICE RECOGNITION ==========
+            const micSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 22V19" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>`;
+            
+            const redMicSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" fill="#FF4444" stroke="#FF4444" stroke-width="1.5"/>
+                            <path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="#FF4444" stroke-width="1.5"/>
+                            <path d="M12 22V19" stroke="#FF4444" stroke-width="1.5"/>
+                        </svg>`;
+            
+            let recognition = null;
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'en-US';
+                
+                let isRecognizing = false;
+                
+                recognition.onstart = () => {
+                    isRecognizing = true;
+                    micButton.innerHTML = redMicSvg;
+                };
+                
+                recognition.onresult = (event) => {
+                    const voiceText = event.results[0][0].transcript;
+                    const capitalized = voiceText.charAt(0).toUpperCase() + voiceText.slice(1);
+                    chatInput.value = capitalized;
+                    micButton.innerHTML = micSvg;
+                    isRecognizing = false;
+                    handleSend();
+                };
+                
+                recognition.onerror = () => {
+                    micButton.innerHTML = micSvg;
+                    isRecognizing = false;
+                };
+                
+                recognition.onend = () => {
+                    micButton.innerHTML = micSvg;
+                    isRecognizing = false;
+                };
+                
+                micButton.onclick = () => {
+                    if (!isRecognizing && !sendButton.disabled) {
+                        try {
+                            recognition.start();
+                        } catch (e) {
+                            console.log('Recognition already started');
+                        }
+                    }
+                };
+            } else {
+                micButton.disabled = true;
+                micButton.title = 'Voice not supported. Use Chrome.';
+            }
+            
+            // ========== EVENT LISTENERS ==========
+            sendButton.addEventListener('click', handleSend);
+            chatInput.addEventListener('keypress', (e) => { 
+                if (e.key === 'Enter' && !sendButton.disabled) {
+                    e.preventDefault();
+                    handleSend(); 
+                } 
+            });
+            
+            document.getElementById('buyCoinsBtn').addEventListener('click', () => {
+                alert('Purchase flow would go here. Connect your payment processor.');
+                // Implement your coin purchase flow here
+            });
+            
+            // ========== INITIALIZATION ==========
+            async function init() {
+                await fetchBalance();
+                await typeMessage("Litheral — Ask me anything. Your current balance is " + currentBalance.toFixed(4) + " coins.");
+            }
+            
+            init();
+            
+            // ========== CLEANUP ==========
+            window.addEventListener('beforeunload', () => {
+                if (currentAbortController) {
+                    currentAbortController.abort();
+                }
+                if (typingTimeout) clearTimeout(typingTimeout);
+                if (typingAnimationFrame) clearTimeout(typingAnimationFrame);
+                if (scrollTimeout) clearTimeout(scrollTimeout);
+                if (scrollRAF) cancelAnimationFrame(scrollRAF);
+                if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
+                if (recognition) {
+                    try { recognition.abort(); } catch(e) {}
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
