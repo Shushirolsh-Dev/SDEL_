@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Litheral</title>
+    <title>Litheral — Clarity Over Noise</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6600'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z'/%3E%3C/svg%3E">
     <style>
         * {
@@ -190,7 +190,63 @@
             color: #cccccc;
         }
 
-        /* UNIQUE LITHERAL THINKING ANIMATION - Orange Pulse Ring */
+        /* Message action buttons (retry, edit, copy, share) */
+        .message-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            justify-content: flex-start;
+        }
+        .message.user .message-actions {
+            justify-content: flex-end;
+        }
+        .message:hover .message-actions {
+            opacity: 1;
+        }
+        .action-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .action-btn:hover {
+            background: rgba(255, 102, 0, 0.2);
+            color: var(--primary-orange);
+        }
+        .action-btn:active {
+            transform: scale(0.96);
+        }
+        .retry-btn {
+            color: var(--primary-orange);
+        }
+        .copy-toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary-orange);
+            color: black;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        /* Litheral thinking animation */
         .litheral-thinking {
             display: inline-flex;
             align-items: center;
@@ -211,18 +267,9 @@
         }
 
         @keyframes litheralPulse {
-            0% {
-                transform: scale(0.8);
-                opacity: 0.3;
-            }
-            50% {
-                transform: scale(1.2);
-                opacity: 1;
-            }
-            100% {
-                transform: scale(0.8);
-                opacity: 0.3;
-            }
+            0% { transform: scale(0.8); opacity: 0.3; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.3; }
         }
 
         .thinking-text {
@@ -248,30 +295,6 @@
 
         @keyframes blink-cursor {
             50% { opacity: 0; }
-        }
-
-        /* Old typing indicator - kept for compatibility but not used */
-        .typing-indicator {
-            display: flex;
-            gap: 6px;
-            padding: 8px 0;
-        }
-
-        .typing-dot {
-            width: 6px;
-            height: 6px;
-            background-color: var(--primary-orange);
-            border-radius: 50%;
-            animation: dot-blink 1.4s infinite both;
-        }
-
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes dot-blink {
-            0% { opacity: 0.2; transform: scale(0.8); }
-            20% { opacity: 1; transform: scale(1.2); }
-            100% { opacity: 0.2; transform: scale(0.8); }
         }
 
         .chat-input-area {
@@ -307,12 +330,12 @@
             outline: none;
             font-family: inherit;
             min-width: 0;
+            resize: vertical;
         }
 
         .chat-input::placeholder {
             color: #444;
             font-size: 0.9rem;
-            transition: opacity 0.2s ease;
         }
 
         .send-button, .mic-button {
@@ -378,660 +401,443 @@
         }
 
         @media (max-width: 480px) {
-            .chat-header {
-                padding: 12px 16px;
-            }
-            
-            .chat-messages {
-                padding: 16px 12px;
-                gap: 20px;
-            }
-            
-            .message-bubble {
-                font-size: 0.9rem;
-            }
-            
-            .balance-label {
-                display: none;
-            }
+            .chat-header { padding: 12px 16px; }
+            .chat-messages { padding: 16px 12px; gap: 20px; }
+            .message-bubble { font-size: 0.9rem; }
+            .balance-label { display: none; }
         }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <div class="header-left">
-                <div class="header-logo"></div>
-                <h1>Litheral</h1>
-            </div>
-            <div class="balance-container">
-                <span class="balance-label">coins</span>
-                <span class="balance-amount" id="balanceAmount">0.00</span>
-                <button class="buy-coins-btn" id="buyCoinsBtn">add</button>
-            </div>
+<div class="chat-container">
+    <div class="chat-header">
+        <div class="header-left">
+            <div class="header-logo"></div>
+            <h1>Litheral</h1>
         </div>
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="chat-input-area">
-            <div class="input-container">
-                <input type="text" class="chat-input" id="chatInput" placeholder="" autocomplete="off">
-                <button class="mic-button" id="micButton">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M12 22V19" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </button>
-                <button class="send-button" id="sendButton">Send</button>
-            </div>
-            <div class="rate-limit-warning" id="rateLimitWarning"></div>
+        <div class="balance-container">
+            <span class="balance-label">coins</span>
+            <span class="balance-amount" id="balanceAmount">0.00</span>
+            <button class="buy-coins-btn" id="buyCoinsBtn">add</button>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <script>
-        (function() {
-            // ========== SUPABASE CONFIGURATION ==========
-            const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
-            
-            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            
-            // ========== CONFIGURATION ==========
-            const API_BASE_URL = 'https://sdel.onrender.com';
-            
-            // ========== DOM ELEMENTS ==========
-            const chatMessages = document.getElementById('chatMessages');
-            const chatInput = document.getElementById('chatInput');
-            const sendButton = document.getElementById('sendButton');
-            const micButton = document.getElementById('micButton');
-            const balanceAmountSpan = document.getElementById('balanceAmount');
-            const rateLimitWarning = document.getElementById('rateLimitWarning');
-            
-            // ========== STATE MANAGEMENT ==========
-            let currentAbortController = null;
-            let typingAnimationFrame = null;
-            let chatHistory = [];
-            let currentBalance = 0;
-            let lastRequestTime = 0;
-            let rateLimitTimeout = null;
-            let supabaseAccessToken = null;
-            let isOffline = !navigator.onLine;
-            let userName = null;
-            let todaysQuote = null;
-            
-            // ========== FETCH QUOTE FROM SUPABASE QUOTES TABLE ==========
-            async function fetchDailyQuote() {
-                try {
-                    // Get today's date string
-                    const today = new Date().toDateString();
-                    const stored = localStorage.getItem('litheral_daily_quote');
-                    
-                    if (stored) {
-                        const parsed = JSON.parse(stored);
-                        if (parsed.date === today) {
-                            return parsed.quote;
-                        }
-                    }
-                    
-                    // Fetch random quote from Supabase quotes table
-                    const { data, error } = await supabase
-                        .from('quotes')
-                        .select('quote_text')
-                        .limit(1);
-                    
-                    if (error) throw error;
-                    
-                    let quote = null;
-                    if (data && data.length > 0) {
-                        // Pick random quote from results
-                        const randomIndex = Math.floor(Math.random() * data.length);
-                        quote = data[randomIndex].quote_text;
-                    } else {
-                        // Fallback quotes if table is empty
-                        const fallbackQuotes = [
-                            "The quality of your thoughts shapes the quality of your life.",
-                            "Clarity emerges when you stop chasing noise and start listening.",
-                            "Truth doesn't need validation, only observation.",
-                            "Your attention is your most valuable currency. Spend it wisely.",
-                            "The present moment is the only place where life actually happens.",
-                            "Speak only when your words are better than silence.",
-                            "Restoring sanity starts with one clear thought at a time.",
-                            "The strongest force in the universe is a focused mind.",
-                            "Progress happens one conversation at a time.",
-                            "Small daily improvements create extraordinary results."
-                        ];
-                        quote = fallbackQuotes[Math.floor(Math.random() * fallbackQuotes.length)];
-                    }
-                    
-                    // Store in localStorage for today
-                    localStorage.setItem('litheral_daily_quote', JSON.stringify({
-                        date: today,
-                        quote: quote
-                    }));
-                    
-                    return quote;
-                } catch (error) {
-                    console.error('Failed to fetch quote:', error);
-                    // Fallback quote
-                    return "Clarity over comfort. Truth over convenience.";
-                }
-            }
-            
-            // ========== TIME-BASED GREETING ==========
-            function getTimeBasedGreeting() {
-                const hour = new Date().getHours();
-                if (hour < 12) return "Good morning";
-                if (hour < 17) return "Good afternoon";
-                return "Good evening";
-            }
-            
-            // ========== FUN PLACEHOLDER TYPING ANIMATION ==========
-            const placeholders = [
-                "Think Clearly", "Clarity over noise", "Defiant Reality", 
-                "Truth survives comfort", "Make the next sentence meaningful", 
-                "Speak with intent", "Foolishness is a choice", "I am Litheral", 
-                "Let's chat", "Restoring Sanity", "Ask me anything", 
-                "What's on your mind?", "Speak freely", "No filters here"
-            ];
-            let placeholderIndex = 0;
-            let isTyping = true;
-            let currentText = "";
-            let typingTimeout = null;
-            
-            function typePlaceholder() {
-                const targetText = placeholders[placeholderIndex];
-                
-                if (isTyping) {
-                    if (currentText.length < targetText.length) {
-                        currentText = targetText.substring(0, currentText.length + 1);
-                        chatInput.placeholder = currentText;
-                        typingTimeout = setTimeout(typePlaceholder, 100);
-                    } else {
-                        isTyping = false;
-                        typingTimeout = setTimeout(typePlaceholder, 3000);
-                    }
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-area">
+        <div class="input-container">
+            <textarea class="chat-input" id="chatInput" placeholder="" autocomplete="off" rows="1" style="resize: none;"></textarea>
+            <button class="mic-button" id="micButton">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 22V19" stroke="#FF6600" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <button class="send-button" id="sendButton">Send</button>
+        </div>
+        <div class="rate-limit-warning" id="rateLimitWarning"></div>
+    </div>
+</div>
+<div id="copyToast" class="copy-toast">Copied!</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    (function() {
+        // ---------- SUPABASE ----------
+        const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const API_BASE_URL = 'https://sdel.onrender.com';
+        
+        // DOM elements
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const micButton = document.getElementById('micButton');
+        const balanceAmountSpan = document.getElementById('balanceAmount');
+        const rateLimitWarning = document.getElementById('rateLimitWarning');
+        const copyToast = document.getElementById('copyToast');
+        
+        // State
+        let currentAbortController = null;
+        let typingAnimationFrame = null;
+        let chatHistory = [];
+        let currentBalance = 0;
+        let lastRequestTime = 0;
+        let rateLimitTimeout = null;
+        let supabaseAccessToken = null;
+        let isOffline = !navigator.onLine;
+        let userName = null;
+        
+        // Pending message for retry (in case rate limit blocks sending)
+        let pendingRetryMessage = null;
+        let isRateLimitedFlag = false;
+        
+        // Helper: random quote from supabase quotes table (always fresh random)
+        async function fetchRandomQuote() {
+            try {
+                const { data, error } = await supabase
+                    .from('quotes')
+                    .select('quote_text');
+                if (error) throw error;
+                if (data && data.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * data.length);
+                    return data[randomIndex].quote_text;
                 } else {
-                    if (currentText.length > 0) {
-                        currentText = currentText.substring(0, currentText.length - 1);
-                        chatInput.placeholder = currentText;
-                        typingTimeout = setTimeout(typePlaceholder, 50);
-                    } else {
-                        placeholderIndex = (placeholderIndex + 1) % placeholders.length;
-                        isTyping = true;
-                        typingTimeout = setTimeout(typePlaceholder, 500);
-                    }
+                    const fallback = ["Clarity is power.", "Truth over comfort.", "Focus on what matters."];
+                    return fallback[Math.floor(Math.random() * fallback.length)];
+                }
+            } catch(e) {
+                console.warn("quote fetch error", e);
+                return "Clarity over comfort. Truth over convenience.";
+            }
+        }
+        
+        // Time greeting
+        function getTimeBasedGreeting() {
+            const hour = new Date().getHours();
+            if (hour < 12) return "Good morning";
+            if (hour < 17) return "Good afternoon";
+            return "Good evening";
+        }
+        
+        // dynamic placeholder animation
+        const placeholders = ["Think Clearly", "Clarity over noise", "Defiant Reality", "Type message... Shift+Enter for new line"];
+        let pIndex = 0, isTypingPh = true, currentPhText = "";
+        let phTimeout = null;
+        function typePlaceholder() {
+            const target = placeholders[pIndex];
+            if (isTypingPh) {
+                if (currentPhText.length < target.length) {
+                    currentPhText = target.substring(0, currentPhText.length + 1);
+                    chatInput.placeholder = currentPhText;
+                    phTimeout = setTimeout(typePlaceholder, 100);
+                } else {
+                    isTypingPh = false;
+                    phTimeout = setTimeout(typePlaceholder, 2800);
+                }
+            } else {
+                if (currentPhText.length > 0) {
+                    currentPhText = currentPhText.substring(0, currentPhText.length - 1);
+                    chatInput.placeholder = currentPhText;
+                    phTimeout = setTimeout(typePlaceholder, 40);
+                } else {
+                    pIndex = (pIndex + 1) % placeholders.length;
+                    isTypingPh = true;
+                    phTimeout = setTimeout(typePlaceholder, 300);
                 }
             }
-            
-            typePlaceholder();
-            
-            // ========== FETCH USER PROFILE ==========
-            async function fetchUserProfile() {
-                try {
-                    const { data: { user }, error: userError } = await supabase.auth.getUser();
-                    if (userError) throw userError;
-                    
-                    if (user) {
-                        const { data: profile, error: profileError } = await supabase
-                            .from('profile')
-                            .select('first_name')
-                            .eq('id', user.id)
-                            .single();
-                        
-                        if (profileError && profileError.code !== 'PGRST116') {
-                            console.error('Profile fetch error:', profileError);
-                        }
-                        
-                        if (profile && profile.first_name) {
-                            userName = profile.first_name;
-                        } else {
-                            userName = user.email ? user.email.split('@')[0] : 'there';
-                        }
-                    } else {
-                        userName = 'there';
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch profile:', error);
+        }
+        typePlaceholder();
+        
+        // auto-expand textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(100, this.scrollHeight) + 'px';
+        });
+        
+        // -------- User Profile ----------
+        async function fetchUserProfile() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { data: profile } = await supabase.from('profile').select('first_name').eq('id', user.id).single();
+                    if (profile?.first_name) userName = profile.first_name;
+                    else userName = user.email ? user.email.split('@')[0] : 'there';
+                } else userName = 'there';
+            } catch(e) { userName = 'there'; }
+        }
+        
+        async function initSupabaseAuth() {
+            try {
+                if (!navigator.onLine) throw new Error('offline');
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    supabaseAccessToken = session.access_token;
+                    await fetchUserProfile();
+                    return true;
+                } else {
+                    const { data: signInData } = await supabase.auth.signInAnonymously();
+                    supabaseAccessToken = signInData.session.access_token;
                     userName = 'there';
+                    return true;
                 }
+            } catch (error) {
+                console.error(error);
+                await typeMessage("Connection issue. Refresh or check network.");
+                return false;
             }
-            
-            // ========== AUTHENTICATION ==========
-            async function initSupabaseAuth() {
-                try {
-                    if (!navigator.onLine) {
-                        throw new Error('offline');
-                    }
-                    
-                    const { data: { session }, error } = await supabase.auth.getSession();
-                    
-                    if (error) throw error;
-                    
-                    if (session) {
-                        supabaseAccessToken = session.access_token;
-                        await fetchUserProfile();
-                        return true;
-                    } else {
-                        const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
-                        if (signInError) throw signInError;
-                        supabaseAccessToken = signInData.session.access_token;
-                        userName = 'there';
-                        return true;
-                    }
-                } catch (error) {
-                    console.error('Auth error:', error);
-                    if (error.message === 'offline' || !navigator.onLine) {
-                        await typeMessage("No internet connection. Please check your network and refresh.");
-                    } else {
-                        await typeMessage("Unable to authenticate. Please check your configuration and refresh the page.");
-                    }
-                    return false;
-                }
+        }
+        
+        // API helpers
+        async function callAPI(endpoint, body, method = 'POST') {
+            if (!supabaseAccessToken) throw new Error('Not authenticated');
+            if (!navigator.onLine) throw new Error('offline');
+            if (currentAbortController) currentAbortController.abort();
+            currentAbortController = new AbortController();
+            const options = {
+                method, headers: { 'Authorization': `Bearer ${supabaseAccessToken}`, 'Content-Type': 'application/json' },
+                signal: currentAbortController.signal
+            };
+            if (body && method === 'POST') options.body = JSON.stringify(body);
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+            if (response.status === 402) throw new Error('insufficient_coins');
+            if (response.status === 401) {
+                const { data: { session } } = await supabase.auth.refreshSession();
+                if (session) supabaseAccessToken = session.access_token;
+                return callAPI(endpoint, body, method);
             }
-            
-            // Monitor online/offline status
-            window.addEventListener('online', async () => {
-                isOffline = false;
-                const offlineMsg = document.getElementById('offlineMsg');
-                if (offlineMsg) offlineMsg.remove();
-                await typeMessage("Internet connection restored. I am back.");
-                await initSupabaseAuth();
-                await fetchBalance();
-                sendButton.disabled = false;
-                micButton.disabled = false;
-            });
-            
-            window.addEventListener('offline', () => {
-                isOffline = true;
-                const offlineDiv = document.createElement('div');
-                offlineDiv.id = 'offlineMsg';
-                offlineDiv.className = 'soft-warning';
-                offlineDiv.innerHTML = 'You are offline. Please check your internet connection.';
-                chatMessages.appendChild(offlineDiv);
-                scrollToBottom();
-                sendButton.disabled = true;
-                micButton.disabled = true;
-            });
-            
-            // ========== BALANCE FUNCTIONS ==========
-            async function fetchBalance() {
-                if (!supabaseAccessToken || !navigator.onLine) return;
-                
-                try {
-                    const data = await callAPI('/coins/balance', null, 'GET');
-                    if (data && data.balance !== undefined) {
-                        currentBalance = data.balance;
-                        balanceAmountSpan.textContent = currentBalance.toFixed(4);
-                        
-                        if (currentBalance <= 0) {
-                            showSoftPrompt("Your coin balance is low. Tap 'add' to get more coins and continue the conversation.");
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch balance:', error);
-                    balanceAmountSpan.textContent = '?';
-                }
-            }
-            
-            // ========== API FUNCTIONS ==========
-            async function callAPI(endpoint, body, method = 'POST') {
-                if (!supabaseAccessToken) {
-                    throw new Error('Not authenticated');
-                }
-                
-                if (!navigator.onLine) {
-                    throw new Error('offline');
-                }
-                
-                if (currentAbortController) {
-                    currentAbortController.abort();
-                }
-                currentAbortController = new AbortController();
-                
-                const options = {
-                    method: method,
-                    headers: {
-                        'Authorization': `Bearer ${supabaseAccessToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    signal: currentAbortController.signal
-                };
-                
-                if (body && method === 'POST') {
-                    options.body = JSON.stringify(body);
-                }
-                
-                try {
-                    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-                    
-                    if (response.status === 402) {
-                        throw new Error('insufficient_coins');
-                    }
-                    
-                    if (response.status === 401) {
-                        const { data: { session }, error } = await supabase.auth.refreshSession();
-                        if (session && !error) {
-                            supabaseAccessToken = session.access_token;
-                            return callAPI(endpoint, body, method);
-                        } else {
-                            throw new Error('Authentication expired');
-                        }
-                    }
-                    
-                    if (!response.ok) {
-                        throw new Error(`API error: ${response.status}`);
-                    }
-                    
-                    return await response.json();
-                } finally {
-                    currentAbortController = null;
-                }
-            }
-            
-            async function sendToLitheral(userMessage) {
-                if (!navigator.onLine) {
-                    throw new Error('offline');
-                }
-                
-                // Rate limiting
-                const now = Date.now();
-                const timeSinceLastRequest = now - lastRequestTime;
-                if (timeSinceLastRequest < 12000) {
-                    const waitSeconds = Math.ceil((12000 - timeSinceLastRequest) / 1000);
-                    sendButton.disabled = true;
-                    micButton.disabled = true;
-                    rateLimitWarning.textContent = `Please wait ${waitSeconds}s before sending another message`;
-                    
-                    if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
-                    rateLimitTimeout = setTimeout(() => {
-                        sendButton.disabled = false;
-                        micButton.disabled = false;
-                        rateLimitWarning.textContent = '';
-                    }, 12000 - timeSinceLastRequest);
-                    
-                    throw new Error('Rate limited');
-                }
-                
-                lastRequestTime = now;
-                
-                const requestBody = {
-                    message: userMessage,
-                    chat_history: chatHistory
-                };
-                
-                const data = await callAPI('/ai/chat', requestBody);
-                
-                if (data.balance_remaining !== undefined) {
-                    currentBalance = data.balance_remaining;
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+            return await response.json();
+        }
+        
+        async function fetchBalance() {
+            if (!supabaseAccessToken || !navigator.onLine) return;
+            try {
+                const data = await callAPI('/coins/balance', null, 'GET');
+                if (data && data.balance !== undefined) {
+                    currentBalance = data.balance;
                     balanceAmountSpan.textContent = currentBalance.toFixed(4);
-                    
-                    if (currentBalance <= 0) {
-                        showSoftPrompt("Your coin balance is low. Tap 'add' to get more coins and continue the conversation.");
-                    }
                 }
-                
-                chatHistory.push(
-                    { role: "user", content: userMessage },
-                    { role: "model", content: data.response }
-                );
-                
-                return data.response;
-            }
-            
-            function showSoftPrompt(message) {
-                const promptDiv = document.createElement('div');
-                promptDiv.className = 'soft-warning';
-                promptDiv.innerHTML = message;
-                chatMessages.appendChild(promptDiv);
-                scrollToBottom();
-                
-                setTimeout(() => {
-                    if (promptDiv.parentNode) promptDiv.remove();
-                }, 5000);
-            }
-            
-            // ========== UI FUNCTIONS ==========
-            let scrollRAF = null;
-            function scrollToBottom() {
-                if (scrollRAF) cancelAnimationFrame(scrollRAF);
-                scrollRAF = requestAnimationFrame(() => {
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                    scrollRAF = null;
-                });
-            }
-            
-            let scrollTimeout = null;
-            function debouncedScroll() {
-                if (scrollTimeout) clearTimeout(scrollTimeout);
-                scrollTimeout = setTimeout(scrollToBottom, 50);
-            }
-            
-            function typeMessage(text) {
-                return new Promise((resolve) => {
-                    const messageDiv = document.createElement('div');
-                    messageDiv.className = 'message Litheral';
-                    
-                    const nameDiv = document.createElement('div');
-                    nameDiv.className = 'message-username';
-                    nameDiv.textContent = 'Litheral';
-                    
-                    const bubbleDiv = document.createElement('div');
-                    bubbleDiv.className = 'message-bubble typing-active';
-                    
-                    messageDiv.appendChild(nameDiv);
-                    messageDiv.appendChild(bubbleDiv);
-                    chatMessages.appendChild(messageDiv);
-                    
-                    let i = 0;
-                    const typingSpeed = 25;
-                    
-                    function type() {
-                        if (i < text.length) {
-                            bubbleDiv.textContent += text[i];
-                            debouncedScroll();
-                            i++;
-                            typingAnimationFrame = setTimeout(type, typingSpeed);
-                        } else {
-                            bubbleDiv.classList.remove('typing-active');
-                            clearTimeout(typingAnimationFrame);
-                            resolve();
-                        }
-                    }
-                    type();
-                });
-            }
-            
-            function addUserMessage(content) {
-                const messageDiv = document.createElement('div');
-                messageDiv.className = 'message user';
-                
-                const nameDiv = document.createElement('div');
-                nameDiv.className = 'message-username';
-                nameDiv.textContent = 'You';
-                
-                const bubbleDiv = document.createElement('div');
-                bubbleDiv.className = 'message-bubble';
-                bubbleDiv.textContent = escapeHtml(content);
-                
-                messageDiv.appendChild(nameDiv);
-                messageDiv.appendChild(bubbleDiv);
-                chatMessages.appendChild(messageDiv);
-                debouncedScroll();
-            }
-            
-            // UNIQUE LITHERAL THINKING ANIMATION - Orange Pulse Ring
-            function showThinkingAnimation() {
-                const existing = document.getElementById('thinkingAnimation');
-                if (existing) return;
-                
-                const thinkingDiv = document.createElement('div');
-                thinkingDiv.className = 'message Litheral';
-                thinkingDiv.id = 'thinkingAnimation';
-                
-                const nameDiv = document.createElement('div');
-                nameDiv.className = 'message-username';
-                nameDiv.textContent = 'Litheral';
-                
-                const bubbleDiv = document.createElement('div');
-                bubbleDiv.className = 'message-bubble';
-                
-                const animationContainer = document.createElement('div');
-                animationContainer.className = 'litheral-thinking';
-                
-                // Orange pulsing ring SVG (unique to Litheral)
-                animationContainer.innerHTML = `
-                    <div class="thinking-ring">
-                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="12" r="8" stroke="#FF6600" stroke-width="2" stroke-dasharray="4 4"/>
-                            <circle cx="12" cy="12" r="4" fill="#FF6600" fill-opacity="0.3">
-                                <animate attributeName="r" values="3;5;3" dur="1.2s" repeatCount="indefinite"/>
-                                <animate attributeName="fill-opacity" values="0.3;0.6;0.3" dur="1.2s" repeatCount="indefinite"/>
-                            </circle>
-                        </svg>
-                    </div>
-                    <span class="thinking-text">thinking</span>
-                `;
-                
-                bubbleDiv.appendChild(animationContainer);
-                thinkingDiv.appendChild(nameDiv);
-                thinkingDiv.appendChild(bubbleDiv);
-                
-                chatMessages.appendChild(thinkingDiv);
-                scrollToBottom();
-            }
-            
-            function hideThinkingAnimation() {
-                const el = document.getElementById('thinkingAnimation');
-                if (el) el.remove();
-            }
-            
-            function escapeHtml(str) {
-                const div = document.createElement('div');
-                div.textContent = str;
-                return div.innerHTML;
-            }
-            
-            // ========== MESSAGE HANDLING ==========
-            async function handleSend() {
-                const userMessage = chatInput.value.trim();
-                if (!userMessage) return;
-                
-                if (!supabaseAccessToken) {
-                    await typeMessage("Please wait, I am still connecting...");
-                    return;
-                }
-                
-                sendButton.disabled = true;
-                micButton.disabled = true;
-                
-                addUserMessage(userMessage);
-                showThinkingAnimation(); // New unique animation
-                
-                try {
-                    const response = await sendToLitheral(userMessage);
-                    hideThinkingAnimation();
-                    await typeMessage(response);
-                } catch (error) {
-                    hideThinkingAnimation();
-                    if (error.message === 'insufficient_coins') {
-                        await typeMessage("You don't have enough coins for this message. Please tap the 'add' button in the top right to get more coins.");
-                        showSoftPrompt("Need more coins? Tap 'add' to continue our conversation.");
-                    } else if (error.message === 'offline' || !navigator.onLine) {
-                        await typeMessage("No internet connection. Please check your network.");
-                    } else if (error.message === 'Rate limited') {
-                        // Already handled
-                    } else if (error.message.includes('Authentication')) {
-                        await typeMessage("Authentication issue. Please refresh the page.");
-                    } else {
-                        await typeMessage(`${error.message}`);
-                    }
-                    console.error('Send error:', error);
-                } finally {
-                    sendButton.disabled = false;
-                    micButton.disabled = false;
-                }
-                
-                chatInput.value = '';
-                
-                if (currentAbortController) {
-                    currentAbortController.abort();
-                }
-            }
-            
-            // ========== VOICE RECOGNITION (Coming Soon) ==========
-            micButton.addEventListener('click', async () => {
-                const comingSoonMsg = document.createElement('div');
-                comingSoonMsg.className = 'message Litheral';
-                comingSoonMsg.style.opacity = '0';
-                comingSoonMsg.style.transition = 'opacity 0.3s ease';
-                comingSoonMsg.innerHTML = `
-                    <div class="message-username">Litheral</div>
-                    <div class="message-bubble">Voice input feature is coming soon. Stay tuned for updates.</div>
-                `;
-                chatMessages.appendChild(comingSoonMsg);
-                
-                setTimeout(() => { comingSoonMsg.style.opacity = '1'; }, 10);
-                scrollToBottom();
-                
-                setTimeout(() => {
-                    comingSoonMsg.style.opacity = '0';
-                    setTimeout(() => {
-                        if (comingSoonMsg.parentNode) comingSoonMsg.remove();
-                    }, 300);
-                }, 3000);
-            });
-            
-            // ========== BUY COINS ==========
-            document.getElementById('buyCoinsBtn').addEventListener('click', () => {
-                window.location.href = '/Tokens';
-            });
-            
-            // ========== EVENT LISTENERS ==========
-            sendButton.addEventListener('click', handleSend);
-            chatInput.addEventListener('keypress', (e) => { 
-                if (e.key === 'Enter' && !sendButton.disabled) {
-                    e.preventDefault();
-                    handleSend(); 
-                } 
-            });
-            
-            // ========== INITIALIZATION ==========
-            async function init() {
-                const authSuccess = await initSupabaseAuth();
-                todaysQuote = await fetchDailyQuote();
-                
-                if (authSuccess && navigator.onLine) {
-                    await fetchBalance();
-                    const greeting = getTimeBasedGreeting();
-                    // Combined greeting + quote in ONE message
-                    await typeMessage(`${greeting}, ${userName}. ${todaysQuote}`);
-                    
-                    if (currentBalance > 0) {
-                        await typeMessage(`You have ${currentBalance.toFixed(4)} coins. Each message uses a small amount.`);
-                    }
-                } else if (!navigator.onLine) {
-                    await typeMessage("You appear to be offline. Connect to the internet to start chatting.");
-                }
-                
-                sendButton.disabled = false;
-                micButton.disabled = false;
-            }
-            
-            init();
-            
-            // ========== CLEANUP ==========
-            window.addEventListener('beforeunload', () => {
-                if (currentAbortController) {
-                    currentAbortController.abort();
-                }
-                if (typingAnimationFrame) clearTimeout(typingAnimationFrame);
-                if (typingTimeout) clearTimeout(typingTimeout);
-                if (scrollTimeout) clearTimeout(scrollTimeout);
-                if (scrollRAF) cancelAnimationFrame(scrollRAF);
+            } catch(e) { balanceAmountSpan.textContent = '?'; }
+        }
+        
+        async function sendToLitheral(userMessage, isRetry = false) {
+            if (!navigator.onLine) throw new Error('offline');
+            const now = Date.now();
+            const timeSinceLastRequest = now - lastRequestTime;
+            if (timeSinceLastRequest < 12000) {
+                const waitSeconds = Math.ceil((12000 - timeSinceLastRequest) / 1000);
+                sendButton.disabled = true; micButton.disabled = true;
+                rateLimitWarning.textContent = `Rate limit: wait ${waitSeconds}s`;
                 if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
+                rateLimitTimeout = setTimeout(() => {
+                    sendButton.disabled = false; micButton.disabled = false;
+                    rateLimitWarning.textContent = '';
+                    if (pendingRetryMessage) {
+                        const msgToSend = pendingRetryMessage;
+                        pendingRetryMessage = null;
+                        handleSendWithText(msgToSend, true);
+                    }
+                }, 12000 - timeSinceLastRequest);
+                throw new Error('Rate limited');
+            }
+            lastRequestTime = now;
+            const requestBody = { message: userMessage, chat_history: chatHistory };
+            const data = await callAPI('/ai/chat', requestBody);
+            if (data.balance_remaining !== undefined) {
+                currentBalance = data.balance_remaining;
+                balanceAmountSpan.textContent = currentBalance.toFixed(4);
+            }
+            if (!isRetry) {
+                chatHistory.push({ role: "user", content: userMessage }, { role: "model", content: data.response });
+            } else {
+                // For retry: replace last model response (pop model if exists)
+                if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
+                chatHistory.push({ role: "model", content: data.response });
+            }
+            return data.response;
+        }
+        
+        // ----- UI functions -----
+        function scrollToBottom() { requestAnimationFrame(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }); }
+        function debouncedScroll() { setTimeout(scrollToBottom, 30); }
+        
+        function escapeHtml(str) { return str.replace(/[&<>]/g, function(m) { if(m === '&') return '&amp;'; if(m === '<') return '&lt;'; if(m === '>') return '&gt;'; return m;}); }
+        
+        function showCopyToast() { copyToast.style.opacity = '1'; setTimeout(() => { copyToast.style.opacity = '0'; }, 1500); }
+        
+        function addUserMessage(content, messageId = null) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message user';
+            if(messageId) msgDiv.dataset.msgId = messageId;
+            const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'You';
+            const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble'; bubbleDiv.textContent = content;
+            msgDiv.appendChild(nameDiv); msgDiv.appendChild(bubbleDiv);
+            // actions: edit, copy, share
+            const actions = document.createElement('div'); actions.className = 'message-actions';
+            const editBtn = document.createElement('button'); editBtn.className = 'action-btn'; editBtn.innerHTML = '✏️ Edit';
+            const copyBtn = document.createElement('button'); copyBtn.className = 'action-btn'; copyBtn.innerHTML = '📋 Copy';
+            const shareBtn = document.createElement('button'); shareBtn.className = 'action-btn'; shareBtn.innerHTML = '📤 Share';
+            editBtn.onclick = () => { chatInput.value = content; chatInput.focus(); };
+            copyBtn.onclick = () => { navigator.clipboard.writeText(content); showCopyToast(); };
+            shareBtn.onclick = () => { if(navigator.share) navigator.share({text: content}); else copyBtn.click(); };
+            actions.appendChild(editBtn); actions.appendChild(copyBtn); actions.appendChild(shareBtn);
+            msgDiv.appendChild(actions);
+            chatMessages.appendChild(msgDiv);
+            debouncedScroll();
+        }
+        
+        async function typeMessage(text, isLitheral = true, replaceLast = false) {
+            return new Promise((resolve) => {
+                let targetDiv;
+                if (replaceLast) {
+                    const lastMsg = chatMessages.querySelector('.message.Litheral:last-of-type');
+                    if (lastMsg && lastMsg.querySelector('.message-bubble')) {
+                        targetDiv = lastMsg.querySelector('.message-bubble');
+                        targetDiv.innerHTML = '';
+                        targetDiv.classList.add('typing-active');
+                    } else { replaceLast = false; }
+                }
+                if (!targetDiv) {
+                    const messageDiv = document.createElement('div'); messageDiv.className = 'message Litheral';
+                    const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'Litheral';
+                    const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble typing-active';
+                    messageDiv.appendChild(nameDiv); messageDiv.appendChild(bubbleDiv);
+                    chatMessages.appendChild(messageDiv);
+                    targetDiv = bubbleDiv;
+                }
+                let i = 0;
+                function typeChar() {
+                    if (i < text.length) {
+                        targetDiv.textContent += text[i];
+                        debouncedScroll();
+                        i++;
+                        typingAnimationFrame = setTimeout(typeChar, 22);
+                    } else {
+                        targetDiv.classList.remove('typing-active');
+                        clearTimeout(typingAnimationFrame);
+                        // Add actions for Litheral message: retry, copy, share
+                        const parentMsg = targetDiv.closest('.message.Litheral');
+                        if (parentMsg && !parentMsg.querySelector('.message-actions')) {
+                            const actionsDiv = document.createElement('div'); actionsDiv.className = 'message-actions';
+                            const retryBtn = document.createElement('button'); retryBtn.className = 'action-btn retry-btn'; retryBtn.innerHTML = '🔄 Retry';
+                            const copyBtn = document.createElement('button'); retryBtn.className = 'action-btn'; copyBtn.innerHTML = '📋 Copy';
+                            const shareBtn = document.createElement('button'); shareBtn.className = 'action-btn'; shareBtn.innerHTML = '📤 Share';
+                            copyBtn.onclick = () => { navigator.clipboard.writeText(text); showCopyToast(); };
+                            shareBtn.onclick = () => { if(navigator.share) navigator.share({text}); else copyBtn.click(); };
+                            retryBtn.onclick = async () => {
+                                const lastUserMsgElem = [...chatMessages.querySelectorAll('.message.user')].pop();
+                                if (lastUserMsgElem) {
+                                    const originalMessage = lastUserMsgElem.querySelector('.message-bubble')?.textContent;
+                                    if (originalMessage) {
+                                        // remove last Litheral response from chatHistory and retry
+                                        if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
+                                        const loadingDiv = parentMsg;
+                                        loadingDiv?.remove();
+                                        showThinkingAnimation();
+                                        try {
+                                            const newResponse = await sendToLitheral(originalMessage, true);
+                                            hideThinkingAnimation();
+                                            await typeMessage(newResponse);
+                                        } catch(err) { hideThinkingAnimation(); await typeMessage(`⚠️ ${err.message}`); }
+                                    }
+                                }
+                            };
+                            actionsDiv.appendChild(retryBtn); actionsDiv.appendChild(copyBtn); actionsDiv.appendChild(shareBtn);
+                            parentMsg.appendChild(actionsDiv);
+                        }
+                        resolve();
+                    }
+                }
+                typeChar();
             });
-        })();
-    </script>
+        }
+        
+        function showThinkingAnimation() {
+            if(document.getElementById('thinkingAnimation')) return;
+            const thinkingDiv = document.createElement('div'); thinkingDiv.className = 'message Litheral'; thinkingDiv.id = 'thinkingAnimation';
+            const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'Litheral';
+            const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble';
+            bubbleDiv.innerHTML = `<div class="litheral-thinking"><div class="thinking-ring"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#FF6600" stroke-width="2" stroke-dasharray="4 4"/><circle cx="12" cy="12" r="4" fill="#FF6600" fill-opacity="0.3"><animate attributeName="r" values="3;5;3" dur="1.2s" repeatCount="indefinite"/><animate attributeName="fill-opacity" values="0.3;0.6;0.3" dur="1.2s" repeatCount="indefinite"/></circle></svg></div><span class="thinking-text">thinking</span></div>`;
+            thinkingDiv.appendChild(nameDiv); thinkingDiv.appendChild(bubbleDiv);
+            chatMessages.appendChild(thinkingDiv);
+            scrollToBottom();
+        }
+        function hideThinkingAnimation() { document.getElementById('thinkingAnimation')?.remove(); }
+        
+        async function handleSendWithText(userMessage, isRetryFromLimit = false) {
+            if (!userMessage.trim()) return;
+            if (!supabaseAccessToken) { await typeMessage("Connecting..."); return; }
+            sendButton.disabled = true; micButton.disabled = true;
+            addUserMessage(userMessage, Date.now());
+            showThinkingAnimation();
+            try {
+                const response = await sendToLitheral(userMessage, false);
+                hideThinkingAnimation();
+                await typeMessage(response);
+                pendingRetryMessage = null;
+            } catch (error) {
+                hideThinkingAnimation();
+                if (error.message === 'Rate limited') {
+                    pendingRetryMessage = userMessage;
+                    await typeMessage("⏳ Rate limit active. I will auto-retry once you can send again (button will appear). No coins deducted.");
+                } else if (error.message === 'insufficient_coins') {
+                    await typeMessage("Insufficient coins. Tap 'add' to continue.");
+                } else if (error.message === 'offline') {
+                    await typeMessage("No internet connection.");
+                } else {
+                    await typeMessage(`Error: ${error.message}`);
+                }
+            } finally {
+                sendButton.disabled = false; micButton.disabled = false;
+                chatInput.value = ''; chatInput.style.height = 'auto';
+                if (currentAbortController) currentAbortController.abort();
+            }
+        }
+        
+        async function handleSend() {
+            const msg = chatInput.value.trim();
+            if (!msg) return;
+            await handleSendWithText(msg);
+        }
+        
+        // Enter key = new line, Shift+Enter or Ctrl+Enter sends
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+                e.preventDefault();
+                handleSend();
+            } else if (e.key === 'Enter' && (e.shiftKey || e.ctrlKey)) {
+                // allow new line
+                const start = chatInput.selectionStart;
+                const end = chatInput.selectionEnd;
+                chatInput.value = chatInput.value.substring(0, start) + "\n" + chatInput.value.substring(end);
+                chatInput.selectionStart = chatInput.selectionEnd = start + 1;
+                e.preventDefault();
+            }
+        });
+        
+        sendButton.addEventListener('click', handleSend);
+        micButton.addEventListener('click', () => {
+            const comingMsg = document.createElement('div'); comingMsg.className = 'message Litheral';
+            comingMsg.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble">🎤 Voice input coming soon.</div>`;
+            chatMessages.appendChild(comingMsg); scrollToBottom();
+            setTimeout(() => comingMsg.remove(), 2500);
+        });
+        document.getElementById('buyCoinsBtn').addEventListener('click', () => window.location.href = '/Tokens');
+        
+        window.addEventListener('online', async () => {
+            isOffline = false; document.getElementById('offlineMsg')?.remove();
+            await typeMessage("Back online. Let's continue.");
+            await initSupabaseAuth(); await fetchBalance();
+            sendButton.disabled = false; micButton.disabled = false;
+        });
+        window.addEventListener('offline', () => {
+            isOffline = true;
+            const offlineDiv = document.createElement('div'); offlineDiv.id = 'offlineMsg'; offlineDiv.className = 'soft-warning';
+            offlineDiv.innerHTML = 'Offline — reconnecting later.';
+            chatMessages.appendChild(offlineDiv); scrollToBottom();
+            sendButton.disabled = true; micButton.disabled = true;
+        });
+        
+        async function init() {
+            const ok = await initSupabaseAuth();
+            if (ok && navigator.onLine) {
+                await fetchBalance();
+                const greeting = getTimeBasedGreeting();
+                const freshQuote = await fetchRandomQuote();
+                await typeMessage(`${greeting}, ${userName}. ${freshQuote}`);
+                if (currentBalance > 0) await typeMessage(`You have ${currentBalance.toFixed(4)} coins. Each message uses a small amount.`);
+            } else if (!navigator.onLine) { await typeMessage("Offline mode. Connect to internet."); }
+            sendButton.disabled = false; micButton.disabled = false;
+        }
+        init();
+        
+        window.addEventListener('beforeunload', () => {
+            if(currentAbortController) currentAbortController.abort();
+            if(typingAnimationFrame) clearTimeout(typingAnimationFrame);
+            if(phTimeout) clearTimeout(phTimeout);
+            if(rateLimitTimeout) clearTimeout(rateLimitTimeout);
+        });
+    })();
+</script>
 </body>
 </html>
