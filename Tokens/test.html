@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Litheral — Clarity Over Noise</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6600'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z'/%3E%3C/svg%3E">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary-orange: #FF6600;
+            --bg-dark: #0a0a0a;
+            --card-bg: #0d0d0d;
+            --border-color: #2a2a2a;
+            --text-main: #e8e8e8;
+            --text-secondary: #a0a0a0;
+            --soft-warning: rgba(255, 102, 0, 0.12);
+            --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            background: #0a0a0a;
+            position: fixed;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Nunito', -apple-system, 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background: #0a0a0a;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 100%;
+            height: 100%;
+            background: #0d0d0d;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #2a2a2a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            background: #0a0a0a;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo {
+            width: 28px;
+            height: 28px;
+            background: var(--primary-orange);
+            border-radius: 6px;
+        }
+
+        .chat-header h1 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--primary-orange);
+            letter-spacing: -0.5px;
+            font-family: 'Nunito', sans-serif;
+        }
+
+        .balance-container {
+            background: rgba(255, 102, 0, 0.1);
+            padding: 6px 12px;
+            border-radius: 28px;
+            border: 1px solid rgba(255, 102, 0, 0.25);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .balance-label {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .balance-amount {
+            color: var(--primary-orange);
+            font-weight: 800;
+            font-size: 0.9rem;
+        }
+
+        .buy-coins-btn {
+            background: var(--primary-orange);
+            border: none;
+            color: #0a0a0a;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .buy-coins-btn:active { transform: scale(0.96); opacity: 0.8; }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            min-height: 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-orange) #1a1a1a;
+        }
+        .chat-messages::-webkit-scrollbar { width: 4px; }
+        .chat-messages::-webkit-scrollbar-track { background: #1a1a1a; border-radius: 10px; }
+        .chat-messages::-webkit-scrollbar-thumb { background: var(--primary-orange); border-radius: 10px; }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-width: 100%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-username {
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .message.Litheral .message-username { color: var(--primary-orange); }
+        .message.user .message-username { color: var(--text-main); text-align: right; }
+
+        .message-bubble {
+            line-height: 1.5;
+            font-size: 1rem;
+            font-weight: 500;
+            max-width: 100%;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            color: #e8e8e8;
+        }
+
+        .message.user .message-bubble {
+            text-align: right;
+            color: #c0c0c0;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            justify-content: flex-start;
+        }
+        .message.user .message-actions { justify-content: flex-end; }
+        
+        .action-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            padding: 6px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+        }
+        .action-btn svg {
+            width: 18px;
+            height: 18px;
+            stroke: #b0b0b0;
+            stroke-width: 1.8;
+            fill: none;
+        }
+        .action-btn:hover { background: rgba(255, 102, 0, 0.2); }
+        .action-btn:hover svg { stroke: var(--primary-orange); }
+        .action-btn:active { transform: scale(0.94); }
+
+        .stop-btn {
+            background: rgba(255, 60, 60, 0.15);
+            border: 1px solid rgba(255, 60, 60, 0.4);
+        }
+        .stop-btn svg { stroke: #ff4444; }
+        .stop-btn:hover { background: rgba(255, 60, 60, 0.3); }
+
+        .copy-toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary-orange);
+            color: #0a0a0a;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .litheral-thinking {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .thinking-ring svg {
+            width: 24px;
+            height: 24px;
+            animation: litheralPulse 1.2s ease-in-out infinite;
+        }
+
+        @keyframes litheralPulse {
+            0% { transform: scale(0.85); opacity: 0.4; }
+            50% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(0.85); opacity: 0.4; }
+        }
+
+        .thinking-text {
+            color: var(--primary-orange);
+            font-size: 0.9rem;
+            font-weight: 600;
+            animation: textFade 1.2s ease infinite;
+        }
+
+        @keyframes textFade {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .typing-active::after {
+            content: "▊";
+            display: inline-block;
+            color: var(--primary-orange);
+            margin-left: 2px;
+            animation: blink 0.8s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .chat-input-area {
+            padding: 16px 16px calc(16px + var(--safe-area-inset-bottom));
+            background: #0a0a0a;
+            flex-shrink: 0;
+            border-top: 1px solid #2a2a2a;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            background: #121212;
+            border: 1.5px solid #2a2a2a;
+            padding: 8px 14px;
+            border-radius: 32px;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .input-container:focus-within {
+            border-color: var(--primary-orange);
+            transform: scale(1.01);
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 8px 0;
+            background: transparent;
+            border: none;
+            color: #e8e8e8;
+            font-size: 1rem;
+            outline: none;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 500;
+            resize: none;
+            max-height: 120px;
+            line-height: 1.4;
+        }
+
+        .chat-input::placeholder { color: #555; font-weight: 500; }
+
+        .send-button, .mic-button, .stop-generation {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .send-button:active, .mic-button:active { transform: scale(0.92); }
+        .send-button {
+            color: var(--primary-orange);
+            font-weight: 800;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            padding: 6px 12px;
+        }
+        .send-button:disabled, .mic-button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .soft-warning {
+            color: var(--primary-orange);
+            font-size: 0.85rem;
+            padding: 12px;
+            background: rgba(255, 102, 0, 0.08);
+            border-radius: 14px;
+            margin: 8px 0;
+            text-align: center;
+            border: 1px solid rgba(255, 102, 0, 0.2);
+        }
+
+        .rate-limit-warning {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 10px;
+            font-weight: 600;
+        }
+
+        @media (max-width: 480px) {
+            .chat-header { padding: 12px 16px; }
+            .chat-messages { padding: 16px 12px; gap: 20px; }
+            .message-bubble { font-size: 0.95rem; }
+            .balance-label { display: none; }
+        }
+    </style>
+</head>
+<body>
+<div class="chat-container">
+    <div class="chat-header">
+        <div class="header-left">
+            <div class="header-logo"></div>
+            <h1>Litheral</h1>
+        </div>
+        <div class="balance-container">
+            <span class="balance-label">coins</span>
+            <span class="balance-amount" id="balanceAmount">0.00</span>
+            <button class="buy-coins-btn" id="buyCoinsBtn">add</button>
+        </div>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-area">
+        <div class="input-container">
+            <textarea class="chat-input" id="chatInput" placeholder="Think Clearly" autocomplete="off" rows="1"></textarea>
+            <button class="mic-button" id="micButton">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="#FF6600" stroke-width="1.5"/>
+                    <path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="#FF6600" stroke-width="1.5"/>
+                    <path d="M12 22V19" stroke="#FF6600" stroke-width="1.5"/>
+                </svg>
+            </button>
+            <button class="send-button" id="sendButton">Send</button>
+        </div>
+        <div class="rate-limit-warning" id="rateLimitWarning"></div>
+    </div>
+</div>
+<div id="copyToast" class="copy-toast">Copied!</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    (function() {
+        const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const API_BASE_URL = 'https://sdel.onrender.com';
+        
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const micButton = document.getElementById('micButton');
+        const balanceAmountSpan = document.getElementById('balanceAmount');
+        const rateLimitWarning = document.getElementById('rateLimitWarning');
+        const copyToast = document.getElementById('copyToast');
+        
+        let currentAbortController = null;
+        let typingAnimationFrame = null;
+        let chatHistory = [];
+        let currentBalance = 0;
+        let lastRequestTime = 0;
+        let rateLimitTimeout = null;
+        let supabaseAccessToken = null;
+        let userName = null;
+        let pendingRetryMessage = null;
+        let isGenerating = false;
+        
+        // Animated SVGs with soft transitions
+        const editIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3L21 7L7 21H3V17L17 3Z"/><path d="M15 5L19 9"/></svg>`;
+        
+        // Copy icon: square morph animation (normal square then second square appears)
+        const copyIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2">
+                <animate attributeName="opacity" values="0;1" dur="0.9s" begin="0s" repeatCount="indefinite"/>
+                <animate attributeName="width" values="0;13" dur="0.9s" begin="0s" repeatCount="indefinite"/>
+            </rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>`;
+        
+        // Share icon: dot that connects to form the share symbol
+        const shareIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="18" cy="5" r="3">
+                <animate attributeName="r" values="1;3" dur="1.2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="6" cy="12" r="3">
+                <animate attributeName="r" values="1;3" dur="1.2s" begin="0.2s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="18" cy="19" r="3">
+                <animate attributeName="r" values="1;3" dur="1.2s" begin="0.4s" repeatCount="indefinite"/>
+            </circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke-dasharray="4 4">
+                <animate attributeName="stroke-dashoffset" values="8;0" dur="1.5s" repeatCount="indefinite"/>
+            </line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke-dasharray="4 4">
+                <animate attributeName="stroke-dashoffset" values="8;0" dur="1.5s" begin="0.3s" repeatCount="indefinite"/>
+            </line>
+        </svg>`;
+        
+        // Retry SVG: slower rotating arrow (3 seconds per rotation)
+        const retryIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="animation: retrySpin 3s linear infinite;">
+            <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>`;
+        
+        const stopIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>`;
+        
+        const styleSheet = document.createElement("style");
+        styleSheet.textContent = `@keyframes retrySpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`;
+        document.head.appendChild(styleSheet);
+        
+        async function fetchRandomQuote() {
+            try {
+                const { data, error } = await supabase.from('quotes').select('quote_text');
+                if (error) throw error;
+                if (data && data.length > 0) return data[Math.floor(Math.random() * data.length)].quote_text;
+                return "Clarity is power. Truth over comfort.";
+            } catch(e) { return "Clarity over comfort. Truth over convenience."; }
+        }
+        
+        function getTimeBasedGreeting() {
+            const hour = new Date().getHours();
+            if (hour < 12) return "Good morning";
+            if (hour < 17) return "Good afternoon";
+            return "Good evening";
+        }
+        
+        // Placeholder cycling
+        const placeholders = ["Think Clearly", "Clarity over noise", "Speak freely", "Ask anything"];
+        let phIndex = 0;
+        setInterval(() => {
+            phIndex = (phIndex + 1) % placeholders.length;
+            if (!chatInput.value) chatInput.placeholder = placeholders[phIndex];
+        }, 3200);
+        
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(120, this.scrollHeight) + 'px';
+        });
+        
+        async function fetchUserProfile() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { data: profile } = await supabase.from('profile').select('first_name').eq('id', user.id).single();
+                    userName = profile?.first_name || (user.email ? user.email.split('@')[0] : 'there');
+                } else userName = 'there';
+            } catch(e) { userName = 'there'; }
+        }
+        
+        async function initSupabaseAuth() {
+            try {
+                if (!navigator.onLine) throw new Error('offline');
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    supabaseAccessToken = session.access_token;
+                    await fetchUserProfile();
+                    return true;
+                } else {
+                    const { data: signInData } = await supabase.auth.signInAnonymously();
+                    supabaseAccessToken = signInData.session.access_token;
+                    userName = 'there';
+                    return true;
+                }
+            } catch (error) {
+                await typeMessage("Connection issue. Please refresh.");
+                return false;
+            }
+        }
+        
+        async function callAPI(endpoint, body, method = 'POST') {
+            if (!supabaseAccessToken) throw new Error('Not authenticated');
+            if (!navigator.onLine) throw new Error('offline');
+            if (currentAbortController) currentAbortController.abort();
+            currentAbortController = new AbortController();
+            const options = { method, headers: { 'Authorization': `Bearer ${supabaseAccessToken}`, 'Content-Type': 'application/json' }, signal: currentAbortController.signal };
+            if (body && method === 'POST') options.body = JSON.stringify(body);
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+            if (response.status === 402) throw new Error('insufficient_coins');
+            if (response.status === 401) {
+                const { data: { session } } = await supabase.auth.refreshSession();
+                if (session) supabaseAccessToken = session.access_token;
+                return callAPI(endpoint, body, method);
+            }
+            if (!response.ok) throw new Error(`API error: ${response.status}`);
+            return await response.json();
+        }
+        
+        async function fetchBalance() {
+            if (!supabaseAccessToken || !navigator.onLine) return;
+            try {
+                const data = await callAPI('/coins/balance', null, 'GET');
+                if (data && data.balance !== undefined) {
+                    currentBalance = data.balance;
+                    balanceAmountSpan.textContent = currentBalance.toFixed(4);
+                }
+            } catch(e) { balanceAmountSpan.textContent = '?'; }
+        }
+        
+        async function sendToLitheral(userMessage, isRetry = false) {
+            if (!navigator.onLine) throw new Error('offline');
+            const now = Date.now();
+            const timeSinceLastRequest = now - lastRequestTime;
+            if (timeSinceLastRequest < 12000) {
+                const waitSeconds = Math.ceil((12000 - timeSinceLastRequest) / 1000);
+                sendButton.disabled = true; micButton.disabled = true;
+                rateLimitWarning.textContent = `Rate limit: wait ${waitSeconds}s`;
+                if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
+                rateLimitTimeout = setTimeout(() => {
+                    sendButton.disabled = false; micButton.disabled = false;
+                    rateLimitWarning.textContent = '';
+                    if (pendingRetryMessage) handleSendWithText(pendingRetryMessage);
+                }, 12000 - timeSinceLastRequest);
+                throw new Error('Rate limited');
+            }
+            lastRequestTime = now;
+            const requestBody = { message: userMessage, chat_history: chatHistory };
+            const data = await callAPI('/ai/chat', requestBody);
+            if (data.balance_remaining !== undefined) {
+                currentBalance = data.balance_remaining;
+                balanceAmountSpan.textContent = currentBalance.toFixed(4);
+            }
+            if (!isRetry) chatHistory.push({ role: "user", content: userMessage }, { role: "model", content: data.response });
+            else {
+                if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
+                chatHistory.push({ role: "model", content: data.response });
+            }
+            return data.response;
+        }
+        
+        function stopGeneration() {
+            if (currentAbortController) {
+                currentAbortController.abort();
+                currentAbortController = null;
+            }
+            if (typingAnimationFrame) clearTimeout(typingAnimationFrame);
+            hideThinkingAnimation();
+            isGenerating = false;
+            const stopBtn = document.querySelector('.stop-generation');
+            if (stopBtn) stopBtn.remove();
+            sendButton.disabled = false;
+            micButton.disabled = false;
+        }
+        
+        function addStopButton() {
+            if (document.querySelector('.stop-generation')) return;
+            const stopBtn = document.createElement('button');
+            stopBtn.className = 'stop-generation action-btn stop-btn';
+            stopBtn.innerHTML = stopIcon;
+            stopBtn.onclick = stopGeneration;
+            const inputContainer = document.querySelector('.input-container');
+            const micBtn = document.querySelector('.mic-button');
+            inputContainer.insertBefore(stopBtn, micBtn);
+        }
+        
+        function scrollToBottom() { requestAnimationFrame(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }); }
+        function showCopyToastMsg() { copyToast.style.opacity = '1'; setTimeout(() => { copyToast.style.opacity = '0'; }, 1500); }
+        
+        function addUserMessage(content) {
+            const msgDiv = document.createElement('div'); msgDiv.className = 'message user';
+            const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'You';
+            const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble'; bubbleDiv.textContent = content;
+            msgDiv.appendChild(nameDiv); msgDiv.appendChild(bubbleDiv);
+            const actions = document.createElement('div'); actions.className = 'message-actions';
+            const editBtn = document.createElement('button'); editBtn.className = 'action-btn'; editBtn.innerHTML = editIcon;
+            editBtn.onclick = () => { chatInput.value = content; chatInput.focus(); chatInput.dispatchEvent(new Event('input')); };
+            const copyBtn = document.createElement('button'); copyBtn.className = 'action-btn'; copyBtn.innerHTML = copyIcon;
+            copyBtn.onclick = () => { navigator.clipboard.writeText(content); showCopyToastMsg(); };
+            const shareBtn = document.createElement('button'); shareBtn.className = 'action-btn'; shareBtn.innerHTML = shareIcon;
+            shareBtn.onclick = () => { if(navigator.share) navigator.share({text: content}); else copyBtn.click(); };
+            actions.appendChild(editBtn); actions.appendChild(copyBtn); actions.appendChild(shareBtn);
+            msgDiv.appendChild(actions);
+            chatMessages.appendChild(msgDiv);
+            scrollToBottom();
+        }
+        
+        async function typeMessage(text) {
+            return new Promise((resolve) => {
+                const messageDiv = document.createElement('div'); messageDiv.className = 'message Litheral';
+                const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'Litheral';
+                const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble typing-active';
+                messageDiv.appendChild(nameDiv); messageDiv.appendChild(bubbleDiv);
+                chatMessages.appendChild(messageDiv);
+                let i = 0;
+                function typeChar() {
+                    if (!isGenerating) { bubbleDiv.textContent += "... [stopped]"; bubbleDiv.classList.remove('typing-active'); resolve(); return; }
+                    if (i < text.length) {
+                        bubbleDiv.textContent += text[i];
+                        scrollToBottom();
+                        i++;
+                        typingAnimationFrame = setTimeout(typeChar, 22);
+                    } else {
+                        bubbleDiv.classList.remove('typing-active');
+                        clearTimeout(typingAnimationFrame);
+                        const actionsDiv = document.createElement('div'); actionsDiv.className = 'message-actions';
+                        const retryBtn = document.createElement('button'); retryBtn.className = 'action-btn'; retryBtn.innerHTML = retryIcon;
+                        const copyBtn = document.createElement('button'); copyBtn.className = 'action-btn'; copyBtn.innerHTML = copyIcon;
+                        const shareBtn = document.createElement('button'); shareBtn.className = 'action-btn'; shareBtn.innerHTML = shareIcon;
+                        copyBtn.onclick = () => { navigator.clipboard.writeText(text); showCopyToastMsg(); };
+                        shareBtn.onclick = () => { if(navigator.share) navigator.share({text}); else copyBtn.click(); };
+                        retryBtn.onclick = async () => {
+                            const lastUserMsgElem = [...chatMessages.querySelectorAll('.message.user')].pop();
+                            if (lastUserMsgElem) {
+                                const originalMessage = lastUserMsgElem.querySelector('.message-bubble')?.textContent;
+                                if (originalMessage) {
+                                    if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
+                                    messageDiv.remove();
+                                    showThinkingAnimation();
+                                    try {
+                                        const newResponse = await sendToLitheral(originalMessage, true);
+                                        hideThinkingAnimation();
+                                        await typeMessage(newResponse);
+                                    } catch(err) { hideThinkingAnimation(); await typeMessage(`Error: ${err.message}`); }
+                                }
+                            }
+                        };
+                        actionsDiv.appendChild(retryBtn); actionsDiv.appendChild(copyBtn); actionsDiv.appendChild(shareBtn);
+                        messageDiv.appendChild(actionsDiv);
+                        resolve();
+                    }
+                }
+                typeChar();
+            });
+        }
+        
+        function showThinkingAnimation() {
+            if(document.getElementById('thinkingAnimation')) return;
+            const thinkingDiv = document.createElement('div'); thinkingDiv.className = 'message Litheral'; thinkingDiv.id = 'thinkingAnimation';
+            const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'Litheral';
+            const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble';
+            bubbleDiv.innerHTML = `<div class="litheral-thinking"><div class="thinking-ring"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#FF6600" stroke-width="2" stroke-dasharray="4 4"/><circle cx="12" cy="12" r="4" fill="#FF6600" fill-opacity="0.3"><animate attributeName="r" values="3;5;3" dur="1.2s" repeatCount="indefinite"/></circle></svg></div><span class="thinking-text">thinking</span></div>`;
+            thinkingDiv.appendChild(nameDiv); thinkingDiv.appendChild(bubbleDiv);
+            chatMessages.appendChild(thinkingDiv);
+            scrollToBottom();
+        }
+        function hideThinkingAnimation() { document.getElementById('thinkingAnimation')?.remove(); }
+        
+        async function handleSendWithText(userMessage) {
+            if (!userMessage.trim() || isGenerating) return;
+            if (!supabaseAccessToken) { await typeMessage("Connecting..."); return; }
+            isGenerating = true;
+            sendButton.disabled = true;
+            micButton.disabled = true;
+            addStopButton();
+            addUserMessage(userMessage);
+            showThinkingAnimation();
+            try {
+                const response = await sendToLitheral(userMessage, false);
+                hideThinkingAnimation();
+                await typeMessage(response);
+                pendingRetryMessage = null;
+                chatInput.value = '';
+                chatInput.style.height = 'auto';
+            } catch (error) {
+                hideThinkingAnimation();
+                if (error.message === 'Rate limited') {
+                    pendingRetryMessage = userMessage;
+                    await typeMessage("Rate limit active. Will auto-retry.");
+                } else if (error.message === 'insufficient_coins') {
+                    await typeMessage("Insufficient coins. Tap 'add' to continue.");
+                } else if (error.message === 'offline') {
+                    await typeMessage("No internet connection.");
+                } else if (error.name === 'AbortError') {
+                    await typeMessage("Response stopped.");
+                } else {
+                    await typeMessage(`Error: ${error.message}`);
+                }
+            } finally {
+                isGenerating = false;
+                sendButton.disabled = false;
+                micButton.disabled = false;
+                const stopBtn = document.querySelector('.stop-generation');
+                if (stopBtn) stopBtn.remove();
+                if (currentAbortController) currentAbortController = null;
+            }
+        }
+        
+        async function handleSend() { await handleSendWithText(chatInput.value.trim()); }
+        
+        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !isGenerating) { e.preventDefault(); handleSend(); } });
+        sendButton.addEventListener('click', handleSend);
+        micButton.addEventListener('click', () => {
+            const msg = document.createElement('div'); msg.className = 'message Litheral';
+            msg.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble">Voice input coming soon.</div>`;
+            chatMessages.appendChild(msg); scrollToBottom();
+            setTimeout(() => msg.remove(), 2500);
+        });
+        document.getElementById('buyCoinsBtn').addEventListener('click', () => window.location.href = '/Tokens');
+        
+        window.addEventListener('online', async () => {
+            document.getElementById('offlineMsg')?.remove();
+            await typeMessage("Back online.");
+            await initSupabaseAuth(); await fetchBalance();
+        });
+        window.addEventListener('offline', () => {
+            const offlineDiv = document.createElement('div'); offlineDiv.id = 'offlineMsg'; offlineDiv.className = 'soft-warning';
+            offlineDiv.innerHTML = 'Offline — reconnecting later.';
+            chatMessages.appendChild(offlineDiv); scrollToBottom();
+        });
+        
+        async function init() {
+            const ok = await initSupabaseAuth();
+            if (ok && navigator.onLine) {
+                await fetchBalance();
+                const greeting = getTimeBasedGreeting();
+                const quote = await fetchRandomQuote();
+                await typeMessage(`${greeting}, ${userName}. ${quote}`);
+                if (currentBalance > 0) await typeMessage(`You have ${currentBalance.toFixed(4)} coins.`);
+            } else if (!navigator.onLine) { await typeMessage("Offline mode. Connect to internet."); }
+            sendButton.disabled = false; micButton.disabled = false;
+        }
+        init();
+        
+        window.addEventListener('beforeunload', () => {
+            if(currentAbortController) currentAbortController.abort();
+            if(typingAnimationFrame) clearTimeout(typingAnimationFrame);
+            if(rateLimitTimeout) clearTimeout(rateLimitTimeout);
+        });
+    })();
+</script>
+</body>
+</html>
