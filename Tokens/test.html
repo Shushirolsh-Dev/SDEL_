@@ -21,6 +21,8 @@
             --text-main: #ffffff;
             --text-secondary: #888888;
             --soft-warning: rgba(255, 102, 0, 0.15);
+            --error-bg: rgba(255, 50, 50, 0.12);
+            --error-border: rgba(255, 80, 80, 0.3);
             --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
         }
 
@@ -188,6 +190,17 @@
             color: #cccccc;
         }
 
+        /* Error message styling - friendly and clear */
+        .error-message {
+            background: var(--error-bg);
+            border-left: 3px solid #ff5555;
+            padding: 12px 14px;
+            border-radius: 12px;
+            margin: 4px 0;
+            font-size: 0.9rem;
+            color: #ffaaaa;
+        }
+
         .message-actions {
             display: flex;
             gap: 8px;
@@ -231,7 +244,6 @@
             transform: scale(0.94);
         }
         
-        /* Static retry button style without animation unless actively retrying */
         .static-retry svg {
             animation: none !important;
         }
@@ -395,7 +407,6 @@
             margin-top: 10px;
         }
 
-        /* Loading spin for retry in-progress state (only temporary) */
         .retry-spinning svg {
             animation: spin 0.7s linear infinite !important;
         }
@@ -469,6 +480,67 @@
         let userName = null;
         let pendingRetryMessage = null;
         
+        // Friendly error translator - turns technical errors into human-readable messages
+        function getFriendlyErrorMessage(error, context = {}) {
+            const errorMsg = error?.message || String(error);
+            
+            if (errorMsg.includes('422') || errorMsg.includes('validation') || errorMsg.includes('unprocessable')) {
+                return "⚠️ Message non valide. Essaie un message plus simple (évite les caractères spéciaux).";
+            }
+            if (errorMsg.includes('429') || errorMsg.includes('rate limit') || errorMsg.includes('trop de requêtes')) {
+                return "⏳ Trop de messages trop vite. Attends quelques secondes avant d'envoyer un nouveau message.";
+            }
+            if (errorMsg.includes('500') || errorMsg.includes('internal server')) {
+                return "🔧 Le serveur rencontre un problème technique. Réessaie dans une minute.";
+            }
+            if (errorMsg.includes('401') || errorMsg.includes('unauthorized')) {
+                return "🔐 Session expirée. Rafraîchis la page pour te reconnecter.";
+            }
+            if (errorMsg.includes('403') || errorMsg.includes('forbidden')) {
+                return "🚫 Action non autorisée. Vérifie ton compte.";
+            }
+            if (errorMsg.includes('404') || errorMsg.includes('not found')) {
+                return "🌐 Service indisponible pour le moment. Réessaie plus tard.";
+            }
+            if (errorMsg.includes('408') || errorMsg.includes('timeout')) {
+                return "⏱️ Le serveur met trop de temps à répondre. Vérifie ta connexion internet.";
+            }
+            if (errorMsg.includes('insufficient_coins') || errorMsg.includes('coins')) {
+                return "💰 Pas assez de coins. Appuie sur le bouton « add » pour en obtenir.";
+            }
+            if (errorMsg.includes('offline') || errorMsg.includes('network') || !navigator.onLine) {
+                return "📡 Pas de connexion internet. Vérifie ton Wi-Fi ou données mobiles.";
+            }
+            if (errorMsg.includes('empty') || (context.isEmpty && context.isEmpty === true)) {
+                return "✏️ Tu n'as rien écrit. Tape ton message avant d'envoyer.";
+            }
+            if (errorMsg.includes('too long') || (userMessage && userMessage.length > 2000)) {
+                return "📏 Message trop long (max 2000 caractères). Réessaie avec un texte plus court.";
+            }
+            
+            return `❓ ${errorMsg}`;
+        }
+        
+        // Display error as a friendly Litheral message
+        async function displayFriendlyError(rawError, customContext = {}) {
+            const friendlyMsg = getFriendlyErrorMessage(rawError, customContext);
+            // Create an error-styled message in chat
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message Litheral';
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'message-username';
+            nameDiv.textContent = 'Litheral';
+            const bubbleDiv = document.createElement('div');
+            bubbleDiv.className = 'message-bubble error-message';
+            bubbleDiv.textContent = friendlyMsg;
+            errorDiv.appendChild(nameDiv);
+            errorDiv.appendChild(bubbleDiv);
+            chatMessages.appendChild(errorDiv);
+            scrollToBottom();
+            // Keep message in chat history as pseudo entry to maintain context
+            return friendlyMsg;
+        }
+        
         async function fetchRandomQuote() {
             try {
                 const { data, error } = await supabase.from('quotes').select('quote_text');
@@ -490,7 +562,6 @@
             return "Good evening";
         }
         
-        // Placeholder cycling
         const placeholders = ["Think Clearly", "Clarity over noise", "Speak freely", "Ask anything"];
         let phIndex = 0;
         setInterval(() => {
@@ -530,7 +601,7 @@
                     return true;
                 }
             } catch (error) {
-                await typeMessage("Connection issue. Please refresh.");
+                await displayFriendlyError(error);
                 return false;
             }
         }
@@ -543,13 +614,24 @@
             const options = { method, headers: { 'Authorization': `Bearer ${supabaseAccessToken}`, 'Content-Type': 'application/json' }, signal: currentAbortController.signal };
             if (body && method === 'POST') options.body = JSON.stringify(body);
             const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+            
+            // Handle 422 specifically with friendly error
+            if (response.status === 422) {
+                const errorData = await response.json().catch(() => ({}));
+                console.warn('422 error details:', errorData);
+                throw new Error(`422 - validation error: ${JSON.stringify(errorData)}`);
+            }
             if (response.status === 402) throw new Error('insufficient_coins');
+            if (response.status === 429) throw new Error('rate_limit_exceeded');
             if (response.status === 401) {
                 const { data: { session } } = await supabase.auth.refreshSession();
                 if (session) supabaseAccessToken = session.access_token;
                 return callAPI(endpoint, body, method);
             }
-            if (!response.ok) throw new Error(`API error: ${response.status}`);
+            if (response.status === 500 || response.status === 502 || response.status === 503) {
+                throw new Error(`Server error ${response.status}`);
+            }
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.json();
         }
         
@@ -565,13 +647,16 @@
         }
         
         async function sendToLitheral(userMessage, isRetry = false) {
+            if (!userMessage || userMessage.trim().length === 0) throw new Error('empty_message');
+            if (userMessage.length > 2000) throw new Error('message_too_long');
             if (!navigator.onLine) throw new Error('offline');
+            
             const now = Date.now();
             const timeSinceLastRequest = now - lastRequestTime;
             if (timeSinceLastRequest < 12000) {
                 const waitSeconds = Math.ceil((12000 - timeSinceLastRequest) / 1000);
                 sendButton.disabled = true; micButton.disabled = true;
-                rateLimitWarning.textContent = `Rate limit: wait ${waitSeconds}s`;
+                rateLimitWarning.textContent = `⏳ Attends ${waitSeconds} secondes avant d'envoyer...`;
                 if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
                 rateLimitTimeout = setTimeout(() => {
                     sendButton.disabled = false; micButton.disabled = false;
@@ -582,17 +667,17 @@
                         handleSendWithText(msg);
                     }
                 }, 12000 - timeSinceLastRequest);
-                throw new Error('Rate limited');
+                throw new Error('rate_limit_exceeded');
             }
             lastRequestTime = now;
-            const requestBody = { message: userMessage, chat_history: chatHistory };
+            const requestBody = { message: userMessage.trim(), chat_history: chatHistory.slice(-30) };
             const data = await callAPI('/ai/chat', requestBody);
             if (data.balance_remaining !== undefined) {
                 currentBalance = data.balance_remaining;
                 balanceAmountSpan.textContent = currentBalance.toFixed(4);
             }
             if (!isRetry) {
-                chatHistory.push({ role: "user", content: userMessage }, { role: "model", content: data.response });
+                chatHistory.push({ role: "user", content: userMessage.trim() }, { role: "model", content: data.response });
             } else {
                 if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
                 chatHistory.push({ role: "model", content: data.response });
@@ -604,11 +689,9 @@
         function debouncedScroll() { setTimeout(scrollToBottom, 30); }
         function showCopyToast() { copyToast.style.opacity = '1'; setTimeout(() => { copyToast.style.opacity = '0'; }, 1500); }
         
-        // Icons: static retry uses non-animated arrow, but we will apply class only when retrying
         const editIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3L21 7L7 21H3V17L17 3Z"/><path d="M15 5L19 9"/></svg>';
         const copyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
         const shareIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
-        // Standard static retry icon (non-animated baseline)
         const staticRetryIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
         
         function addUserMessage(content) {
@@ -649,7 +732,6 @@
                         bubbleDiv.classList.remove('typing-active');
                         clearTimeout(typingAnimationFrame);
                         const actionsDiv = document.createElement('div'); actionsDiv.className = 'message-actions';
-                        // Static retry button (no animation by default, only spinner effect while retrying)
                         const retryBtn = document.createElement('button'); 
                         retryBtn.className = 'action-btn static-retry';
                         retryBtn.innerHTML = staticRetryIcon;
@@ -659,7 +741,7 @@
                         copyBtn.onclick = () => { navigator.clipboard.writeText(text); showCopyToast(); };
                         shareBtn.onclick = () => { if(navigator.share) navigator.share({text}); else copyBtn.click(); };
                         
-                        retryBtn.onclick = async (e) => {
+                        retryBtn.onclick = async () => {
                             const lastUserMsgElem = [...chatMessages.querySelectorAll('.message.user')].pop();
                             if (lastUserMsgElem) {
                                 const originalMessage = lastUserMsgElem.querySelector('.message-bubble')?.textContent;
@@ -667,8 +749,6 @@
                                     if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
                                     messageDiv.remove();
                                     showThinkingAnimation();
-                                    // add temporary spinning effect on retry button to indicate progress
-                                    const originalBtnHtml = retryBtn.innerHTML;
                                     retryBtn.classList.add('retry-spinning');
                                     try {
                                         const newResponse = await sendToLitheral(originalMessage, true);
@@ -676,7 +756,7 @@
                                         await typeMessage(newResponse);
                                     } catch(err) { 
                                         hideThinkingAnimation(); 
-                                        await typeMessage(`Error: ${err.message}`);
+                                        await displayFriendlyError(err);
                                     } finally {
                                         retryBtn.classList.remove('retry-spinning');
                                         retryBtn.innerHTML = staticRetryIcon;
@@ -707,10 +787,10 @@
         
         async function handleSendWithText(userMessage) {
             if (!userMessage.trim()) return;
-            if (!supabaseAccessToken) { await typeMessage("Connecting..."); return; }
+            if (!supabaseAccessToken) { await displayFriendlyError("Connexion en cours..."); return; }
             sendButton.disabled = true; micButton.disabled = true;
             addUserMessage(userMessage);
-            // Clear the message input right after sending (AUTOMATICALLY)
+            // Clear input automatically after sending
             chatInput.value = '';
             chatInput.style.height = 'auto';
             showThinkingAnimation();
@@ -721,15 +801,9 @@
                 pendingRetryMessage = null;
             } catch (error) {
                 hideThinkingAnimation();
-                if (error.message === 'Rate limited') {
+                await displayFriendlyError(error, { isEmpty: !userMessage.trim() });
+                if (error.message === 'rate_limit_exceeded') {
                     pendingRetryMessage = userMessage;
-                    await typeMessage("Rate limit active. Will auto-retry.");
-                } else if (error.message === 'insufficient_coins') {
-                    await typeMessage("Insufficient coins. Tap 'add' to continue.");
-                } else if (error.message === 'offline') {
-                    await typeMessage("No internet connection.");
-                } else {
-                    await typeMessage(`Error: ${error.message}`);
                 }
             } finally {
                 sendButton.disabled = false; micButton.disabled = false;
@@ -753,22 +827,19 @@
         
         sendButton.addEventListener('click', handleSend);
         micButton.addEventListener('click', () => {
-            const msg = document.createElement('div'); msg.className = 'message Litheral';
-            msg.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble">Voice input coming soon.</div>`;
-            chatMessages.appendChild(msg); scrollToBottom();
-            setTimeout(() => msg.remove(), 2500);
+            displayFriendlyError("Fonctionnalité microphone à venir bientôt !");
         });
         document.getElementById('buyCoinsBtn').addEventListener('click', () => window.location.href = '/Tokens');
         
         window.addEventListener('online', async () => {
             document.getElementById('offlineMsg')?.remove();
-            await typeMessage("Back online.");
+            await typeMessage("✅ Connexion rétablie.");
             await initSupabaseAuth(); await fetchBalance();
             sendButton.disabled = false; micButton.disabled = false;
         });
         window.addEventListener('offline', () => {
             const offlineDiv = document.createElement('div'); offlineDiv.id = 'offlineMsg'; offlineDiv.className = 'soft-warning';
-            offlineDiv.innerHTML = 'Offline — reconnecting later.';
+            offlineDiv.innerHTML = '📡 Hors ligne — reconnexion automatique...';
             chatMessages.appendChild(offlineDiv); scrollToBottom();
             sendButton.disabled = true; micButton.disabled = true;
         });
@@ -780,8 +851,8 @@
                 const greeting = getTimeBasedGreeting();
                 const quote = await fetchRandomQuote();
                 await typeMessage(`${greeting}, ${userName}. ${quote}`);
-                if (currentBalance > 0) await typeMessage(`You have ${currentBalance.toFixed(4)} coins. Each message uses a small amount.`);
-            } else if (!navigator.onLine) { await typeMessage("Offline mode. Connect to internet."); }
+                if (currentBalance > 0) await typeMessage(`💰 Tu as ${currentBalance.toFixed(4)} coins. Chaque message utilise un petit montant.`);
+            } else if (!navigator.onLine) { await displayFriendlyError("Mode hors ligne — connecte-toi à internet."); }
             sendButton.disabled = false; micButton.disabled = false;
         }
         init();
