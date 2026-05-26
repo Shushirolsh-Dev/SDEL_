@@ -11,6 +11,14 @@
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            user-select: none; /* Disable text selection globally */
+            -webkit-user-select: none;
+        }
+
+        /* Allow text selection only on input and textarea */
+        input, textarea, [contenteditable="true"] {
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         :root {
@@ -35,6 +43,28 @@
         body {
             font-family: -apple-system, 'Segoe UI', 'Inter', system-ui, sans-serif;
             overflow: hidden;
+        }
+
+        /* Custom Scrollbar - PEAK */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-orange);
+        }
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sessions-list::-webkit-scrollbar {
+            width: 3px;
         }
 
         /* App layout with sidebar */
@@ -128,9 +158,9 @@
         }
 
         .session-pinned {
-            color: var(--primary-orange);
-            font-size: 0.7rem;
+            display: inline-flex;
             margin-left: 6px;
+            vertical-align: middle;
         }
 
         .session-date {
@@ -159,21 +189,27 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--text-secondary);
             transition: all 0.2s;
-            font-size: 14px;
         }
-
+        .session-action-btn svg {
+            width: 14px;
+            height: 14px;
+            stroke: #aaa;
+            stroke-width: 1.8;
+            fill: none;
+        }
         .session-action-btn:hover {
             background: rgba(255, 102, 0, 0.2);
-            color: var(--primary-orange);
+        }
+        .session-action-btn:hover svg {
+            stroke: var(--primary-orange);
+        }
+        .pin-btn.pinned svg {
+            stroke: var(--primary-orange);
+            fill: var(--primary-orange);
         }
 
-        .pin-btn.pinned {
-            color: var(--primary-orange);
-        }
-
-        /* MAIN CHAT AREA — PEAK UI (exactly as original) */
+        /* MAIN CHAT AREA — PEAK UI */
         .chat-container {
             flex: 1;
             background: var(--bg-dark);
@@ -508,6 +544,77 @@
         }
         .voice-message-temp.fade-out { opacity: 0; }
 
+        /* Custom Modal for Rename */
+        .custom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+ backdrop-filter: blur(8px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+        }
+        .custom-modal.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: #0c0c0c;
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 24px;
+            width: 320px;
+            max-width: 85vw;
+        }
+        .modal-content h3 {
+            color: var(--primary-orange);
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+        .modal-input {
+            width: 100%;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 14px;
+            padding: 12px;
+            color: white;
+            font-size: 0.9rem;
+            outline: none;
+            margin-bottom: 20px;
+        }
+        .modal-input:focus {
+            border-color: var(--primary-orange);
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        .modal-btn {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .modal-btn.cancel {
+            background: #222;
+            color: #aaa;
+        }
+        .modal-btn.confirm {
+            background: var(--primary-orange);
+            color: black;
+        }
+        .modal-btn:active { transform: scale(0.95); }
+
         @media (max-width: 768px) {
             .sidebar {
                 position: fixed;
@@ -568,6 +675,19 @@
     </div>
 </div>
 <div id="copyToast" class="copy-toast">Copied!</div>
+
+<!-- Custom Rename Modal -->
+<div id="renameModal" class="custom-modal">
+    <div class="modal-content">
+        <h3>Rename chat</h3>
+        <input type="text" id="renameInput" class="modal-input" placeholder="Chat name" autocomplete="off">
+        <div class="modal-buttons">
+            <button class="modal-btn cancel" id="cancelRenameBtn">Cancel</button>
+            <button class="modal-btn confirm" id="confirmRenameBtn">Save</button>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
     (function(){
@@ -591,6 +711,30 @@
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('overlay');
+        const renameModal = document.getElementById('renameModal');
+        const renameInput = document.getElementById('renameInput');
+        const confirmRenameBtn = document.getElementById('confirmRenameBtn');
+        const cancelRenameBtn = document.getElementById('cancelRenameBtn');
+        
+        let pendingRenameId = null;
+        
+        function openRenameModal(sessionId, currentTitle) {
+            pendingRenameId = sessionId;
+            renameInput.value = currentTitle;
+            renameModal.classList.add('open');
+            renameInput.focus();
+            renameInput.select();
+        }
+        function closeRenameModal() { renameModal.classList.remove('open'); pendingRenameId = null; }
+        
+        confirmRenameBtn.addEventListener('click', () => {
+            if(pendingRenameId && renameInput.value.trim()) {
+                renameSession(pendingRenameId, renameInput.value.trim());
+            }
+            closeRenameModal();
+        });
+        cancelRenameBtn.addEventListener('click', closeRenameModal);
+        renameModal.addEventListener('click', (e) => { if(e.target === renameModal) closeRenameModal(); });
         
         // global state
         let currentAbortController = null;
@@ -599,12 +743,12 @@
         let supabaseAccessToken = null;
         let userName = "there";
         let activeSessionId = null;
-        let sessions = [];     // {id, title, created_at, pinned}
+        let sessions = [];
         let rateLimitCountdown = null;
         let pendingRetryMessage = null;
         let firstUserMessageSent = false;
         
-        // Voice handling (exactly from original)
+        // Voice handling
         let activeVoiceMessageDiv = null;
         let voiceMessageTimeout = null;
         let voiceCooldown = false;
@@ -624,7 +768,7 @@
             setTimeout(()=>{ voiceCooldown=false; },1200);
         }
         
-        // Placeholder animation (original)
+        // Placeholder animation
         let currentPhraseIndex=0, isAnimatingPlaceholder=false, currentPlaceholderText="", currentDisplayLength=0, isDeleting=false, placeholderTimer=null;
         const placeholderPhrases = ["Ask with clarity","Seek what matters","Clarity over noise","Think freely","Speak your truth","Foolishness is a choice","Courage over comfort","Silence speaks loudest","It is what it is","Hope in God not man"];
         function animatePlaceholderLoop(){
@@ -656,14 +800,12 @@
         }
         animatePlaceholderLoop();
         
-        // helpers
         function escapeHtml(str) { return str.replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
         function scrollToBottom(){ chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior:'smooth' }); }
         function debouncedScroll(){ setTimeout(scrollToBottom,40); }
         function showCopyToast(){ copyToast.style.opacity='1'; setTimeout(()=>copyToast.style.opacity='0',1500); }
         function getHumanReadableErrorMessage(errorObj){ const status=errorObj?.status; if(status===402) return "Not enough coins. Tap 'add' to continue."; if(status===401) return "Session refreshed, try again."; if(status===429) return "Sending too fast. Auto retry soon."; if(status===404) return "Session not found. Creating new one."; if(!navigator.onLine) return "No internet connection."; return "Could not process request. Try again."; }
         
-        // API core
         async function callAPI(endpoint, body, method='POST'){
             if(!supabaseAccessToken) throw new Error('Not authenticated');
             if(currentAbortController) currentAbortController.abort();
@@ -682,7 +824,6 @@
             return await response.json();
         }
         
-        // session management
         async function fetchSessions(){
             try{ const data = await callAPI('/ai/sessions', null, 'GET');
                 if(data?.sessions){ sessions = data.sessions.map(s=>({...s, pinned:false}));
@@ -728,19 +869,26 @@
             const unpinned = sessions.filter(s=>!s.pinned).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
             renderSessionsList([...pinned, ...unpinned]);
         }
+        
+        // SVG icons for sidebar
+        const pinIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L15 8.5L22 9.5L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9.5L9 8.5L12 2z"/></svg>';
+        const unpinIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L15 8.5L22 9.5L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9.5L9 8.5L12 2z"/></svg>';
+        const renameIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3L21 7L7 21H3V17L17 3Z"/><path d="M15 5L19 9"/></svg>';
+        const deleteIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13"/><path d="M9 4h6v3H9z"/></svg>';
+        
         function renderSessionsList(sessionArray){
             if(!sessionsList) return;
             sessionsList.innerHTML = '';
             sessionArray.forEach(session=>{
                 const div = document.createElement('div'); div.className = `session-item ${activeSessionId===session.id?'active':''}`;
-                div.innerHTML = `<div class="session-info"><div class="session-title">${escapeHtml(session.title)} ${session.pinned?'<span class="session-pinned">📌</span>':''}</div><div class="session-date">${new Date(session.created_at).toLocaleDateString()}</div></div>
-                    <div class="session-actions"><button class="session-action-btn rename-btn" data-id="${session.id}" title="Rename">✏️</button><button class="session-action-btn pin-btn ${session.pinned?'pinned':''}" data-id="${session.id}" title="Pin">📌</button><button class="session-action-btn delete-btn" data-id="${session.id}" title="Delete">🗑️</button></div>`;
-                div.addEventListener('click',(e)=>{ if(e.target.classList.contains('session-action-btn')) return; switchSession(session.id); });
+                div.innerHTML = `<div class="session-info"><div class="session-title">${escapeHtml(session.title)} ${session.pinned?'<span class="session-pinned">'+pinIcon+'</span>':''}</div><div class="session-date">${new Date(session.created_at).toLocaleDateString()}</div></div>
+                    <div class="session-actions"><button class="session-action-btn rename-btn" data-id="${session.id}" title="Rename">${renameIcon}</button><button class="session-action-btn pin-btn ${session.pinned?'pinned':''}" data-id="${session.id}" title="Pin">${pinIcon}</button><button class="session-action-btn delete-btn" data-id="${session.id}" title="Delete">${deleteIcon}</button></div>`;
+                div.addEventListener('click',(e)=>{ if(e.target.classList.contains('session-action-btn') || e.target.closest('.session-action-btn')) return; switchSession(session.id); });
                 sessionsList.appendChild(div);
             });
-            document.querySelectorAll('.rename-btn').forEach(btn=>{ btn.addEventListener('click',(e)=>{ e.stopPropagation(); const id=btn.getAttribute('data-id'); const newTitle=prompt('Rename chat:', sessions.find(s=>s.id===id)?.title); if(newTitle?.trim()) renameSession(id,newTitle.trim()); }); });
+            document.querySelectorAll('.rename-btn').forEach(btn=>{ btn.addEventListener('click',(e)=>{ e.stopPropagation(); const id=btn.getAttribute('data-id'); const sess=sessions.find(s=>s.id===id); if(sess) openRenameModal(id, sess.title); }); });
             document.querySelectorAll('.pin-btn').forEach(btn=>{ btn.addEventListener('click',(e)=>{ e.stopPropagation(); togglePin(btn.getAttribute('data-id')); }); });
-            document.querySelectorAll('.delete-btn').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); if(confirm('Delete chat?')) await deleteSession(btn.getAttribute('data-id')); }); });
+            document.querySelectorAll('.delete-btn').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); if(confirm('Delete this chat permanently?')) await deleteSession(btn.getAttribute('data-id')); }); });
         }
         
         // UI messages with original SVG icons
@@ -789,7 +937,7 @@
                             const shareBtn = document.createElement('button'); shareBtn.className='action-btn'; shareBtn.innerHTML=shareIcon;
                             copyBtn.onclick=()=>{ navigator.clipboard.writeText(text); showCopyToast(); };
                             shareBtn.onclick=()=>{ if(navigator.share) navigator.share({text}); else copyBtn.click(); };
-                            retryBtn.onclick=async()=>{ /* retry same last user msg */ const lastUser=[...chatMessages.querySelectorAll('.message.user')].pop(); if(lastUser){ const original=lastUser.querySelector('.message-bubble')?.textContent; if(original){ messageDiv.remove(); showThinkingAnimation(); try{ const newResp=await sendToLitheralV2(original); hideThinkingAnimation(); await typeMessage(newResp,false,true); }catch(err){ hideThinkingAnimation(); await typeMessage(getHumanReadableErrorMessage(err),true,false); } } } };
+                            retryBtn.onclick=async()=>{ const lastUser=[...chatMessages.querySelectorAll('.message.user')].pop(); if(lastUser){ const original=lastUser.querySelector('.message-bubble')?.textContent; if(original){ messageDiv.remove(); showThinkingAnimation(); try{ const newResp=await sendToLitheralV2(original); hideThinkingAnimation(); await typeMessage(newResp,false,true); }catch(err){ hideThinkingAnimation(); await typeMessage(getHumanReadableErrorMessage(err),true,false); } } } };
                             actionsDiv.appendChild(retryBtn); actionsDiv.appendChild(copyBtn); actionsDiv.appendChild(shareBtn);
                             messageDiv.appendChild(actionsDiv);
                         }
