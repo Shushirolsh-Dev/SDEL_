@@ -569,7 +569,8 @@
         }
         .voice-message-temp.fade-out { opacity: 0; }
 
-        .custom-modal {
+        /* Custom Modals */
+        .custom-modal, .delete-modal {
             position: fixed;
             top: 0;
             left: 0;
@@ -585,7 +586,7 @@
             visibility: hidden;
             transition: all 0.2s ease;
         }
-        .custom-modal.open {
+        .custom-modal.open, .delete-modal.open {
             opacity: 1;
             visibility: visible;
         }
@@ -601,6 +602,11 @@
             color: var(--primary-orange);
             margin-bottom: 16px;
             font-size: 1.1rem;
+        }
+        .modal-content p {
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            font-size: 0.9rem;
         }
         .modal-input {
             width: 100%;
@@ -637,7 +643,29 @@
             background: var(--primary-orange);
             color: black;
         }
+        .modal-btn.danger {
+            background: #aa2222;
+            color: white;
+        }
         .modal-btn:active { transform: scale(0.95); }
+
+        /* Success Toast */
+        .success-toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #00aa44;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
 
         @media (max-width: 768px) {
             .sidebar {
@@ -704,7 +732,9 @@
     </div>
 </div>
 <div id="copyToast" class="copy-toast">Copied!</div>
+<div id="successToast" class="success-toast">Chat deleted successfully</div>
 
+<!-- Rename Modal -->
 <div id="renameModal" class="custom-modal">
     <div class="modal-content">
         <h3>Rename chat</h3>
@@ -712,6 +742,18 @@
         <div class="modal-buttons">
             <button class="modal-btn cancel" id="cancelRenameBtn">Cancel</button>
             <button class="modal-btn confirm" id="confirmRenameBtn">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="delete-modal">
+    <div class="modal-content">
+        <h3>Delete chat?</h3>
+        <p>This conversation will be permanently removed. This cannot be undone.</p>
+        <div class="modal-buttons">
+            <button class="modal-btn cancel" id="cancelDeleteBtn">Cancel</button>
+            <button class="modal-btn danger" id="confirmDeleteBtn">Delete</button>
         </div>
     </div>
 </div>
@@ -731,6 +773,7 @@
         const balanceAmountSpan = document.getElementById('balanceAmount');
         const rateLimitWarning = document.getElementById('rateLimitWarning');
         const copyToast = document.getElementById('copyToast');
+        const successToast = document.getElementById('successToast');
         const jumpBtn = document.getElementById('jumpToBottomBtn');
         const sessionsList = document.getElementById('sessionsList');
         const newChatBtn = document.getElementById('newChatBtn');
@@ -741,13 +784,18 @@
         const renameInput = document.getElementById('renameInput');
         const confirmRenameBtn = document.getElementById('confirmRenameBtn');
         const cancelRenameBtn = document.getElementById('cancelRenameBtn');
+        const deleteModal = document.getElementById('deleteModal');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
         const loadingScreen = document.getElementById('loadingScreen');
         
+        let pendingDeleteId = null;
         let pendingRenameId = null;
         let currentAbortController = null;
         let typingAnimationFrame = null;
         let currentBalance = 0;
         let supabaseAccessToken = null;
+        let currentUserId = null;
         let userName = "there";
         let activeSessionId = null;
         let sessions = [];
@@ -755,12 +803,17 @@
         let pendingRetryMessage = null;
         let firstUserMessageSent = false;
         
-        // Cache storage for chat histories
-        let historyCache = new Map(); // sessionId -> messages array
+        let historyCache = new Map();
         
         let activeVoiceMessageDiv = null;
         let voiceMessageTimeout = null;
         let voiceCooldown = false;
+        
+        function showSuccessToast(message) {
+            successToast.textContent = message;
+            successToast.style.opacity = '1';
+            setTimeout(() => { successToast.style.opacity = '0'; }, 2500);
+        }
         
         function speakText(text) { if(window.speechSynthesis){ window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate=0.95; window.speechSynthesis.speak(u); } }
         function showVoiceMessage(message, shouldSpeak=true){
@@ -833,37 +886,57 @@
             return await response.json();
         }
         
-        // Save chat history to localStorage cache
-        function cacheSessionHistory(sessionId, messages) {
+        async function loadUserChatSettings() {
+            if (!currentUserId) return;
             try {
-                const cache = JSON.parse(localStorage.getItem('litheral_history_cache') || '{}');
-                cache[sessionId] = messages;
-                localStorage.setItem('litheral_history_cache', JSON.stringify(cache));
-                historyCache.set(sessionId, messages);
-            } catch(e) {}
+                const { data, error } = await supabase
+                    .from('user_chat_sessions')
+                    .select('session_id, custom_name, pinned')
+                    .eq('user_id', currentUserId);
+                if (!error && data) {
+                    const settingsMap = new Map();
+                    data.forEach(item => { settingsMap.set(item.session_id, { custom_name: item.custom_name, pinned: item.pinned }); });
+                    return settingsMap;
+                }
+            } catch(e) { console.warn(e); }
+            return null;
         }
         
-        // Load cached history from localStorage
+        async function saveChatNameToSupabase(sessionId, customName) {
+            if (!currentUserId) return;
+            try {
+                await supabase.from('user_chat_sessions').upsert({ user_id: currentUserId, session_id: sessionId, custom_name: customName, updated_at: new Date().toISOString() }, { onConflict: 'user_id, session_id' });
+            } catch(e) { console.warn(e); }
+        }
+        
+        async function savePinToSupabase(sessionId, pinned) {
+            if (!currentUserId) return;
+            try {
+                await supabase.from('user_chat_sessions').upsert({ user_id: currentUserId, session_id: sessionId, pinned: pinned, updated_at: new Date().toISOString() }, { onConflict: 'user_id, session_id' });
+            } catch(e) { console.warn(e); }
+        }
+        
+        function cacheSessionHistory(sessionId, messages) {
+            try { const cache = JSON.parse(localStorage.getItem('litheral_history_cache') || '{}'); cache[sessionId] = messages; localStorage.setItem('litheral_history_cache', JSON.stringify(cache)); historyCache.set(sessionId, messages); } catch(e) {}
+        }
+        
         function loadCachedHistory(sessionId) {
             try {
                 if (historyCache.has(sessionId)) return historyCache.get(sessionId);
                 const cache = JSON.parse(localStorage.getItem('litheral_history_cache') || '{}');
-                if (cache[sessionId]) {
-                    historyCache.set(sessionId, cache[sessionId]);
-                    return cache[sessionId];
-                }
+                if (cache[sessionId]) { historyCache.set(sessionId, cache[sessionId]); return cache[sessionId]; }
             } catch(e) {}
             return null;
         }
         
         async function fetchSessions(){
             try{ const data = await callAPI('/ai/sessions', null, 'GET');
-                if(data?.sessions){ sessions = data.sessions.map(s=>({...s, pinned:false}));
-                    const stored = localStorage.getItem('litheral_pinned');
-                    if(stored) { const pinnedSet=new Set(JSON.parse(stored)); sessions.forEach(s=>{ if(pinnedSet.has(s.id)) s.pinned=true; }); }
-                    // Load cached names
+                if(data?.sessions){ 
+                    sessions = data.sessions.map(s=>({...s, pinned:false, custom_name: null}));
+                    const settings = await loadUserChatSettings();
+                    if (settings) { sessions.forEach(s => { const setting = settings.get(s.id); if (setting) { if (setting.custom_name) s.title = setting.custom_name; s.pinned = setting.pinned || false; } }); }
                     const renames = JSON.parse(localStorage.getItem('litheral_renames')||'{}');
-                    sessions.forEach(s => { if(renames[s.id]) s.title = renames[s.id]; });
+                    sessions.forEach(s => { if (renames[s.id] && !settings?.get(s.id)?.custom_name) s.title = renames[s.id]; });
                     sortAndRenderSessions();
                 }
             }catch(e){}
@@ -871,17 +944,15 @@
         
         async function createSession(title="New Chat"){
             try{ const data = await callAPI('/ai/sessions', { title });
-                if(data?.session_id){
-                    const newSession = { id: data.session_id, title: data.title || title, created_at: data.created_at, pinned: false };
-                    sessions.unshift(newSession); sortAndRenderSessions(); return newSession.id;
-                }
+                if(data?.session_id){ const newSession = { id: data.session_id, title: data.title || title, created_at: data.created_at, pinned: false }; sessions.unshift(newSession); sortAndRenderSessions(); return newSession.id; }
             }catch(e){ return null; }
         }
         
         async function deleteSession(sessionId){
-            try{ await callAPI(`/ai/sessions/${sessionId}`, null, 'DELETE');
+            try{ 
+                await callAPI(`/ai/sessions/${sessionId}`, null, 'DELETE');
+                if (currentUserId) { await supabase.from('user_chat_sessions').delete().eq('session_id', sessionId).eq('user_id', currentUserId); }
                 sessions = sessions.filter(s=>s.id!==sessionId);
-                // Remove from cache
                 historyCache.delete(sessionId);
                 const cache = JSON.parse(localStorage.getItem('litheral_history_cache') || '{}');
                 delete cache[sessionId];
@@ -891,23 +962,22 @@
                     if(activeSessionId) await loadSessionHistory(activeSessionId);
                     else clearChatUI();
                 }
-                sortAndRenderSessions(); savePinnedState(); return true;
+                sortAndRenderSessions();
+                showSuccessToast("Chat deleted successfully");
+                return true;
             }catch(e){ return false; }
         }
         
-        function renameSession(sessionId, newTitle){
+        async function renameSession(sessionId, newTitle){
             const session = sessions.find(s=>s.id===sessionId);
-            if(session){ session.title = newTitle; sortAndRenderSessions();
-                const renames = JSON.parse(localStorage.getItem('litheral_renames')||'{}');
-                renames[sessionId]=newTitle; localStorage.setItem('litheral_renames',JSON.stringify(renames));
-            }
+            if(session){ session.title = newTitle; sortAndRenderSessions(); await saveChatNameToSupabase(sessionId, newTitle); const renames = JSON.parse(localStorage.getItem('litheral_renames')||'{}'); renames[sessionId]=newTitle; localStorage.setItem('litheral_renames',JSON.stringify(renames)); }
         }
         
-        function togglePin(sessionId){
+        async function togglePin(sessionId){
             const session = sessions.find(s=>s.id===sessionId);
-            if(session){ session.pinned=!session.pinned; savePinnedState(); sortAndRenderSessions(); }
+            if(session){ session.pinned = !session.pinned; await savePinToSupabase(sessionId, session.pinned); sortAndRenderSessions(); }
         }
-        function savePinnedState(){ const pinnedIds = sessions.filter(s=>s.pinned).map(s=>s.id); localStorage.setItem('litheral_pinned',JSON.stringify(pinnedIds)); }
+        
         function sortAndRenderSessions(){
             const pinned = sessions.filter(s=>s.pinned).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
             const unpinned = sessions.filter(s=>!s.pinned).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
@@ -929,17 +999,17 @@
                 sessionsList.appendChild(div);
             });
             document.querySelectorAll('.rename-btn').forEach(btn=>{ btn.addEventListener('click',(e)=>{ e.stopPropagation(); const id=btn.getAttribute('data-id'); const sess=sessions.find(s=>s.id===id); if(sess) openRenameModal(id, sess.title); }); });
-            document.querySelectorAll('.pin-btn').forEach(btn=>{ btn.addEventListener('click',(e)=>{ e.stopPropagation(); togglePin(btn.getAttribute('data-id')); }); });
-            document.querySelectorAll('.delete-btn').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); if(confirm('Delete this chat permanently?')) await deleteSession(btn.getAttribute('data-id')); }); });
+            document.querySelectorAll('.pin-btn').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); await togglePin(btn.getAttribute('data-id')); }); });
+            document.querySelectorAll('.delete-btn').forEach(btn=>{ btn.addEventListener('click',(e)=>{ e.stopPropagation(); const id=btn.getAttribute('data-id'); openDeleteModal(id); }); });
         }
         
-        function openRenameModal(sessionId, currentTitle) {
-            pendingRenameId = sessionId;
-            renameInput.value = currentTitle;
-            renameModal.classList.add('open');
-            renameInput.focus();
-            renameInput.select();
-        }
+        function openDeleteModal(sessionId) { pendingDeleteId = sessionId; deleteModal.classList.add('open'); }
+        function closeDeleteModal() { deleteModal.classList.remove('open'); pendingDeleteId = null; }
+        confirmDeleteBtn.addEventListener('click', async () => { if(pendingDeleteId) { await deleteSession(pendingDeleteId); closeDeleteModal(); } });
+        cancelDeleteBtn.addEventListener('click', closeDeleteModal);
+        deleteModal.addEventListener('click', (e) => { if(e.target === deleteModal) closeDeleteModal(); });
+        
+        function openRenameModal(sessionId, currentTitle) { pendingRenameId = sessionId; renameInput.value = currentTitle; renameModal.classList.add('open'); renameInput.focus(); renameInput.select(); }
         function closeRenameModal() { renameModal.classList.remove('open'); pendingRenameId = null; }
         confirmRenameBtn.addEventListener('click', () => { if(pendingRenameId && renameInput.value.trim()) renameSession(pendingRenameId, renameInput.value.trim()); closeRenameModal(); });
         cancelRenameBtn.addEventListener('click', closeRenameModal);
@@ -967,7 +1037,6 @@
             chatMessages.appendChild(msgDiv); debouncedScroll();
         }
         
-        // BATCH RENDER - ALL MESSAGES INSTANTLY
         function renderMessageBatch(messages) {
             const fragment = document.createDocumentFragment();
             for (const msg of messages) {
@@ -984,9 +1053,12 @@
                     msgDiv.className = 'message Litheral';
                     msgDiv.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble">${escapeHtml(msg.content)}</div>`;
                     const actions = document.createElement('div'); actions.className='message-actions';
+                    const retryBtn = document.createElement('button'); retryBtn.className='action-btn'; retryBtn.innerHTML=staticRetryIcon;
                     const copyBtn = document.createElement('button'); copyBtn.className='action-btn'; copyBtn.innerHTML=copyIcon;
+                    const shareBtn = document.createElement('button'); shareBtn.className='action-btn'; shareBtn.innerHTML=shareIcon;
                     copyBtn.onclick = (function(content){ return function(){ navigator.clipboard.writeText(content); showCopyToast(); }; })(msg.content);
-                    actions.appendChild(copyBtn);
+                    shareBtn.onclick = (function(content){ return function(){ if(navigator.share) navigator.share({text:content}); else copyBtn.click(); }; })(msg.content);
+                    actions.appendChild(retryBtn); actions.appendChild(copyBtn); actions.appendChild(shareBtn);
                     msgDiv.appendChild(actions);
                 }
                 fragment.appendChild(msgDiv);
@@ -1005,7 +1077,7 @@
             const data = await callAPI('/ai/chat', requestBody);
             if(data.balance_remaining!==undefined){ currentBalance=data.balance_remaining; balanceAmountSpan.textContent=currentBalance.toFixed(4); }
             const session = sessions.find(s=>s.id===activeSessionId);
-            if(session && session.title==="New Chat" && userMessage.length>3){ const newTitle=userMessage.length>30?userMessage.slice(0,30)+"...":userMessage; renameSession(activeSessionId,newTitle); }
+            if(session && session.title==="New Chat" && userMessage.length>3){ const newTitle = userMessage.length>30 ? userMessage.slice(0,30)+"..." : userMessage; await renameSession(activeSessionId, newTitle); }
             return data.response;
         }
         
@@ -1075,97 +1147,51 @@
         
         async function loadSessionHistory(sessionId){
             if(!sessionId) return;
-            
-            // Check cache FIRST - instant load
             const cached = loadCachedHistory(sessionId);
             if (cached && cached.length > 0) {
-                clearChatUI(); 
-                firstUserMessageSent = true;
+                clearChatUI(); firstUserMessageSent = true;
                 renderMessageBatch(cached);
-                // Still fetch in background to update cache
                 fetchAndUpdateCache(sessionId);
                 return;
             }
-            
-            // No cache, fetch from API
             try{
                 const data = await callAPI(`/ai/history/${sessionId}`, null, 'GET');
                 if(data?.messages && data.messages.length){
-                    clearChatUI(); 
-                    firstUserMessageSent = true;
+                    clearChatUI(); firstUserMessageSent = true;
                     renderMessageBatch(data.messages);
                     cacheSessionHistory(sessionId, data.messages);
                 } else if (data?.messages && data.messages.length === 0) {
-                    clearChatUI(); 
-                    firstUserMessageSent = false;
+                    clearChatUI(); firstUserMessageSent = false;
                 }
             } catch(e){ console.warn(e); }
         }
         
         async function fetchAndUpdateCache(sessionId){
-            try{
-                const data = await callAPI(`/ai/history/${sessionId}`, null, 'GET');
-                if(data?.messages){
-                    cacheSessionHistory(sessionId, data.messages);
-                }
-            } catch(e){}
+            try{ const data = await callAPI(`/ai/history/${sessionId}`, null, 'GET'); if(data?.messages){ cacheSessionHistory(sessionId, data.messages); } } catch(e){}
         }
         
-        async function switchSession(sessionId){ 
-            activeSessionId = sessionId; 
-            sortAndRenderSessions(); 
-            await loadSessionHistory(sessionId); 
-            if(window.innerWidth<=768) closeSidebar(); 
-        }
-        
-        async function createNewChat(){ 
-            const newId = await createSession("New Chat"); 
-            if(newId){ 
-                activeSessionId = newId; 
-                clearChatUI(); 
-                firstUserMessageSent = false; 
-                sortAndRenderSessions(); 
-                await typeMessage("New conversation started. What's on your mind?", false, false); 
-                scrollToBottom(); 
-            } 
-            if(window.innerWidth<=768) closeSidebar(); 
-        }
-        
+        async function switchSession(sessionId){ activeSessionId = sessionId; sortAndRenderSessions(); await loadSessionHistory(sessionId); if(window.innerWidth<=768) closeSidebar(); }
+        async function createNewChat(){ const newId = await createSession("New Chat"); if(newId){ activeSessionId = newId; clearChatUI(); firstUserMessageSent = false; sortAndRenderSessions(); await typeMessage("New conversation started. What's on your mind?", false, false); scrollToBottom(); } if(window.innerWidth<=768) closeSidebar(); }
         function closeSidebar(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
         function openSidebar(){ sidebar.classList.add('open'); overlay.classList.add('open'); }
         
         async function initAuth(){
             const { data:{ session } } = await supabase.auth.getSession();
-            if(session) supabaseAccessToken=session.access_token;
-            else{ const {data}=await supabase.auth.signInAnonymously(); supabaseAccessToken=data.session.access_token; }
+            if(session) { supabaseAccessToken = session.access_token; currentUserId = session.user.id; }
+            else { const {data}=await supabase.auth.signInAnonymously(); supabaseAccessToken=data.session.access_token; currentUserId = data.session.user.id; }
             const {data:{user}}=await supabase.auth.getUser();
             if(user){ const {data:profile}=await supabase.from('profile').select('first_name').eq('id',user.id).single(); userName=profile?.first_name||user.email?.split('@')[0]||'there'; }
         }
         
         async function init(){
-            // Show loading screen immediately
             loadingScreen.classList.remove('hide');
-            
             await initAuth();
             await fetchSessions();
             try{ const data=await callAPI('/coins/balance',null,'GET'); if(data?.balance!==undefined){ currentBalance=data.balance; balanceAmountSpan.textContent=currentBalance.toFixed(4); } } catch(e){}
-            
-            if(sessions.length>0){ 
-                activeSessionId = sessions[0].id; 
-                await loadSessionHistory(activeSessionId); 
-            } else { 
-                const newId = await createSession("New Chat"); 
-                if(newId){ 
-                    activeSessionId = newId; 
-                    await typeMessage(`Hey ${userName}. Ask me anything.`, false, false); 
-                } 
-            }
+            if(sessions.length>0){ activeSessionId = sessions[0].id; await loadSessionHistory(activeSessionId); }
+            else{ const newId = await createSession("New Chat"); if(newId){ activeSessionId = newId; await typeMessage(`Hey ${userName}. Ask me anything.`, false, false); } }
             sendButton.disabled=false; micButton.disabled=false;
-            
-            // Hide loading screen
-            setTimeout(() => {
-                loadingScreen.classList.add('hide');
-            }, 300);
+            setTimeout(() => { loadingScreen.classList.add('hide'); }, 300);
         }
         
         chatInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSendWithText(chatInput.value.trim()); } });
