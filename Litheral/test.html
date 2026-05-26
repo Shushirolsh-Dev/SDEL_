@@ -251,6 +251,7 @@
         let rateLimitCountdown = null;
         let pendingRetryMessage = null;
         let historyCache = new Map();
+        let quotesCache = null;
         
         let activeVoiceMessageDiv = null;
         let voiceMessageTimeout = null;
@@ -310,6 +311,48 @@
         function showCopyToast(){ copyToast.style.opacity='1'; setTimeout(()=>copyToast.style.opacity='0',1500); }
         function getHumanReadableErrorMessage(errorObj){ const status=errorObj?.status; if(status===402) return "Not enough coins. Tap 'add' to continue."; if(status===401) return "Session refreshed, try again."; if(status===429) return "Sending too fast. Auto retry soon."; if(status===404) return "Session not found. Creating new one."; if(!navigator.onLine) return "No internet connection."; return "Could not process request. Try again."; }
         
+        // Quote caching system
+        async function fetchAndCacheQuotes() {
+            // Check localStorage cache first
+            const cached = localStorage.getItem('litheral_quotes_cache');
+            if (cached) {
+                try {
+                    const cacheData = JSON.parse(cached);
+                    const cacheAge = Date.now() - cacheData.timestamp;
+                    // Cache for 24 hours
+                    if (cacheAge < 24 * 60 * 60 * 1000) {
+                        quotesCache = cacheData.quotes;
+                        return quotesCache;
+                    }
+                } catch(e) {}
+            }
+            
+            // Fetch from Supabase
+            try {
+                const { data, error } = await supabase.from('quotes').select('quote_text, author');
+                if (!error && data && data.length > 0) {
+                    quotesCache = data;
+                    // Store in localStorage with timestamp
+                    localStorage.setItem('litheral_quotes_cache', JSON.stringify({
+                        quotes: data,
+                        timestamp: Date.now()
+                    }));
+                    return quotesCache;
+                }
+            } catch(e) { console.warn("Failed to fetch quotes", e); }
+            
+            // Fallback quotes
+            return [{ quote_text: "Clarity is power. Truth over comfort.", author: "Litheral" }];
+        }
+        
+        function getRandomQuote() {
+            if (!quotesCache || quotesCache.length === 0) {
+                return { quote_text: "Clarity is power. Truth over comfort.", author: "Litheral" };
+            }
+            const randomIndex = Math.floor(Math.random() * quotesCache.length);
+            return quotesCache[randomIndex];
+        }
+        
         async function callAPI(endpoint, body, method='POST'){
             if(!supabaseAccessToken) throw new Error('Not authenticated');
             if(currentAbortController) currentAbortController.abort();
@@ -359,7 +402,6 @@
                 if(data?.sessions){ 
                     sessions = data.sessions.map(s=>({ ...s, pinned: false }));
                     const settings = await loadUserChatSettings();
-                    // CRITICAL FIX: Override titles with custom names from Supabase
                     sessions.forEach(s => {
                         const setting = settings.get(s.id);
                         if (setting) {
@@ -612,7 +654,8 @@
                 activeSessionId = newId; 
                 clearChatUI(); 
                 sortAndRenderSessions(); 
-                await typeMessage("New conversation started. What's on your mind?", false, false); 
+                const randomQuote = getRandomQuote();
+                await typeMessage(`New conversation started. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false); 
                 scrollToBottom(); 
             } 
             if(window.innerWidth<=768) closeSidebar(); 
@@ -631,18 +674,48 @@
         
         async function init(){
             loadingScreen.classList.remove('hide');
+            
+            // Fetch quotes first (from cache or Supabase)
+            await fetchAndCacheQuotes();
+            
             await initAuth();
             
-            // CRITICAL FIX: ALWAYS create a fresh session on page load
-            const freshSessionId = await createSession("New Chat");
-            if (freshSessionId) {
-                activeSessionId = freshSessionId;
-                clearChatUI();
-                await typeMessage(`Hey ${userName}. Ask me anything.`, false, false);
+            // Load existing sessions
+            await fetchSessions();
+            
+            // Check if user has any existing session with history
+            let hasExistingSession = false;
+            if (sessions.length > 0) {
+                // Check if the most recent session has messages
+                const mostRecentSessionId = sessions[0].id;
+                const cachedHistory = loadCachedHistory(mostRecentSessionId);
+                if (cachedHistory && cachedHistory.length > 0) {
+                    hasExistingSession = true;
+                    activeSessionId = mostRecentSessionId;
+                    await loadSessionHistory(activeSessionId);
+                } else {
+                    // Try to fetch from API
+                    try {
+                        const historyData = await callAPI(`/ai/history/${mostRecentSessionId}`, null, 'GET');
+                        if (historyData?.messages && historyData.messages.length > 0) {
+                            hasExistingSession = true;
+                            activeSessionId = mostRecentSessionId;
+                            await loadSessionHistory(activeSessionId);
+                        }
+                    } catch(e) {}
+                }
             }
             
-            // Load existing sessions for sidebar (they will show with correct names from Supabase)
-            await fetchSessions();
+            // If no existing session with messages, create ONE new session
+            if (!hasExistingSession) {
+                const newId = await createSession("New Chat");
+                if (newId) {
+                    activeSessionId = newId;
+                    clearChatUI();
+                    const randomQuote = getRandomQuote();
+                    await typeMessage(`Hey ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
+                }
+            }
             
             try{ const data=await callAPI('/coins/balance',null,'GET'); if(data?.balance!==undefined){ currentBalance=data.balance; balanceAmountSpan.textContent=currentBalance.toFixed(4); } } catch(e){}
             
