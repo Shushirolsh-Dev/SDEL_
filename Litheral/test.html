@@ -11,11 +11,10 @@
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            user-select: none; /* Disable text selection globally */
+            user-select: none;
             -webkit-user-select: none;
         }
 
-        /* Allow text selection only on input and textarea */
         input, textarea, [contenteditable="true"] {
             user-select: text;
             -webkit-user-select: text;
@@ -45,7 +44,7 @@
             overflow: hidden;
         }
 
-        /* Custom Scrollbar - PEAK */
+        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 4px;
             height: 4px;
@@ -60,14 +59,44 @@
         ::-webkit-scrollbar-thumb:hover {
             background: var(--primary-orange);
         }
-        .chat-messages::-webkit-scrollbar {
-            width: 4px;
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-dark);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
         }
-        .sessions-list::-webkit-scrollbar {
-            width: 3px;
+        .loading-screen.hide {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid #222;
+            border-top-color: var(--primary-orange);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            letter-spacing: 1px;
         }
 
-        /* App layout with sidebar */
         .app-layout {
             display: flex;
             height: 100%;
@@ -75,7 +104,6 @@
             overflow: hidden;
         }
 
-        /* SIDEBAR — DARK, SLEEK */
         .sidebar {
             width: var(--sidebar-width);
             background: #080808;
@@ -209,7 +237,6 @@
             fill: var(--primary-orange);
         }
 
-        /* MAIN CHAT AREA — PEAK UI */
         .chat-container {
             flex: 1;
             background: var(--bg-dark);
@@ -544,7 +571,6 @@
         }
         .voice-message-temp.fade-out { opacity: 0; }
 
-        /* Custom Modal for Rename */
         .custom-modal {
             position: fixed;
             top: 0;
@@ -552,7 +578,7 @@
             right: 0;
             bottom: 0;
             background: rgba(0,0,0,0.85);
- backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
             z-index: 200;
             display: flex;
             align-items: center;
@@ -648,6 +674,11 @@
     </style>
 </head>
 <body>
+<div class="loading-screen" id="loadingScreen">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">summoning clarity...</div>
+</div>
+
 <div class="app-layout">
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -676,7 +707,6 @@
 </div>
 <div id="copyToast" class="copy-toast">Copied!</div>
 
-<!-- Custom Rename Modal -->
 <div id="renameModal" class="custom-modal">
     <div class="modal-content">
         <h3>Rename chat</h3>
@@ -691,13 +721,11 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
     (function(){
-        // ---------- SUPABASE & API ----------
         const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const API_BASE_URL = 'https://sdel.onrender.com';
         
-        // DOM elements
         const chatMessages = document.getElementById('chatMessages');
         const chatInput = document.getElementById('chatInput');
         const sendButton = document.getElementById('sendButton');
@@ -715,28 +743,9 @@
         const renameInput = document.getElementById('renameInput');
         const confirmRenameBtn = document.getElementById('confirmRenameBtn');
         const cancelRenameBtn = document.getElementById('cancelRenameBtn');
+        const loadingScreen = document.getElementById('loadingScreen');
         
         let pendingRenameId = null;
-        
-        function openRenameModal(sessionId, currentTitle) {
-            pendingRenameId = sessionId;
-            renameInput.value = currentTitle;
-            renameModal.classList.add('open');
-            renameInput.focus();
-            renameInput.select();
-        }
-        function closeRenameModal() { renameModal.classList.remove('open'); pendingRenameId = null; }
-        
-        confirmRenameBtn.addEventListener('click', () => {
-            if(pendingRenameId && renameInput.value.trim()) {
-                renameSession(pendingRenameId, renameInput.value.trim());
-            }
-            closeRenameModal();
-        });
-        cancelRenameBtn.addEventListener('click', closeRenameModal);
-        renameModal.addEventListener('click', (e) => { if(e.target === renameModal) closeRenameModal(); });
-        
-        // global state
         let currentAbortController = null;
         let typingAnimationFrame = null;
         let currentBalance = 0;
@@ -748,10 +757,10 @@
         let pendingRetryMessage = null;
         let firstUserMessageSent = false;
         
-        // Voice handling
         let activeVoiceMessageDiv = null;
         let voiceMessageTimeout = null;
         let voiceCooldown = false;
+        
         function speakText(text) { if(window.speechSynthesis){ window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate=0.95; window.speechSynthesis.speak(u); } }
         function showVoiceMessage(message, shouldSpeak=true){
             if(activeVoiceMessageDiv){ if(voiceMessageTimeout) clearTimeout(voiceMessageTimeout); activeVoiceMessageDiv.remove(); activeVoiceMessageDiv=null; }
@@ -768,7 +777,6 @@
             setTimeout(()=>{ voiceCooldown=false; },1200);
         }
         
-        // Placeholder animation
         let currentPhraseIndex=0, isAnimatingPlaceholder=false, currentPlaceholderText="", currentDisplayLength=0, isDeleting=false, placeholderTimer=null;
         const placeholderPhrases = ["Ask with clarity","Seek what matters","Clarity over noise","Think freely","Speak your truth","Foolishness is a choice","Courage over comfort","Silence speaks loudest","It is what it is","Hope in God not man"];
         function animatePlaceholderLoop(){
@@ -870,9 +878,7 @@
             renderSessionsList([...pinned, ...unpinned]);
         }
         
-        // SVG icons for sidebar
         const pinIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L15 8.5L22 9.5L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9.5L9 8.5L12 2z"/></svg>';
-        const unpinIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L15 8.5L22 9.5L17 14L18.5 21L12 17.5L5.5 21L7 14L2 9.5L9 8.5L12 2z"/></svg>';
         const renameIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3L21 7L7 21H3V17L17 3Z"/><path d="M15 5L19 9"/></svg>';
         const deleteIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-13"/><path d="M9 4h6v3H9z"/></svg>';
         
@@ -891,7 +897,18 @@
             document.querySelectorAll('.delete-btn').forEach(btn=>{ btn.addEventListener('click',async(e)=>{ e.stopPropagation(); if(confirm('Delete this chat permanently?')) await deleteSession(btn.getAttribute('data-id')); }); });
         }
         
-        // UI messages with original SVG icons
+        function openRenameModal(sessionId, currentTitle) {
+            pendingRenameId = sessionId;
+            renameInput.value = currentTitle;
+            renameModal.classList.add('open');
+            renameInput.focus();
+            renameInput.select();
+        }
+        function closeRenameModal() { renameModal.classList.remove('open'); pendingRenameId = null; }
+        confirmRenameBtn.addEventListener('click', () => { if(pendingRenameId && renameInput.value.trim()) renameSession(pendingRenameId, renameInput.value.trim()); closeRenameModal(); });
+        cancelRenameBtn.addEventListener('click', closeRenameModal);
+        renameModal.addEventListener('click', (e) => { if(e.target === renameModal) closeRenameModal(); });
+        
         const editIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3L21 7L7 21H3V17L17 3Z"/><path d="M15 5L19 9"/></svg>';
         const copyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
         const shareIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
@@ -912,6 +929,79 @@
                 msgDiv.appendChild(actions);
             }
             chatMessages.appendChild(msgDiv); debouncedScroll();
+        }
+        
+        // BATCH RENDER: display all messages at once without typing animation
+        function renderMessageBatch(messages) {
+            const fragment = document.createDocumentFragment();
+            for (const msg of messages) {
+                const msgDiv = document.createElement('div');
+                if (msg.role === 'user') {
+                    msgDiv.className = 'message user';
+                    msgDiv.innerHTML = `<div class="message-username">You</div><div class="message-bubble">${escapeHtml(msg.content)}</div>`;
+                    const actions = document.createElement('div'); actions.className='message-actions';
+                    const copyBtn = document.createElement('button'); copyBtn.className='action-btn'; copyBtn.innerHTML=copyIcon;
+                    copyBtn.onclick = (function(content){ return function(){ navigator.clipboard.writeText(content); showCopyToast(); }; })(msg.content);
+                    actions.appendChild(copyBtn);
+                    msgDiv.appendChild(actions);
+                } else {
+                    msgDiv.className = 'message Litheral';
+                    msgDiv.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble">${escapeHtml(msg.content)}</div>`;
+                    const actions = document.createElement('div'); actions.className='message-actions';
+                    const copyBtn = document.createElement('button'); copyBtn.className='action-btn'; copyBtn.innerHTML=copyIcon;
+                    copyBtn.onclick = (function(content){ return function(){ navigator.clipboard.writeText(content); showCopyToast(); }; })(msg.content);
+                    actions.appendChild(copyBtn);
+                    msgDiv.appendChild(actions);
+                }
+                fragment.appendChild(msgDiv);
+            }
+            chatMessages.appendChild(fragment);
+            scrollToBottom();
+        }
+        
+        function showThinkingAnimation(){ if(document.getElementById('thinkingAnimation')) return; const div=document.createElement('div'); div.id='thinkingAnimation'; div.className='message Litheral'; div.innerHTML=`<div class="message-username">Litheral</div><div class="message-bubble"><div class="litheral-thinking"><div class="thinking-ring"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#FF6600" stroke-width="2" stroke-dasharray="4 4"/><circle cx="12" cy="12" r="4" fill="#FF6600" fill-opacity="0.3"/></svg></div><span class="thinking-text">clarifying</span></div></div>`; chatMessages.appendChild(div); scrollToBottom(); }
+        function hideThinkingAnimation(){ document.getElementById('thinkingAnimation')?.remove(); }
+        function clearChatUI(){ chatMessages.innerHTML=''; }
+        
+        async function sendToLitheralV2(userMessage){
+            if(!activeSessionId){ const newId=await createSession("Chat"); if(!newId) throw new Error("No session"); activeSessionId=newId; }
+            const requestBody = { message: userMessage, session_id: activeSessionId };
+            const data = await callAPI('/ai/chat', requestBody);
+            if(data.balance_remaining!==undefined){ currentBalance=data.balance_remaining; balanceAmountSpan.textContent=currentBalance.toFixed(4); }
+            const session = sessions.find(s=>s.id===activeSessionId);
+            if(session && session.title==="New Chat" && userMessage.length>3){ const newTitle=userMessage.length>30?userMessage.slice(0,30)+"...":userMessage; renameSession(activeSessionId,newTitle); }
+            return data.response;
+        }
+        
+        async function handleSendWithText(userMessage){
+            if(!userMessage.trim()) return;
+            if(!firstUserMessageSent){ clearChatUI(); firstUserMessageSent=true; }
+            sendButton.disabled=true; micButton.disabled=true;
+            addUserMessage(userMessage, true);
+            chatInput.value=''; chatInput.style.height='auto';
+            showThinkingAnimation();
+            try{
+                const response = await sendToLitheralV2(userMessage);
+                hideThinkingAnimation();
+                // Use typing animation for new message (solo)
+                await typeMessage(response, false, true);
+                pendingRetryMessage=null;
+                if(rateLimitCountdown){ clearInterval(rateLimitCountdown); rateLimitWarning.textContent=''; }
+            } catch(error){
+                hideThinkingAnimation();
+                const friendly=getHumanReadableErrorMessage(error);
+                await typeMessage(friendly, true, false);
+                if(error.status===429){
+                    pendingRetryMessage=userMessage;
+                    let wait=12;
+                    rateLimitWarning.textContent=`Slow down — wait ${wait}s`;
+                    if(rateLimitCountdown) clearInterval(rateLimitCountdown);
+                    rateLimitCountdown = setInterval(()=>{ wait--; if(wait<=0){ clearInterval(rateLimitCountdown); rateLimitWarning.textContent=''; sendButton.disabled=false; micButton.disabled=false; if(pendingRetryMessage) handleSendWithText(pendingRetryMessage); } else rateLimitWarning.textContent=`Slow down — wait ${wait}s`; },1000);
+                    return;
+                }
+            } finally {
+                if(!rateLimitCountdown){ sendButton.disabled=false; micButton.disabled=false; }
+            }
         }
         
         function typeMessage(text, isError=false, showActions=true){
@@ -948,63 +1038,17 @@
             });
         }
         
-        function showThinkingAnimation(){ if(document.getElementById('thinkingAnimation')) return; const div=document.createElement('div'); div.id='thinkingAnimation'; div.className='message Litheral'; div.innerHTML=`<div class="message-username">Litheral</div><div class="message-bubble"><div class="litheral-thinking"><div class="thinking-ring"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#FF6600" stroke-width="2" stroke-dasharray="4 4"/><circle cx="12" cy="12" r="4" fill="#FF6600" fill-opacity="0.3"/></svg></div><span class="thinking-text">clarifying</span></div></div>`; chatMessages.appendChild(div); scrollToBottom(); }
-        function hideThinkingAnimation(){ document.getElementById('thinkingAnimation')?.remove(); }
-        function clearChatUI(){ chatMessages.innerHTML=''; }
-        
-        async function sendToLitheralV2(userMessage){
-            if(!activeSessionId){ const newId=await createSession("Chat"); if(!newId) throw new Error("No session"); activeSessionId=newId; }
-            const requestBody = { message: userMessage, session_id: activeSessionId };
-            const data = await callAPI('/ai/chat', requestBody);
-            if(data.balance_remaining!==undefined){ currentBalance=data.balance_remaining; balanceAmountSpan.textContent=currentBalance.toFixed(4); }
-            const session = sessions.find(s=>s.id===activeSessionId);
-            if(session && session.title==="New Chat" && userMessage.length>3){ const newTitle=userMessage.length>30?userMessage.slice(0,30)+"...":userMessage; renameSession(activeSessionId,newTitle); }
-            return data.response;
-        }
-        
-        async function handleSendWithText(userMessage){
-            if(!userMessage.trim()) return;
-            if(!firstUserMessageSent){ clearChatUI(); firstUserMessageSent=true; }
-            sendButton.disabled=true; micButton.disabled=true;
-            addUserMessage(userMessage, true);
-            chatInput.value=''; chatInput.style.height='auto';
-            showThinkingAnimation();
-            try{
-                const response = await sendToLitheralV2(userMessage);
-                hideThinkingAnimation();
-                await typeMessage(response, false, true);
-                pendingRetryMessage=null;
-                if(rateLimitCountdown){ clearInterval(rateLimitCountdown); rateLimitWarning.textContent=''; }
-            } catch(error){
-                hideThinkingAnimation();
-                const friendly=getHumanReadableErrorMessage(error);
-                await typeMessage(friendly, true, false);
-                if(error.status===429){
-                    pendingRetryMessage=userMessage;
-                    let wait=12;
-                    rateLimitWarning.textContent=`Slow down — wait ${wait}s`;
-                    if(rateLimitCountdown) clearInterval(rateLimitCountdown);
-                    rateLimitCountdown = setInterval(()=>{ wait--; if(wait<=0){ clearInterval(rateLimitCountdown); rateLimitWarning.textContent=''; sendButton.disabled=false; micButton.disabled=false; if(pendingRetryMessage) handleSendWithText(pendingRetryMessage); } else rateLimitWarning.textContent=`Slow down — wait ${wait}s`; },1000);
-                    return;
-                }
-            } finally {
-                if(!rateLimitCountdown){ sendButton.disabled=false; micButton.disabled=false; }
-            }
-        }
-        
         async function loadSessionHistory(sessionId){
             if(!sessionId) return;
             try{
                 const data = await callAPI(`/ai/history/${sessionId}`, null, 'GET');
-                if(data?.messages){
+                if(data?.messages && data.messages.length){
                     clearChatUI(); firstUserMessageSent=true;
-                    for(const msg of data.messages){
-                        if(msg.role==='user') addUserMessage(msg.content, true);
-                        else await typeMessage(msg.content, false, false);
-                    }
-                    scrollToBottom();
+                    renderMessageBatch(data.messages);
+                } else if (data?.messages && data.messages.length === 0) {
+                    clearChatUI(); firstUserMessageSent=false;
                 }
-            }catch(e){}
+            } catch(e){ console.warn(e); }
         }
         
         async function switchSession(sessionId){ activeSessionId=sessionId; sortAndRenderSessions(); await loadSessionHistory(sessionId); if(window.innerWidth<=768) closeSidebar(); }
@@ -1023,10 +1067,12 @@
         async function init(){
             await initAuth();
             await fetchSessions();
-            await (async()=>{ try{ const data=await callAPI('/coins/balance',null,'GET'); if(data?.balance!==undefined){ currentBalance=data.balance; balanceAmountSpan.textContent=currentBalance.toFixed(4); } }catch(e){} })();
+            try{ const data=await callAPI('/coins/balance',null,'GET'); if(data?.balance!==undefined){ currentBalance=data.balance; balanceAmountSpan.textContent=currentBalance.toFixed(4); } } catch(e){}
             if(sessions.length>0){ activeSessionId=sessions[0].id; await loadSessionHistory(activeSessionId); }
             else{ const newId=await createSession("New Chat"); if(newId){ activeSessionId=newId; await typeMessage(`Hey ${userName}. Ask me anything.`,false,false); } }
             sendButton.disabled=false; micButton.disabled=false;
+            loadingScreen.classList.add('hide');
+            setTimeout(()=>{ loadingScreen.style.display='none'; },500);
         }
         
         chatInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSendWithText(chatInput.value.trim()); } });
