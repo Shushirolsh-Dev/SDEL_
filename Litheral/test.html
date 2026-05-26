@@ -118,9 +118,32 @@
         .action-btn:active { transform: scale(0.94); }
         .copy-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: var(--primary-orange); color: black; padding: 6px 14px; border-radius: 40px; font-size: 0.8rem; font-weight: bold; z-index: 1000; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
         .success-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #00aa44; color: white; padding: 6px 14px; border-radius: 40px; font-size: 0.8rem; font-weight: bold; z-index: 1000; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
-        .jump-to-bottom { position: absolute; bottom: 85px; right: 18px; background: #1a1a1a; border: 1px solid var(--primary-orange); border-radius: 40px; padding: 8px 14px; display: flex; align-items: center; gap: 6px; cursor: pointer; z-index: 20; backdrop-filter: blur(12px); transition: all 0.2s; box-shadow: 0 2px 10px rgba(0,0,0,0.3); font-size: 0.75rem; font-weight: 600; color: var(--primary-orange); opacity: 0; visibility: hidden; transform: translateY(10px); }
-        .jump-to-bottom.visible { opacity: 1; visibility: visible; transform: translateY(0); }
-        .jump-to-bottom:active { transform: scale(0.95); background: #2a2a2a; }
+        .jump-to-bottom { 
+            position: absolute; 
+            bottom: 85px; 
+            left: 50%; 
+            transform: translateX(-50%);
+            background: #1a1a1a; 
+            border: 1px solid var(--primary-orange); 
+            border-radius: 40px; 
+            padding: 8px 14px; 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            cursor: pointer; 
+            z-index: 20; 
+            backdrop-filter: blur(12px); 
+            transition: all 0.2s; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3); 
+            font-size: 0.75rem; 
+            font-weight: 600; 
+            color: var(--primary-orange); 
+            opacity: 0; 
+            visibility: hidden; 
+            transform: translateY(10px) translateX(-50%);
+        }
+        .jump-to-bottom.visible { opacity: 1; visibility: visible; transform: translateY(0) translateX(-50%); }
+        .jump-to-bottom:active { transform: scale(0.95) translateX(-50%); background: #2a2a2a; }
         .litheral-thinking { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
         .thinking-ring svg { width: 22px; animation: litheralPulse 1.2s ease infinite; }
         @keyframes litheralPulse { 0% { transform: scale(0.8); opacity: 0.3; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.8); opacity: 0.3; } }
@@ -162,7 +185,7 @@
             .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 90; opacity: 0; visibility: hidden; transition: all 0.3s; }
             .overlay.open { opacity: 1; visibility: visible; }
         }
-        @media (max-width: 480px) { .chat-messages { padding: 16px 12px; gap: 18px; } .jump-to-bottom { bottom: 80px; right: 14px; padding: 6px 12px; } }
+        @media (max-width: 480px) { .chat-messages { padding: 16px 12px; gap: 18px; } .jump-to-bottom { bottom: 75px; padding: 6px 12px; } }
     </style>
 </head>
 <body>
@@ -198,7 +221,7 @@
     </div>
 </div>
 <div id="copyToast" class="copy-toast">Copied!</div>
-<div id="successToast" class="success-toast">Chat deleted successfully</div>
+<div id="successToast" class="success-toast"></div>
 
 <div id="renameModal" class="custom-modal">
     <div class="modal-content"><h3>Rename chat</h3><input type="text" id="renameInput" class="modal-input" placeholder="Chat name"><div class="modal-buttons"><button class="modal-btn cancel" id="cancelRenameBtn">Cancel</button><button class="modal-btn confirm" id="confirmRenameBtn">Save</button></div></div>
@@ -311,44 +334,31 @@
         function showCopyToast(){ copyToast.style.opacity='1'; setTimeout(()=>copyToast.style.opacity='0',1500); }
         function getHumanReadableErrorMessage(errorObj){ const status=errorObj?.status; if(status===402) return "Not enough coins. Tap 'add' to continue."; if(status===401) return "Session refreshed, try again."; if(status===429) return "Sending too fast. Auto retry soon."; if(status===404) return "Session not found. Creating new one."; if(!navigator.onLine) return "No internet connection."; return "Could not process request. Try again."; }
         
-        // Quote caching system
         async function fetchAndCacheQuotes() {
-            // Check localStorage cache first
             const cached = localStorage.getItem('litheral_quotes_cache');
             if (cached) {
                 try {
                     const cacheData = JSON.parse(cached);
                     const cacheAge = Date.now() - cacheData.timestamp;
-                    // Cache for 24 hours
                     if (cacheAge < 24 * 60 * 60 * 1000) {
                         quotesCache = cacheData.quotes;
                         return quotesCache;
                     }
                 } catch(e) {}
             }
-            
-            // Fetch from Supabase
             try {
                 const { data, error } = await supabase.from('quotes').select('quote_text, author');
                 if (!error && data && data.length > 0) {
                     quotesCache = data;
-                    // Store in localStorage with timestamp
-                    localStorage.setItem('litheral_quotes_cache', JSON.stringify({
-                        quotes: data,
-                        timestamp: Date.now()
-                    }));
+                    localStorage.setItem('litheral_quotes_cache', JSON.stringify({ quotes: data, timestamp: Date.now() }));
                     return quotesCache;
                 }
             } catch(e) { console.warn("Failed to fetch quotes", e); }
-            
-            // Fallback quotes
             return [{ quote_text: "Clarity is power. Truth over comfort.", author: "Litheral" }];
         }
         
         function getRandomQuote() {
-            if (!quotesCache || quotesCache.length === 0) {
-                return { quote_text: "Clarity is power. Truth over comfort.", author: "Litheral" };
-            }
+            if (!quotesCache || quotesCache.length === 0) return { quote_text: "Clarity is power. Truth over comfort.", author: "Litheral" };
             const randomIndex = Math.floor(Math.random() * quotesCache.length);
             return quotesCache[randomIndex];
         }
@@ -552,6 +562,15 @@
         function hideThinkingAnimation(){ document.getElementById('thinkingAnimation')?.remove(); }
         function clearChatUI(){ chatMessages.innerHTML=''; }
         
+        async function checkSessionHasMessages(sessionId) {
+            const cached = loadCachedHistory(sessionId);
+            if (cached && cached.length > 0) return true;
+            try {
+                const data = await callAPI(`/ai/history/${sessionId}`, null, 'GET');
+                return data?.messages && data.messages.length > 0;
+            } catch(e) { return false; }
+        }
+        
         async function sendToLitheralV2(userMessage){
             if(!activeSessionId){ const newId=await createSession("Chat"); if(!newId) throw new Error("No session"); activeSessionId=newId; }
             const requestBody = { message: userMessage, session_id: activeSessionId };
@@ -649,15 +668,25 @@
         async function switchSession(sessionId){ activeSessionId = sessionId; sortAndRenderSessions(); await loadSessionHistory(sessionId); if(window.innerWidth<=768) closeSidebar(); }
         
         async function createNewChat(){ 
-            const newId = await createSession("New Chat"); 
-            if(newId){ 
-                activeSessionId = newId; 
-                clearChatUI(); 
-                sortAndRenderSessions(); 
-                const randomQuote = getRandomQuote();
-                await typeMessage(`New conversation started. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false); 
-                scrollToBottom(); 
-            } 
+            // Check if current session has messages
+            const hasMessages = await checkSessionHasMessages(activeSessionId);
+            
+            if (hasMessages) {
+                // Current session has messages → create new session
+                const newId = await createSession("New Chat");
+                if (newId) { 
+                    activeSessionId = newId; 
+                    clearChatUI(); 
+                    sortAndRenderSessions(); 
+                    const randomQuote = getRandomQuote();
+                    await typeMessage(`New conversation started. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false); 
+                    scrollToBottom(); 
+                }
+            } else {
+                // Current session is empty → just show a message, don't create new session
+                await typeMessage("You're already in a fresh chat. Start typing when you're ready.", false, false);
+            }
+            
             if(window.innerWidth<=768) closeSidebar(); 
         }
         
@@ -674,44 +703,26 @@
         
         async function init(){
             loadingScreen.classList.remove('hide');
-            
-            // Fetch quotes first (from cache or Supabase)
             await fetchAndCacheQuotes();
-            
             await initAuth();
-            
-            // Load existing sessions
             await fetchSessions();
             
-            // Check if user has any existing session with history
-            let hasExistingSession = false;
             if (sessions.length > 0) {
-                // Check if the most recent session has messages
-                const mostRecentSessionId = sessions[0].id;
-                const cachedHistory = loadCachedHistory(mostRecentSessionId);
-                if (cachedHistory && cachedHistory.length > 0) {
-                    hasExistingSession = true;
-                    activeSessionId = mostRecentSessionId;
-                    await loadSessionHistory(activeSessionId);
-                } else {
-                    // Try to fetch from API
-                    try {
-                        const historyData = await callAPI(`/ai/history/${mostRecentSessionId}`, null, 'GET');
-                        if (historyData?.messages && historyData.messages.length > 0) {
-                            hasExistingSession = true;
-                            activeSessionId = mostRecentSessionId;
-                            await loadSessionHistory(activeSessionId);
-                        }
-                    } catch(e) {}
+                // User has sessions - load the most recent one
+                activeSessionId = sessions[0].id;
+                await loadSessionHistory(activeSessionId);
+                
+                // Check if loaded session has no messages, show welcome message
+                const hasMessages = await checkSessionHasMessages(activeSessionId);
+                if (!hasMessages && chatMessages.children.length === 0) {
+                    const randomQuote = getRandomQuote();
+                    await typeMessage(`Hey ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
                 }
-            }
-            
-            // If no existing session with messages, create ONE new session
-            if (!hasExistingSession) {
+            } else {
+                // No sessions at all - create first one
                 const newId = await createSession("New Chat");
                 if (newId) {
                     activeSessionId = newId;
-                    clearChatUI();
                     const randomQuote = getRandomQuote();
                     await typeMessage(`Hey ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
                 }
