@@ -44,7 +44,6 @@
             overflow: hidden;
         }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 4px;
             height: 4px;
@@ -60,7 +59,6 @@
             background: var(--primary-orange);
         }
 
-        /* Loading Screen */
         .loading-screen {
             position: fixed;
             top: 0;
@@ -68,17 +66,18 @@
             right: 0;
             bottom: 0;
             background: var(--bg-dark);
-            z-index: 1000;
+            z-index: 10000;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-direction: column;
             gap: 20px;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
         }
         .loading-screen.hide {
             opacity: 0;
             visibility: hidden;
+            pointer-events: none;
         }
         .loading-spinner {
             width: 48px;
@@ -564,7 +563,6 @@
             margin-top: 8px;
         }
         .retry-spinning svg { animation: spin 0.7s linear infinite !important; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
 
         .voice-message-temp {
             transition: opacity 0.3s ease;
@@ -757,6 +755,9 @@
         let pendingRetryMessage = null;
         let firstUserMessageSent = false;
         
+        // Cache storage for chat histories
+        let historyCache = new Map(); // sessionId -> messages array
+        
         let activeVoiceMessageDiv = null;
         let voiceMessageTimeout = null;
         let voiceCooldown = false;
@@ -832,15 +833,42 @@
             return await response.json();
         }
         
+        // Save chat history to localStorage cache
+        function cacheSessionHistory(sessionId, messages) {
+            try {
+                const cache = JSON.parse(localStorage.getItem('litheral_history_cache') || '{}');
+                cache[sessionId] = messages;
+                localStorage.setItem('litheral_history_cache', JSON.stringify(cache));
+                historyCache.set(sessionId, messages);
+            } catch(e) {}
+        }
+        
+        // Load cached history from localStorage
+        function loadCachedHistory(sessionId) {
+            try {
+                if (historyCache.has(sessionId)) return historyCache.get(sessionId);
+                const cache = JSON.parse(localStorage.getItem('litheral_history_cache') || '{}');
+                if (cache[sessionId]) {
+                    historyCache.set(sessionId, cache[sessionId]);
+                    return cache[sessionId];
+                }
+            } catch(e) {}
+            return null;
+        }
+        
         async function fetchSessions(){
             try{ const data = await callAPI('/ai/sessions', null, 'GET');
                 if(data?.sessions){ sessions = data.sessions.map(s=>({...s, pinned:false}));
                     const stored = localStorage.getItem('litheral_pinned');
                     if(stored) { const pinnedSet=new Set(JSON.parse(stored)); sessions.forEach(s=>{ if(pinnedSet.has(s.id)) s.pinned=true; }); }
+                    // Load cached names
+                    const renames = JSON.parse(localStorage.getItem('litheral_renames')||'{}');
+                    sessions.forEach(s => { if(renames[s.id]) s.title = renames[s.id]; });
                     sortAndRenderSessions();
                 }
             }catch(e){}
         }
+        
         async function createSession(title="New Chat"){
             try{ const data = await callAPI('/ai/sessions', { title });
                 if(data?.session_id){
@@ -849,9 +877,15 @@
                 }
             }catch(e){ return null; }
         }
+        
         async function deleteSession(sessionId){
             try{ await callAPI(`/ai/sessions/${sessionId}`, null, 'DELETE');
                 sessions = sessions.filter(s=>s.id!==sessionId);
+                // Remove from cache
+                historyCache.delete(sessionId);
+                const cache = JSON.parse(localStorage.getItem('litheral_history_cache') || '{}');
+                delete cache[sessionId];
+                localStorage.setItem('litheral_history_cache', JSON.stringify(cache));
                 if(activeSessionId===sessionId){
                     activeSessionId = sessions.length>0 ? sessions[0].id : null;
                     if(activeSessionId) await loadSessionHistory(activeSessionId);
@@ -860,6 +894,7 @@
                 sortAndRenderSessions(); savePinnedState(); return true;
             }catch(e){ return false; }
         }
+        
         function renameSession(sessionId, newTitle){
             const session = sessions.find(s=>s.id===sessionId);
             if(session){ session.title = newTitle; sortAndRenderSessions();
@@ -867,6 +902,7 @@
                 renames[sessionId]=newTitle; localStorage.setItem('litheral_renames',JSON.stringify(renames));
             }
         }
+        
         function togglePin(sessionId){
             const session = sessions.find(s=>s.id===sessionId);
             if(session){ session.pinned=!session.pinned; savePinnedState(); sortAndRenderSessions(); }
@@ -931,7 +967,7 @@
             chatMessages.appendChild(msgDiv); debouncedScroll();
         }
         
-        // BATCH RENDER: display all messages at once without typing animation
+        // BATCH RENDER - ALL MESSAGES INSTANTLY
         function renderMessageBatch(messages) {
             const fragment = document.createDocumentFragment();
             for (const msg of messages) {
@@ -983,7 +1019,6 @@
             try{
                 const response = await sendToLitheralV2(userMessage);
                 hideThinkingAnimation();
-                // Use typing animation for new message (solo)
                 await typeMessage(response, false, true);
                 pendingRetryMessage=null;
                 if(rateLimitCountdown){ clearInterval(rateLimitCountdown); rateLimitWarning.textContent=''; }
@@ -1040,19 +1075,62 @@
         
         async function loadSessionHistory(sessionId){
             if(!sessionId) return;
+            
+            // Check cache FIRST - instant load
+            const cached = loadCachedHistory(sessionId);
+            if (cached && cached.length > 0) {
+                clearChatUI(); 
+                firstUserMessageSent = true;
+                renderMessageBatch(cached);
+                // Still fetch in background to update cache
+                fetchAndUpdateCache(sessionId);
+                return;
+            }
+            
+            // No cache, fetch from API
             try{
                 const data = await callAPI(`/ai/history/${sessionId}`, null, 'GET');
                 if(data?.messages && data.messages.length){
-                    clearChatUI(); firstUserMessageSent=true;
+                    clearChatUI(); 
+                    firstUserMessageSent = true;
                     renderMessageBatch(data.messages);
+                    cacheSessionHistory(sessionId, data.messages);
                 } else if (data?.messages && data.messages.length === 0) {
-                    clearChatUI(); firstUserMessageSent=false;
+                    clearChatUI(); 
+                    firstUserMessageSent = false;
                 }
             } catch(e){ console.warn(e); }
         }
         
-        async function switchSession(sessionId){ activeSessionId=sessionId; sortAndRenderSessions(); await loadSessionHistory(sessionId); if(window.innerWidth<=768) closeSidebar(); }
-        async function createNewChat(){ const newId=await createSession("New Chat"); if(newId){ activeSessionId=newId; clearChatUI(); firstUserMessageSent=false; sortAndRenderSessions(); await typeMessage("New conversation started. What's on your mind?", false, false); scrollToBottom(); } if(window.innerWidth<=768) closeSidebar(); }
+        async function fetchAndUpdateCache(sessionId){
+            try{
+                const data = await callAPI(`/ai/history/${sessionId}`, null, 'GET');
+                if(data?.messages){
+                    cacheSessionHistory(sessionId, data.messages);
+                }
+            } catch(e){}
+        }
+        
+        async function switchSession(sessionId){ 
+            activeSessionId = sessionId; 
+            sortAndRenderSessions(); 
+            await loadSessionHistory(sessionId); 
+            if(window.innerWidth<=768) closeSidebar(); 
+        }
+        
+        async function createNewChat(){ 
+            const newId = await createSession("New Chat"); 
+            if(newId){ 
+                activeSessionId = newId; 
+                clearChatUI(); 
+                firstUserMessageSent = false; 
+                sortAndRenderSessions(); 
+                await typeMessage("New conversation started. What's on your mind?", false, false); 
+                scrollToBottom(); 
+            } 
+            if(window.innerWidth<=768) closeSidebar(); 
+        }
+        
         function closeSidebar(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
         function openSidebar(){ sidebar.classList.add('open'); overlay.classList.add('open'); }
         
@@ -1065,14 +1143,29 @@
         }
         
         async function init(){
+            // Show loading screen immediately
+            loadingScreen.classList.remove('hide');
+            
             await initAuth();
             await fetchSessions();
             try{ const data=await callAPI('/coins/balance',null,'GET'); if(data?.balance!==undefined){ currentBalance=data.balance; balanceAmountSpan.textContent=currentBalance.toFixed(4); } } catch(e){}
-            if(sessions.length>0){ activeSessionId=sessions[0].id; await loadSessionHistory(activeSessionId); }
-            else{ const newId=await createSession("New Chat"); if(newId){ activeSessionId=newId; await typeMessage(`Hey ${userName}. Ask me anything.`,false,false); } }
+            
+            if(sessions.length>0){ 
+                activeSessionId = sessions[0].id; 
+                await loadSessionHistory(activeSessionId); 
+            } else { 
+                const newId = await createSession("New Chat"); 
+                if(newId){ 
+                    activeSessionId = newId; 
+                    await typeMessage(`Hey ${userName}. Ask me anything.`, false, false); 
+                } 
+            }
             sendButton.disabled=false; micButton.disabled=false;
-            loadingScreen.classList.add('hide');
-            setTimeout(()=>{ loadingScreen.style.display='none'; },500);
+            
+            // Hide loading screen
+            setTimeout(() => {
+                loadingScreen.classList.add('hide');
+            }, 300);
         }
         
         chatInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSendWithText(chatInput.value.trim()); } });
