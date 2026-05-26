@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Litheral AI — Integrity over algorithm</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6600'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z'/%3E%3C/svg%3E">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --primary-orange: #FF6600;
+            --bg-dark: #000000;
+            --card-bg: #0c0c0c;
+            --border-color: #222;
+            --text-main: #f0f0f0;
+            --text-secondary: #888888;
+            --soft-warning: rgba(255, 102, 0, 0.15);
+            --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+            --sidebar-width: 280px;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100%;
+            background: var(--bg-dark);
+            overflow: hidden;
+        }
+
+        body {
+            font-family: -apple-system, 'Segoe UI', 'Inter', system-ui, sans-serif;
+            overflow: hidden;
+        }
+
+        /* App layout with sidebar */
+        .app-layout {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: #080808;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+            z-index: 30;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            background: var(--primary-orange);
+            color: black;
+            border: none;
+            padding: 12px;
+            border-radius: 28px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .new-chat-btn:active {
+            transform: scale(0.97);
+            opacity: 0.9;
+        }
+
+        .sessions-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .session-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 12px;
+            margin-bottom: 6px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: transparent;
+            border: 1px solid transparent;
+        }
+
+        .session-item.active {
+            background: rgba(255, 102, 0, 0.12);
+            border-color: rgba(255, 102, 0, 0.3);
+        }
+
+        .session-item:hover {
+            background: rgba(255, 102, 0, 0.08);
+        }
+
+        .session-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .session-title {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .session-pinned {
+            color: var(--primary-orange);
+            font-size: 0.7rem;
+            margin-left: 6px;
+        }
+
+        .session-date {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .session-actions {
+            display: flex;
+            gap: 6px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .session-item:hover .session-actions {
+            opacity: 1;
+        }
+
+        .session-action-btn {
+            background: transparent;
+            border: none;
+            padding: 6px;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .session-action-btn:hover {
+            background: rgba(255, 102, 0, 0.2);
+            color: var(--primary-orange);
+        }
+
+        .pin-btn.pinned {
+            color: var(--primary-orange);
+        }
+
+        /* Main chat area */
+        .chat-container {
+            flex: 1;
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            background: var(--bg-dark);
+        }
+
+        .menu-toggle {
+            display: none;
+            background: transparent;
+            border: none;
+            color: var(--primary-orange);
+            font-size: 1.5rem;
+            cursor: pointer;
+            margin-right: 12px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .balance-container {
+            background: rgba(255, 102, 0, 0.12);
+            padding: 6px 12px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 102, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .message {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-width: 100%;
+            animation: fadeIn 0.25s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-username {
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.7;
+        }
+
+        .message.Litheral .message-username { color: var(--primary-orange); }
+        .message.user .message-username { color: var(--text-main); text-align: right; }
+
+        .message-bubble {
+            line-height: 1.5;
+            font-size: 0.95rem;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            color: var(--text-main);
+        }
+        .message.user .message-bubble { text-align: right; color: #dddddd; }
+
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .message.user .message-actions { justify-content: flex-end; }
+
+        .action-btn {
+            background: rgba(20,20,20,0.6);
+            border: none;
+            padding: 6px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+        }
+        .action-btn svg { width: 17px; height: 17px; stroke: #aaa; stroke-width: 1.8; fill: none; }
+
+        .chat-input-area {
+            padding: 14px 16px calc(16px + var(--safe-area-inset-bottom));
+            background: var(--bg-dark);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            background: #0c0c0c;
+            border: 1.5px solid var(--border-color);
+            padding: 8px 14px;
+            border-radius: 30px;
+            align-items: center;
+        }
+        .input-container:focus-within { border-color: var(--primary-orange); }
+
+        .chat-input {
+            flex: 1;
+            padding: 8px 0;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            resize: none;
+        }
+
+        .send-button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px 12px;
+            color: var(--primary-orange);
+            font-weight: 700;
+        }
+        .send-button:disabled { opacity: 0.3; }
+
+        .rate-limit-warning {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .thinking-ring svg {
+            width: 22px;
+            animation: pulse 1.2s ease infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.3; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0.3; }
+        }
+
+        .typing-active::after {
+            content: "▊";
+            animation: blink 0.8s step-start infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .copy-toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--primary-orange);
+            color: black;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .jump-to-bottom {
+            position: absolute;
+            bottom: 85px;
+            right: 18px;
+            background: #1a1a1a;
+            border: 1px solid var(--primary-orange);
+            border-radius: 40px;
+            padding: 8px 14px;
+            cursor: pointer;
+            z-index: 20;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s;
+        }
+        .jump-to-bottom.visible { opacity: 1; visibility: visible; }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: 0;
+                top: 0;
+                height: 100%;
+                transform: translateX(-100%);
+                z-index: 100;
+                background: #0a0a0a;
+            }
+            .sidebar.open { transform: translateX(0); }
+            .menu-toggle { display: block; }
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                z-index: 90;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s;
+            }
+            .overlay.open { opacity: 1; visibility: visible; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-layout">
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <button class="new-chat-btn" id="newChatBtn">+ New Chat</button>
+        </div>
+        <div class="sessions-list" id="sessionsList"></div>
+    </div>
+    <div class="overlay" id="overlay"></div>
+    <div class="chat-container">
+        <div class="chat-header">
+            <button class="menu-toggle" id="menuToggle">☰</button>
+            <div class="header-left"><h1>Litheral</h1></div>
+            <div class="balance-container"><span class="balance-label">coins</span><span class="balance-amount" id="balanceAmount">0.00</span><button class="buy-coins-btn" id="buyCoinsBtn">add</button></div>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <button class="jump-to-bottom" id="jumpToBottomBtn">↓ Newest</button>
+        <div class="chat-input-area">
+            <div class="input-container">
+                <textarea class="chat-input" id="chatInput" placeholder="Ask with clarity" rows="1"></textarea>
+                <button class="send-button" id="sendButton">Send</button>
+            </div>
+            <div class="rate-limit-warning" id="rateLimitWarning"></div>
+        </div>
+    </div>
+</div>
+<div id="copyToast" class="copy-toast">Copied!</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    (function() {
+        const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const API_BASE_URL = 'https://sdel.onrender.com';
+        
+        // DOM elements
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+        const balanceAmountSpan = document.getElementById('balanceAmount');
+        const rateLimitWarning = document.getElementById('rateLimitWarning');
+        const copyToast = document.getElementById('copyToast');
+        const jumpBtn = document.getElementById('jumpToBottomBtn');
+        const sessionsList = document.getElementById('sessionsList');
+        const newChatBtn = document.getElementById('newChatBtn');
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        
+        // State
+        let currentAbortController = null;
+        let typingAnimationFrame = null;
+        let currentBalance = 0;
+        let supabaseAccessToken = null;
+        let userName = "there";
+        let activeSessionId = null;
+        let sessions = []; // { id, title, created_at, pinned }
+        let pinnedSessions = [];
+        let unpinnedSessions = [];
+        let rateLimitCountdown = null;
+        
+        // Load pinned state from localStorage
+        function loadPinnedState() {
+            const stored = localStorage.getItem('litheral_pinned');
+            if (stored) {
+                try {
+                    const pinnedSet = new Set(JSON.parse(stored));
+                    sessions.forEach(s => s.pinned = pinnedSet.has(s.id));
+                } catch(e) {}
+            }
+        }
+        
+        function savePinnedState() {
+            const pinnedIds = sessions.filter(s => s.pinned).map(s => s.id);
+            localStorage.setItem('litheral_pinned', JSON.stringify(pinnedIds));
+        }
+        
+        // Helper: friendly errors
+        function getHumanReadableErrorMessage(errorObj) {
+            const status = errorObj?.status;
+            if (status === 402) return "Not enough coins. Tap 'add' to continue.";
+            if (status === 401) return "Session refreshed, try again.";
+            if (status === 429) return "Sending too fast. Auto retry soon.";
+            if (status === 404) return "Session not found. Creating new one.";
+            if (!navigator.onLine) return "No internet connection.";
+            return "Could not process request. Try again.";
+        }
+        
+        // API caller
+        async function callAPI(endpoint, body, method = 'POST') {
+            if (!supabaseAccessToken) throw new Error('Not authenticated');
+            if (currentAbortController) currentAbortController.abort();
+            currentAbortController = new AbortController();
+            const options = { 
+                method, 
+                headers: { 'Authorization': `Bearer ${supabaseAccessToken}`, 'Content-Type': 'application/json' }, 
+                signal: currentAbortController.signal 
+            };
+            if (body && (method === 'POST' || method === 'PUT')) options.body = JSON.stringify(body);
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+            if (response.status === 401) {
+                const { data: { session } } = await supabase.auth.refreshSession();
+                if (session) supabaseAccessToken = session.access_token;
+                return callAPI(endpoint, body, method);
+            }
+            if (response.status === 429) { const err = new Error('Rate limited'); err.status = 429; throw err; }
+            if (!response.ok) { const err = new Error(`API error`); err.status = response.status; throw err; }
+            return await response.json();
+        }
+        
+        // Session endpoints
+        async function fetchSessions() {
+            try {
+                const data = await callAPI('/ai/sessions', null, 'GET');
+                if (data?.sessions) {
+                    sessions = data.sessions.map(s => ({ ...s, pinned: false }));
+                    loadPinnedState();
+                    sortAndRenderSessions();
+                }
+            } catch(e) { console.warn("fetch sessions error", e); }
+        }
+        
+        async function createSession(title = "New Chat") {
+            try {
+                const data = await callAPI('/ai/sessions', { title });
+                if (data?.session_id) {
+                    const newSession = { id: data.session_id, title: data.title || title, created_at: data.created_at, pinned: false };
+                    sessions.unshift(newSession);
+                    sortAndRenderSessions();
+                    return newSession.id;
+                }
+            } catch(e) { return null; }
+        }
+        
+        async function deleteSession(sessionId) {
+            try {
+                await callAPI(`/ai/sessions/${sessionId}`, null, 'DELETE');
+                sessions = sessions.filter(s => s.id !== sessionId);
+                if (activeSessionId === sessionId) {
+                    activeSessionId = sessions.length > 0 ? sessions[0].id : null;
+                    if (activeSessionId) await loadSessionHistory(activeSessionId);
+                    else clearChatUI();
+                }
+                sortAndRenderSessions();
+                savePinnedState();
+                return true;
+            } catch(e) { return false; }
+        }
+        
+        async function renameSession(sessionId, newTitle) {
+            // Backend doesn't have rename yet — store locally + future sync
+            const session = sessions.find(s => s.id === sessionId);
+            if (session) {
+                session.title = newTitle;
+                sortAndRenderSessions();
+                // Optional: store local rename map
+                const renames = JSON.parse(localStorage.getItem('litheral_renames') || '{}');
+                renames[sessionId] = newTitle;
+                localStorage.setItem('litheral_renames', JSON.stringify(renames));
+            }
+        }
+        
+        function applyLocalRenames() {
+            const renames = JSON.parse(localStorage.getItem('litheral_renames') || '{}');
+            sessions.forEach(s => { if (renames[s.id]) s.title = renames[s.id]; });
+        }
+        
+        function togglePin(sessionId) {
+            const session = sessions.find(s => s.id === sessionId);
+            if (session) {
+                session.pinned = !session.pinned;
+                savePinnedState();
+                sortAndRenderSessions();
+            }
+        }
+        
+        function sortAndRenderSessions() {
+            const pinned = sessions.filter(s => s.pinned).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+            const unpinned = sessions.filter(s => !s.pinned).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+            renderSessionsList([...pinned, ...unpinned]);
+        }
+        
+        function renderSessionsList(sessionArray) {
+            if (!sessionsList) return;
+            sessionsList.innerHTML = '';
+            sessionArray.forEach(session => {
+                const div = document.createElement('div');
+                div.className = `session-item ${activeSessionId === session.id ? 'active' : ''}`;
+                div.innerHTML = `
+                    <div class="session-info">
+                        <div class="session-title">${escapeHtml(session.title)} ${session.pinned ? '<span class="session-pinned">📌</span>' : ''}</div>
+                        <div class="session-date">${new Date(session.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <div class="session-actions">
+                        <button class="session-action-btn rename-btn" data-id="${session.id}" title="Rename">✏️</button>
+                        <button class="session-action-btn pin-btn ${session.pinned ? 'pinned' : ''}" data-id="${session.id}" title="Pin">📌</button>
+                        <button class="session-action-btn delete-btn" data-id="${session.id}" title="Delete">🗑️</button>
+                    </div>
+                `;
+                div.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('session-action-btn')) return;
+                    switchSession(session.id);
+                });
+                sessionsList.appendChild(div);
+            });
+            // Attach event listeners
+            document.querySelectorAll('.rename-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = btn.getAttribute('data-id');
+                    const newTitle = prompt('Enter new chat name:', sessions.find(s => s.id === id)?.title);
+                    if (newTitle && newTitle.trim()) renameSession(id, newTitle.trim());
+                });
+            });
+            document.querySelectorAll('.pin-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const id = btn.getAttribute('data-id');
+                    togglePin(id);
+                });
+            });
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (confirm('Delete this chat permanently?')) {
+                        await deleteSession(btn.getAttribute('data-id'));
+                    }
+                });
+            });
+        }
+        
+        async function loadSessionHistory(sessionId) {
+            if (!sessionId) return;
+            try {
+                const data = await callAPI(`/ai/history/${sessionId}`, null, 'GET');
+                if (data?.messages) {
+                    clearChatUI();
+                    for (const msg of data.messages) {
+                        if (msg.role === 'user') addUserMessageStatic(msg.content, false);
+                        else await typeMessageStatic(msg.content, false, false);
+                    }
+                    scrollToBottom();
+                }
+            } catch(e) { console.warn("history load error"); }
+        }
+        
+        async function switchSession(sessionId) {
+            activeSessionId = sessionId;
+            sortAndRenderSessions();
+            await loadSessionHistory(sessionId);
+            if (window.innerWidth <= 768) closeSidebar();
+        }
+        
+        async function createNewChat() {
+            const newId = await createSession("New Chat");
+            if (newId) {
+                activeSessionId = newId;
+                clearChatUI();
+                sortAndRenderSessions();
+                // auto generate first AI greeting after new chat? show minimal
+                await typeMessageStatic(`New conversation started. What's on your mind?`, false, false);
+                scrollToBottom();
+            }
+            if (window.innerWidth <= 768) closeSidebar();
+        }
+        
+        function clearChatUI() {
+            chatMessages.innerHTML = '';
+        }
+        
+        function addUserMessageStatic(content, showActions = true) {
+            const msgDiv = document.createElement('div'); msgDiv.className = 'message user';
+            msgDiv.innerHTML = `<div class="message-username">You</div><div class="message-bubble">${escapeHtml(content)}</div>`;
+            if (showActions) {
+                const actions = document.createElement('div'); actions.className = 'message-actions';
+                actions.innerHTML = `<button class="action-btn copy-user">Copy</button>`;
+                actions.querySelector('.copy-user').onclick = () => { navigator.clipboard.writeText(content); showCopyToast(); };
+                msgDiv.appendChild(actions);
+            }
+            chatMessages.appendChild(msgDiv);
+        }
+        
+        function typeMessageStatic(text, isError = false, showActions = true) {
+            return new Promise((resolve) => {
+                const messageDiv = document.createElement('div'); messageDiv.className = 'message Litheral';
+                messageDiv.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble typing-active">${escapeHtml(text.substring(0,0))}</div>`;
+                const bubble = messageDiv.querySelector('.message-bubble');
+                chatMessages.appendChild(messageDiv);
+                let i = 0;
+                function typeChar() {
+                    if (i < text.length) {
+                        bubble.textContent += text[i];
+                        scrollToBottom();
+                        i++;
+                        typingAnimationFrame = setTimeout(typeChar, 22);
+                    } else {
+                        bubble.classList.remove('typing-active');
+                        clearTimeout(typingAnimationFrame);
+                        if (showActions && !isError) {
+                            const actionsDiv = document.createElement('div'); actionsDiv.className = 'message-actions';
+                            actionsDiv.innerHTML = `<button class="action-btn copy-ai">Copy</button>`;
+                            actionsDiv.querySelector('.copy-ai').onclick = () => { navigator.clipboard.writeText(text); showCopyToast(); };
+                            messageDiv.appendChild(actionsDiv);
+                        }
+                        resolve();
+                    }
+                }
+                typeChar();
+            });
+        }
+        
+        async function sendToLitheralV2(userMessage) {
+            if (!activeSessionId) {
+                const newId = await createSession("Chat");
+                if (!newId) throw new Error("No session");
+                activeSessionId = newId;
+            }
+            const requestBody = { message: userMessage, session_id: activeSessionId };
+            const data = await callAPI('/ai/chat', requestBody);
+            if (data.balance_remaining !== undefined) { currentBalance = data.balance_remaining; balanceAmountSpan.textContent = currentBalance.toFixed(4); }
+            // Auto-rename first message as title
+            const session = sessions.find(s => s.id === activeSessionId);
+            if (session && session.title === "New Chat" && userMessage.length > 3) {
+                const newTitle = userMessage.length > 30 ? userMessage.slice(0,30)+"..." : userMessage;
+                renameSession(activeSessionId, newTitle);
+            }
+            return data.response;
+        }
+        
+        let pendingMsg = null;
+        async function handleSendMessage() {
+            const userMsg = chatInput.value.trim();
+            if (!userMsg) return;
+            chatInput.value = '';
+            sendButton.disabled = true;
+            addUserMessageStatic(userMsg, true);
+            showThinking();
+            try {
+                const aiReply = await sendToLitheralV2(userMsg);
+                hideThinking();
+                await typeMessageStatic(aiReply, false, true);
+                pendingMsg = null;
+                if (rateLimitCountdown) clearInterval(rateLimitCountdown);
+                rateLimitWarning.textContent = '';
+            } catch (err) {
+                hideThinking();
+                const friendly = getHumanReadableErrorMessage(err);
+                await typeMessageStatic(friendly, true, false);
+                if (err.status === 429) {
+                    pendingMsg = userMsg;
+                    let wait = 12;
+                    rateLimitWarning.textContent = `Wait ${wait}s`;
+                    rateLimitCountdown = setInterval(() => {
+                        wait--;
+                        if (wait <= 0) {
+                            clearInterval(rateLimitCountdown);
+                            rateLimitWarning.textContent = '';
+                            sendButton.disabled = false;
+                            if (pendingMsg) handleSendWithRetry(pendingMsg);
+                        } else rateLimitWarning.textContent = `Wait ${wait}s`;
+                    }, 1000);
+                    return;
+                }
+            } finally {
+                if (!rateLimitCountdown) sendButton.disabled = false;
+            }
+        }
+        
+        async function handleSendWithRetry(msg) { if (msg) { chatInput.value = msg; handleSendMessage(); } }
+        
+        function showThinking() {
+            if(document.getElementById('thinkingDiv')) return;
+            const div = document.createElement('div'); div.id = 'thinkingDiv'; div.className = 'message Litheral';
+            div.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble"><div class="thinking-ring"><svg width="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#FF6600" stroke-width="2" stroke-dasharray="4 4"/></svg></div> clarifying</div>`;
+            chatMessages.appendChild(div);
+            scrollToBottom();
+        }
+        function hideThinking() { document.getElementById('thinkingDiv')?.remove(); }
+        
+        async function fetchBalanceAndGreet() {
+            try {
+                const data = await callAPI('/coins/balance', null, 'GET');
+                if (data?.balance !== undefined) { currentBalance = data.balance; balanceAmountSpan.textContent = currentBalance.toFixed(4); }
+            } catch(e) {}
+        }
+        
+        async function initAuth() {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) supabaseAccessToken = session.access_token;
+            else { const { data } = await supabase.auth.signInAnonymously(); supabaseAccessToken = data.session.access_token; }
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase.from('profile').select('first_name').eq('id', user.id).single();
+                userName = profile?.first_name || user.email?.split('@')[0] || 'there';
+            }
+        }
+        
+        async function init() {
+            await initAuth();
+            await fetchSessions();
+            applyLocalRenames();
+            sortAndRenderSessions();
+            await fetchBalanceAndGreet();
+            if (sessions.length > 0) {
+                activeSessionId = sessions[0].id;
+                await loadSessionHistory(activeSessionId);
+            } else {
+                const newId = await createSession("New Chat");
+                if (newId) { activeSessionId = newId; await typeMessageStatic("Ask me anything. Clarity starts here.", false, false); }
+            }
+            sendButton.disabled = false;
+        }
+        
+        function escapeHtml(str) { return str.replace(/[&<>]/g, function(m) { if(m === '&') return '&amp;'; if(m === '<') return '&lt;'; if(m === '>') return '&gt;'; return m;}); }
+        function scrollToBottom() { chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }); }
+        function showCopyToast() { copyToast.style.opacity = '1'; setTimeout(() => copyToast.style.opacity = '0', 1500); }
+        function closeSidebar() { sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+        function openSidebar() { sidebar.classList.add('open'); overlay.classList.add('open'); }
+        
+        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } });
+        sendButton.addEventListener('click', handleSendMessage);
+        newChatBtn.addEventListener('click', createNewChat);
+        menuToggle.addEventListener('click', openSidebar);
+        overlay.addEventListener('click', closeSidebar);
+        document.getElementById('buyCoinsBtn').addEventListener('click', () => window.location.href = '/Tokens');
+        chatMessages.addEventListener('scroll', () => { const nearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 150; if (!nearBottom) jumpBtn.classList.add('visible'); else jumpBtn.classList.remove('visible'); });
+        jumpBtn.addEventListener('click', () => { chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }); jumpBtn.classList.remove('visible'); });
+        window.addEventListener('beforeunload', () => { if(currentAbortController) currentAbortController.abort(); if(typingAnimationFrame) clearTimeout(typingAnimationFrame); });
+        init();
+    })();
+</script>
+</body>
+</html>
