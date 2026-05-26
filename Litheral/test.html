@@ -178,6 +178,14 @@
         .modal-btn.danger { background: #aa2222; color: white; }
         .modal-btn:active { transform: scale(0.95); }
 
+        .fade-out-message {
+            animation: fadeOutMsg 0.5s ease forwards;
+        }
+        @keyframes fadeOutMsg {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); display: none; }
+        }
+
         @media (max-width: 768px) {
             .sidebar { position: fixed; left: 0; top: 0; height: 100%; transform: translateX(-100%); z-index: 100; background: #0a0a0a; }
             .sidebar.open { transform: translateX(0); }
@@ -276,6 +284,11 @@
         let historyCache = new Map();
         let quotesCache = null;
         
+        // New Chat button tracking
+        let emptySessionClickCount = 0;
+        let warningMessageDiv = null;
+        let warningTimeout = null;
+        
         let activeVoiceMessageDiv = null;
         let voiceMessageTimeout = null;
         let voiceCooldown = false;
@@ -333,6 +346,13 @@
         function debouncedScroll(){ setTimeout(scrollToBottom,40); }
         function showCopyToast(){ copyToast.style.opacity='1'; setTimeout(()=>copyToast.style.opacity='0',1500); }
         function getHumanReadableErrorMessage(errorObj){ const status=errorObj?.status; if(status===402) return "Not enough coins. Tap 'add' to continue."; if(status===401) return "Session refreshed, try again."; if(status===429) return "Sending too fast. Auto retry soon."; if(status===404) return "Session not found. Creating new one."; if(!navigator.onLine) return "No internet connection."; return "Could not process request. Try again."; }
+        
+        function getTimeBasedGreeting() {
+            const hour = new Date().getHours();
+            if (hour < 12) return "Good morning";
+            if (hour < 17) return "Good afternoon";
+            return "Good evening";
+        }
         
         async function fetchAndCacheQuotes() {
             const cached = localStorage.getItem('litheral_quotes_cache');
@@ -665,14 +685,25 @@
         
         async function fetchAndUpdateCache(sessionId){ try{ const data = await callAPI(`/ai/history/${sessionId}`, null, 'GET'); if(data?.messages){ cacheSessionHistory(sessionId, data.messages); } } catch(e){} }
         
-        async function switchSession(sessionId){ activeSessionId = sessionId; sortAndRenderSessions(); await loadSessionHistory(sessionId); if(window.innerWidth<=768) closeSidebar(); }
+        async function switchSession(sessionId){ 
+            activeSessionId = sessionId; 
+            sortAndRenderSessions(); 
+            await loadSessionHistory(sessionId); 
+            // Reset the empty session click counter when switching sessions
+            emptySessionClickCount = 0;
+            if(warningMessageDiv) {
+                warningMessageDiv.remove();
+                warningMessageDiv = null;
+                if(warningTimeout) clearTimeout(warningTimeout);
+            }
+            if(window.innerWidth<=768) closeSidebar(); 
+        }
         
         async function createNewChat(){ 
-            // Check if current session has messages
             const hasMessages = await checkSessionHasMessages(activeSessionId);
             
             if (hasMessages) {
-                // Current session has messages → create new session
+                // Has messages → create new session
                 const newId = await createSession("New Chat");
                 if (newId) { 
                     activeSessionId = newId; 
@@ -682,9 +713,58 @@
                     await typeMessage(`New conversation started. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false); 
                     scrollToBottom(); 
                 }
+                // Reset counter when creating new chat
+                emptySessionClickCount = 0;
+                if(warningMessageDiv) {
+                    warningMessageDiv.remove();
+                    warningMessageDiv = null;
+                    if(warningTimeout) clearTimeout(warningTimeout);
+                }
             } else {
-                // Current session is empty → just show a message, don't create new session
-                await typeMessage("You're already in a fresh chat. Start typing when you're ready.", false, false);
+                // Empty session - increment counter
+                emptySessionClickCount++;
+                
+                if (emptySessionClickCount === 1) {
+                    // First click - show message that fades out
+                    if (warningMessageDiv) {
+                        warningMessageDiv.remove();
+                        if(warningTimeout) clearTimeout(warningTimeout);
+                    }
+                    
+                    warningMessageDiv = document.createElement('div');
+                    warningMessageDiv.className = 'message Litheral';
+                    warningMessageDiv.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble">You're already in a fresh chat. Start typing when you're ready.</div>`;
+                    chatMessages.appendChild(warningMessageDiv);
+                    scrollToBottom();
+                    
+                    // Fade out after 3 seconds
+                    warningTimeout = setTimeout(() => {
+                        if (warningMessageDiv) {
+                            warningMessageDiv.classList.add('fade-out-message');
+                            setTimeout(() => {
+                                if (warningMessageDiv) warningMessageDiv.remove();
+                                warningMessageDiv = null;
+                            }, 500);
+                        }
+                    }, 3000);
+                } 
+                else if (emptySessionClickCount === 3) {
+                    // Third click - speak user's name
+                    const voiceMessage = `${userName}, you're already in a fresh conversation. Ask me anything when you're ready.`;
+                    showVoiceMessage(voiceMessage, true);
+                    
+                    // Also show a quick visual message that fades
+                    const quickMsg = document.createElement('div');
+                    quickMsg.className = 'message Litheral voice-message-temp';
+                    quickMsg.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble">${voiceMessage}</div>`;
+                    chatMessages.appendChild(quickMsg);
+                    scrollToBottom();
+                    setTimeout(() => {
+                        quickMsg.classList.add('fade-out');
+                        setTimeout(() => quickMsg.remove(), 300);
+                    }, 4000);
+                }
+                // Clicks 2,4,5+ do nothing (silent)
             }
             
             if(window.innerWidth<=768) closeSidebar(); 
@@ -698,7 +778,10 @@
             if(session) { supabaseAccessToken = session.access_token; currentUserId = session.user.id; }
             else { const {data}=await supabase.auth.signInAnonymously(); supabaseAccessToken=data.session.access_token; currentUserId = data.session.user.id; }
             const {data:{user}}=await supabase.auth.getUser();
-            if(user){ const {data:profile}=await supabase.from('profile').select('first_name').eq('id',user.id).single(); userName=profile?.first_name||user.email?.split('@')[0]||'there'; }
+            if(user){ 
+                const {data:profile}=await supabase.from('profile').select('first_name').eq('id',user.id).single(); 
+                userName = profile?.first_name || user.email?.split('@')[0] || 'there';
+            }
         }
         
         async function init(){
@@ -707,24 +790,31 @@
             await initAuth();
             await fetchSessions();
             
-            if (sessions.length > 0) {
-                // User has sessions - load the most recent one
-                activeSessionId = sessions[0].id;
-                await loadSessionHistory(activeSessionId);
-                
-                // Check if loaded session has no messages, show welcome message
-                const hasMessages = await checkSessionHasMessages(activeSessionId);
-                if (!hasMessages && chatMessages.children.length === 0) {
-                    const randomQuote = getRandomQuote();
-                    await typeMessage(`Hey ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
-                }
-            } else {
-                // No sessions at all - create first one
+            const greeting = getTimeBasedGreeting();
+            const randomQuote = getRandomQuote();
+            
+            if (sessions.length === 0) {
                 const newId = await createSession("New Chat");
                 if (newId) {
                     activeSessionId = newId;
-                    const randomQuote = getRandomQuote();
-                    await typeMessage(`Hey ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
+                    await typeMessage(`${greeting}, ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
+                }
+            } else {
+                const mostRecentSession = sessions[0];
+                activeSessionId = mostRecentSession.id;
+                const hasMessages = await checkSessionHasMessages(activeSessionId);
+                
+                if (hasMessages) {
+                    const newId = await createSession("New Chat");
+                    if (newId) {
+                        activeSessionId = newId;
+                        await typeMessage(`${greeting}, ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
+                    }
+                } else {
+                    await loadSessionHistory(activeSessionId);
+                    if (chatMessages.children.length === 0) {
+                        await typeMessage(`${greeting}, ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
+                    }
                 }
             }
             
