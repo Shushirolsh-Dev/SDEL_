@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Litheral — integrity over algorithm</title>
+    <title>Litheral — Defiant Reality</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6600'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z'/%3E%3C/svg%3E">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -39,9 +40,13 @@
             overflow: hidden;
         }
 
-        body {
-            font-family: -apple-system, 'Segoe UI', 'Inter', system-ui, sans-serif;
-            overflow: hidden;
+        body, button, input, textarea, .message-bubble, .session-title, .modal-content, .new-chat-btn {
+            font-family: 'Nunito', -apple-system, 'Segoe UI', system-ui, sans-serif;
+            font-size: 14px;
+        }
+
+        .chat-header h1, .message-username, .balance-label, .balance-amount {
+            font-family: 'Nunito', sans-serif;
         }
 
         ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -79,9 +84,9 @@
         .session-item.active { background: rgba(255, 102, 0, 0.12); border-color: rgba(255, 102, 0, 0.3); }
         .session-item:hover { background: rgba(255, 102, 0, 0.08); }
         .session-info { flex: 1; min-width: 0; }
-        .session-title { font-size: 0.85rem; font-weight: 500; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .session-title { font-size: 14px; font-weight: 500; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .session-pinned { display: inline-flex; margin-left: 6px; vertical-align: middle; }
-        .session-date { font-size: 0.65rem; color: var(--text-secondary); margin-top: 4px; }
+        .session-date { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
         .session-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.2s; }
         .session-item:hover .session-actions { opacity: 1; }
         .session-action-btn { background: transparent; border: none; padding: 6px; cursor: pointer; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
@@ -97,17 +102,17 @@
         .header-logo { width: 24px; height: 24px; background: var(--primary-orange); border-radius: 4px; }
         .chat-header h1 { font-size: 1.1rem; font-weight: 700; color: var(--primary-orange); letter-spacing: 0.5px; }
         .balance-container { background: rgba(255, 102, 0, 0.12); padding: 6px 12px; border-radius: 24px; border: 1px solid rgba(255, 102, 0, 0.3); display: flex; align-items: center; gap: 8px; }
-        .balance-label { color: var(--text-secondary); font-size: 0.7rem; font-weight: 500; }
-        .balance-amount { color: var(--primary-orange); font-weight: 700; font-size: 0.85rem; }
-        .buy-coins-btn { background: var(--primary-orange); border: none; color: black; padding: 4px 10px; border-radius: 16px; font-size: 0.7rem; font-weight: 700; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; }
+        .balance-label { color: var(--text-secondary); font-size: 11px; font-weight: 500; }
+        .balance-amount { color: var(--primary-orange); font-weight: 700; font-size: 13px; }
+        .buy-coins-btn { background: var(--primary-orange); border: none; color: black; padding: 4px 10px; border-radius: 16px; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.2s ease; white-space: nowrap; }
         .buy-coins-btn:active { transform: scale(0.95); opacity: 0.8; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 20px; min-height: 0; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
         .message { display: flex; flex-direction: column; gap: 6px; max-width: 100%; animation: fadeIn 0.25s ease; padding: 6px 0; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .message-username { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+        .message-username { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
         .message.Litheral .message-username { color: var(--primary-orange); }
         .message.user .message-username { color: var(--text-main); text-align: right; }
-        .message-bubble { line-height: 1.5; font-size: 0.95rem; max-width: 100%; word-wrap: break-word; white-space: pre-wrap; color: var(--text-main); padding: 4px 0; }
+        .message-bubble { line-height: 1.5; font-size: 14px; max-width: 100%; word-wrap: break-word; white-space: pre-wrap; color: var(--text-main); padding: 4px 0; }
         .message.user .message-bubble { text-align: right; color: #dddddd; }
         .message-actions { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-start; opacity: 0.7; transition: opacity 0.2s; }
         .message.user .message-actions { justify-content: flex-end; }
@@ -116,8 +121,8 @@
         .action-btn:hover { background: rgba(255, 102, 0, 0.25); }
         .action-btn:hover svg { stroke: var(--primary-orange); }
         .action-btn:active { transform: scale(0.94); }
-        .copy-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: var(--primary-orange); color: black; padding: 6px 14px; border-radius: 40px; font-size: 0.8rem; font-weight: bold; z-index: 1000; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
-        .success-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #00aa44; color: white; padding: 6px 14px; border-radius: 40px; font-size: 0.8rem; font-weight: bold; z-index: 1000; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+        .copy-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: var(--primary-orange); color: black; padding: 6px 14px; border-radius: 40px; font-size: 12px; font-weight: bold; z-index: 1000; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+        .success-toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: #00aa44; color: white; padding: 6px 14px; border-radius: 40px; font-size: 12px; font-weight: bold; z-index: 1000; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
         .jump-to-bottom { 
             position: absolute; 
             bottom: 85px; 
@@ -135,7 +140,7 @@
             backdrop-filter: blur(12px); 
             transition: all 0.2s; 
             box-shadow: 0 2px 10px rgba(0,0,0,0.3); 
-            font-size: 0.75rem; 
+            font-size: 12px; 
             font-weight: 600; 
             color: var(--primary-orange); 
             opacity: 0; 
@@ -147,20 +152,21 @@
         .litheral-thinking { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
         .thinking-ring svg { width: 22px; animation: litheralPulse 1.2s ease infinite; }
         @keyframes litheralPulse { 0% { transform: scale(0.8); opacity: 0.3; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.8); opacity: 0.3; } }
-        .thinking-text { color: var(--primary-orange); font-size: 0.85rem; font-weight: 500; }
+        .thinking-text { color: var(--primary-orange); font-size: 13px; font-weight: 500; }
         .typing-active::after { content: "▊"; display: inline-block; color: var(--primary-orange); margin-left: 2px; animation: blink-cursor 0.8s step-start infinite; }
         @keyframes blink-cursor { 50% { opacity: 0; } }
         .chat-input-area { padding: 14px 16px calc(16px + var(--safe-area-inset-bottom)); background: var(--bg-dark); flex-shrink: 0; border-top: 1px solid var(--border-color); }
         .input-container { display: flex; gap: 10px; background: #0c0c0c; border: 1.5px solid var(--border-color); padding: 8px 14px; border-radius: 30px; align-items: center; transition: all 0.2s ease; }
         .input-container:focus-within { border-color: var(--primary-orange); }
-        .chat-input { flex: 1; padding: 8px 0; background: transparent; border: none; color: var(--text-main); font-size: 1rem; outline: none; font-family: inherit; min-width: 0; resize: none; max-height: 110px; line-height: 1.4; }
-        .chat-input::placeholder { color: #444; font-size: 0.9rem; }
-        .send-button { background: transparent; border: none; cursor: pointer; padding: 6px 12px; color: var(--primary-orange); font-weight: 700; font-size: 0.85rem; text-transform: uppercase; border-radius: 30px; transition: all 0.2s; }
+        .chat-input { flex: 1; padding: 8px 0; background: transparent; border: none; color: var(--text-main); font-size: 14px; outline: none; font-family: inherit; min-width: 0; resize: none; max-height: none; line-height: 1.4; overflow-y: auto; }
+        .chat-input::-webkit-scrollbar { width: 2px; }
+        .chat-input::placeholder { color: #444; font-size: 14px; }
+        .send-button { background: transparent; border: none; cursor: pointer; padding: 6px 12px; color: var(--primary-orange); font-weight: 700; font-size: 13px; text-transform: uppercase; border-radius: 30px; transition: all 0.2s; }
         .send-button:active { transform: scale(0.94); }
         .send-button:disabled { opacity: 0.3; }
         .mic-button { background: transparent; border: none; padding: 6px; cursor: pointer; display: flex; align-items: center; border-radius: 50%; transition: transform 0.1s; }
         .mic-button:active { transform: scale(0.92); }
-        .rate-limit-warning { font-size: 0.7rem; color: var(--text-secondary); text-align: center; margin-top: 8px; }
+        .rate-limit-warning { font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 8px; }
         .retry-spinning svg { animation: spin 0.7s linear infinite !important; }
         .voice-message-temp { transition: opacity 0.3s ease; }
         .voice-message-temp.fade-out { opacity: 0; }
@@ -168,11 +174,11 @@
         .custom-modal.open, .delete-modal.open { opacity: 1; visibility: visible; }
         .modal-content { background: #0c0c0c; border: 1px solid var(--border-color); border-radius: 24px; padding: 24px; width: 320px; max-width: 85vw; }
         .modal-content h3 { color: var(--primary-orange); margin-bottom: 16px; font-size: 1.1rem; }
-        .modal-content p { color: var(--text-secondary); margin-bottom: 20px; font-size: 0.9rem; }
-        .modal-input { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 14px; padding: 12px; color: white; font-size: 0.9rem; outline: none; margin-bottom: 20px; }
+        .modal-content p { color: var(--text-secondary); margin-bottom: 20px; font-size: 13px; }
+        .modal-input { width: 100%; background: #1a1a1a; border: 1px solid #333; border-radius: 14px; padding: 12px; color: white; font-size: 14px; outline: none; margin-bottom: 20px; }
         .modal-input:focus { border-color: var(--primary-orange); }
         .modal-buttons { display: flex; gap: 12px; justify-content: flex-end; }
-        .modal-btn { padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
+        .modal-btn { padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; font-size: 13px; }
         .modal-btn.cancel { background: #222; color: #aaa; }
         .modal-btn.confirm { background: var(--primary-orange); color: black; }
         .modal-btn.danger { background: #aa2222; color: white; }
@@ -293,6 +299,22 @@
         let voiceMessageTimeout = null;
         let voiceCooldown = false;
         
+        // Detect mobile device
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        // Textarea auto-expand function
+        function autoExpandTextarea() {
+            chatInput.style.height = 'auto';
+            const lineHeight = 20;
+            const maxLines = 5;
+            const maxHeight = lineHeight * maxLines;
+            const newHeight = Math.min(chatInput.scrollHeight, maxHeight);
+            chatInput.style.height = newHeight + 'px';
+            chatInput.style.overflowY = chatInput.scrollHeight > maxHeight ? 'auto' : 'hidden';
+        }
+        
+        chatInput.addEventListener('input', autoExpandTextarea);
+        
         function showSuccessToast(message) { successToast.textContent = message; successToast.style.opacity = '1'; setTimeout(() => { successToast.style.opacity = '0'; }, 2500); }
         function speakText(text) { if(window.speechSynthesis){ window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.rate=0.95; window.speechSynthesis.speak(u); } }
         function showVoiceMessage(message, shouldSpeak=true){
@@ -387,18 +409,25 @@
             if(!supabaseAccessToken) throw new Error('Not authenticated');
             if(currentAbortController) currentAbortController.abort();
             currentAbortController = new AbortController();
+            const timeoutId = setTimeout(() => currentAbortController.abort(), 15000);
             const options = { method, headers: { 'Authorization': `Bearer ${supabaseAccessToken}`, 'Content-Type':'application/json' }, signal: currentAbortController.signal };
             if(body && (method==='POST'||method==='PUT')) options.body = JSON.stringify(body);
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-            if(response.status===401){
-                const { data: { session } } = await supabase.auth.refreshSession();
-                if(session) supabaseAccessToken = session.access_token;
-                return callAPI(endpoint, body, method);
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                clearTimeout(timeoutId);
+                if(response.status===401){
+                    const { data: { session } } = await supabase.auth.refreshSession();
+                    if(session) supabaseAccessToken = session.access_token;
+                    return callAPI(endpoint, body, method);
+                }
+                if(response.status===429){ const err=new Error('Rate limited'); err.status=429; throw err; }
+                if(response.status===402){ const err=new Error('insufficient_coins'); err.status=402; throw err; }
+                if(!response.ok){ const err=new Error(`API error`); err.status=response.status; throw err; }
+                return await response.json();
+            } catch(e) {
+                clearTimeout(timeoutId);
+                throw e;
             }
-            if(response.status===429){ const err=new Error('Rate limited'); err.status=429; throw err; }
-            if(response.status===402){ const err=new Error('insufficient_coins'); err.status=402; throw err; }
-            if(!response.ok){ const err=new Error(`API error`); err.status=response.status; throw err; }
-            return await response.json();
         }
         
         async function loadUserChatSettings() {
@@ -605,7 +634,9 @@
             if(!userMessage.trim()) return;
             sendButton.disabled=true; micButton.disabled=true;
             addUserMessage(userMessage, true);
-            chatInput.value=''; chatInput.style.height='auto';
+            chatInput.value=''; 
+            chatInput.style.height='auto';
+            autoExpandTextarea();
             showThinkingAnimation();
             try{
                 const response = await sendToLitheralV2(userMessage);
@@ -689,7 +720,6 @@
             activeSessionId = sessionId; 
             sortAndRenderSessions(); 
             await loadSessionHistory(sessionId); 
-            // Reset the empty session click counter when switching sessions
             emptySessionClickCount = 0;
             if(warningMessageDiv) {
                 warningMessageDiv.remove();
@@ -703,7 +733,6 @@
             const hasMessages = await checkSessionHasMessages(activeSessionId);
             
             if (hasMessages) {
-                // Has messages → create new session
                 const newId = await createSession("New Chat");
                 if (newId) { 
                     activeSessionId = newId; 
@@ -713,7 +742,6 @@
                     await typeMessage(`New conversation started. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false); 
                     scrollToBottom(); 
                 }
-                // Reset counter when creating new chat
                 emptySessionClickCount = 0;
                 if(warningMessageDiv) {
                     warningMessageDiv.remove();
@@ -721,11 +749,9 @@
                     if(warningTimeout) clearTimeout(warningTimeout);
                 }
             } else {
-                // Empty session - increment counter
                 emptySessionClickCount++;
                 
                 if (emptySessionClickCount === 1) {
-                    // First click - show message that fades out
                     if (warningMessageDiv) {
                         warningMessageDiv.remove();
                         if(warningTimeout) clearTimeout(warningTimeout);
@@ -737,7 +763,6 @@
                     chatMessages.appendChild(warningMessageDiv);
                     scrollToBottom();
                     
-                    // Fade out after 3 seconds
                     warningTimeout = setTimeout(() => {
                         if (warningMessageDiv) {
                             warningMessageDiv.classList.add('fade-out-message');
@@ -749,11 +774,9 @@
                     }, 3000);
                 } 
                 else if (emptySessionClickCount === 3) {
-                    // Third click - speak user's name
                     const voiceMessage = `${userName}, you're already in a fresh conversation. Ask me anything when you're ready.`;
                     showVoiceMessage(voiceMessage, true);
                     
-                    // Also show a quick visual message that fades
                     const quickMsg = document.createElement('div');
                     quickMsg.className = 'message Litheral voice-message-temp';
                     quickMsg.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble">${voiceMessage}</div>`;
@@ -764,7 +787,6 @@
                         setTimeout(() => quickMsg.remove(), 300);
                     }, 4000);
                 }
-                // Clicks 2,4,5+ do nothing (silent)
             }
             
             if(window.innerWidth<=768) closeSidebar(); 
@@ -784,47 +806,61 @@
             }
         }
         
+        // FORCE hide loading screen after 5 seconds max
+        const forceHideTimeout = setTimeout(() => {
+            if (loadingScreen && !loadingScreen.classList.contains('hide')) {
+                loadingScreen.classList.add('hide');
+                console.log("Loading screen force hidden after 5 seconds");
+            }
+        }, 5000);
+        
         async function init(){
             loadingScreen.classList.remove('hide');
-            await fetchAndCacheQuotes();
-            await initAuth();
-            await fetchSessions();
             
-            const greeting = getTimeBasedGreeting();
-            const randomQuote = getRandomQuote();
-            
-            if (sessions.length === 0) {
-                const newId = await createSession("New Chat");
-                if (newId) {
-                    activeSessionId = newId;
-                    await typeMessage(`${greeting}, ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
-                }
-            } else {
-                const mostRecentSession = sessions[0];
-                activeSessionId = mostRecentSession.id;
-                const hasMessages = await checkSessionHasMessages(activeSessionId);
-                
-                if (hasMessages) {
-                    const newId = await createSession("New Chat");
-                    if (newId) {
-                        activeSessionId = newId;
-                        await typeMessage(`${greeting}, ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
-                    }
-                } else {
-                    await loadSessionHistory(activeSessionId);
-                    if (chatMessages.children.length === 0) {
-                        await typeMessage(`${greeting}, ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
-                    }
-                }
+            // Create a fresh session IMMEDIATELY so user can start typing
+            const freshId = await createSession("New Chat");
+            if (freshId) {
+                activeSessionId = freshId;
+                clearChatUI();
+                const greeting = getTimeBasedGreeting();
+                const randomQuote = getRandomQuote();
+                await typeMessage(`${greeting}, ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
             }
+            
+            // Load everything else in background (non-blocking)
+            Promise.all([
+                fetchAndCacheQuotes(),
+                initAuth(),
+                fetchSessions()
+            ]).catch(e => console.warn("Background loading error:", e));
             
             try{ const data=await callAPI('/coins/balance',null,'GET'); if(data?.balance!==undefined){ currentBalance=data.balance; balanceAmountSpan.textContent=currentBalance.toFixed(4); } } catch(e){}
             
             sendButton.disabled=false; micButton.disabled=false;
-            setTimeout(() => { loadingScreen.classList.add('hide'); }, 300);
+            
+            // Hide loading screen after 1 second (already showing chat)
+            setTimeout(() => { 
+                loadingScreen.classList.add('hide'); 
+                clearTimeout(forceHideTimeout);
+            }, 1000);
         }
         
-        chatInput.addEventListener('keydown',(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); handleSendWithText(chatInput.value.trim()); } });
+        // KEYBOARD HANDLER: Mobile = new line only, PC = send on Enter
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (isMobile) {
+                    // Mobile: allow new line (do nothing, let default happen)
+                    return;
+                } else {
+                    // PC: Enter sends message, Shift+Enter = new line
+                    if (!e.shiftKey) {
+                        e.preventDefault();
+                        handleSendWithText(chatInput.value.trim());
+                    }
+                }
+            }
+        });
+        
         sendButton.addEventListener('click',()=>{ handleSendWithText(chatInput.value.trim()); });
         micButton.addEventListener('click',handleVoiceClick);
         newChatBtn.addEventListener('click',createNewChat);
