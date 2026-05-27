@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Litheral — Defiant Reality</title>
+    <title>Litheral — integrity over algorithm</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6600'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z'/%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -289,6 +289,7 @@
         let pendingRetryMessage = null;
         let historyCache = new Map();
         let quotesCache = null;
+        let loadingCompleted = false;
         
         // New Chat button tracking
         let emptySessionClickCount = 0;
@@ -302,7 +303,7 @@
         // Detect mobile device
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
         
-        // Textarea auto-expand function
+        // Textarea auto-expand function (max 5 lines)
         function autoExpandTextarea() {
             chatInput.style.height = 'auto';
             const lineHeight = 20;
@@ -566,7 +567,7 @@
             if(showActions){
                 const actions = document.createElement('div'); actions.className='message-actions';
                 const editBtn = document.createElement('button'); editBtn.className='action-btn'; editBtn.innerHTML=editIcon;
-                editBtn.onclick=()=>{ chatInput.value=content; chatInput.focus(); chatInput.dispatchEvent(new Event('input')); };
+                editBtn.onclick=()=>{ chatInput.value=content; chatInput.focus(); chatInput.dispatchEvent(new Event('input')); autoExpandTextarea(); };
                 const copyBtn = document.createElement('button'); copyBtn.className='action-btn'; copyBtn.innerHTML=copyIcon;
                 copyBtn.onclick=()=>{ navigator.clipboard.writeText(content); showCopyToast(); };
                 const shareBtn = document.createElement('button'); shareBtn.className='action-btn'; shareBtn.innerHTML=shareIcon;
@@ -626,7 +627,11 @@
             const data = await callAPI('/ai/chat', requestBody);
             if(data.balance_remaining!==undefined){ currentBalance=data.balance_remaining; balanceAmountSpan.textContent=currentBalance.toFixed(4); }
             const session = sessions.find(s=>s.id===activeSessionId);
-            if(session && session.title==="New Chat" && userMessage.length>3){ const newTitle = userMessage.length>30 ? userMessage.slice(0,30)+"..." : userMessage; await renameSession(activeSessionId, newTitle); }
+            // Auto-rename on FIRST message (not second)
+            if(session && session.title === "New Chat" && userMessage.length > 3){ 
+                const newTitle = userMessage.length > 30 ? userMessage.slice(0,30)+"..." : userMessage; 
+                await renameSession(activeSessionId, newTitle);
+            }
             return data.response;
         }
         
@@ -810,14 +815,13 @@
         const forceHideTimeout = setTimeout(() => {
             if (loadingScreen && !loadingScreen.classList.contains('hide')) {
                 loadingScreen.classList.add('hide');
-                console.log("Loading screen force hidden after 5 seconds");
             }
         }, 5000);
         
         async function init(){
             loadingScreen.classList.remove('hide');
             
-            // Create a fresh session IMMEDIATELY so user can start typing
+            // FIRST: Create a fresh session immediately so user can start typing
             const freshId = await createSession("New Chat");
             if (freshId) {
                 activeSessionId = freshId;
@@ -827,18 +831,20 @@
                 await typeMessage(`${greeting}, ${userName}. ${randomQuote.quote_text} — ${randomQuote.author}`, false, false);
             }
             
-            // Load everything else in background (non-blocking)
+            // SECOND: Load everything else in background (non-blocking)
+            // This ensures sidebar populates with past sessions silently
             Promise.all([
                 fetchAndCacheQuotes(),
                 initAuth(),
                 fetchSessions()
             ]).catch(e => console.warn("Background loading error:", e));
             
+            // Get balance in background
             try{ const data=await callAPI('/coins/balance',null,'GET'); if(data?.balance!==undefined){ currentBalance=data.balance; balanceAmountSpan.textContent=currentBalance.toFixed(4); } } catch(e){}
             
             sendButton.disabled=false; micButton.disabled=false;
             
-            // Hide loading screen after 1 second (already showing chat)
+            // Hide loading screen after 1 second (chat is already visible)
             setTimeout(() => { 
                 loadingScreen.classList.add('hide'); 
                 clearTimeout(forceHideTimeout);
