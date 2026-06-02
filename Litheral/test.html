@@ -10,6 +10,14 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
+        }
+
+        /* Allow text selection only inside AI reply bubbles */
+        .message.Litheral .message-bubble,
+        .message.Litheral .message-bubble * {
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         :root {
@@ -266,7 +274,6 @@
             line-height: 1.5;
             word-wrap: break-word;
             white-space: pre-wrap;
-            position: relative;
         }
         .message.Litheral .message-bubble {
             background: var(--bg-secondary);
@@ -279,25 +286,17 @@
             border-bottom-right-radius: 6px;
         }
         
-        /* User message actions positioned bottom-right inside bubble */
+        /* User message actions - directly under the message bubble */
         .message.user .message-actions {
-            position: absolute;
-            bottom: 6px;
-            right: 12px;
             display: flex;
-            gap: 4px;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 4px;
             opacity: 0;
             transition: opacity 0.15s;
-            background: rgba(0,0,0,0.05);
-            border-radius: 20px;
-            padding: 2px 4px;
-            backdrop-filter: blur(2px);
         }
         .message.user:hover .message-actions {
             opacity: 1;
-        }
-        .message.user .message-bubble {
-            padding-bottom: 32px; /* Space for actions */
         }
         
         .action-btn {
@@ -335,7 +334,7 @@
 
         .jump-to-bottom {
             position: absolute;
-            bottom: 160px;
+            bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
             background: var(--bg-secondary);
@@ -394,33 +393,28 @@
         }
         @keyframes blink { 50% { opacity: 0; } }
 
-        /* BOLD EDGE CARD for input area */
+        /* Simple card - no inner box, clean design */
         .chat-input-card {
             margin: 0 16px 16px 16px;
             background: var(--bg-secondary);
             border-radius: 28px;
             border: 2px solid var(--border-light);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-            padding: 12px 20px 16px 20px;
-            transition: box-shadow 0.2s, border-color 0.2s;
+            transition: border-color 0.2s;
+            overflow: hidden;
         }
         .chat-input-card:focus-within {
             border-color: var(--primary);
-            box-shadow: 0 8px 24px rgba(255,102,0,0.12);
         }
         
         .chat-input-area {
-            background: var(--bg-primary);
-            flex-shrink: 0;
-            padding-bottom: calc(12px + var(--safe-bottom));
-        }
-        .message-input-line {
-            width: 100%;
-            margin-bottom: 12px;
+            padding: 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
         .chat-input {
             width: 100%;
-            padding: 14px 0;
+            padding: 0;
             background: transparent;
             border: none;
             color: var(--text-primary);
@@ -430,7 +424,7 @@
             font-family: inherit;
             resize: none;
             line-height: 1.45;
-            max-height: 135px;
+            max-height: calc(1.45em * 5); /* 5 lines max */
             overflow-y: auto;
         }
         .chat-input::placeholder {
@@ -442,7 +436,6 @@
             align-items: center;
             justify-content: flex-end;
             gap: 12px;
-            margin-top: 8px;
         }
         .mic-button {
             background: transparent;
@@ -475,7 +468,6 @@
             font-weight: 500;
             color: var(--text-tertiary);
             text-align: center;
-            margin-top: 8px;
         }
 
         .voice-message-temp { transition: opacity 0.3s ease; }
@@ -584,9 +576,10 @@
             .overlay.open { opacity: 1; visibility: visible; }
             .chat-messages { padding: 16px; }
             .chat-header { padding: 12px 16px; }
-            .chat-input-card { margin: 0 12px 12px 12px; padding: 10px 16px 14px 16px; }
+            .chat-input-card { margin: 0 12px 12px 12px; }
+            .chat-input-area { padding: 12px 16px; }
             .message-bubble { font-size: 0.95rem; }
-            .jump-to-bottom { bottom: 150px; }
+            .jump-to-bottom { bottom: 90px; }
         }
     </style>
 </head>
@@ -613,12 +606,10 @@
         <div class="chat-messages" id="chatMessages"></div>
         <button class="jump-to-bottom" id="jumpToBottomBtn">↓ New messages</button>
         
-        <!-- BOLD EDGE CARD WRAPPER -->
+        <!-- Simple card wrapper - no inner box -->
         <div class="chat-input-card">
             <div class="chat-input-area">
-                <div class="message-input-line">
-                    <textarea class="chat-input" id="chatInput" placeholder="Ask anything..." autocomplete="off" rows="1"></textarea>
-                </div>
+                <textarea class="chat-input" id="chatInput" placeholder="Ask anything..." autocomplete="off" rows="1"></textarea>
                 <div class="input-actions-row">
                     <button class="mic-button" id="micButton"><svg viewBox="0 0 24 24" fill="none"><path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="currentColor" stroke-width="1.5"/><path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="currentColor" stroke-width="1.5"/><path d="M12 22V19" stroke="currentColor" stroke-width="1.5"/></svg></button>
                     <button class="send-button" id="sendButton">Send</button>
@@ -1493,17 +1484,13 @@
         setTimeout(() => { loadingScreen.classList.add('hide'); }, 200);
     }
     
-    // Enter = new line (max 5 lines), Send button sends
+    // Enter = new line, Send button sends
     chatInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            const start = chatInput.selectionStart;
-            const end = chatInput.selectionEnd;
-            const value = chatInput.value;
-            chatInput.value = value.substring(0, start) + '\n' + value.substring(end);
-            chatInput.selectionStart = chatInput.selectionEnd = start + 1;
-            autoResizeTextarea();
-            chatInput.dispatchEvent(new Event('input'));
+            if (chatInput.value.trim()) {
+                handleSendWithText(chatInput.value.trim());
+            }
         }
     });
     
