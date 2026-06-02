@@ -403,7 +403,7 @@
         }
         @keyframes blink { 50% { opacity: 0; } }
 
-        /* Simple card - reduced height */
+        /* Simple card - reduced height, textarea shows 5 lines max visible but scrollable for unlimited content */
         .chat-input-card {
             margin: 0 16px 16px 16px;
             background: var(--bg-secondary);
@@ -737,6 +737,7 @@
         const maxHeight = lineHeight * 5;
         const newHeight = Math.min(chatInput.scrollHeight, maxHeight);
         chatInput.style.height = newHeight + 'px';
+        // Always show scrollbar if content exceeds max height
         if (chatInput.scrollHeight > maxHeight) {
             chatInput.style.overflowY = 'auto';
         } else {
@@ -1537,20 +1538,17 @@
         setTimeout(() => { loadingScreen.classList.add('hide'); }, 200);
     }
     
-    // Enter = new line (max 5 lines), Send button sends on click only
+    // Enter creates new line (unlimited lines, scrollable within 5-line visible area)
     chatInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             const start = chatInput.selectionStart;
             const end = chatInput.selectionEnd;
             const value = chatInput.value;
-            const lines = (value.substring(0, start) + '\n' + value.substring(end)).split('\n');
-            if (lines.length <= 5) {
-                chatInput.value = value.substring(0, start) + '\n' + value.substring(end);
-                chatInput.selectionStart = chatInput.selectionEnd = start + 1;
-                autoResizeTextarea();
-                chatInput.dispatchEvent(new Event('input'));
-            }
+            chatInput.value = value.substring(0, start) + '\n' + value.substring(end);
+            chatInput.selectionStart = chatInput.selectionEnd = start + 1;
+            autoResizeTextarea();
+            chatInput.dispatchEvent(new Event('input'));
         }
     });
     
