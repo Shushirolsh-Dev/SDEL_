@@ -10,6 +10,20 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            user-select: none;
+        }
+
+        /* Allow text selection only inside AI reply bubbles with proper styling */
+        .message.Litheral .message-bubble,
+        .message.Litheral .message-bubble * {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        .message.Litheral .message-bubble.selectable,
+        .message.Litheral .message-bubble.selectable * {
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         :root {
@@ -266,11 +280,15 @@
             line-height: 1.5;
             word-wrap: break-word;
             white-space: pre-wrap;
+            transition: background 0.1s ease;
         }
         .message.Litheral .message-bubble {
             background: var(--bg-secondary);
             border-bottom-left-radius: 6px;
             color: var(--text-primary);
+        }
+        .message.Litheral .message-bubble.selectable {
+            background: var(--primary-light);
         }
         .message.user .message-bubble {
             background: var(--user-message-bg);
@@ -278,17 +296,19 @@
             border-bottom-right-radius: 6px;
         }
         
-        .message-actions {
+        /* User message actions - directly under the message bubble */
+        .message.user .message-actions {
             display: flex;
             gap: 8px;
-            margin-top: 6px;
+            justify-content: flex-end;
+            margin-top: 4px;
             opacity: 0;
             transition: opacity 0.15s;
         }
-        .message:hover .message-actions { opacity: 1; }
-        .message.user .message-actions {
-            justify-content: flex-start;
+        .message.user:hover .message-actions {
+            opacity: 1;
         }
+        
         .action-btn {
             background: transparent;
             border: none;
@@ -383,49 +403,54 @@
         }
         @keyframes blink { 50% { opacity: 0; } }
 
-        .chat-input-area {
-            padding: 16px 20px calc(20px + var(--safe-bottom));
-            background: var(--bg-primary);
-            flex-shrink: 0;
-            border-top: 1px solid var(--border-light);
-        }
-        .input-container {
-            display: flex;
-            gap: 12px;
+        /* Simple card - reduced height, textarea shows 5 lines max visible but scrollable for unlimited content */
+        .chat-input-card {
+            margin: 0 16px 16px 16px;
             background: var(--bg-secondary);
-            border: 1px solid var(--border-light);
-            border-radius: 32px;
-            padding: 8px 8px 8px 20px;
-            align-items: flex-end;
+            border-radius: 24px;
+            border: 2px solid var(--border-light);
             transition: border-color 0.2s;
+            overflow: hidden;
         }
-        .input-container:focus-within {
+        .chat-input-card:focus-within {
             border-color: var(--primary);
-            box-shadow: 0 0 0 3px var(--primary-light);
         }
+        
+        .chat-input-area {
+            padding: 8px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
         .chat-input {
-            flex: 1;
-            padding: 12px 0;
+            width: 100%;
+            padding: 0;
             background: transparent;
             border: none;
             color: var(--text-primary);
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 500;
             outline: none;
             font-family: inherit;
-            min-width: 0;
             resize: none;
             line-height: 1.45;
-            max-height: 135px;
+            max-height: calc(1.45em * 5);
+            overflow-y: auto;
         }
         .chat-input::placeholder {
             color: var(--text-tertiary);
             font-weight: 400;
         }
+        .input-actions-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+        }
         .mic-button {
             background: transparent;
             border: none;
-            padding: 10px;
+            padding: 8px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -434,26 +459,25 @@
             transition: background 0.15s, color 0.15s;
         }
         .mic-button:hover { background: var(--bg-tertiary); color: var(--primary); }
-        .mic-button svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.8; fill: none; }
+        .mic-button svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.8; fill: none; }
         .send-button {
             background: var(--primary);
             border: none;
             cursor: pointer;
-            padding: 10px 22px;
+            padding: 8px 18px;
             color: white;
             font-weight: 800;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             border-radius: 40px;
             transition: background 0.2s;
         }
         .send-button:hover { background: var(--primary-hover); }
         .send-button:disabled { opacity: 0.5; cursor: not-allowed; }
         .rate-limit-warning {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 500;
             color: var(--text-tertiary);
             text-align: center;
-            margin-top: 10px;
         }
 
         .voice-message-temp { transition: opacity 0.3s ease; }
@@ -562,8 +586,10 @@
             .overlay.open { opacity: 1; visibility: visible; }
             .chat-messages { padding: 16px; }
             .chat-header { padding: 12px 16px; }
-            .chat-input-area { padding: 12px 16px calc(16px + var(--safe-bottom)); }
+            .chat-input-card { margin: 0 12px 12px 12px; }
+            .chat-input-area { padding: 10px 14px; }
             .message-bubble { font-size: 0.95rem; }
+            .jump-to-bottom { bottom: 90px; }
         }
     </style>
 </head>
@@ -585,17 +611,20 @@
         <div class="chat-header">
             <button class="menu-toggle" id="menuToggle">☰</button>
             <div class="header-left"><div class="header-logo"></div><h1>Litheral</h1></div>
-            <div class="balance-container"><span class="balance-label">credits</span><span class="balance-amount" id="balanceAmount">0.00</span><button class="buy-coins-btn" id="buyCoinsBtn">add</button></div>
+            <div class="balance-container"><span class="balance-label">credits</span><span class="balance-amount" id="balanceAmount">0</span><button class="buy-coins-btn" id="buyCoinsBtn">+</button></div>
         </div>
         <div class="chat-messages" id="chatMessages"></div>
         <button class="jump-to-bottom" id="jumpToBottomBtn">↓ New messages</button>
-        <div class="chat-input-area">
-            <div class="input-container">
+        
+        <div class="chat-input-card">
+            <div class="chat-input-area">
                 <textarea class="chat-input" id="chatInput" placeholder="Ask anything..." autocomplete="off" rows="1"></textarea>
-                <button class="mic-button" id="micButton"><svg viewBox="0 0 24 24" fill="none"><path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="currentColor" stroke-width="1.5"/><path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="currentColor" stroke-width="1.5"/><path d="M12 22V19" stroke="currentColor" stroke-width="1.5"/></svg></button>
-                <button class="send-button" id="sendButton">Send</button>
+                <div class="input-actions-row">
+                    <button class="mic-button" id="micButton"><svg viewBox="0 0 24 24" fill="none"><path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="currentColor" stroke-width="1.5"/><path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="currentColor" stroke-width="1.5"/><path d="M12 22V19" stroke="currentColor" stroke-width="1.5"/></svg></button>
+                    <button class="send-button" id="sendButton">Send</button>
+                </div>
+                <div class="rate-limit-warning" id="rateLimitWarning"></div>
             </div>
-            <div class="rate-limit-warning" id="rateLimitWarning"></div>
         </div>
     </div>
 </div>
@@ -662,6 +691,10 @@
     let voiceMessageTimeout = null;
     let voiceCooldown = false;
     
+    // Track long press for text selection
+    let longPressTimer = null;
+    let currentLongPressBubble = null;
+    
     // Placeholder animation
     let currentPhraseIndex = 0, isAnimatingPlaceholder = false, currentPlaceholderText = "", currentDisplayLength = 0, isDeleting = false, placeholderTimer = null;
     const placeholderPhrases = ["Ask with clarity", "Seek what matters", "Clarity over noise", "Think freely", "Speak your truth"];
@@ -704,6 +737,7 @@
         const maxHeight = lineHeight * 5;
         const newHeight = Math.min(chatInput.scrollHeight, maxHeight);
         chatInput.style.height = newHeight + 'px';
+        // Always show scrollbar if content exceeds max height
         if (chatInput.scrollHeight > maxHeight) {
             chatInput.style.overflowY = 'auto';
         } else {
@@ -1046,6 +1080,43 @@
     const shareIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
     const staticRetryIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
     
+    function setupLongPressForBubble(bubbleElement) {
+        if (!bubbleElement) return;
+        
+        bubbleElement.addEventListener('touchstart', (e) => {
+            longPressTimer = setTimeout(() => {
+                // Enable text selection on long press
+                bubbleElement.classList.add('selectable');
+                currentLongPressBubble = bubbleElement;
+            }, 900);
+        });
+        
+        bubbleElement.addEventListener('touchend', (e) => {
+            clearTimeout(longPressTimer);
+        });
+        
+        bubbleElement.addEventListener('touchcancel', (e) => {
+            clearTimeout(longPressTimer);
+        });
+        
+        bubbleElement.addEventListener('touchmove', (e) => {
+            clearTimeout(longPressTimer);
+        });
+        
+        // Tap to clear selection
+        bubbleElement.addEventListener('click', (e) => {
+            if (currentLongPressBubble === bubbleElement && bubbleElement.classList.contains('selectable')) {
+                // Clear selection
+                const selection = window.getSelection();
+                if (selection) {
+                    selection.removeAllRanges();
+                }
+                bubbleElement.classList.remove('selectable');
+                currentLongPressBubble = null;
+            }
+        });
+    }
+    
     function addUserMessage(content, showActions=true){
         const msgDiv = document.createElement('div'); 
         msgDiv.className = 'message user';
@@ -1088,15 +1159,27 @@
                 msgDiv.innerHTML = `<div class="message-username">You</div><div class="message-bubble">${escapeHtml(msg.content)}</div>`;
                 const actions = document.createElement('div');
                 actions.className = 'message-actions';
+                const editBtn = document.createElement('button');
+                editBtn.className = 'action-btn';
+                editBtn.innerHTML = editIcon;
+                editBtn.onclick = (function(content){ return function(){ chatInput.value = content; chatInput.focus(); autoResizeTextarea(); }; })(msg.content);
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'action-btn';
                 copyBtn.innerHTML = copyIcon;
                 copyBtn.onclick = (function(content){ return function(){ navigator.clipboard.writeText(content); showCopyToast(); }; })(msg.content);
+                const shareBtn = document.createElement('button');
+                shareBtn.className = 'action-btn';
+                shareBtn.innerHTML = shareIcon;
+                shareBtn.onclick = (function(content){ return function(){ if(navigator.share) navigator.share({text:content}); else copyBtn.click(); }; })(msg.content);
+                actions.appendChild(editBtn);
                 actions.appendChild(copyBtn);
+                actions.appendChild(shareBtn);
                 msgDiv.appendChild(actions);
             } else {
                 msgDiv.className = 'message Litheral';
                 msgDiv.innerHTML = `<div class="message-username">Litheral</div><div class="message-bubble">${escapeHtml(msg.content)}</div>`;
+                const bubble = msgDiv.querySelector('.message-bubble');
+                setupLongPressForBubble(bubble);
                 const actions = document.createElement('div');
                 actions.className = 'message-actions';
                 const retryBtn = document.createElement('button');
@@ -1168,7 +1251,7 @@
         const data = await callAPI('/ai/chat', requestBody);
         if(data.balance_remaining !== undefined){ 
             currentBalance = data.balance_remaining; 
-            balanceAmountSpan.textContent = currentBalance.toFixed(4); 
+            balanceAmountSpan.textContent = Math.floor(currentBalance); 
         }
         const session = sessions.find(s=>s.id === activeSessionId);
         if(session && session.title === "New Chat" && userMessage.length > 3){ 
@@ -1241,6 +1324,7 @@
                 } else {
                     bubble.classList.remove('typing-active');
                     clearTimeout(typingAnimationFrame);
+                    setupLongPressForBubble(bubble);
                     if(showActions && !isError){
                         const actionsDiv = document.createElement('div'); 
                         actionsDiv.className = 'message-actions';
@@ -1445,7 +1529,7 @@
             const data = await callAPI('/coins/balance', null, 'GET'); 
             if(data?.balance !== undefined){ 
                 currentBalance = data.balance; 
-                balanceAmountSpan.textContent = currentBalance.toFixed(4); 
+                balanceAmountSpan.textContent = Math.floor(currentBalance); 
             } 
         } catch(e){}
         
@@ -1454,19 +1538,17 @@
         setTimeout(() => { loadingScreen.classList.add('hide'); }, 200);
     }
     
-    // Mobile-friendly enter handling: Enter = new line, Send button sends
+    // Enter creates new line (unlimited lines, scrollable within 5-line visible area)
     chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            if (!e.shiftKey) {
-                e.preventDefault();
-                const start = chatInput.selectionStart;
-                const end = chatInput.selectionEnd;
-                const value = chatInput.value;
-                chatInput.value = value.substring(0, start) + '\n' + value.substring(end);
-                chatInput.selectionStart = chatInput.selectionEnd = start + 1;
-                autoResizeTextarea();
-                chatInput.dispatchEvent(new Event('input'));
-            }
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const start = chatInput.selectionStart;
+            const end = chatInput.selectionEnd;
+            const value = chatInput.value;
+            chatInput.value = value.substring(0, start) + '\n' + value.substring(end);
+            chatInput.selectionStart = chatInput.selectionEnd = start + 1;
+            autoResizeTextarea();
+            chatInput.dispatchEvent(new Event('input'));
         }
     });
     
