@@ -2,861 +2,754 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Litheral</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Litheral — Add Credits</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6600'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6z'/%3E%3C/svg%3E">
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
         }
 
         :root {
-            --primary-orange: #FF6600;
-            --bg-dark: #000000;
-            --card-bg: #0c0c0c;
-            --border-color: #222;
-            --text-main: #f0f0f0;
-            --text-secondary: #888888;
-            --soft-warning: rgba(255, 102, 0, 0.15);
-            --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+            --primary: #FF6600;
+            --primary-hover: #e05a00;
+            --primary-light: rgba(255, 102, 0, 0.1);
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7f7f8;
+            --bg-tertiary: #f0f0f2;
+            --border-light: #e5e5e5;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b6b6b;
+            --text-tertiary: #8e8e93;
+            --sidebar-width: 280px;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --success: #10b981;
+            --error: #ef4444;
         }
 
-        html, body {
-            height: 100%;
-            width: 100%;
-            background: var(--bg-dark);
-            position: fixed;
-            overflow: hidden;
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #0f0f13;
+                --bg-secondary: #1a1a1e;
+                --bg-tertiary: #252528;
+                --border-light: #2c2c30;
+                --text-primary: #f5f5f7;
+                --text-secondary: #a1a1a6;
+                --text-tertiary: #6c6c70;
+            }
         }
 
         body {
-            font-family: -apple-system, 'Segoe UI', 'Inter', system-ui, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
+            font-family: -apple-system, 'Inter', 'Segoe UI', system-ui, 'Helvetica Neue', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-weight: 500;
+            min-height: 100vh;
         }
 
-        .chat-container {
-            width: 100%;
-            max-width: 100%;
-            height: 100%;
-            background: var(--bg-dark);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
+        /* Navigation */
+        .nav {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-light);
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .chat-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border-color);
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            flex-shrink: 0;
-            background: var(--bg-dark);
-            position: sticky;
-            top: 0;
-            z-index: 10;
         }
 
-        .header-left {
+        .logo {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            text-decoration: none;
         }
 
-        .header-logo {
-            width: 24px;
-            height: 24px;
-            background: var(--primary-orange);
-            border-radius: 4px;
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: 8px;
         }
 
-        .chat-header h1 {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--primary-orange);
-            letter-spacing: 0.5px;
+        .logo h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.3px;
         }
 
-        .balance-container {
-            background: rgba(255, 102, 0, 0.12);
-            padding: 6px 12px;
-            border-radius: 24px;
-            border: 1px solid rgba(255, 102, 0, 0.3);
+        .balance-display {
+            background: var(--bg-secondary);
+            padding: 8px 20px;
+            border-radius: 40px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
 
         .balance-label {
             color: var(--text-secondary);
-            font-size: 0.7rem;
-            font-weight: 500;
+            font-size: 0.85rem;
+            font-weight: 600;
         }
 
         .balance-amount {
-            color: var(--primary-orange);
-            font-weight: 700;
-            font-size: 0.85rem;
-        }
-
-        .buy-coins-btn {
-            background: var(--primary-orange);
-            border: none;
-            color: black;
-            padding: 4px 10px;
-            border-radius: 16px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-        }
-
-        .buy-coins-btn:active {
-            transform: scale(0.95);
-            opacity: 0.8;
-        }
-
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            min-height: 0;
-            -webkit-overflow-scrolling: touch;
-            scroll-behavior: smooth;
-        }
-        
-        .message {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            max-width: 100%;
-            animation: fadeIn 0.25s ease;
-            padding: 6px 0;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .message-username {
-            font-size: 0.7rem;
+            color: var(--primary);
             font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            opacity: 0.7;
+            font-size: 1.1rem;
         }
 
-        .message.Litheral .message-username {
-            color: var(--primary-orange);
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 24px;
         }
 
-        .message.user .message-username {
-            color: var(--text-main);
-            text-align: right;
-        }
-
-        .message-bubble {
-            line-height: 1.5;
-            font-size: 0.95rem;
-            max-width: 100%;
-            word-wrap: break-word;
-            white-space: pre-wrap;
-            color: var(--text-main);
-            padding: 4px 0;
-        }
-
-        .message.user .message-bubble {
-            text-align: right;
-            color: #dddddd;
-        }
-
-        .message-actions {
-            display: flex;
-            gap: 8px;
-            margin-top: 8px;
-            justify-content: flex-start;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-        }
-        .message.user .message-actions {
-            justify-content: flex-end;
-        }
-        .action-btn {
-            background: rgba(20,20,20,0.6);
-            border: none;
-            color: var(--text-secondary);
-            padding: 6px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 34px;
-            height: 34px;
-            backdrop-filter: blur(4px);
-        }
-        .action-btn svg {
-            width: 17px;
-            height: 17px;
-            stroke: #aaa;
-            stroke-width: 1.8;
-            fill: none;
-            transition: stroke 0.2s;
-        }
-        .action-btn:hover {
-            background: rgba(255, 102, 0, 0.25);
-        }
-        .action-btn:hover svg {
-            stroke: var(--primary-orange);
-        }
-        .action-btn:active {
-            transform: scale(0.94);
-        }
-        
-        .copy-toast {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--primary-orange);
-            color: black;
-            padding: 6px 14px;
-            border-radius: 40px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.2s;
-            pointer-events: none;
-        }
-
-        .jump-to-bottom {
-            position: absolute;
-            bottom: 85px;
-            right: 18px;
-            background: #1a1a1a;
-            border: 1px solid var(--primary-orange);
-            border-radius: 40px;
-            padding: 8px 14px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            z-index: 20;
-            backdrop-filter: blur(12px);
-            transition: all 0.2s;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--primary-orange);
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(10px);
-            transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
-        }
-        .jump-to-bottom.visible {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        .jump-to-bottom:active {
-            transform: scale(0.95);
-            background: #2a2a2a;
-        }
-
-        .litheral-thinking {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .thinking-ring svg {
-            width: 22px;
-            animation: litheralPulse 1.2s ease infinite;
-        }
-        @keyframes litheralPulse {
-            0% { transform: scale(0.8); opacity: 0.3; }
-            50% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(0.8); opacity: 0.3; }
-        }
-        .thinking-text {
-            color: var(--primary-orange);
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-
-        .typing-active::after {
-            content: "▊";
-            display: inline-block;
-            color: var(--primary-orange);
-            margin-left: 2px;
-            animation: blink-cursor 0.8s step-start infinite;
-        }
-        @keyframes blink-cursor {
-            50% { opacity: 0; }
-        }
-
-        .chat-input-area {
-            padding: 14px 16px calc(16px + var(--safe-area-inset-bottom));
-            background: var(--bg-dark);
-            flex-shrink: 0;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .input-container {
-            display: flex;
-            gap: 10px;
-            background: #0c0c0c;
-            border: 1.5px solid var(--border-color);
-            padding: 8px 14px;
-            border-radius: 30px;
-            align-items: center;
-            transition: all 0.2s ease;
-        }
-        .input-container:focus-within {
-            border-color: var(--primary-orange);
-        }
-
-        .chat-input {
-            flex: 1;
-            padding: 8px 0;
-            background: transparent;
-            border: none;
-            color: var(--text-main);
-            font-size: 1rem;
-            outline: none;
-            font-family: inherit;
-            min-width: 0;
-            resize: none;
-            max-height: 110px;
-            line-height: 1.4;
-        }
-        .chat-input::placeholder {
-            color: #444;
-            font-size: 0.9rem;
-            transition: opacity 0.1s;
-        }
-
-        .send-button {
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            padding: 6px 12px;
-            color: var(--primary-orange);
-            font-weight: 700;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            border-radius: 30px;
-            transition: all 0.2s;
-        }
-        .send-button:active { transform: scale(0.94); }
-        .send-button:disabled { opacity: 0.3; }
-
-        .mic-button {
-            background: transparent;
-            border: none;
-            padding: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            border-radius: 50%;
-            transition: transform 0.1s;
-        }
-        .mic-button:active { transform: scale(0.92); }
-
-        .rate-limit-warning {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
+        /* Header Section */
+        .header-section {
             text-align: center;
-            margin-top: 8px;
-        }
-        .retry-spinning svg { animation: spin 0.7s linear infinite !important; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        /* Voice message fade styling */
-        .voice-message-temp {
-            transition: opacity 0.3s ease;
-        }
-        .voice-message-temp.fade-out {
-            opacity: 0;
+            margin-bottom: 48px;
         }
 
-        @media (max-width: 480px) {
-            .chat-messages { padding: 16px 12px; gap: 18px; }
-            .jump-to-bottom { bottom: 80px; right: 14px; padding: 6px 12px; }
+        .header-section h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .header-section p {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Packages Grid */
+        .packages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 48px;
+        }
+
+        .package-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-light);
+            border-radius: 24px;
+            padding: 28px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .package-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .package-card.selected {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            box-shadow: 0 8px 24px rgba(255,102,0,0.15);
+        }
+
+        .package-badge {
+            position: absolute;
+            top: -12px;
+            right: 20px;
+            background: var(--primary);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .package-name {
+            font-size: 1.5rem;
+            font-weight: 800;
+            text-transform: capitalize;
+            margin-bottom: 16px;
+        }
+
+        .package-coins {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .package-coins span {
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .package-tokens {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .package-price {
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .package-price span {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .package-savings {
+            color: var(--success);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* Payment Actions */
+        .payment-actions {
+            max-width: 400px;
+            margin: 0 auto;
+            display: flex;
+            gap: 16px;
+        }
+
+        .btn-pay {
+            flex: 2;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px 24px;
+            border-radius: 48px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-pay:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: scale(1.02);
+        }
+
+        .btn-pay:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-cancel {
+            flex: 1;
+            background: transparent;
+            border: 2px solid var(--border-light);
+            color: var(--text-secondary);
+            padding: 16px 24px;
+            border-radius: 48px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .btn-cancel:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Loading State */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Success/Error Screens */
+        .result-screen {
+            text-align: center;
+            padding: 60px 24px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .result-icon {
+            font-size: 5rem;
+            margin-bottom: 24px;
+        }
+
+        .result-icon.success { color: var(--success); }
+        .result-icon.error { color: var(--error); }
+
+        .result-screen h2 {
+            font-size: 2rem;
+            margin-bottom: 16px;
+        }
+
+        .result-screen p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+        }
+
+        .result-details {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+
+        .btn-continue {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 48px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            text-align: center;
+            padding: 80px 24px;
+        }
+
+        .loading-spinner-large {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border-light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 32px;
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border-light);
+            margin-top: 48px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 24px 16px;
+            }
+            .header-section h1 {
+                font-size: 1.75rem;
+            }
+            .packages-grid {
+                gap: 16px;
+            }
+            .package-card {
+                padding: 20px;
+            }
+            .package-coins {
+                font-size: 2rem;
+            }
+            .payment-actions {
+                flex-direction: column;
+            }
+            .nav-content {
+                flex-direction: column;
+                gap: 12px;
+            }
         }
     </style>
 </head>
 <body>
-<div class="chat-container">
-    <div class="chat-header">
-        <div class="header-left"><div class="header-logo"></div><h1>Litheral</h1></div>
-        <div class="balance-container"><span class="balance-label">coins</span><span class="balance-amount" id="balanceAmount">0.00</span><button class="buy-coins-btn" id="buyCoinsBtn">add</button></div>
-    </div>
-    <div class="chat-messages" id="chatMessages"></div>
-    <button class="jump-to-bottom" id="jumpToBottomBtn">↓ Newest</button>
-    <div class="chat-input-area">
-        <div class="input-container">
-            <textarea class="chat-input" id="chatInput" placeholder=" " autocomplete="off" rows="1"></textarea>
-            <button class="mic-button" id="micButton"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 16C14.21 16 16 14.21 16 12V6C16 3.79 14.21 2 12 2C9.79 2 8 3.79 8 6V12C8 14.21 9.79 16 12 16Z" stroke="#FF6600" stroke-width="1.5"/><path d="M5 12C5 15.86 8.14 19 12 19C15.86 19 19 15.86 19 12" stroke="#FF6600" stroke-width="1.5"/><path d="M12 22V19" stroke="#FF6600" stroke-width="1.5"/></svg></button>
-            <button class="send-button" id="sendButton">Send</button>
+
+<!-- Navigation -->
+<nav class="nav">
+    <div class="nav-content">
+        <a href="/" class="logo">
+            <div class="logo-icon"></div>
+            <h1>Litheral</h1>
+        </a>
+        <div class="balance-display">
+            <span class="balance-label">available credits</span>
+            <span class="balance-amount" id="balanceAmount">0.00</span>
         </div>
-        <div class="rate-limit-warning" id="rateLimitWarning"></div>
     </div>
+</nav>
+
+<!-- Main Content -->
+<div class="container" id="mainContent">
+    <!-- Dynamic content will be inserted here -->
 </div>
-<div id="copyToast" class="copy-toast">Copied!</div>
+
+<div class="footer">
+    <p>Secure payments powered by Paystack • Credits never expire</p>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-    (function() {
-        const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const API_BASE_URL = 'https://sdel.onrender.com';
-        
-        const chatMessages = document.getElementById('chatMessages');
-        const chatInput = document.getElementById('chatInput');
-        const sendButton = document.getElementById('sendButton');
-        const micButton = document.getElementById('micButton');
-        const balanceAmountSpan = document.getElementById('balanceAmount');
-        const rateLimitWarning = document.getElementById('rateLimitWarning');
-        const copyToast = document.getElementById('copyToast');
-        const jumpBtn = document.getElementById('jumpToBottomBtn');
-        
-        let currentAbortController = null;
-        let typingAnimationFrame = null;
-        let chatHistory = [];
-        let currentBalance = 0;
-        let lastRequestTime = 0;
-        let rateLimitTimeout = null;
-        let supabaseAccessToken = null;
-        let userName = null;
-        let pendingRetryMessage = null;
-        let firstUserMessageSent = false;
-        
-        // Voice handling: prevent spam, single message with fade, browser speech
-        let activeVoiceMessageDiv = null;
-        let voiceMessageTimeout = null;
-        let isVoicePlaying = false;
-        
-        function speakText(text) {
-            if (!window.speechSynthesis) return;
-            // Cancel any ongoing speech to avoid overlapping
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.95;
-            utterance.pitch = 1.0;
-            utterance.volume = 0.9;
-            utterance.lang = 'en-US';
-            utterance.onend = () => { isVoicePlaying = false; };
-            utterance.onerror = () => { isVoicePlaying = false; };
-            isVoicePlaying = true;
-            window.speechSynthesis.speak(utterance);
+// Configuration
+const SUPABASE_URL = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
+const API_BASE_URL = 'https://sdel.onrender.com';
+
+// Global state
+let supabaseAccessToken = null;
+let currentUserId = null;
+let packages = null;
+let selectedPackage = null;
+let currentBalance = 0;
+
+// DOM Elements
+const mainContent = document.getElementById('mainContent');
+const balanceAmountSpan = document.getElementById('balanceAmount');
+
+// Helper Functions
+function escapeHtml(str) {
+    return str.replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+function formatNumber(num) {
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+async function callAPI(endpoint, options = {}) {
+    if (!supabaseAccessToken) throw new Error('Not authenticated');
+    
+    const defaultOptions = {
+        headers: {
+            'Authorization': `Bearer ${supabaseAccessToken}`,
+            'Content-Type': 'application/json'
         }
-        
-        function showVoiceMessage(message, shouldSpeak = true) {
-            // Clear any existing voice message and timeout
-            if (activeVoiceMessageDiv) {
-                if (voiceMessageTimeout) clearTimeout(voiceMessageTimeout);
-                activeVoiceMessageDiv.remove();
-                activeVoiceMessageDiv = null;
-            }
-            if (voiceMessageTimeout) clearTimeout(voiceMessageTimeout);
-            
-            // Create temporary Litheral message
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message Litheral voice-message-temp';
-            const nameDiv = document.createElement('div');
-            nameDiv.className = 'message-username';
-            nameDiv.textContent = 'Litheral';
-            const bubbleDiv = document.createElement('div');
-            bubbleDiv.className = 'message-bubble';
-            bubbleDiv.textContent = message;
-            msgDiv.appendChild(nameDiv);
-            msgDiv.appendChild(bubbleDiv);
-            chatMessages.appendChild(msgDiv);
-            activeVoiceMessageDiv = msgDiv;
-            scrollToBottom();
-            
-            // Speak if requested
-            if (shouldSpeak) {
-                speakText(message);
-            }
-            
-            // Fade out and remove after 5 seconds
-            voiceMessageTimeout = setTimeout(() => {
-                if (activeVoiceMessageDiv) {
-                    activeVoiceMessageDiv.classList.add('fade-out');
-                    setTimeout(() => {
-                        if (activeVoiceMessageDiv) activeVoiceMessageDiv.remove();
-                        if (activeVoiceMessageDiv === msgDiv) activeVoiceMessageDiv = null;
-                    }, 300);
-                }
-                voiceMessageTimeout = null;
-            }, 5000);
+    };
+    
+    const mergedOptions = { ...defaultOptions, ...options };
+    
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, mergedOptions);
+    
+    if (response.status === 401) {
+        const { data: { session } } = await supabase.auth.refreshSession();
+        if (session) {
+            supabaseAccessToken = session.access_token;
+            return callAPI(endpoint, options);
         }
-        
-        // Debounced voice button: prevents spam, only shows message once per click, handles rapid clicks gracefully
-        let lastVoiceClick = 0;
-        let voiceCooldown = false;
-        
-        function handleVoiceClick() {
-            if (voiceCooldown) {
-                // If clicked during cooldown, just flash? no: just ignore or fade existing message stays
-                // We can also briefly pulse the mic button to indicate it's busy
-                micButton.style.transform = 'scale(0.95)';
-                setTimeout(() => { micButton.style.transform = ''; }, 150);
-                return;
-            }
-            
-            voiceCooldown = true;
-            const voiceMessage = "Voice input isn't available yet. Feature coming soon.";
-            showVoiceMessage(voiceMessage, true);
-            
-            // Cooldown to prevent spam (1 second cooldown, but message stays unique)
-            setTimeout(() => {
-                voiceCooldown = false;
-            }, 1200);
-        }
-        
-        // --- Placeholder typing IN & OUT with longer pauses ---
-        let currentPhraseIndex = 0;
-        let isAnimatingPlaceholder = false;
-        let currentPlaceholderText = "";
-        let currentDisplayLength = 0;
-        let isDeleting = false;
-        let placeholderTimer = null;
-        
-        const placeholderPhrases = [
-            "Ask with clarity",
-            "Seek what matters",
-            "Clarity over noise",
-            "Think freely",
-            "Speak your truth"
-        ];
-        
-        function animatePlaceholderLoop() {
-            if (isAnimatingPlaceholder) return;
-            isAnimatingPlaceholder = true;
-            
-            function updateStep() {
-                if (!isDeleting) {
-                    // Typing in
-                    if (currentDisplayLength < currentPlaceholderText.length) {
-                        currentDisplayLength++;
-                        chatInput.placeholder = currentPlaceholderText.substring(0, currentDisplayLength);
-                        placeholderTimer = setTimeout(updateStep, 70);
-                    } else {
-                        // Fully typed — pause LONGER (3 seconds)
-                        placeholderTimer = setTimeout(() => {
-                            isDeleting = true;
-                            updateStep();
-                        }, 2800);
-                    }
-                } else {
-                    // Typing out (deleting)
-                    if (currentDisplayLength > 0) {
-                        currentDisplayLength--;
-                        chatInput.placeholder = currentPlaceholderText.substring(0, currentDisplayLength);
-                        placeholderTimer = setTimeout(updateStep, 45);
-                    } else {
-                        // Move to next phrase after short pause
-                        currentPhraseIndex = (currentPhraseIndex + 1) % placeholderPhrases.length;
-                        currentPlaceholderText = placeholderPhrases[currentPhraseIndex];
-                        isDeleting = false;
-                        placeholderTimer = setTimeout(updateStep, 300);
-                    }
-                }
-            }
-            
-            currentPlaceholderText = placeholderPhrases[currentPhraseIndex];
-            currentDisplayLength = 0;
-            isDeleting = false;
-            updateStep();
-        }
-        
-        animatePlaceholderLoop();
-        
-        // Helper functions
-        function getHumanReadableErrorMessage(errorObj) {
-            const message = errorObj?.message || errorObj?.toString() || '';
-            if (message.includes('insufficient_coins')) return "Not enough coins. Tap 'add' to continue.";
-            if (!navigator.onLine || message.includes('offline')) return "No internet connection. Please reconnect.";
-            if (message.includes('Rate limited')) return "Sending too fast. Please wait a moment — auto retry soon.";
-            if (message.includes('NetworkError') || message.includes('fetch')) return "Network issue. Check connection.";
-            if (message.includes('401')) return "Session refreshed, try again.";
-            if (message.includes('500') || message.includes('502')) return "Server is busy. Retry in a few seconds.";
-            return "Could not process request. Please try again.";
-        }
-        
-        async function fetchRandomQuote() {
-            try {
-                const { data, error } = await supabase.from('quotes').select('quote_text');
-                if (!error && data?.length) return data[Math.floor(Math.random() * data.length)].quote_text;
-                return "Clarity is power. Truth over comfort.";
-            } catch(e) { return "Clarity over comfort. Truth over convenience."; }
-        }
-        function getTimeBasedGreeting() {
-            const hour = new Date().getHours();
-            if (hour < 12) return "Good morning";
-            if (hour < 17) return "Good afternoon";
-            return "Good evening";
-        }
-        
-        async function fetchUserProfile() {
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user) {
-                    const { data: profile } = await supabase.from('profile').select('first_name').eq('id', user.id).single();
-                    userName = profile?.first_name || user.email?.split('@')[0] || 'there';
-                } else userName = 'there';
-            } catch(e) { userName = 'there'; }
-        }
-        
-        async function initSupabaseAuth() {
-            try {
-                if (!navigator.onLine) throw new Error('offline');
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
-                    supabaseAccessToken = session.access_token;
-                    await fetchUserProfile();
-                    return true;
-                } else {
-                    const { data: signInData } = await supabase.auth.signInAnonymously();
-                    supabaseAccessToken = signInData.session.access_token;
-                    userName = 'there';
-                    return true;
-                }
-            } catch (error) { return false; }
-        }
-        
-        async function callAPI(endpoint, body, method = 'POST') {
-            if (!supabaseAccessToken) throw new Error('Not authenticated');
-            if (!navigator.onLine) throw new Error('offline');
-            if (currentAbortController) currentAbortController.abort();
-            currentAbortController = new AbortController();
-            const options = { method, headers: { 'Authorization': `Bearer ${supabaseAccessToken}`, 'Content-Type': 'application/json' }, signal: currentAbortController.signal };
-            if (body && method === 'POST') options.body = JSON.stringify(body);
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-            if (response.status === 402) throw new Error('insufficient_coins');
-            if (response.status === 401) {
-                const { data: { session } } = await supabase.auth.refreshSession();
-                if (session) supabaseAccessToken = session.access_token;
-                return callAPI(endpoint, body, method);
-            }
-            if (!response.ok) throw new Error(`API error ${response.status}`);
-            return await response.json();
-        }
-        
-        async function fetchBalance() {
-            if (!supabaseAccessToken || !navigator.onLine) return;
-            try {
-                const data = await callAPI('/coins/balance', null, 'GET');
-                if (data?.balance !== undefined) { currentBalance = data.balance; balanceAmountSpan.textContent = currentBalance.toFixed(4); }
-            } catch(e) { balanceAmountSpan.textContent = '?'; }
-        }
-        
-        async function sendToLitheral(userMessage, isRetry = false) {
-            if (!navigator.onLine) throw new Error('offline');
-            const now = Date.now();
-            if (now - lastRequestTime < 12000) {
-                const waitMs = 12000 - (now - lastRequestTime);
-                sendButton.disabled = true;
-                rateLimitWarning.textContent = `Slow down — wait ${Math.ceil(waitMs/1000)}s`;
-                if (rateLimitTimeout) clearTimeout(rateLimitTimeout);
-                rateLimitTimeout = setTimeout(() => {
-                    sendButton.disabled = false;
-                    rateLimitWarning.textContent = '';
-                    if (pendingRetryMessage) handleSendWithText(pendingRetryMessage);
-                }, waitMs);
-                throw new Error('Rate limited');
-            }
-            lastRequestTime = now;
-            const requestBody = { message: userMessage, chat_history: chatHistory };
-            const data = await callAPI('/ai/chat', requestBody);
-            if (data.balance_remaining !== undefined) { currentBalance = data.balance_remaining; balanceAmountSpan.textContent = currentBalance.toFixed(4); }
-            if (!isRetry) chatHistory.push({ role: "user", content: userMessage }, { role: "model", content: data.response });
-            else { if (chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop(); chatHistory.push({ role: "model", content: data.response }); }
-            return data.response;
-        }
-        
-        function scrollToBottom() { chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }); }
-        function debouncedScroll() { setTimeout(scrollToBottom, 40); }
-        function showCopyToast() { copyToast.style.opacity = '1'; setTimeout(() => { copyToast.style.opacity = '0'; }, 1500); }
-        
-        const editIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 3L21 7L7 21H3V17L17 3Z"/><path d="M15 5L19 9"/></svg>';
-        const copyIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-        const shareIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>';
-        const staticRetryIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
-        
-        function addUserMessage(content, showActions = true) {
-            const msgDiv = document.createElement('div'); msgDiv.className = 'message user';
-            const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'You';
-            const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble'; bubbleDiv.textContent = content;
-            msgDiv.appendChild(nameDiv); msgDiv.appendChild(bubbleDiv);
-            if (showActions) {
-                const actions = document.createElement('div'); actions.className = 'message-actions';
-                const editBtn = document.createElement('button'); editBtn.className = 'action-btn'; editBtn.innerHTML = editIcon;
-                editBtn.onclick = () => { chatInput.value = content; chatInput.focus(); chatInput.dispatchEvent(new Event('input')); };
-                const copyBtn = document.createElement('button'); copyBtn.className = 'action-btn'; copyBtn.innerHTML = copyIcon;
-                copyBtn.onclick = () => { navigator.clipboard.writeText(content); showCopyToast(); };
-                const shareBtn = document.createElement('button'); shareBtn.className = 'action-btn'; shareBtn.innerHTML = shareIcon;
-                shareBtn.onclick = () => { if(navigator.share) navigator.share({text: content}); else copyBtn.click(); };
-                actions.appendChild(editBtn); actions.appendChild(copyBtn); actions.appendChild(shareBtn);
-                msgDiv.appendChild(actions);
-            }
-            chatMessages.appendChild(msgDiv);
-            debouncedScroll();
-        }
-        
-        async function typeMessage(text, isError = false, showActions = true) {
-            return new Promise((resolve) => {
-                const messageDiv = document.createElement('div'); messageDiv.className = 'message Litheral';
-                const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'Litheral';
-                const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble typing-active';
-                if (isError) bubbleDiv.style.color = '#ffaaaa';
-                messageDiv.appendChild(nameDiv); messageDiv.appendChild(bubbleDiv);
-                chatMessages.appendChild(messageDiv);
-                let i = 0;
-                function typeChar() {
-                    if (i < text.length) {
-                        bubbleDiv.textContent += text[i];
-                        debouncedScroll();
-                        i++;
-                        typingAnimationFrame = setTimeout(typeChar, 22);
-                    } else {
-                        bubbleDiv.classList.remove('typing-active');
-                        clearTimeout(typingAnimationFrame);
-                        if (showActions && !isError) {
-                            const actionsDiv = document.createElement('div'); actionsDiv.className = 'message-actions';
-                            const retryBtn = document.createElement('button'); retryBtn.className = 'action-btn static-retry'; retryBtn.innerHTML = staticRetryIcon;
-                            const copyBtn = document.createElement('button'); copyBtn.className = 'action-btn'; copyBtn.innerHTML = copyIcon;
-                            const shareBtn = document.createElement('button'); shareBtn.className = 'action-btn'; shareBtn.innerHTML = shareIcon;
-                            copyBtn.onclick = () => { navigator.clipboard.writeText(text); showCopyToast(); };
-                            shareBtn.onclick = () => { if(navigator.share) navigator.share({text}); else copyBtn.click(); };
-                            retryBtn.onclick = async () => {
-                                const lastUser = [...chatMessages.querySelectorAll('.message.user')].pop();
-                                if (lastUser) {
-                                    const original = lastUser.querySelector('.message-bubble')?.textContent;
-                                    if (original && chatHistory.length && chatHistory[chatHistory.length-1].role === 'model') chatHistory.pop();
-                                    messageDiv.remove();
-                                    showThinkingAnimation();
-                                    retryBtn.classList.add('retry-spinning');
-                                    try {
-                                        const newResp = await sendToLitheral(original, true);
-                                        hideThinkingAnimation();
-                                        await typeMessage(newResp, false, true);
-                                    } catch(err) { hideThinkingAnimation(); await typeMessage(getHumanReadableErrorMessage(err), true, false); }
-                                    finally { retryBtn.classList.remove('retry-spinning'); }
-                                }
-                            };
-                            actionsDiv.appendChild(retryBtn); actionsDiv.appendChild(copyBtn); actionsDiv.appendChild(shareBtn);
-                            messageDiv.appendChild(actionsDiv);
-                        }
-                        resolve();
-                    }
-                }
-                typeChar();
-            });
-        }
-        
-        function showThinkingAnimation() {
-            if(document.getElementById('thinkingAnimation')) return;
-            const thinkingDiv = document.createElement('div'); thinkingDiv.className = 'message Litheral'; thinkingDiv.id = 'thinkingAnimation';
-            const nameDiv = document.createElement('div'); nameDiv.className = 'message-username'; nameDiv.textContent = 'Litheral';
-            const bubbleDiv = document.createElement('div'); bubbleDiv.className = 'message-bubble';
-            bubbleDiv.innerHTML = `<div class="litheral-thinking"><div class="thinking-ring"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#FF6600" stroke-width="2" stroke-dasharray="4 4"/><circle cx="12" cy="12" r="4" fill="#FF6600" fill-opacity="0.3"/></svg></div><span class="thinking-text">clarifying</span></div>`;
-            thinkingDiv.appendChild(nameDiv); thinkingDiv.appendChild(bubbleDiv);
-            chatMessages.appendChild(thinkingDiv);
-            scrollToBottom();
-        }
-        function hideThinkingAnimation() { document.getElementById('thinkingAnimation')?.remove(); }
-        
-        function clearDefaultMessages() {
-            const msgs = chatMessages.querySelectorAll('.message');
-            msgs.forEach(msg => msg.remove());
-        }
-        
-        async function handleSendWithText(userMessage) {
-            if (!userMessage.trim()) return;
-            if (!firstUserMessageSent) {
-                clearDefaultMessages();
-                firstUserMessageSent = true;
-            }
-            sendButton.disabled = true; micButton.disabled = true;
-            addUserMessage(userMessage, true);
-            chatInput.value = ''; chatInput.style.height = 'auto';
-            showThinkingAnimation();
-            try {
-                const response = await sendToLitheral(userMessage, false);
-                hideThinkingAnimation();
-                await typeMessage(response, false, true);
-                pendingRetryMessage = null;
-            } catch (error) {
-                hideThinkingAnimation();
-                const friendly = getHumanReadableErrorMessage(error);
-                await typeMessage(friendly, true, false);
-                if (error.message === 'Rate limited') pendingRetryMessage = userMessage;
-            } finally {
-                sendButton.disabled = false; micButton.disabled = false;
-                if (currentAbortController) currentAbortController.abort();
-            }
-        }
-        
-        function handleSend() { const txt = chatInput.value.trim(); if (txt) handleSendWithText(txt); }
-        
-        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } });
-        sendButton.addEventListener('click', handleSend);
-        micButton.addEventListener('click', handleVoiceClick);
-        document.getElementById('buyCoinsBtn').addEventListener('click', () => window.location.href = '/Tokens');
-        
-        chatMessages.addEventListener('scroll', () => {
-            const isNearBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 150;
-            if (!isNearBottom) jumpBtn.classList.add('visible');
-            else jumpBtn.classList.remove('visible');
+    }
+    
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const err = new Error(error.detail || `API error: ${response.status}`);
+        err.status = response.status;
+        throw err;
+    }
+    
+    return await response.json();
+}
+
+async function fetchBalance() {
+    try {
+        const data = await callAPI('/coins/balance', { method: 'GET' });
+        currentBalance = data.balance;
+        balanceAmountSpan.textContent = currentBalance.toFixed(4);
+        return currentBalance;
+    } catch (error) {
+        console.error('Error fetching balance:', error);
+        return null;
+    }
+}
+
+async function fetchPackages() {
+    try {
+        const data = await callAPI('/coins/packages', { method: 'GET' });
+        packages = data.packages;
+        return packages;
+    } catch (error) {
+        console.error('Error fetching packages:', error);
+        throw error;
+    }
+}
+
+async function initializePayment(packageKey) {
+    try {
+        const data = await callAPI('/coins/initialise', {
+            method: 'POST',
+            body: JSON.stringify({ package: packageKey })
         });
-        jumpBtn.addEventListener('click', () => { chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }); jumpBtn.classList.remove('visible'); });
-        
-        async function init() {
-            const ok = await initSupabaseAuth();
-            if (ok && navigator.onLine) {
-                await fetchBalance();
-                const greeting = getTimeBasedGreeting();
-                const quote = await fetchRandomQuote();
-                await typeMessage(`${greeting}, ${userName}. ${quote}`, false, false);
-                if (currentBalance > 0) await typeMessage(`You have ${currentBalance.toFixed(4)} coins.`, false, false);
-                else await typeMessage(`You have ${currentBalance.toFixed(4)} coins. Tap 'add' to get more.`, false, false);
-            } else if (!navigator.onLine) await typeMessage("Offline — connect to the internet.", true, false);
-            sendButton.disabled = false; micButton.disabled = false;
+        return data;
+    } catch (error) {
+        if (error.status === 429) {
+            throw new Error('Too many requests. Please wait a moment before trying again.');
         }
-        init();
+        throw error;
+    }
+}
+
+async function verifyPayment(reference) {
+    try {
+        const data = await callAPI(`/coins/verify/${reference}`, { method: 'GET' });
+        return data;
+    } catch (error) {
+        if (error.status === 400) {
+            throw new Error('This payment has already been processed.');
+        }
+        if (error.status === 402) {
+            throw new Error('Payment was not successful. Please try again.');
+        }
+        throw error;
+    }
+}
+
+// UI Rendering Functions
+function showLoading() {
+    mainContent.innerHTML = `
+        <div class="loading-screen">
+            <div class="loading-spinner-large"></div>
+            <p>Loading packages...</p>
+        </div>
+    `;
+}
+
+function showPackagesView() {
+    if (!packages) return;
+    
+    const packagesArray = Object.entries(packages);
+    
+    // Calculate savings (comparing to starter package)
+    const starterPricePerCoin = packagesArray.find(([key]) => key === 'starter')?.[1].amount_kobo / packagesArray.find(([key]) => key === 'starter')?.[1].coins || 0;
+    
+    const getSavings = (coins, amountKobo) => {
+        const expectedPrice = (coins * starterPricePerCoin) / 100;
+        const actualPrice = amountKobo / 100;
+        const savings = expectedPrice - actualPrice;
+        if (savings > 0) {
+            return `Save ₦${savings.toLocaleString()}`;
+        }
+        return null;
+    };
+    
+    mainContent.innerHTML = `
+        <div class="header-section">
+            <h1>Add Credits</h1>
+            <p>Choose a package that fits your needs. Credits never expire.</p>
+        </div>
         
-        window.addEventListener('online', async () => { 
-            await initSupabaseAuth(); await fetchBalance();
-            if(!firstUserMessageSent && chatMessages.children.length === 0) init();
-            sendButton.disabled = false;
-        });
-        window.addEventListener('beforeunload', () => { 
-            if(currentAbortController) currentAbortController.abort(); 
-            if(typingAnimationFrame) clearTimeout(typingAnimationFrame); 
-            if(rateLimitTimeout) clearTimeout(rateLimitTimeout);
-            if(placeholderTimer) clearTimeout(placeholderTimer);
-            window.speechSynthesis.cancel();
-        });
-    })();
+        <div class="packages-grid">
+            ${packagesArray.map(([key, pkg]) => {
+                const savings = getSavings(pkg.coins, pkg.amount_kobo);
+                return `
+                    <div class="package-card ${selectedPackage === key ? 'selected' : ''}" 
+                         onclick="selectPackage('${key}')">
+                        ${key === 'popular' ? '<div class="package-badge">🔥 MOST POPULAR</div>' : ''}
+                        ${key === 'best_value' ? '<div class="package-badge">⭐ BEST VALUE</div>' : ''}
+                        <div class="package-name">${key.replace('_', ' ').toUpperCase()}</div>
+                        <div class="package-coins">
+                            ${formatNumber(pkg.coins)} <span>credits</span>
+                        </div>
+                        <div class="package-tokens">
+                            ≈ ${formatNumber(Math.floor(pkg.tokens / 1000))}K tokens
+                        </div>
+                        <div class="package-price">
+                            ₦${pkg.amount_naira.toLocaleString()} <span>NGN</span>
+                        </div>
+                        ${savings ? `<div class="package-savings">${savings}</div>` : ''}
+                    </div>
+                `;
+            }).join('')}
+        </div>
+        
+        <div class="payment-actions">
+            <a href="/" class="btn-cancel">Cancel</a>
+            <button class="btn-pay" id="payButton" ${!selectedPackage ? 'disabled' : ''}>
+                Continue to Paystack
+            </button>
+        </div>
+    `;
+    
+    // Add event listener to pay button
+    const payButton = document.getElementById('payButton');
+    if (payButton) {
+        payButton.addEventListener('click', processPayment);
+    }
+}
+
+function showProcessingView() {
+    mainContent.innerHTML = `
+        <div class="loading-screen">
+            <div class="loading-spinner-large"></div>
+            <h3>Initializing payment...</h3>
+            <p style="margin-top: 12px; color: var(--text-secondary);">Please don't close this window</p>
+        </div>
+    `;
+}
+
+function showSuccessView(data) {
+    mainContent.innerHTML = `
+        <div class="result-screen">
+            <div class="result-icon success">✓</div>
+            <h2>Payment Successful!</h2>
+            <p>Your credits have been added to your account.</p>
+            <div class="result-details">
+                <div style="margin-bottom: 12px;">
+                    <strong>+${data.coins_added} credits added</strong>
+                </div>
+                <div style="font-size: 1.25rem; color: var(--primary);">
+                    New balance: ${data.new_balance.toFixed(4)} credits
+                </div>
+            </div>
+            <a href="/" class="btn-continue">Continue to Dashboard</a>
+        </div>
+    `;
+    
+    // Refresh balance display
+    fetchBalance();
+}
+
+function showErrorView(message) {
+    mainContent.innerHTML = `
+        <div class="result-screen">
+            <div class="result-icon error">⚠️</div>
+            <h2>Payment Failed</h2>
+            <p>${escapeHtml(message)}</p>
+            <div class="result-details">
+                <p style="color: var(--text-secondary);">Need help? Contact support.</p>
+            </div>
+            <div style="display: flex; gap: 16px; justify-content: center; margin-top: 16px;">
+                <button onclick="location.reload()" class="btn-cancel" style="padding: 12px 24px;">Try Again</button>
+                <a href="/" class="btn-continue">Back to Dashboard</a>
+            </div>
+        </div>
+    `;
+}
+
+// Package Selection
+window.selectPackage = function(packageKey) {
+    selectedPackage = packageKey;
+    showPackagesView();
+};
+
+// Process Payment
+async function processPayment() {
+    if (!selectedPackage) return;
+    
+    showProcessingView();
+    
+    try {
+        const paymentData = await initializePayment(selectedPackage);
+        
+        // Store payment info before redirect
+        sessionStorage.setItem('pendingPayment', JSON.stringify({
+            reference: paymentData.reference,
+            package: paymentData.package,
+            coins: paymentData.coins,
+            amount: paymentData.amount_naira
+        }));
+        
+        // Redirect to Paystack
+        window.location.href = paymentData.authorization_url;
+    } catch (error) {
+        showErrorView(error.message);
+    }
+}
+
+// Handle Payment Redirect
+async function handlePaymentRedirect() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const reference = urlParams.get('reference');
+    
+    if (reference) {
+        showLoading();
+        
+        try {
+            const verifyData = await verifyPayment(reference);
+            showSuccessView(verifyData);
+            
+            // Clear URL parameters without reload
+            window.history.replaceState({}, document.title, window.location.pathname);
+            sessionStorage.removeItem('pendingPayment');
+        } catch (error) {
+            showErrorView(error.message);
+        }
+    } else {
+        // Check for pending payment (user returned without reference)
+        const pending = sessionStorage.getItem('pendingPayment');
+        if (pending) {
+            // User might have closed Paystack without completing
+            sessionStorage.removeItem('pendingPayment');
+            showPackagesView();
+        }
+    }
+}
+
+// Authentication
+async function initAuth() {
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session) {
+        supabaseAccessToken = session.access_token;
+        currentUserId = session.user.id;
+    } else {
+        const { data } = await supabase.auth.signInAnonymously();
+        supabaseAccessToken = data.session.access_token;
+        currentUserId = data.session.user.id;
+    }
+    
+    return supabaseAccessToken;
+}
+
+// Initialize Page
+async function init() {
+    showLoading();
+    
+    try {
+        await initAuth();
+        await fetchBalance();
+        await fetchPackages();
+        await handlePaymentRedirect();
+        
+        // If no redirect was handled, show packages view
+        if (!window.location.search.includes('reference')) {
+            showPackagesView();
+        }
+    } catch (error) {
+        console.error('Init error:', error);
+        showErrorView('Failed to load payment options. Please refresh the page.');
+    }
+}
+
+// Start the app
+init();
 </script>
 </body>
 </html>
