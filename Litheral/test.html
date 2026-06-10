@@ -1,689 +1,659 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Litheral — the AI that talks back</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FF6600'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z'/%3E%3C/svg%3E">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #FF3300;
-            --primary-dark: #CC2800;
-            --primary-glow: rgba(255, 51, 0, 0.4);
-            --bg: #000000;
-            --bg-elevated: #0a0a0a;
-            --bg-card: #111111;
-            --border: #1f1f1f;
-            --text: #ffffff;
-            --text-dim: #888888;
-            --text-muted: #555555;
-        }
-
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            overflow-x: hidden;
-        }
-
-        /* Custom cursor */
-        .cursor-follow {
-            width: 20px;
-            height: 20px;
-            background: var(--primary);
-            border-radius: 50%;
-            position: fixed;
-            pointer-events: none;
-            z-index: 9999;
-            mix-blend-mode: difference;
-            transition: transform 0.1s;
-        }
-
-        /* Brutalist grid lines */
-        .grid-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                repeating-linear-gradient(0deg, rgba(255,51,0,0.03) 0px, rgba(255,51,0,0.03) 1px, transparent 1px, transparent 60px),
-                repeating-linear-gradient(90deg, rgba(255,51,0,0.03) 0px, rgba(255,51,0,0.03) 1px, transparent 1px, transparent 60px);
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        /* Animated grain */
-        .grain {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-            pointer-events: none;
-            z-index: 2;
-            opacity: 0.4;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 5%;
-            position: relative;
-            z-index: 10;
-        }
-
-        /* Nav - minimal, aggressive */
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 24px 0;
-            border-bottom: 1px solid var(--border);
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-
-        .logo {
-            font-size: 1.8rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            display: flex;
-            align-items: baseline;
-            gap: 4px;
-        }
-
-        .logo span:first-child {
-            color: var(--text);
-        }
-
-        .logo span:last-child {
-            color: var(--primary);
-            font-style: italic;
-        }
-
-        .nav-actions {
-            display: flex;
-            gap: 12px;
-        }
-
-        .btn-nav {
-            padding: 8px 20px;
-            border-radius: 40px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            border: 1px solid var(--border);
-            background: transparent;
-            color: var(--text);
-        }
-
-        .btn-nav-primary {
-            background: var(--primary);
-            border: none;
-            color: white;
-        }
-
-        .btn-nav-primary:hover {
-            background: var(--primary-dark);
-            transform: scale(1.02);
-        }
-
-        /* Hero - bold, confrontational */
-        .hero {
-            padding: 120px 0 80px;
-            position: relative;
-        }
-
-        .badge {
-            display: inline-block;
-            background: rgba(255,51,0,0.1);
-            border-left: 3px solid var(--primary);
-            padding: 8px 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 32px;
-        }
-
-        .hero h1 {
-            font-size: 5.5rem;
-            font-weight: 800;
-            line-height: 1.1;
-            letter-spacing: -0.03em;
-            margin-bottom: 24px;
-        }
-
-        .hero h1 .accent {
-            color: var(--primary);
-            display: inline-block;
-            animation: glitch 3s infinite;
-        }
-
-        @keyframes glitch {
-            0%, 100% { transform: skew(0deg, 0deg); }
-            95% { transform: skew(0deg, 0deg); }
-            96% { transform: skew(5deg, 2deg); opacity: 0.9; }
-            97% { transform: skew(-3deg, -1deg); }
-            98% { transform: skew(0deg, 0deg); }
-        }
-
-        .hero p {
-            font-size: 1.3rem;
-            color: var(--text-dim);
-            max-width: 600px;
-            line-height: 1.5;
-            margin-bottom: 40px;
-        }
-
-        .hero-buttons {
-            display: flex;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .btn-large {
-            padding: 14px 32px;
-            font-size: 1rem;
-            font-weight: 700;
-            border-radius: 60px;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-primary-large {
-            background: var(--primary);
-            color: white;
-            border: none;
-            box-shadow: 0 0 20px rgba(255,51,0,0.3);
-        }
-
-        .btn-primary-large:hover {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 0 30px rgba(255,51,0,0.5);
-        }
-
-        .btn-outline-large {
-            border: 1.5px solid var(--border);
-            background: transparent;
-            color: var(--text);
-        }
-
-        .btn-outline-large:hover {
-            border-color: var(--primary);
-            background: rgba(255,51,0,0.05);
-        }
-
-        /* Floating chat preview */
-        .chat-preview {
-            position: absolute;
-            right: 5%;
-            top: 20%;
-            width: 350px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 28px;
-            padding: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-            animation: float 6s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
-        }
-
-        .preview-message {
-            margin: 12px 0;
-            display: flex;
-            gap: 10px;
-        }
-
-        .preview-message.user {
-            justify-content: flex-end;
-        }
-
-        .preview-bubble {
-            max-width: 85%;
-            padding: 10px 14px;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-
-        .preview-message.Litheral .preview-bubble {
-            background: #1a1a1a;
-            border-bottom-left-radius: 5px;
-            color: var(--text);
-        }
-
-        .preview-message.user .preview-bubble {
-            background: var(--primary);
-            border-bottom-right-radius: 5px;
-        }
-
-        .preview-typing {
-            display: flex;
-            gap: 4px;
-            padding: 8px 0;
-        }
-
-        .preview-typing span {
-            width: 6px;
-            height: 6px;
-            background: var(--primary);
-            border-radius: 50%;
-            animation: blink 1.4s infinite;
-        }
-
-        .preview-typing span:nth-child(2) { animation-delay: 0.2s; }
-        .preview-typing span:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes blink {
-            0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
-            30% { opacity: 1; transform: scale(1.2); }
-        }
-
-        /* Section headers */
-        .section {
-            padding: 100px 0;
-        }
-
-        .section-tag {
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 3px;
-            color: var(--primary);
-            font-weight: 700;
-            margin-bottom: 16px;
-        }
-
-        .section-title {
-            font-size: 3rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            margin-bottom: 20px;
-        }
-
-        .section-sub {
-            color: var(--text-dim);
-            font-size: 1.1rem;
-            max-width: 500px;
-        }
-
-        /* 3-panel brutalist */
-        .panels {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 2px;
-            background: var(--border);
-            margin: 60px 0;
-        }
-
-        .panel {
-            background: var(--bg-card);
-            padding: 48px 32px;
-            transition: all 0.3s;
-        }
-
-        .panel:hover {
-            background: #141414;
-            transform: translateY(-4px);
-        }
-
-        .panel-icon {
-            font-size: 2.5rem;
-            margin-bottom: 24px;
-        }
-
-        .panel h3 {
-            font-size: 1.5rem;
-            margin-bottom: 12px;
-        }
-
-        .panel p {
-            color: var(--text-dim);
-            line-height: 1.5;
-        }
-
-        /* Privacy block - aggressive statement */
-        .privacy-block {
-            background: linear-gradient(135deg, #0a0a0a 0%, #050505 100%);
-            border: 1px solid var(--border);
-            border-radius: 40px;
-            padding: 60px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            margin: 60px 0;
-        }
-
-        .privacy-block::before {
-            content: "🔒";
-            position: absolute;
-            font-size: 180px;
-            opacity: 0.03;
-            bottom: -40px;
-            right: -40px;
-        }
-
-        .privacy-stat {
-            font-size: 4rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin: 20px 0;
-        }
-
-        /* Credit meter */
-        .credit-meter {
-            background: var(--bg-card);
-            border-radius: 40px;
-            padding: 60px;
-            margin: 60px 0;
-            display: flex;
-            gap: 60px;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .credit-info {
-            flex: 1;
-        }
-
-        .credit-pills {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin: 30px 0;
-        }
-
-        .pill {
-            background: rgba(255,51,0,0.1);
-            border: 1px solid rgba(255,51,0,0.2);
-            padding: 12px 24px;
-            border-radius: 60px;
-            font-weight: 600;
-        }
-
-        .pill strong {
-            color: var(--primary);
-            font-size: 1.2rem;
-        }
-
-        .credit-visual {
-            flex: 0.7;
-            background: #000000;
-            border-radius: 32px;
-            padding: 40px;
-            text-align: center;
-        }
-
-        .coin-pile {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .coin {
-            width: 70px;
-            height: 70px;
-            background: radial-gradient(circle at 30% 30%, #ff884d, var(--primary));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 1.3rem;
-            box-shadow: 0 0 15px rgba(255,51,0,0.3);
-        }
-
-        /* Testimonial / vibe check */
-        .vibe-check {
-            background: var(--bg-card);
-            border-left: 4px solid var(--primary);
-            padding: 40px;
-            margin: 60px 0;
-            font-size: 1.3rem;
-            font-style: italic;
-            color: var(--text-dim);
-        }
-
-        /* CTA */
-        .cta-block {
-            text-align: center;
-            padding: 80px 0;
-        }
-
-        .cta-block h2 {
-            font-size: 3rem;
-            margin-bottom: 20px;
-        }
-
-        /* Footer */
-        footer {
-            border-top: 1px solid var(--border);
-            padding: 40px 0;
-            text-align: center;
-            color: var(--text-muted);
-            font-size: 0.8rem;
-        }
-
-        /* Mobile */
-        @media (max-width: 1024px) {
-            .hero h1 { font-size: 3.5rem; }
-            .chat-preview { display: none; }
-            .panels { grid-template-columns: 1fr; gap: 1px; }
-            .section-title { font-size: 2.2rem; }
-        }
-
-        @media (max-width: 768px) {
-            .hero h1 { font-size: 2.5rem; }
-            .privacy-block, .credit-meter { padding: 32px 24px; }
-            .privacy-stat { font-size: 2.5rem; }
-            .vibe-check { font-size: 1rem; }
-        }
-
-        /* Scroll reveal */
-        .reveal {
-            opacity: 0;
-            transform: translateY(30px);
-            transition: all 0.7s ease;
-        }
-
-        .reveal.active {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Litheral — Proactive Agent Workspace</title>
+  <!-- Google Fonts & simple icons (Feather via CDN) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #FFFFFF;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #111111;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* main app grid */
+    .app {
+      display: flex;
+      height: 100vh;
+      width: 100%;
+      flex-direction: column;
+    }
+
+    /* top navigation bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 2rem;
+      height: 70px;
+      border-bottom: 1px solid #E5E7EB;
+      background: #FFFFFF;
+      flex-shrink: 0;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: baseline;
+      gap: 2px;
+    }
+    .logo-lith {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #000000;
+    }
+    .logo-eral {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #DC2626;
+    }
+    .badge {
+      font-size: 0.7rem;
+      background: #F3F4F6;
+      padding: 2px 8px;
+      border-radius: 40px;
+      margin-left: 12px;
+      color: #4B5563;
+    }
+
+    .right-controls {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .coin-pill {
+      background: #F9FAFB;
+      padding: 6px 14px;
+      border-radius: 40px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid #E5E7EB;
+      cursor: pointer;
+    }
+    .coin-dot {
+      width: 8px;
+      height: 8px;
+      background: #22C55E;
+      border-radius: 50%;
+    }
+    .user-avatar {
+      width: 38px;
+      height: 38px;
+      background: #111111;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* main layout: sidebar + center column */
+    .main-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* left proactive sidebar */
+    .proactive-sidebar {
+      width: 300px;
+      background: #FFFFFF;
+      border-right: 1px solid #E5E7EB;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 1.5rem 1rem;
+      gap: 1.8rem;
+      flex-shrink: 0;
+    }
+
+    .insight-section h3 {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      color: #6B7280;
+      margin-bottom: 0.8rem;
+    }
+
+    .proactive-card {
+      background: #FAFAFA;
+      border-left: 3px solid #DC2626;
+      border-radius: 14px;
+      padding: 0.9rem;
+      margin-bottom: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .proactive-card:hover {
+      background: #FEF2F2;
+      transform: translateX(2px);
+    }
+    .card-icon {
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+    }
+    .card-title {
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #111;
+      margin-bottom: 4px;
+    }
+    .card-desc {
+      font-size: 0.7rem;
+      color: #4B5563;
+    }
+    .reminder-item {
+      font-size: 0.8rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #EDF2F7;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* main conversation area */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #FFFFFF;
+      overflow: hidden;
+    }
+
+    .messages-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.8rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .message {
+      display: flex;
+      max-width: 80%;
+      animation: fadeSlideUp 0.2s ease;
+    }
+    .message.user {
+      align-self: flex-end;
+      justify-content: flex-end;
+    }
+    .message.assistant {
+      align-self: flex-start;
+    }
+    .bubble {
+      padding: 0.9rem 1.2rem;
+      border-radius: 24px;
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    .user .bubble {
+      background: #F3F4F6;
+      color: #111;
+      border-bottom-right-radius: 6px;
+    }
+    .assistant .bubble {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      color: #111;
+      border-bottom-left-radius: 6px;
+    }
+    .assistant .bubble strong {
+      color: #DC2626;
+    }
+
+    /* input area */
+    .input-wrapper {
+      padding: 1rem 2rem 1.8rem;
+      border-top: 1px solid #E5E7EB;
+      background: #FFFFFF;
+    }
+    .smart-input {
+      display: flex;
+      align-items: flex-end;
+      gap: 0.8rem;
+      background: #F9FAFB;
+      border-radius: 28px;
+      padding: 0.5rem 1rem;
+      border: 1px solid #E5E7EB;
+      transition: 0.2s;
+    }
+    .smart-input:focus-within {
+      border-color: #DC2626;
+      box-shadow: 0 0 0 3px rgba(220,38,38,0.05);
+    }
+    .smart-input textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      resize: none;
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 0.6rem 0;
+      outline: none;
+      max-height: 120px;
+    }
+    .input-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.2rem;
+      padding: 6px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6B7280;
+      transition: 0.2s;
+    }
+    .icon-btn:hover {
+      background: #E5E7EB;
+      color: #DC2626;
+    }
+    .send-btn {
+      background: #000000;
+      color: white;
+      border-radius: 40px;
+      padding: 8px 18px;
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+    .send-btn:hover {
+      background: #DC2626;
+    }
+
+    /* quick actions row */
+    .quick-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      background: #F3F4F6;
+      padding: 6px 14px;
+      border-radius: 40px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.1s;
+    }
+    .chip:hover {
+      background: #DC2626;
+      color: white;
+    }
+
+    /* bottom nav */
+    .bottom-nav {
+      flex-shrink: 0;
+      display: flex;
+      gap: 1.2rem;
+      padding: 0.6rem 2rem;
+      border-top: 1px solid #E5E7EB;
+      background: #FFFFFF;
+    }
+    .nav-item {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #6B7280;
+      cursor: pointer;
+      padding: 6px 0;
+    }
+    .nav-item.active {
+      color: #DC2626;
+      border-bottom: 2px solid #DC2626;
+    }
+
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(8px);}
+      to { opacity: 1; transform: translateY(0);}
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F1F1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #C1C1C1;
+      border-radius: 8px;
+    }
+  </style>
 </head>
 <body>
-    <div class="cursor-follow" id="cursor"></div>
-    <div class="grid-overlay"></div>
-    <div class="grain"></div>
+<div class="app">
+  <!-- top bar -->
+  <div class="top-bar">
+    <div class="logo-area">
+      <span class="logo-lith">Lith</span><span class="logo-eral">eral</span>
+      <span class="badge">PROACTIVE AGENT</span>
+    </div>
+    <div class="right-controls">
+      <div class="coin-pill" id="coinIndicator">
+        <span class="coin-dot"></span>
+        <span id="coinBalance">142.50</span> <span style="font-size:0.7rem;">credits</span>
+      </div>
+      <div class="user-avatar">JD</div>
+    </div>
+  </div>
 
-    <div class="container">
-        <nav>
-            <div class="logo">
-                <span>LITH</span><span>ERAL</span>
-            </div>
-            <div class="nav-actions">
-                <a href="/login" class="btn-nav">LOG IN</a>
-                <a href="/signup" class="btn-nav btn-nav-primary">SIGN UP →</a>
-            </div>
-        </nav>
-
-        <div class="hero">
-            <div class="badge">DEFIANCE MODE: ALWAYS ON</div>
-            <h1>
-                The AI that<br>
-                <span class="accent">talks back</span> —<br>
-                and actually listens.
-            </h1>
-            <p>Not a people-pleaser. Not a spy. Litheral roasts you when you need it, stays silent when you don't, and never sells your data — because we literally can't read it.</p>
-            <div class="hero-buttons">
-                <a href="/signup" class="btn-large btn-primary-large">START CHATTING →</a>
-                <a href="/login" class="btn-large btn-outline-large">I HAVE CREDITS</a>
-            </div>
-
-            <!-- Floating chat preview -->
-            <div class="chat-preview" id="chatPreview">
-                <div class="preview-message user">
-                    <div class="preview-bubble">I keep procrastinating on my goals</div>
-                </div>
-                <div class="preview-message Litheral">
-                    <div class="preview-bubble">Yeah, you and everyone else. The difference is — are you gonna do something about it today or just complain?</div>
-                </div>
-                <div class="preview-typing">
-                    <span></span><span></span><span></span>
-                </div>
-            </div>
+  <div class="main-layout">
+    <!-- LEFT: PROACTIVE SIDEBAR (cards that speak first) -->
+    <div class="proactive-sidebar" id="proactiveSidebar">
+      <div class="insight-section">
+        <h3>⚡ Proactive pulse</h3>
+        <div class="proactive-card" data-action="weather" data-payload="London">
+          <div class="card-icon">🌧️</div>
+          <div class="card-title">Rain in 45 minutes</div>
+          <div class="card-desc">London: light rain expected. Grab an umbrella?</div>
         </div>
-
-        <div class="section">
-            <div class="section-tag">/ raw & unfiltered</div>
-            <h2 class="section-title">Not your average<br>bubble-wrap AI</h2>
-            <div class="panels">
-                <div class="panel reveal">
-                    <div class="panel-icon">🗣️</div>
-                    <h3>Defiant personality</h3>
-                    <p>Litheral roasts, claps back, and keeps it 100% real. No fake positivity, no corporate apologies — just honest conversation.</p>
-                </div>
-                <div class="panel reveal">
-                    <div class="panel-icon">🔒</div>
-                    <h3>Privacy, period.</h3>
-                    <p><strong>Even we can't read your chats.</strong> No backdoors, no logging, no "trust us bro" — just math and encryption.</p>
-                </div>
-                <div class="panel reveal">
-                    <div class="panel-icon">💎</div>
-                    <h3>No subscriptions</h3>
-                    <p>Buy credits once. Use them whenever. No monthly bill, no surprise charges, no "we'll charge you forever" nonsense.</p>
-                </div>
-            </div>
+        <div class="proactive-card" data-action="reminder" data-payload="dentist">
+          <div class="card-icon">🦷</div>
+          <div class="card-title">Health reminder</div>
+          <div class="card-desc">You mentioned dentist appointment — checkup due?</div>
         </div>
-
-        <div class="privacy-block reveal">
-            <div class="section-tag" style="text-align: center;">/ absolute privacy</div>
-            <div class="privacy-stat">🔒 EVEN THE DEVS CAN'T SEE</div>
-            <p style="max-width: 600px; margin: 0 auto; color: var(--text-dim);">Litheral is built on a zero-access architecture. Your conversations are encrypted end-to-end — not even our engineers can read what you say. That's not a promise. That's engineering.</p>
+        <div class="proactive-card" data-action="context" data-payload="solar">
+          <div class="card-icon">💡</div>
+          <div class="card-title">Remembered: solar panels</div>
+          <div class="card-desc">"Last week you compared solar quotes. New data available."</div>
         </div>
-
-        <div class="credit-meter reveal">
-            <div class="credit-info">
-                <div class="section-tag">/ pay as you talk</div>
-                <h2 class="section-title" style="font-size: 2.2rem;">No monthly trap.<br>Just credits.</h2>
-                <p style="color: var(--text-dim);">Buy interaction credits. Send messages. That's it. No recurring billing, no expiration dates, no hidden fees.</p>
-                <div class="credit-pills">
-                    <div class="pill"><strong>1 credit</strong> = 1 message</div>
-                    <div class="pill"><strong>$10</strong> = 100 credits</div>
-                    <div class="pill"><strong>Never expire</strong></div>
-                </div>
-            </div>
-            <div class="credit-visual">
-                <div class="coin-pile">
-                    <div class="coin">10</div>
-                    <div class="coin">25</div>
-                    <div class="coin">50</div>
-                    <div class="coin">100</div>
-                </div>
-                <p style="margin-top: 24px; color: var(--text-muted); font-size: 0.8rem;">Buy once. Chat for months.</p>
-            </div>
+      </div>
+      <div class="insight-section">
+        <h3>📅 Smart triggers</h3>
+        <div class="proactive-card" data-action="calendar" data-payload="meeting">
+          <div class="card-icon">👥</div>
+          <div class="card-title">Project sync in 15min</div>
+          <div class="card-desc">Google Calendar: join link ready.</div>
         </div>
-
-        <div class="vibe-check reveal">
-            "Litheral told me I was making excuses — then helped me actually fix my sh*t. No other AI has the guts to do that."<br>
-            <span style="font-size: 0.8rem; margin-top: 12px; display: block;">— Alex, 3-year procrastinator (recovering)</span>
+        <div class="proactive-card" data-action="search" data-payload="AI news">
+          <div class="card-icon">🔍</div>
+          <div class="card-title">Trending: AI agent launches</div>
+          <div class="card-desc">2 new competitors announced. Want a brief?</div>
         </div>
-
-        <div class="cta-block reveal">
-            <h2>Ready to meet an AI<br>with a spine?</h2>
-            <p style="color: var(--text-dim); margin-bottom: 32px;">No subscription. No surveillance. Just real talk.</p>
-            <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
-                <a href="/signup" class="btn-large btn-primary-large">SIGN UP — FREE CREDITS →</a>
-                <a href="/login" class="btn-large btn-outline-large">LOG IN</a>
-            </div>
-            <p style="margin-top: 24px; font-size: 0.75rem; color: var(--text-muted);">✨ New accounts get 5 free credits. No credit card required.</p>
-        </div>
-
-        <footer>
-            <p>© 2026 Litheral — Clarity over noise. Privacy by default. Attitude included.</p>
-            <p style="margin-top: 12px;">
-                <a href="#" style="color: var(--text-muted); text-decoration: none; margin: 0 12px;">Terms</a>
-                <a href="#" style="color: var(--text-muted); text-decoration: none; margin: 0 12px;">Privacy</a>
-                <a href="#" style="color: var(--text-muted); text-decoration: none; margin: 0 12px;">Credits</a>
-            </p>
-        </footer>
+      </div>
+      <div class="insight-section">
+        <h3>⏰ Reminders</h3>
+        <div class="reminder-item">🔔 Call Mom at 6pm</div>
+        <div class="reminder-item">📎 Submit report tomorrow 9am</div>
+        <div class="reminder-item">🧾 Buy groceries (you said 'asap')</div>
+      </div>
     </div>
 
-    <script>
-        // Custom cursor
-        const cursor = document.getElementById('cursor');
-        document.addEventListener('mousemove', (e) => {
-            cursor.style.transform = `translate(${e.clientX - 10}px, ${e.clientY - 10}px)`;
-        });
+    <!-- CENTER: MAIN CONVERSATION + AGENT CHAT -->
+    <div class="chat-container">
+      <div class="messages-area" id="messagesArea">
+        <!-- welcome proactive message -->
+        <div class="message assistant">
+          <div class="bubble">
+            <strong>Good morning, David.</strong><br />
+            You have a light day ahead. I’ve been tracking <strong>weather in London</strong> — rain likely. Also, remember the <strong>solar panel research</strong> from last week? Want me to pull updated pricing?<br /><br />
+            <span style="font-size:0.7rem; color:#6B7280;">⚡ proactive intelligence — always watching what matters.</span>
+          </div>
+        </div>
+        <div class="message user">
+          <div class="bubble">Actually yeah, what's the latest efficiency ratings?</div>
+        </div>
+        <div class="message assistant">
+          <div class="bubble">
+            <strong>🔍 Agent tool — web search activated</strong><br />
+            Top-tier residential solar panels now reach <strong>22.8% efficiency</strong> (REC Alpha Pure-R). Prices dropped ~9% since your last check. Want me to compare three local installers?
+          </div>
+        </div>
+      </div>
 
-        document.addEventListener('mouseleave', () => {
-            cursor.style.opacity = '0';
-        });
+      <!-- INPUT AREA -->
+      <div class="input-wrapper">
+        <div class="smart-input">
+          <textarea rows="1" id="messageInput" placeholder="Ask Litheral anything — weather, calendar, research..."></textarea>
+          <div class="input-actions">
+            <button class="icon-btn" id="attachBtn" title="Upload file">📎</button>
+            <button class="icon-btn" id="quickToolsBtn" title="Tools">⚡</button>
+            <button class="send-btn" id="sendBtn">Send →</button>
+          </div>
+        </div>
+        <div class="quick-actions" id="quickActions">
+          <span class="chip" data-command="weather London">🌤️ Weather London</span>
+          <span class="chip" data-command="search AI news">📰 AI news today</span>
+          <span class="chip" data-command="reminder call mom at 6pm">⏰ Set reminder</span>
+          <span class="chip" data-command="calendar what's next">📅 Next event</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        document.addEventListener('mouseenter', () => {
-            cursor.style.opacity = '1';
-        });
+  <!-- bottom navigation (agent-centric) -->
+  <div class="bottom-nav">
+    <div class="nav-item active">💬 Chats</div>
+    <div class="nav-item">📎 Files</div>
+    <div class="nav-item">📅 Calendar</div>
+    <div class="nav-item">🔧 Tools</div>
+    <div class="nav-item">⚙️ Settings</div>
+  </div>
+</div>
 
-        // Scroll reveal
-        const reveals = document.querySelectorAll('.reveal');
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('active');
-                }
-            });
-        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+<script>
+  // ---------- FAKE AGENT INTELLIGENCE + PROACTIVE MAGIC ----------
+  // This UI demonstrates the proactive agent with mock responses, weather, search, reminders.
+  // In production, replace with SSE and real agent backend (Node/Python).
+  // All interactions simulate Litheral being proactive AND tool-aware.
 
-        reveals.forEach(el => observer.observe(el));
+  const messagesArea = document.getElementById('messagesArea');
+  const messageInput = document.getElementById('messageInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const coinBalanceSpan = document.getElementById('coinBalance');
+  let currentCoins = 142.50;
 
-        // Animated chat preview
-        const preview = document.querySelector('.chat-preview');
-        if (preview) {
-            setTimeout(() => {
-                const typing = preview.querySelector('.preview-typing');
-                const lastMsg = preview.querySelector('.preview-message.Litheral:last-child');
-                if (typing && lastMsg) {
-                    setTimeout(() => {
-                        const newMsg = document.createElement('div');
-                        newMsg.className = 'preview-message Litheral';
-                        newMsg.innerHTML = '<div class="preview-bubble">Good. Now stop thinking and start doing. Come back when you\'ve made progress.</div>';
-                        preview.insertBefore(newMsg, typing);
-                        typing.style.display = 'none';
-                    }, 2000);
-                }
-            }, 3000);
-        }
+  // helper: update coin display (never intrusive, just top-bar)
+  function updateCoinDisplay() {
+    coinBalanceSpan.innerText = currentCoins.toFixed(2);
+  }
 
-        // Random glitch effect on accent text
-        setInterval(() => {
-            const accent = document.querySelector('.accent');
-            if (accent && Math.random() > 0.95) {
-                accent.style.animation = 'none';
-                setTimeout(() => {
-                    accent.style.animation = 'glitch 3s infinite';
-                }, 10);
-            }
-        }, 5000);
-    </script>
+  // add message to UI (user or assistant)
+  function addMessage(role, content, toolMeta = null) {
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${role}`;
+    let bubbleHtml = `<div class="bubble">${content}</div>`;
+    if (toolMeta && role === 'assistant') {
+      bubbleHtml = `<div class="bubble"><span style="background:#FEF2F2; padding:2px 8px; border-radius:40px; font-size:0.7rem; font-weight:500;">🛠️ ${toolMeta.tool}</span><br/><br/>${content}</div>`;
+    }
+    msgDiv.innerHTML = bubbleHtml;
+    messagesArea.appendChild(msgDiv);
+    messagesArea.scrollTop = messagesArea.scrollHeight;
+  }
+
+  // simulate coin deduction (backend would handle)
+  function deductCoins(amount = 0.03) {
+    currentCoins = Math.max(0, currentCoins - amount);
+    updateCoinDisplay();
+    if (currentCoins < 5) {
+      // subtle warning only if really low
+      if (!document.querySelector('.low-coin-warning')) {
+        const warn = document.createElement('div');
+        warn.className = 'low-coin-warning';
+        warn.style.cssText = 'font-size:0.7rem; color:#DC2626; text-align:center; margin-top:6px;';
+        warn.innerText = '⚡ your credits are running low. visit settings to refuel.';
+        document.querySelector('.input-wrapper').appendChild(warn);
+        setTimeout(() => warn.remove(), 4000);
+      }
+    }
+  }
+
+  // agent call simulator (weather, web search, calendar, reminders, proactive context)
+  async function callLitheralAgent(userMessage, conversationContext = []) {
+    const lowerMsg = userMessage.toLowerCase();
+    addMessage('user', userMessage);
+    // Deduct tiny coins for each agent call (invisible to conversation)
+    deductCoins(0.02);
+
+    // Simulate intelligent routing
+    let responseText = '';
+    let toolUsed = null;
+
+    // WEATHER tool
+    if (lowerMsg.includes('weather') || lowerMsg.includes('forecast') || lowerMsg.includes('rain')) {
+      toolUsed = 'Weather API (OpenWeather)';
+      let city = 'your location';
+      if (lowerMsg.includes('london')) city = 'London';
+      else if (lowerMsg.includes('tokyo')) city = 'Tokyo';
+      else if (lowerMsg.includes('new york')) city = 'New York';
+      responseText = `🌦️ **${city}** — Currently 18°C, partly cloudy. Light rain expected within the next 2 hours. Humidity 67%. ${city === 'London' ? 'Definitely pack an umbrella.' : 'Nice conditions overall.'}`;
+    } 
+    // SEARCH / web intelligence
+    else if (lowerMsg.includes('search') || lowerMsg.includes('news') || lowerMsg.includes('latest') || lowerMsg.includes('trending')) {
+      toolUsed = 'Web Search (Tavily)';
+      let topic = userMessage.replace(/search|news|latest|trending/gi, '').trim() || 'AI agent market';
+      responseText = `🔎 **Live search results for "${topic}"**\n\n1. Litheral AI gains proactive agent recognition.\n2. Major tech firms announce new agentic frameworks.\n3. Efficiency breakthroughs in LLM tool calling.\n\n${topic.includes('solar') ? 'Solar panel efficiency now 22.9% — prices down 7% from last month.' : 'Would you like a deeper dive on any of these?'}`;
+    }
+    // CALENDAR (proactive or explicit)
+    else if (lowerMsg.includes('calendar') || lowerMsg.includes('meeting') || lowerMsg.includes('schedule')) {
+      toolUsed = 'Google Calendar (agent)';
+      responseText = `📅 **Your upcoming events**:\n• Project sync with Sarah — 2:00 PM (30 min)\n• Dentist reminder — tomorrow 9:30 AM\n• No conflicts detected. Want me to block time for research?`;
+    }
+    // REMINDERS
+    else if (lowerMsg.includes('remind') || lowerMsg.includes('reminder')) {
+      toolUsed = 'Reminder engine';
+      const reminderText = userMessage.replace(/remind me to|reminder/gi, '').trim();
+      responseText = `✅ Reminder set: "${reminderText || 'call dentist'}". I'll notify you at the right time (proactive alert). You can also ask me to list reminders.`;
+    }
+    // context / proactive recall (simulate memory)
+    else if (lowerMsg.includes('solar') || lowerMsg.includes('panel') || lowerMsg.includes('efficiency')) {
+      toolUsed = 'Memory context';
+      responseText = `💡 **You previously researched solar panels** (last week). New data: REC Alpha Pure-R hits 22.8% efficiency, up from 22.1%. Average cost per watt dropped to $2.85. Want me to compare three local installers?`;
+    }
+    else {
+      // fallback general assistant
+      responseText = `I've processed your request: "${userMessage}". As a proactive agent, I can fetch live weather, search the web, manage calendar, set reminders, and recall past context. Try asking "weather in Tokyo" or "set a reminder for 7pm".`;
+    }
+
+    // simulate latency
+    await new Promise(resolve => setTimeout(resolve, 400));
+    addMessage('assistant', responseText, toolUsed ? { tool: toolUsed } : null);
+    return responseText;
+  }
+
+  // Handle proactive card clicks (simulate AI instantly responding with context)
+  function bindProactiveCards() {
+    document.querySelectorAll('.proactive-card').forEach(card => {
+      card.removeEventListener('click', proactiveHandler);
+      card.addEventListener('click', proactiveHandler);
+    });
+  }
+
+  async function proactiveHandler(e) {
+    const card = e.currentTarget;
+    const action = card.getAttribute('data-action');
+    const payload = card.getAttribute('data-payload');
+    let proactiveMessage = '';
+
+    if (action === 'weather') {
+      proactiveMessage = `Show me the weather forecast for ${payload} and any alerts.`;
+    } else if (action === 'reminder') {
+      proactiveMessage = `Remind me to check about my dentist appointment.`;
+    } else if (action === 'context') {
+      proactiveMessage = `Tell me more about solar panel updates — you mentioned I was researching.`;
+    } else if (action === 'calendar') {
+      proactiveMessage = `What's on my calendar next? Also reschedule if needed.`;
+    } else if (action === 'search') {
+      proactiveMessage = `Search for recent news about ${payload} and summarize.`;
+    } else {
+      proactiveMessage = `Tell me more about ${payload || 'this proactive insight'}.`;
+    }
+    await callLitheralAgent(proactiveMessage);
+  }
+
+  // send message from input
+  async function handleSendMessage() {
+    const text = messageInput.value.trim();
+    if (!text) return;
+    messageInput.value = '';
+    messageInput.style.height = 'auto';
+    await callLitheralAgent(text);
+  }
+
+  // quick chips
+  function bindChips() {
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.removeEventListener('click', chipHandler);
+      chip.addEventListener('click', chipHandler);
+    });
+  }
+
+  async function chipHandler(e) {
+    const command = e.currentTarget.getAttribute('data-command');
+    if (command) await callLitheralAgent(command);
+  }
+
+  // Attach button (demo file upload toast)
+  document.getElementById('attachBtn').addEventListener('click', () => {
+    addMessage('assistant', '📎 *File upload ready* — Litheral agent can parse PDFs, images, and CSVs. Drag & drop or select. (simulated — backend integration ready)', { tool: 'File analyzer' });
+    deductCoins(0.01);
+  });
+
+  // quick tools menu: show tool palette (demo)
+  document.getElementById('quickToolsBtn').addEventListener('click', () => {
+    addMessage('assistant', '🔧 **Agent toolbelt**\n• Weather API (real-time)\n• Web search (live news)\n• Calendar read/write\n• Reminders & tasks\n• Memory recall\n• Upload files (text, code, images)\nWhich tool would you like to activate?', { tool: 'Agent hub' });
+  });
+
+  // initial event binding
+  sendBtn.addEventListener('click', handleSendMessage);
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  });
+  // auto expand textarea
+  messageInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  // refresh proactive card binding & chip binding after dynamic changes (just once)
+  function init() {
+    bindProactiveCards();
+    bindChips();
+    // coin display mock
+    updateCoinDisplay();
+
+    // additional proactive simulation: after 8 seconds send a background "proactive nudge" (autonomous agent)
+    setTimeout(() => {
+      const existing = Array.from(messagesArea.children).some(c => c.innerText.includes('flight to Tokyo'));
+      if (!existing && document.visibilityState === 'visible') {
+        const nudges = [
+          "🎯 *Proactive suggestion*: You searched for solar panels last week. Prices dropped 5% — want to get quotes?",
+          "✈️ *Context memory*: You mentioned a possible trip to Japan. Flights to Tokyo next month are 12% cheaper today."
+        ];
+        const randomNudge = nudges[Math.floor(Math.random() * nudges.length)];
+        addMessage('assistant', randomNudge, { tool: 'Proactive memory' });
+        deductCoins(0.005);
+      }
+    }, 7000);
+  }
+
+  init();
+</script>
 </body>
 </html>
