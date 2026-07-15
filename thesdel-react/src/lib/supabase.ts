@@ -1,16 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, ClassGroup, TimetableEntry, AttendanceLog, ClassUpdate, NotificationPreferences } from '../types';
 
-let supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
-let supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
+// 🔥 FIX: Directly use env vars without sanitize function that might break them
+const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
 
-// Fallback to placeholder values if the environment variables are missing or invalid
-// to prevent the application from crashing on startup.
-if (!supabaseUrl || !supabaseUrl.startsWith('http')) {
-  supabaseUrl = 'https://placeholder-project.supabase.co';
+// 🔥 DEBUG: Log what we're getting
+console.log('🔍 VITE_SUPABASE_URL:', supabaseUrl);
+console.log('🔍 VITE_SUPABASE_ANON_KEY length:', supabaseAnonKey.length);
+
+// 🔥 FIX: Better fallback - throw error instead of using placeholder
+if (!supabaseUrl || !supabaseUrl.startsWith('https://')) {
+  console.error('❌ VITE_SUPABASE_URL is missing or invalid!');
+  throw new Error('VITE_SUPABASE_URL environment variable is required');
 }
-if (!supabaseAnonKey) {
-  supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder-key';
+
+if (!supabaseAnonKey || supabaseAnonKey.length < 10) {
+  console.error('❌ VITE_SUPABASE_ANON_KEY is missing or invalid!');
+  throw new Error('VITE_SUPABASE_ANON_KEY environment variable is required');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -349,4 +356,3 @@ export async function fetchBasePrices(): Promise<{ basic: number; premium: numbe
     return { basic: 1.00, premium: 3.00 };
   }
 }
-
