@@ -1,24 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, ClassGroup, TimetableEntry, AttendanceLog, ClassUpdate, NotificationPreferences } from '../types';
 
-// 🔥 FIX: Directly use env vars without sanitize function that might break them
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY || '';
-
-// 🔥 DEBUG: Log what we're getting
-console.log('🔍 VITE_SUPABASE_URL:', supabaseUrl);
-console.log('🔍 VITE_SUPABASE_ANON_KEY length:', supabaseAnonKey.length);
-
-// 🔥 FIX: Better fallback - throw error instead of using placeholder
-if (!supabaseUrl || !supabaseUrl.startsWith('https://')) {
-  console.error('❌ VITE_SUPABASE_URL is missing or invalid!');
-  throw new Error('VITE_SUPABASE_URL environment variable is required');
-}
-
-if (!supabaseAnonKey || supabaseAnonKey.length < 10) {
-  console.error('❌ VITE_SUPABASE_ANON_KEY is missing or invalid!');
-  throw new Error('VITE_SUPABASE_ANON_KEY environment variable is required');
-}
+// 🔥 HARDCODED SUPABASE CREDENTIALS - Replace these with your actual values
+const supabaseUrl = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
