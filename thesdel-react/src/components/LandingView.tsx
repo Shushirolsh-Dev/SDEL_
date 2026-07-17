@@ -124,11 +124,32 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
       }
 
       if (authData.user) {
-        const { data: profile, error: profileError } = await supabase
+        let { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authData.user.id)
           .single();
+
+        if (profileError || !profile) {
+          // If profile is missing in the DB, try to insert it directly from client
+          const { data: insertedProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              name: signUpName,
+              email: signUpEmail,
+              role: signUpRole,
+              phone: phoneTrimmed,
+              plan: 'free',
+            })
+            .select()
+            .single();
+
+          if (!insertError && insertedProfile) {
+            profile = insertedProfile;
+            profileError = null;
+          }
+        }
 
         if (profileError || !profile) {
           const newUser: User = {
@@ -186,11 +207,37 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
       }
 
       if (authData.user) {
-        const { data: profile, error: profileError } = await supabase
+        let { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authData.user.id)
           .single();
+
+        if (profileError || !profile) {
+          // If profile is missing in the DB on login, try to insert it using auth metadata or defaults
+          const metadata = authData.user.user_metadata || {};
+          const fallbackName = metadata.name || authData.user.email?.split('@')[0] || 'User';
+          const fallbackRole = metadata.role || 'member';
+          const fallbackPhone = metadata.phone || '';
+
+          const { data: insertedProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              name: fallbackName,
+              email: authData.user.email || '',
+              role: fallbackRole,
+              phone: fallbackPhone,
+              plan: 'free',
+            })
+            .select()
+            .single();
+
+          if (!insertError && insertedProfile) {
+            profile = insertedProfile;
+            profileError = null;
+          }
+        }
 
         if (profileError || !profile) {
           setLoginError('Unable to load your profile. Please contact support.');
