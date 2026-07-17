@@ -1,9 +1,33 @@
 import { createClient } from '@supabase/supabase-js';
 import { User, ClassGroup, TimetableEntry, AttendanceLog, ClassUpdate, NotificationPreferences } from '../types';
 
-// 🔥 HARDCODED SUPABASE CREDENTIALS - Replace these with your actual values
-const supabaseUrl = 'https://lgfyrlfjoazedwymjpfc.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnZnlybGZqb2F6ZWR3eW1qcGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTc1MTksImV4cCI6MjA4MjA5MzUxOX0.g1xVMCtSkkQIu2s1pkvWwxDDvgNGbikAMkyfbZJywVw';
+function sanitizeEnvVar(val: any): string {
+  if (!val) return '';
+  let trimmed = String(val).trim();
+  if (trimmed === 'undefined' || trimmed === 'null') return '';
+  
+  // Remove surrounding single or double quotes if present
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    trimmed = trimmed.substring(1, trimmed.length - 1);
+  } else if (trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    trimmed = trimmed.substring(1, trimmed.length - 1);
+  }
+  
+  // Remove any invisible whitespace, carriage returns, newlines or tabs
+  return trimmed.replace(/[\r\n\s\t]+/g, '').trim();
+}
+
+let supabaseUrl = sanitizeEnvVar((import.meta as any).env.VITE_SUPABASE_URL);
+let supabaseAnonKey = sanitizeEnvVar((import.meta as any).env.VITE_SUPABASE_ANON_KEY);
+
+// Fallback to placeholder values if the environment variables are missing or invalid
+// to prevent the application from crashing on startup.
+if (!supabaseUrl || !supabaseUrl.startsWith('http')) {
+  supabaseUrl = 'https://placeholder-project.supabase.co';
+}
+if (!supabaseAnonKey) {
+  supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder-key';
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -341,3 +365,4 @@ export async function fetchBasePrices(): Promise<{ basic: number; premium: numbe
     return { basic: 1.00, premium: 3.00 };
   }
 }
+
