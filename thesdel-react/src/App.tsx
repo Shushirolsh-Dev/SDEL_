@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AdminApp from '../admin/AdminApp';
 import {
   INITIAL_USER,
   INITIAL_CLASSES,
@@ -16,7 +17,7 @@ import ClassView from './components/ClassView';
 import ProfileView from './components/ProfileView';
 import LandingView from './components/LandingView';
 import ReminderSettingsView from './components/ReminderSettingsView';
-import { Calendar, CheckCircle2, Clock, Shield, User as UserIcon, BookOpen, Layers } from 'lucide-react';
+import { Calendar, CheckCircle2, Clock, Shield, User as UserIcon, BookOpen, Layers, Terminal } from 'lucide-react';
 import {
   supabase,
   getCached,
@@ -99,11 +100,40 @@ export default function App() {
       console.log('[App] Fetching live data from Supabase for user:', userId);
       
       // 1. Fetch user profile
-      const { data: profile, error: profileErr } = await supabase
+      let { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
+        
+      if (profileErr || !profile) {
+        // If profile is missing in DB during sync/refresh, attempt to insert it
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          const metadata = authUser.user_metadata || {};
+          const fallbackName = metadata.name || authUser.email?.split('@')[0] || 'User';
+          const fallbackRole = metadata.role || 'member';
+          const fallbackPhone = metadata.phone || '';
+
+          const { data: insertedProfile, error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: userId,
+              name: fallbackName,
+              email: authUser.email || '',
+              role: fallbackRole,
+              phone: fallbackPhone,
+              plan: 'free',
+            })
+            .select()
+            .single();
+
+          if (!insertError && insertedProfile) {
+            profile = insertedProfile;
+            profileErr = null;
+          }
+        }
+      }
         
       if (!profileErr && profile) {
         const u: User = {
@@ -986,6 +1016,10 @@ export default function App() {
     }
   };
 
+  if (window.location.pathname.startsWith('/admin') || window.location.hash.startsWith('#/admin')) {
+    return <AdminApp />;
+  }
+
   if (!isLoggedIn) {
     return <LandingView onLoginSuccess={handleLoginSuccess} classesCount={classes.length} />;
   }
@@ -1012,6 +1046,17 @@ export default function App() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
                 <span>SYNCED</span>
               </div>
+            )}
+            {((user.role as string) === 'admin' || (user.role as string) === 'investor') && (
+              <button
+                onClick={() => {
+                  window.location.hash = '#/admin';
+                }}
+                className="flex items-center gap-1.5 text-xs font-mono border border-zinc-900 bg-zinc-950 hover:bg-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white px-2.5 py-1 text-white transition-all cursor-pointer font-bold"
+              >
+                <Terminal className="w-3.5 h-3.5" />
+                <span>Console</span>
+              </button>
             )}
             <div className="flex items-center gap-1.5 text-xs font-mono border border-zinc-200 dark:border-zinc-800 px-2.5 py-1 bg-zinc-50 dark:bg-zinc-950">
               <Shield className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
