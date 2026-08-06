@@ -852,6 +852,31 @@ export default function App() {
       return;
     }
 
+    // Check if user is the owner (representative)
+    const activeClass = classes.find(c => c.id === classId);
+    if (activeClass && activeClass.ownerId === user.id) {
+      // Check if there are assistants to transfer to
+      if (activeClass.assistantIds.length === 0) {
+        showToast('You are the class representative. You must delete the class or promote someone to assistant first.', 'error');
+        return;
+      }
+      
+      // If there are assistants, prompt transfer
+      const assistantName = memberNamesMap[activeClass.assistantIds[0]] || 'Assistant';
+      if (activeClass.assistantIds.length === 1) {
+        // Auto-transfer to the only assistant
+        if (confirm(`You are the class representative. Transfer ownership to ${assistantName} and leave the class?`)) {
+          await handleTransferOwnership(classId, activeClass.assistantIds[0]);
+          return;
+        }
+        return;
+      } else {
+        // Multiple assistants - open selection modal (handled in ClassView)
+        showToast('Please select an assistant to transfer ownership to.', 'info');
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from('class_members')
       .delete()
@@ -864,7 +889,6 @@ export default function App() {
       return;
     }
 
-    // Force refresh the classes query
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
     await queryClient.refetchQueries({ queryKey: ['classes'] });
 
@@ -878,6 +902,81 @@ export default function App() {
     }
 
     showToast('You have successfully left the class.', 'success');
+  };
+
+  const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
+    if (!user) return;
+
+    // Update the class owner
+    const { error: updateError } = await supabase
+      .from('classes')
+      .update({ owner_id: newOwnerId })
+      .eq('id', classId);
+
+    if (updateError) {
+      console.error('Error transferring ownership:', updateError);
+      showToast('Failed to transfer ownership. Please try again.', 'error');
+      return;
+    }
+
+    // Update the new owner's role in class_members to 'representative'
+    const { error: roleError } = await supabase
+      .from('class_members')
+      .update({ role: 'representative' })
+      .eq('class_id', classId)
+      .eq('user_id', newOwnerId);
+
+    if (roleError) {
+      console.error('Error updating role:', roleError);
+      showToast('Failed to update role. Please try again.', 'error');
+      return;
+    }
+
+    // Update the old owner's role to 'member'
+    const { error: oldRoleError } = await supabase
+      .from('class_members')
+      .update({ role: 'member' })
+      .eq('class_id', classId)
+      .eq('user_id', user.id);
+
+    if (oldRoleError) {
+      console.error('Error updating old owner role:', oldRoleError);
+      showToast('Failed to update your role. Please try again.', 'error');
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    await queryClient.refetchQueries({ queryKey: ['classes'] });
+
+    const newOwnerName = memberNamesMap[newOwnerId] || 'Assistant';
+    showToast(`Ownership transferred to ${newOwnerName}. You are now a member.`, 'success');
+
+    // Now let the user leave
+    const { error: leaveError } = await supabase
+      .from('class_members')
+      .delete()
+      .eq('class_id', classId)
+      .eq('user_id', user.id);
+
+    if (leaveError) {
+      console.error('Error leaving after transfer:', leaveError);
+      showToast('Ownership transferred but failed to leave. Please try leaving again.', 'error');
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    await queryClient.refetchQueries({ queryKey: ['classes'] });
+
+    if (activeClassId === classId) {
+      const remaining = userJoinedClasses.filter(c => c.id !== classId);
+      if (remaining.length > 0) {
+        setActiveClassId(remaining[0].id);
+      } else {
+        setActiveClassId('');
+      }
+    }
+
+    showToast('You have successfully left the class after transferring ownership.', 'success');
   };
 
   const handleDevRoleOverride = (targetRole: Role) => {
@@ -976,6 +1075,7 @@ export default function App() {
             onDemoteToMember={handleDemoteToMember}
             onDeleteClass={handleDeleteClass}
             onLeaveClass={handleLeaveClass}
+            onTransferOwnership={handleTransferOwnership}
             currentUser={user}
             currentUserRole={currentUserRole}
             pendingRemovals={pendingRemovals}
