@@ -64,6 +64,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
 
   // Sign up state
   const [signUpName, setSignUpName] = useState('');
+  const [signUpUsername, setSignUpUsername] = useState('');
   const [signUpEmail, setSignUpEmail] = useState('');
   const [signUpPhone, setSignUpPhone] = useState('');
   const [signUpRole, setSignUpRole] = useState<Role>('member');
@@ -72,6 +73,8 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
   const [signUpAgreed, setSignUpAgreed] = useState(false);
   const [signUpError, setSignUpError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState('');
@@ -84,12 +87,61 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
   const [forgotSuccess, setForgotSuccess] = useState(false);
   const [forgotError, setForgotError] = useState('');
 
+  // Check username availability
+  useEffect(() => {
+    const checkUsername = async () => {
+      if (!signUpUsername || signUpUsername.length < 3) {
+        setUsernameAvailable(null);
+        return;
+      }
+
+      // Only allow letters, numbers, underscore
+      const usernameRegex = /^[a-zA-Z0-9_]+$/;
+      if (!usernameRegex.test(signUpUsername)) {
+        setUsernameAvailable(false);
+        return;
+      }
+
+      setCheckingUsername(true);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('username', signUpUsername)
+          .maybeSingle();
+
+        if (error) throw error;
+        setUsernameAvailable(!data);
+      } catch (err) {
+        console.error('Error checking username:', err);
+        setUsernameAvailable(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    };
+
+    const debounce = setTimeout(checkUsername, 500);
+    return () => clearTimeout(debounce);
+  }, [signUpUsername]);
+
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
 
-    if (!signUpName || !signUpEmail || !signUpPassword || !signUpPhone) {
+    if (!signUpName || !signUpUsername || !signUpEmail || !signUpPassword || !signUpPhone) {
       setSignUpError('All fields are required.');
+      return;
+    }
+
+    // Validate username
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(signUpUsername)) {
+      setSignUpError('Username must be 3-20 characters, letters, numbers, or underscore only.');
+      return;
+    }
+
+    if (usernameAvailable === false) {
+      setSignUpError('Username is already taken. Please choose another.');
       return;
     }
     
@@ -116,6 +168,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
         options: {
           data: {
             name: signUpName,
+            username: signUpUsername,
             role: signUpRole,
             phone: phoneTrimmed,
           }
@@ -142,6 +195,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
             .insert({
               id: authData.user.id,
               name: signUpName,
+              username: signUpUsername,
               email: signUpEmail,
               role: signUpRole,
               phone: phoneTrimmed,
@@ -160,6 +214,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
           const newUser: User = {
             id: authData.user.id,
             name: signUpName,
+            username: signUpUsername,
             email: signUpEmail,
             role: signUpRole,
             phone: phoneTrimmed,
@@ -170,6 +225,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
           const newUser: User = {
             id: profile.id,
             name: profile.name,
+            username: profile.username,
             email: profile.email,
             role: profile.role as Role,
             phone: profile.phone,
@@ -227,6 +283,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
           // If profile is missing in the DB on login, try to insert it using auth metadata or defaults
           const metadata = authData.user.user_metadata || {};
           const fallbackName = metadata.name || authData.user.email?.split('@')[0] || 'User';
+          const fallbackUsername = metadata.username || authData.user.email?.split('@')[0] || 'user';
           const fallbackRole = metadata.role || 'member';
           const fallbackPhone = metadata.phone || '';
 
@@ -235,6 +292,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
             .insert({
               id: authData.user.id,
               name: fallbackName,
+              username: fallbackUsername,
               email: authData.user.email || '',
               role: fallbackRole,
               phone: fallbackPhone,
@@ -261,6 +319,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
         const loggedInUser: User = {
           id: profile.id,
           name: profile.name,
+          username: profile.username,
           email: profile.email,
           role: profile.role as Role,
           phone: profile.phone,
@@ -313,6 +372,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
       mockUser = {
         id: 'user_1',
         name: 'Philip Jonathan',
+        username: 'philipjonathan',
         email: 'philipjonathanpeter24@gmail.com',
         role: 'representative',
         phone: '+2348100240137',
@@ -337,6 +397,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
       mockUser = {
         id: 'user_assistant_1',
         name: 'Alex Carter (Assistant)',
+        username: 'alexcarter',
         email: 'alex.carter@thesdel.edu',
         role: 'assistant',
         phone: '+2348123456789',
@@ -361,6 +422,7 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
       mockUser = {
         id: 'user_student_2',
         name: 'Jane Doe (Student)',
+        username: 'janedoe',
         email: 'jane.doe@thesdel.edu',
         role: 'member',
         phone: '+2348011223344',
@@ -578,6 +640,42 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
                   }}
                   className="w-full px-3 py-2 border border-zinc-200 bg-zinc-50 focus:bg-white text-zinc-900 rounded-none focus:outline-none focus:border-zinc-800 font-sans"
                 />
+              </div>
+
+              {/* Username */}
+              <div className="space-y-1">
+                <label className="text-zinc-600 font-bold block uppercase text-[10px]">Username</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-zinc-400 font-mono text-xs">@</span>
+                  <input
+                    id="signup-username-input"
+                    type="text"
+                    required
+                    placeholder="thestruggle"
+                    value={signUpUsername}
+                    onChange={(e) => {
+                      setSignUpUsername(e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''));
+                      setSignUpError('');
+                    }}
+                    className="w-full pl-7 pr-3 py-2 border border-zinc-200 bg-zinc-50 focus:bg-white text-zinc-900 rounded-none focus:outline-none focus:border-zinc-800 font-sans"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-[10px] mt-0.5">
+                  {signUpUsername && signUpUsername.length >= 3 && (
+                    <>
+                      {checkingUsername ? (
+                        <span className="text-zinc-400">Checking availability...</span>
+                      ) : usernameAvailable === true ? (
+                        <span className="text-emerald-600 flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Available
+                        </span>
+                      ) : usernameAvailable === false ? (
+                        <span className="text-red-600">Username is taken</span>
+                      ) : null}
+                    </>
+                  )}
+                  <span className="text-zinc-400 ml-auto">3-20 chars, letters, numbers, _</span>
+                </div>
               </div>
 
               {/* Email */}
