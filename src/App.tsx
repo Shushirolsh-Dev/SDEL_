@@ -23,6 +23,21 @@ import {
   getOfflineQueue,
 } from './lib/supabase';
 
+// Custom Toast Component
+const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const bgColor = type === 'success' ? 'bg-emerald-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+  return (
+    <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-medium ${bgColor} animate-slide-in`}>
+      {message}
+    </div>
+  );
+};
+
 export default function App() {
   const queryClient = useQueryClient();
   const { theme, setTheme, currentView, setView, activeClassId, setActiveClassId } = useAppStore();
@@ -43,6 +58,11 @@ export default function App() {
 
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
   const [isDevSwitcherExpanded, setIsDevSwitcherExpanded] = useState<boolean>(true);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ message, type });
+  };
 
   const [switcherPosition, setSwitcherPosition] = useState({ x: 0, y: 0 });
   const [isDraggingSwitcher, setIsDraggingSwitcher] = useState(false);
@@ -493,7 +513,7 @@ export default function App() {
       .maybeSingle();
 
     if (dbErr || !dbClass) {
-      alert(`Error: Class code "${code}" not found.`);
+      showToast(`Class code "${code}" not found.`, 'error');
       return;
     }
 
@@ -505,7 +525,7 @@ export default function App() {
       .maybeSingle();
 
     if (existingMember) {
-      alert(`Info: You have already requested to join or are already a member of this class.`);
+      showToast(`You have already joined or requested to join this class.`, 'info');
       setActiveClassId(dbClass.id);
       return;
     }
@@ -523,14 +543,14 @@ export default function App() {
       });
 
     if (joinErr) {
-      alert(`Error joining class: ${joinErr.message}`);
+      showToast(`Error joining class: ${joinErr.message}`, 'error');
       return;
     }
 
     if (isPrivate) {
-      alert(`This classroom group is Private. Your enrollment request has been submitted. You will gain access once approved by a representative or assistant.`);
+      showToast(`Your enrollment request has been submitted for approval.`, 'info');
     } else {
-      alert(`Successfully enrolled in class "${dbClass.name}"!`);
+      showToast(`Successfully enrolled in "${dbClass.name}"!`, 'success');
       setActiveClassId(dbClass.id);
     }
 
@@ -545,6 +565,7 @@ export default function App() {
       .eq('user_id', userId);
     if (error) throw error;
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    showToast('Student joining request approved!', 'success');
   };
 
   const handleRejectJoinRequest = async (classId: string, userId: string) => {
@@ -555,6 +576,7 @@ export default function App() {
       .eq('user_id', userId);
     if (error) throw error;
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    showToast('Student joining request denied.', 'info');
   };
 
   const handleRequestMemberRemoval = async (classId: string, memberId: string) => {
@@ -568,6 +590,7 @@ export default function App() {
     });
     if (error) throw error;
     await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
+    showToast('Removal request sent to Class Representative.', 'info');
   };
 
   const handleRemoveMemberInstantly = async (classId: string, memberId: string) => {
@@ -578,6 +601,7 @@ export default function App() {
       .eq('user_id', memberId);
     if (error) throw error;
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    showToast('Member removed successfully.', 'success');
   };
 
   const handleApproveMemberRemoval = async (classId: string, memberId: string) => {
@@ -597,6 +621,7 @@ export default function App() {
 
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
     await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
+    showToast('Member removal approved.', 'success');
   };
 
   const handleRejectMemberRemoval = async (classId: string, memberId: string) => {
@@ -607,6 +632,7 @@ export default function App() {
       .eq('user_id', memberId);
     if (error) throw error;
     await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
+    showToast('Member removal rejected.', 'info');
   };
 
   const handleUpdateClassCode = async (classId: string): Promise<string> => {
@@ -639,6 +665,7 @@ export default function App() {
     if (error) throw error;
 
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    showToast(`Class code changed to: ${newCode}`, 'success');
     return newCode;
   };
 
@@ -656,6 +683,7 @@ export default function App() {
     });
     if (error) throw error;
     await queryClient.invalidateQueries({ queryKey: ['attendanceLogs', user.id] });
+    showToast('Attendance marked!', 'success');
   };
 
   const handleAddTimetableEntry = async (entry: Omit<TimetableEntry, 'id'>) => {
@@ -688,6 +716,7 @@ export default function App() {
 
     await queryClient.invalidateQueries({ queryKey: ['timetable'] });
     await queryClient.invalidateQueries({ queryKey: ['updates'] });
+    showToast('Timetable entry added!', 'success');
   };
 
   const handleEditTimetableEntry = async (id: string, updatedFields: Partial<TimetableEntry>) => {
@@ -742,6 +771,7 @@ export default function App() {
 
     await queryClient.invalidateQueries({ queryKey: ['timetable'] });
     await queryClient.invalidateQueries({ queryKey: ['updates'] });
+    showToast('Timetable entry updated!', 'success');
   };
 
   const handleDeleteTimetableEntry = async (id: string) => {
@@ -765,6 +795,7 @@ export default function App() {
 
     await queryClient.invalidateQueries({ queryKey: ['timetable'] });
     await queryClient.invalidateQueries({ queryKey: ['updates'] });
+    showToast('Timetable entry deleted.', 'info');
   };
 
   const handleTrackAdEvent = async (adId: string, eventType: 'view' | 'click') => {
@@ -792,6 +823,7 @@ export default function App() {
       .eq('user_id', memberId);
     if (error) throw error;
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    showToast('Member promoted to Assistant!', 'success');
   };
 
   const handleDemoteToMember = async (classId: string, assistantId: string) => {
@@ -802,6 +834,7 @@ export default function App() {
       .eq('user_id', assistantId);
     if (error) throw error;
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    showToast('Assistant demoted to Member.', 'info');
   };
 
   const handleDeleteClass = async (classId: string) => {
@@ -810,11 +843,12 @@ export default function App() {
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
     await queryClient.invalidateQueries({ queryKey: ['timetable'] });
     await queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });
+    showToast('Class deleted successfully.', 'success');
   };
 
   const handleLeaveClass = async (classId: string) => {
     if (!user) {
-      alert('You must be logged in to leave a class.');
+      showToast('You must be logged in to leave a class.', 'error');
       return;
     }
 
@@ -826,11 +860,13 @@ export default function App() {
 
     if (error) {
       console.error('Error leaving class:', error);
-      alert('Failed to leave class. Please try again.');
+      showToast('Failed to leave class. Please try again.', 'error');
       return;
     }
 
+    // Force refresh the classes query
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    await queryClient.refetchQueries({ queryKey: ['classes'] });
 
     if (activeClassId === classId) {
       const remaining = userJoinedClasses.filter(c => c.id !== classId);
@@ -841,7 +877,7 @@ export default function App() {
       }
     }
 
-    alert('You have successfully left the class.');
+    showToast('You have successfully left the class.', 'success');
   };
 
   const handleDevRoleOverride = (targetRole: Role) => {
@@ -1004,6 +1040,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-zinc-50 flex flex-col font-sans" id="thesdel-root">
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       {isInsideAdmin ? (
         <AdminApp />
       ) : (
