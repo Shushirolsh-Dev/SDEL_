@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, Plus, Key, LogIn, AlertCircle, Trash2, ShieldAlert, Check, RefreshCw, Award, HelpCircle, LogOut } from 'lucide-react';
+import { Users, Shield, Plus, Key, LogIn, AlertCircle, Trash2, ShieldAlert, Check, RefreshCw, Award, HelpCircle, LogOut, Crown, UserCog, UserCheck, UserX, Crown as CrownIcon } from 'lucide-react';
 import { ClassGroup, User, Role, PendingRemoval } from '../types';
 import { trackClick } from '../utils/tracker';
 
@@ -13,6 +13,7 @@ interface ClassViewProps {
   onDemoteToMember: (classId: string, assistantId: string) => void;
   onDeleteClass: (classId: string) => void;
   onLeaveClass: (classId: string) => void;
+  onTransferOwnership?: (classId: string, newOwnerId: string) => Promise<void>;
   currentUser: User;
   currentUserRole: Role;
   pendingRemovals: PendingRemoval[];
@@ -36,6 +37,7 @@ export default function ClassView({
   onDemoteToMember,
   onDeleteClass,
   onLeaveClass,
+  onTransferOwnership,
   currentUser,
   currentUserRole,
   pendingRemovals,
@@ -64,6 +66,8 @@ export default function ClassView({
   const [isJoining, setIsJoining] = useState(false);
   const [joinMessage, setJoinMessage] = useState('');
   const [leavingClassId, setLeavingClassId] = useState<string | null>(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedTransferId, setSelectedTransferId] = useState<string | null>(null);
 
   const loadingMessages = [
     'Creating Class... Hold on',
@@ -217,6 +221,19 @@ export default function ClassView({
   };
 
   const handleLeaveClass = (classId: string, className: string) => {
+    // Check if user is the owner (representative)
+    const activeClass = classes.find(c => c.id === classId);
+    if (activeClass && activeClass.ownerId === currentUser.id) {
+      // If there are assistants, show transfer modal
+      if (activeClass.assistantIds.length > 0) {
+        setShowTransferModal(true);
+        return;
+      } else {
+        showToast('error', 'You are the class representative. You must delete the class or promote someone to assistant first.');
+        return;
+      }
+    }
+    
     if (!confirm(`Are you sure you want to leave "${className}"? You will lose access to this class and its timetable.`)) return;
     
     setLeavingClassId(classId);
@@ -234,6 +251,19 @@ export default function ClassView({
       showToast('error', 'Failed to leave class. Please try again.');
     } finally {
       setLeavingClassId(null);
+    }
+  };
+
+  const handleTransferOwnership = async () => {
+    if (!selectedTransferId || !activeClass || !onTransferOwnership) return;
+    
+    try {
+      await onTransferOwnership(activeClass.id, selectedTransferId);
+      setShowTransferModal(false);
+      setSelectedTransferId(null);
+      showToast('success', 'Ownership transferred successfully.');
+    } catch (err) {
+      showToast('error', 'Failed to transfer ownership. Please try again.');
     }
   };
 
@@ -302,6 +332,57 @@ export default function ClassView({
 
   return (
     <div className="space-y-6" id="class-view-container">
+      {/* Transfer Modal */}
+      {showTransferModal && activeClass && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-4 mb-4">
+              <CrownIcon className="w-5 h-5 text-amber-500" />
+              <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">Transfer Ownership</h3>
+            </div>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+              You are the class representative. To leave this class, you must transfer ownership to one of the assistants below.
+            </p>
+            <div className="space-y-2 mb-4">
+              {activeClass.assistantIds.map((id) => (
+                <button
+                  key={id}
+                  onClick={() => setSelectedTransferId(id)}
+                  className={`w-full text-left p-3 border transition-all flex items-center justify-between ${
+                    selectedTransferId === id
+                      ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20'
+                      : 'border-zinc-200 dark:border-zinc-800 hover:border-amber-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <UserCog className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                    <span className="font-medium text-zinc-900 dark:text-zinc-100">{getMemberName(id)}</span>
+                  </div>
+                  {selectedTransferId === id && (
+                    <Check className="w-4 h-4 text-amber-500" />
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+              <button
+                onClick={() => setShowTransferModal(false)}
+                className="px-4 py-2 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleTransferOwnership}
+                disabled={!selectedTransferId}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Transfer & Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isCreating && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 max-w-sm w-full shadow-2xl text-center space-y-4">
@@ -426,8 +507,14 @@ export default function ClassView({
                     const isLeaving = leavingClassId === cls.id;
                     
                     let roleBadge = 'Member';
-                    if (userIsOwner) roleBadge = 'Rep';
-                    else if (userIsAssistant) roleBadge = 'Asst';
+                    let badgeColor = 'border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400';
+                    if (userIsOwner) {
+                      roleBadge = 'Rep';
+                      badgeColor = 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400';
+                    } else if (userIsAssistant) {
+                      roleBadge = 'Asst';
+                      badgeColor = 'border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400';
+                    }
 
                     return (
                       <div key={cls.id} className="flex items-center gap-1">
@@ -444,24 +531,24 @@ export default function ClassView({
                             <span className="block text-xs font-mono font-bold">{cls.code}</span>
                             <span className="block text-xs truncate font-sans">{cls.name}</span>
                           </div>
-                          <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 border ${
-                            isSelected ? 'border-zinc-700 dark:border-zinc-600 bg-zinc-800 dark:bg-zinc-700 text-zinc-300 dark:text-zinc-200' : 'border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400'
-                          }`}>
+                          <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 border ${badgeColor}`}>
                             {roleBadge}
                           </span>
                         </button>
-                        <button
-                          onClick={() => handleLeaveClass(cls.id, cls.name)}
-                          disabled={isLeaving}
-                          className={`p-2 border transition-colors rounded-none cursor-pointer ${
-                            isSelected
-                              ? 'border-zinc-900 dark:border-zinc-750 bg-zinc-900 dark:bg-zinc-800 text-white hover:bg-zinc-800 dark:hover:bg-zinc-700'
-                              : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400'
-                          }`}
-                          title="Leave this class"
-                        >
-                          <LogOut className={`w-4 h-4 ${isLeaving ? 'animate-spin' : ''}`} />
-                        </button>
+                        {!userIsOwner && (
+                          <button
+                            onClick={() => handleLeaveClass(cls.id, cls.name)}
+                            disabled={isLeaving}
+                            className={`p-2 border transition-colors rounded-none cursor-pointer ${
+                              isSelected
+                                ? 'border-zinc-900 dark:border-zinc-750 bg-zinc-900 dark:bg-zinc-800 text-white hover:bg-zinc-800 dark:hover:bg-zinc-700'
+                                : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400'
+                            }`}
+                            title="Leave this class"
+                          >
+                            <LogOut className={`w-4 h-4 ${isLeaving ? 'animate-spin' : ''}`} />
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -596,13 +683,15 @@ export default function ClassView({
                             )}
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleLeaveClass(activeClass.id, activeClass.name)}
-                          className="px-3 py-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 font-mono text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
-                        >
-                          <LogOut className="w-3.5 h-3.5" />
-                          Leave
-                        </button>
+                        {currentUserRole !== 'representative' && (
+                          <button
+                            onClick={() => handleLeaveClass(activeClass.id, activeClass.name)}
+                            className="px-3 py-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 font-mono text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                          >
+                            <LogOut className="w-3.5 h-3.5" />
+                            Leave
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -616,23 +705,23 @@ export default function ClassView({
                         
                         <div className="p-3 flex items-center justify-between text-xs font-mono bg-zinc-50 dark:bg-zinc-950">
                           <div className="flex items-center gap-2">
-                            <Shield className="w-3.5 h-3.5 text-zinc-900 dark:text-white" />
+                            <Crown className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
                             <span className="font-bold text-zinc-900 dark:text-zinc-100">{getMemberName(activeClass.ownerId)}</span>
                           </div>
-                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 border border-zinc-900 dark:border-zinc-100">
-                            Representative (Verified)
+                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40">
+                            Representative
                           </span>
                         </div>
 
                         {activeClass.assistantIds.map((asstId) => (
                           <div key={asstId} className="p-3 flex items-center justify-between text-xs font-mono">
                             <div className="flex items-center gap-2">
-                              <Award className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                              <UserCog className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
                               <span className="text-zinc-800 dark:text-zinc-200 font-medium">{getMemberName(asstId)}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-blue-600 text-white border border-blue-700">
-                                Assistant (Verified)
+                              <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-blue-100 dark:bg-blue-950/30 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-900/40">
+                                Assistant
                               </span>
                               {currentUserRole === 'representative' && (
                                 <>
@@ -652,7 +741,7 @@ export default function ClassView({
                                     }}
                                     className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 border border-red-100 dark:border-red-900/40 hover:border-red-200 dark:hover:border-red-650 px-1.5 py-0.5 cursor-pointer bg-red-50 dark:bg-red-950/20"
                                   >
-                                    Remove Assistant
+                                    Remove
                                   </button>
                                 </>
                               )}
@@ -667,6 +756,7 @@ export default function ClassView({
                             return (
                               <div key={memId} className="p-3 flex items-center justify-between text-xs font-mono">
                                 <div className="flex items-center gap-2">
+                                  <UserCheck className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
                                   <span className="text-zinc-650 dark:text-zinc-300">{getMemberName(memId)}</span>
                                   {isPending && (
                                     <span className="text-[9px] font-mono uppercase px-1 py-0.2 bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-400 border border-amber-250 dark:border-amber-900/40 animate-pulse">
@@ -675,7 +765,7 @@ export default function ClassView({
                                   )}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-zinc-450 dark:text-zinc-500">Student Member</span>
+                                  <span className="text-[10px] text-zinc-450 dark:text-zinc-500">Member</span>
                                   
                                   {currentUserRole === 'representative' && (
                                     <>
@@ -684,7 +774,7 @@ export default function ClassView({
                                         onClick={() => onPromoteToAssistant(activeClass.id, memId)}
                                         className="text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 border border-blue-100 dark:border-blue-900/40 hover:border-blue-200 dark:hover:border-blue-650 px-1.5 py-0.5 cursor-pointer bg-blue-50 dark:bg-blue-950/20"
                                       >
-                                        Promote to Assistant
+                                        Promote
                                       </button>
                                       <button
                                         id={`remove-inst-btn-${memId}`}
@@ -695,7 +785,7 @@ export default function ClassView({
                                         }}
                                         className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 border border-red-100 dark:border-red-900/40 hover:border-red-200 dark:hover:border-red-650 px-1.5 py-0.5 cursor-pointer bg-red-50 dark:bg-red-950/20"
                                       >
-                                        Remove Member
+                                        Remove
                                       </button>
                                     </>
                                   )}
