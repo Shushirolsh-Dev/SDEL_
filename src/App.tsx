@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import AdminApp from '../admin/AdminApp';
-import { INITIAL_UPDATES, INITIAL_USER } from './mockData';
 import { User, ClassGroup, TimetableEntry, AttendanceLog, ClassUpdate, Role, PendingRemoval } from './types';
 import HomeView from './components/HomeView';
 import TimetableView from './components/TimetableView';
@@ -45,7 +44,6 @@ export default function App() {
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
   const [isDevSwitcherExpanded, setIsDevSwitcherExpanded] = useState<boolean>(true);
 
-  // Floating Preview Switcher dragging state
   const [switcherPosition, setSwitcherPosition] = useState({ x: 0, y: 0 });
   const [isDraggingSwitcher, setIsDraggingSwitcher] = useState(false);
   const [dragStartPoint, setDragStartPoint] = useState({ x: 0, y: 0 });
@@ -206,7 +204,7 @@ export default function App() {
         .order('timestamp', { ascending: false });
       if (error) throw error;
 
-      const formatted = (data || []).map((u) => ({
+      return (data || []).map((u) => ({
         id: u.id,
         classId: u.class_id,
         userId: u.user_id || undefined,
@@ -215,12 +213,6 @@ export default function App() {
         description: u.description,
         timestamp: u.timestamp,
       }));
-
-      // Merge with demo updates assets securely
-      const demoItems = INITIAL_UPDATES.filter(
-        demoItem => !formatted.some(fu => fu.id === demoItem.id)
-      );
-      return [...demoItems, ...formatted];
     },
     enabled: isLoggedIn && !!user?.id,
   });
@@ -255,7 +247,6 @@ export default function App() {
     enabled: isLoggedIn && !!user?.id,
   });
 
-  // Unique UUID helper
   const genUUID = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = (Math.random() * 16) | 0;
@@ -264,7 +255,6 @@ export default function App() {
     });
   };
 
-  // Live session loading helper
   const fetchActiveProfile = async (userId: string) => {
     try {
       const { data: profile, error } = await supabase
@@ -346,7 +336,6 @@ export default function App() {
     localStorage.setItem('thesdel_simulated_time', simulatedTime);
   }, [simulatedTime]);
 
-  // Apply dark/light theme
   useEffect(() => {
     const applyTheme = () => {
       const isDark =
@@ -389,7 +378,6 @@ export default function App() {
     window.location.href = window.location.origin + '/';
   };
 
-  // --- Role helper inside class group ---
   const getActiveUserRoleInClass = (): Role => {
     if (!user) return 'member';
     if (user.role === 'admin' || user.role === 'investor') return user.role;
@@ -477,7 +465,6 @@ export default function App() {
     });
     if (error) throw error;
 
-    // Log the update
     const updateId = genUUID();
     await supabase.from('updates').insert({
       id: updateId,
@@ -499,7 +486,6 @@ export default function App() {
   const handleJoinClass = async (code: string) => {
     if (!user) return;
 
-    // Fetch class details
     const { data: dbClass, error: dbErr } = await supabase
       .from('classes')
       .select('*')
@@ -511,7 +497,6 @@ export default function App() {
       return;
     }
 
-    // Check if already member
     const { data: existingMember } = await supabase
       .from('class_members')
       .select('*')
@@ -688,7 +673,6 @@ export default function App() {
     });
     if (error) throw error;
 
-    // Log update
     const updateId = genUUID();
     await supabase.from('updates').insert({
       id: updateId,
@@ -768,7 +752,6 @@ export default function App() {
     const { error } = await supabase.from('timetable').delete().eq('id', id);
     if (error) throw error;
 
-    // Log update
     const updateId = genUUID();
     await supabase.from('updates').insert({
       id: updateId,
@@ -829,6 +812,38 @@ export default function App() {
     await queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });
   };
 
+  const handleLeaveClass = async (classId: string) => {
+    if (!user) {
+      alert('You must be logged in to leave a class.');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('class_members')
+      .delete()
+      .eq('class_id', classId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error leaving class:', error);
+      alert('Failed to leave class. Please try again.');
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['classes'] });
+
+    if (activeClassId === classId) {
+      const remaining = userJoinedClasses.filter(c => c.id !== classId);
+      if (remaining.length > 0) {
+        setActiveClassId(remaining[0].id);
+      } else {
+        setActiveClassId('');
+      }
+    }
+
+    alert('You have successfully left the class.');
+  };
+
   const handleDevRoleOverride = (targetRole: Role) => {
     if (!user) return;
     console.log('[App] Switching preview role to:', targetRole);
@@ -861,7 +876,6 @@ export default function App() {
     setCached(CACHE_KEYS.USER, updatedUser);
   };
 
-  // --- RENDER COMPONENT WRAPPERS ---
   const renderViewContent = () => {
     if (!user) return null;
 
@@ -925,6 +939,7 @@ export default function App() {
             onPromoteToAssistant={handlePromoteToAssistant}
             onDemoteToMember={handleDemoteToMember}
             onDeleteClass={handleDeleteClass}
+            onLeaveClass={handleLeaveClass}
             currentUser={user}
             currentUserRole={currentUserRole}
             pendingRemovals={pendingRemovals}
@@ -993,7 +1008,6 @@ export default function App() {
         <AdminApp />
       ) : (
         <>
-          {/* Header Navigation Bar */}
           <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30" id="thesdel-header">
             <div className="max-w-4xl mx-auto px-4 flex items-center justify-between h-14">
               <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('home')}>
@@ -1001,7 +1015,6 @@ export default function App() {
                 <span className="font-mono text-base font-bold tracking-wider text-zinc-950 dark:text-zinc-100">THESDEL</span>
               </div>
 
-              {/* Active Sync Status Indicator */}
               <div className="flex items-center gap-3">
                 {pendingSyncCount > 0 ? (
                   <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono border border-amber-200 dark:border-amber-950/40 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400">
@@ -1033,12 +1046,10 @@ export default function App() {
             </div>
           </header>
 
-          {/* Main Content Area */}
           <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 pb-24 md:pb-28">
             {renderViewContent()}
           </main>
 
-          {/* Bottom Navigation Bar */}
           <div className="bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 fixed bottom-0 left-0 right-0 h-16 z-50 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] pb-safe" id="thesdel-bottom-nav">
             <nav className="max-w-4xl mx-auto grid grid-cols-5 h-full">
               <button
