@@ -128,31 +128,38 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
     e.preventDefault();
     if (loading) return;
 
+    // Clear previous errors
+    setSignUpError('');
+    
+    // Validation
     if (!signUpName || !signUpUsername || !signUpEmail || !signUpPassword || !signUpPhone) {
       setSignUpError('All fields are required.');
       return;
     }
 
-    // Validate username
+    // Validate username format
     const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
     if (!usernameRegex.test(signUpUsername)) {
-      setSignUpError('Username must be 3-20 characters, letters, numbers, or underscore only.');
+      setSignUpError('Username must be 3-20 characters (letters, numbers, underscore only).');
       return;
     }
 
+    // Check username availability (if not already checked)
     if (usernameAvailable === false) {
       setSignUpError('Username is already taken. Please choose another.');
       return;
     }
-    
+
+    // Validate phone
     const rawPhone = signUpPhone.trim().replace(/^0+/, '');
     const phoneTrimmed = `${countryCode}${rawPhone}`;
     const phoneRegex = /^\+[1-9]\d{6,14}$/;
     if (!phoneRegex.test(phoneTrimmed)) {
-      setSignUpError('Please enter a valid phone number. Make sure you select the correct country code and fill in your number (e.g., placeholder "0").');
+      setSignUpError('Please enter a valid phone number.');
       return;
     }
 
+    // Check terms
     if (!signUpAgreed) {
       setSignUpError('You must agree to the Terms of Service and Privacy Policy.');
       return;
@@ -176,7 +183,12 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
       });
 
       if (authError) {
-        setSignUpError(authError.message);
+        // Check for email already registered error
+        if (authError.message.includes('User already registered') || authError.status === 400) {
+          setSignUpError('This email is already registered. Please sign in or use a different email.');
+        } else {
+          setSignUpError(authError.message);
+        }
         setLoading(false);
         return;
       }
@@ -189,7 +201,6 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
           .single();
 
         if (profileError || !profile) {
-          // If profile is missing in the DB, try to insert it directly from client
           const { data: insertedProfile, error: insertError } = await supabase
             .from('profiles')
             .insert({
@@ -204,40 +215,49 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
             .select()
             .single();
 
-          if (!insertError && insertedProfile) {
+          if (insertError) {
+            // Check for username conflict on insert
+            if (insertError.code === '23505') { // PostgreSQL unique violation
+              setSignUpError('Username is already taken. Please choose another.');
+            } else {
+              setSignUpError('Failed to create profile. Please try again.');
+            }
+            setLoading(false);
+            return;
+          }
+
+          if (insertedProfile) {
             profile = insertedProfile;
-            profileError = null;
           }
         }
 
-        if (profileError || !profile) {
-          const newUser: User = {
-            id: authData.user.id,
-            name: signUpName,
-            username: signUpUsername,
-            email: signUpEmail,
-            role: signUpRole,
-            phone: phoneTrimmed,
-            plan: 'free',
-          };
-          onLoginSuccess(newUser);
-        } else {
-          const newUser: User = {
-            id: profile.id,
-            name: profile.name,
-            username: profile.username,
-            email: profile.email,
-            role: profile.role as Role,
-            phone: profile.phone,
-            plan: profile.plan as any,
-            whatsappNumber: profile.whatsapp_number || undefined,
-            isReminderNumberLocked: profile.is_reminder_number_locked
-          };
-          onLoginSuccess(newUser);
+        if (!profile) {
+          setSignUpError('Failed to create profile. Please try again.');
+          setLoading(false);
+          return;
         }
+
+        const newUser: User = {
+          id: profile.id,
+          name: profile.name,
+          username: profile.username,
+          email: profile.email,
+          role: profile.role as Role,
+          phone: profile.phone,
+          plan: profile.plan as any,
+          whatsappNumber: profile.whatsapp_number || undefined,
+          isReminderNumberLocked: profile.is_reminder_number_locked
+        };
+        
+        onLoginSuccess(newUser);
       }
     } catch (err: any) {
-      setSignUpError(err.message || 'An error occurred during registration.');
+      // Catch any unexpected errors
+      if (err.message?.includes('duplicate key') || err.code === '23505') {
+        setSignUpError('Username or email already taken. Please try again.');
+      } else {
+        setSignUpError(err.message || 'An error occurred during registration.');
+      }
     } finally {
       setLoading(false);
     }
@@ -657,7 +677,13 @@ export default function LandingView({ onLoginSuccess, classesCount }: LandingVie
                       setSignUpUsername(e.target.value.toLowerCase().replace(/[^a-zA-Z0-9_]/g, ''));
                       setSignUpError('');
                     }}
-                    className="w-full pl-7 pr-3 py-2 border border-zinc-200 bg-zinc-50 focus:bg-white text-zinc-900 rounded-none focus:outline-none focus:border-zinc-800 font-sans"
+                    className={`w-full pl-7 pr-3 py-2 border bg-zinc-50 focus:bg-white text-zinc-900 rounded-none focus:outline-none font-sans ${
+                      usernameAvailable === false 
+                        ? 'border-red-500 focus:border-red-500' 
+                        : usernameAvailable === true 
+                        ? 'border-emerald-500 focus:border-emerald-500' 
+                        : 'border-zinc-200 focus:border-zinc-800'
+                    }`}
                   />
                 </div>
                 <div className="flex items-center gap-2 text-[10px] mt-0.5">
