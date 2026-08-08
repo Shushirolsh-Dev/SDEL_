@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+.import React, { useState, useEffect } from 'react';
 import { Play, Check, AlertCircle, Clock, MapPin, Award, ChevronRight, Bell, Megaphone, ThumbsUp, Send, RotateCw } from 'lucide-react';
 import { TimetableEntry, AttendanceLog, ClassGroup, ClassUpdate } from '../types';
 
