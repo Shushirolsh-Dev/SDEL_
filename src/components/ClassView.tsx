@@ -1,5 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { Users, Shield, Plus, Key, LogIn, AlertCircle, Trash2, ShieldAlert, Check, RefreshCw, Award, HelpCircle, LogOut, Crown, UserCog, UserCheck, UserX, Crown as CrownIcon } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import {
+  Users,
+  Shield,
+  Plus,
+  KeyRound,
+  AlertCircle,
+  Trash2,
+  ShieldAlert,
+  Check,
+  RefreshCw,
+  LogOut,
+  Crown,
+  UserCog,
+  UserCheck,
+  Copy,
+  X,
+  ArrowRight,
+  LockKeyhole,
+  Globe2,
+  UserPlus,
+  Settings2,
+  ChevronRight,
+} from 'lucide-react';
 import { ClassGroup, User, Role, PendingRemoval } from '../types';
 import { trackClick } from '../utils/tracker';
 
@@ -8,12 +30,19 @@ interface ClassViewProps {
   activeClassId: string;
   onSelectClass: (id: string) => void;
   onJoinClass: (code: string) => void;
-  onCreateClass: (name: string, description: string, visibility: 'public' | 'private') => Promise<string>;
+  onCreateClass: (
+    name: string,
+    description: string,
+    visibility: 'public' | 'private'
+  ) => Promise<string>;
   onPromoteToAssistant: (classId: string, memberId: string) => void;
   onDemoteToMember: (classId: string, assistantId: string) => void;
   onDeleteClass: (classId: string) => void;
   onLeaveClass: (classId: string) => void;
-  onTransferOwnership?: (classId: string, newOwnerId: string) => Promise<void>;
+  onTransferOwnership?: (
+    classId: string,
+    newOwnerId: string
+  ) => Promise<void>;
   currentUser: User;
   currentUserRole: Role;
   pendingRemovals: PendingRemoval[];
@@ -23,9 +52,62 @@ interface ClassViewProps {
   onRejectMemberRemoval: (classId: string, memberId: string) => void;
   onUpdateClassCode: (classId: string) => Promise<string>;
   memberNamesMap: Record<string, string>;
-  onApproveJoinRequest?: (classId: string, userId: string) => Promise<void>;
-  onRejectJoinRequest?: (classId: string, userId: string) => Promise<void>;
+  onApproveJoinRequest?: (
+    classId: string,
+    userId: string
+  ) => Promise<void>;
+  onRejectJoinRequest?: (
+    classId: string,
+    userId: string
+  ) => Promise<void>;
 }
+
+type ConfirmAction =
+  | {
+      type: 'leave';
+      classId: string;
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  | {
+      type: 'delete';
+      classId: string;
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  | {
+      type: 'regenerate';
+      classId: string;
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  | {
+      type: 'remove-member';
+      classId: string;
+      memberId: string;
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  | {
+      type: 'request-removal';
+      classId: string;
+      memberId: string;
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  | {
+      type: 'reject-join';
+      classId: string;
+      memberId: string;
+      title: string;
+      description: string;
+      confirmLabel: string;
+    };
 
 export default function ClassView({
   classes,
@@ -50,80 +132,123 @@ export default function ClassView({
   onApproveJoinRequest,
   onRejectJoinRequest,
 }: ClassViewProps) {
-  const [activeTab, setActiveTab] = useState<'details' | 'join' | 'create'>('details');
+  const [activeTab, setActiveTab] = useState<
+    'details' | 'join' | 'create'
+  >('details');
+
   const [joinCode, setJoinCode] = useState('');
   const [classNameInput, setClassNameInput] = useState('');
   const [classDescriptionInput, setClassDescriptionInput] = useState('');
-  const [classVisibilityInput, setClassVisibilityInput] = useState<'public' | 'private'>('public');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [isRegenerating, setIsRegenerating] = useState(false);
-  const [processingJoinId, setProcessingJoinId] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
-  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
-  const [toast, setToast] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
-  const [isJoining, setIsJoining] = useState(false);
-  const [joinMessage, setJoinMessage] = useState('');
-  const [leavingClassId, setLeavingClassId] = useState<string | null>(null);
-  const [showTransferModal, setShowTransferModal] = useState(false);
-  const [selectedTransferId, setSelectedTransferId] = useState<string | null>(null);
+  const [classVisibilityInput, setClassVisibilityInput] =
+    useState<'public' | 'private'>('public');
 
-  const loadingMessages = [
-    'Creating Class... Hold on',
-    'Setting up your classroom...',
-    'Almost there...',
-    'Securing your class code...',
-    'Finalizing your workspace...',
-    'Hang tight, we\'re almost done...',
-    'Preparing your class dashboard...',
-    'Just a moment longer...'
-  ];
-
-  const joinMessages = [
-    'Checking class code...',
-    'Verifying your access...',
-    'Securing your enrollment...',
-    'Adding you to the roster...',
-    'Almost there...',
-    'Success! Welcome to the class!'
-  ];
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isCreating) {
-      interval = setInterval(() => {
-        setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
-        setLoadingMessage(loadingMessages[loadingMessageIndex]);
-      }, 1500);
-    }
-    return () => clearInterval(interval);
-  }, [isCreating, loadingMessageIndex, loadingMessages]);
-
-  useEffect(() => {
-    if (isJoining) {
-      let index = 0;
-      const interval = setInterval(() => {
-        setJoinMessage(joinMessages[index % joinMessages.length]);
-        index++;
-      }, 800);
-      return () => clearInterval(interval);
-    }
-  }, [isJoining]);
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
-
-  const [captchaNum1, setCaptchaNum1] = useState(() => Math.floor(Math.random() * 9) + 1);
-  const [captchaNum2, setCaptchaNum2] = useState(() => Math.floor(Math.random() * 9) + 1);
+  const [captchaNum1, setCaptchaNum1] = useState(
+    () => Math.floor(Math.random() * 9) + 1
+  );
+  const [captchaNum2, setCaptchaNum2] = useState(
+    () => Math.floor(Math.random() * 9) + 1
+  );
   const [captchaAnswer, setCaptchaAnswer] = useState('');
   const [captchaError, setCaptchaError] = useState('');
 
-  const showToast = (type: 'success' | 'error' | 'info', message: string) => {
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [processingJoinId, setProcessingJoinId] = useState<string | null>(
+    null
+  );
+  const [isCreating, setIsCreating] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+
+  const [loadingMessage, setLoadingMessage] = useState('');
+  const [joinMessage, setJoinMessage] = useState('');
+
+  const [toast, setToast] = useState<{
+    type: 'success' | 'error' | 'info';
+    message: string;
+  } | null>(null);
+
+  const [leavingClassId, setLeavingClassId] = useState<string | null>(
+    null
+  );
+
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [selectedTransferId, setSelectedTransferId] = useState<string | null>(
+    null
+  );
+
+  const [confirmAction, setConfirmAction] =
+    useState<ConfirmAction | null>(null);
+
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  const loadingMessages = [
+    'Creating class',
+    'Setting up classroom',
+    'Securing class code',
+    'Preparing workspace',
+    'Finalizing setup',
+  ];
+
+  const joinMessages = [
+    'Checking class code',
+    'Verifying access',
+    'Securing enrollment',
+    'Adding you to the roster',
+  ];
+
+  useEffect(() => {
+    if (!isCreating) return;
+
+    let index = 0;
+
+    setLoadingMessage(loadingMessages[0]);
+
+    const interval = setInterval(() => {
+      index = (index + 1) % loadingMessages.length;
+      setLoadingMessage(loadingMessages[index]);
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [isCreating]);
+
+  useEffect(() => {
+    if (!isJoining) return;
+
+    let index = 0;
+
+    setJoinMessage(joinMessages[0]);
+
+    const interval = setInterval(() => {
+      index = (index + 1) % joinMessages.length;
+      setJoinMessage(joinMessages[index]);
+    }, 900);
+
+    return () => clearInterval(interval);
+  }, [isJoining]);
+
+  useEffect(() => {
+    if (!toast) return;
+
+    const timer = setTimeout(() => {
+      setToast(null);
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
+    if (!copiedCode) return;
+
+    const timer = setTimeout(() => {
+      setCopiedCode(false);
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, [copiedCode]);
+
+  const showToast = (
+    type: 'success' | 'error' | 'info',
+    message: string
+  ) => {
     setToast({ type, message });
   };
 
@@ -137,36 +262,47 @@ export default function ClassView({
   const activeClass = classes.find((c) => c.id === activeClassId);
 
   const getMemberName = (id: string) => {
-    if (id === currentUser.id) return `${currentUser.name} (You)`;
-    if (memberNamesMap && memberNamesMap[id]) return memberNamesMap[id];
+    if (id === currentUser.id) {
+      return `${currentUser.name} (You)`;
+    }
+
+    if (memberNamesMap?.[id]) {
+      return memberNamesMap[id];
+    }
+
     return `Student (${id.substring(0, 8)})`;
+  };
+
+  const resetMessages = () => {
+    setCaptchaError('');
   };
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
-    setCaptchaError('');
+
+    resetMessages();
 
     if (!joinCode.trim()) {
-      showToast('error', 'Please enter a class code.');
+      showToast('error', 'Enter a class code to continue.');
       return;
     }
 
     const expected = captchaNum1 + captchaNum2;
-    if (parseInt(captchaAnswer) !== expected) {
-      setCaptchaError('Incorrect security answer. Please try again.');
+
+    if (parseInt(captchaAnswer, 10) !== expected) {
+      setCaptchaError('Incorrect security answer.');
       regenerateCaptcha();
       return;
     }
 
     trackClick('Button: Join Class Code Submit');
-    
+
     setIsJoining(true);
-    setJoinMessage('Checking class code...');
+    setJoinMessage(joinMessages[0]);
 
     try {
-      onJoinClass(joinCode.trim());
+      await Promise.resolve(onJoinClass(joinCode.trim()));
+
       setJoinCode('');
       setCaptchaAnswer('');
       regenerateCaptcha();
@@ -180,9 +316,8 @@ export default function ClassView({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMessage('');
-    setSuccessMessage('');
-    setCaptchaError('');
+
+    resetMessages();
 
     if (!classNameInput.trim()) {
       showToast('error', 'Class name is required.');
@@ -190,23 +325,29 @@ export default function ClassView({
     }
 
     const expected = captchaNum1 + captchaNum2;
-    if (parseInt(captchaAnswer) !== expected) {
-      setCaptchaError('Incorrect security answer. Please try again.');
+
+    if (parseInt(captchaAnswer, 10) !== expected) {
+      setCaptchaError('Incorrect security answer.');
       regenerateCaptcha();
       return;
     }
 
     setIsCreating(true);
-    setLoadingMessage(loadingMessages[0]);
 
     try {
       trackClick('Button: Create Class Submit');
+
       const code = await onCreateClass(
         classNameInput.trim(),
         classDescriptionInput.trim(),
         classVisibilityInput
       );
-      showToast('success', `Class "${classNameInput.trim()}" created successfully with code: ${code}`);
+
+      showToast(
+        'success',
+        `Class created successfully. Code: ${code}`
+      );
+
       setClassNameInput('');
       setClassDescriptionInput('');
       setClassVisibilityInput('public');
@@ -220,810 +361,1155 @@ export default function ClassView({
     }
   };
 
-  const handleLeaveClass = (classId: string, className: string) => {
-    // Check if user is the owner (representative)
-    const activeClass = classes.find(c => c.id === classId);
-    if (activeClass && activeClass.ownerId === currentUser.id) {
-      // If there are assistants, show transfer modal
-      if (activeClass.assistantIds.length > 0) {
+  const requestLeaveClass = (classId: string, className: string) => {
+    const targetClass = classes.find((c) => c.id === classId);
+
+    if (!targetClass) return;
+
+    if (targetClass.ownerId === currentUser.id) {
+      if (targetClass.assistantIds.length > 0) {
         setShowTransferModal(true);
         return;
-      } else {
-        showToast('error', 'You are the class representative. You must delete the class or promote someone to assistant first.');
-        return;
       }
+
+      showToast(
+        'error',
+        'You are the class representative. Transfer ownership or delete the class before leaving.'
+      );
+
+      return;
     }
-    
-    if (!confirm(`Are you sure you want to leave "${className}"? You will lose access to this class and its timetable.`)) return;
-    
-    setLeavingClassId(classId);
-    try {
-      trackClick('Button: Leave Class');
-      onLeaveClass(classId);
-      showToast('success', `You have left "${className}".`);
-      if (activeClassId === classId && classes.length > 1) {
-        const remaining = classes.filter(c => c.id !== classId);
-        if (remaining.length > 0) {
-          onSelectClass(remaining[0].id);
-        }
-      }
-    } catch (err) {
-      showToast('error', 'Failed to leave class. Please try again.');
-    } finally {
-      setLeavingClassId(null);
-    }
+
+    setConfirmAction({
+      type: 'leave',
+      classId,
+      title: 'Leave class?',
+      description: `You will lose access to "${className}" and its timetable.`,
+      confirmLabel: 'Leave class',
+    });
   };
 
-  const handleTransferOwnership = async () => {
-    if (!selectedTransferId || !activeClass || !onTransferOwnership) return;
-    
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+
+    const action = confirmAction;
+    setConfirmAction(null);
+
     try {
-      await onTransferOwnership(activeClass.id, selectedTransferId);
-      setShowTransferModal(false);
-      setSelectedTransferId(null);
-      showToast('success', 'Ownership transferred successfully.');
-    } catch (err) {
-      showToast('error', 'Failed to transfer ownership. Please try again.');
+      if (action.type === 'leave') {
+        setLeavingClassId(action.classId);
+
+        trackClick('Button: Leave Class');
+
+        onLeaveClass(action.classId);
+
+        showToast('success', 'You have left the class.');
+
+        if (activeClassId === action.classId && classes.length > 1) {
+          const remaining = classes.filter(
+            (cls) => cls.id !== action.classId
+          );
+
+          if (remaining.length > 0) {
+            onSelectClass(remaining[0].id);
+          }
+        }
+
+        return;
+      }
+
+      if (action.type === 'delete') {
+        trackClick('Button: Delete Class Success');
+
+        onDeleteClass(action.classId);
+
+        showToast('success', 'Class was permanently deleted.');
+
+        return;
+      }
+
+      if (action.type === 'regenerate') {
+        setIsRegenerating(true);
+
+        trackClick('Button: Regenerate Class Code');
+
+        const newCode = await onUpdateClassCode(action.classId);
+
+        showToast(
+          'success',
+          `Class code changed to ${newCode}.`
+        );
+
+        return;
+      }
+
+      if (action.type === 'remove-member') {
+        onRemoveMemberInstantly(
+          action.classId,
+          action.memberId
+        );
+
+        showToast('success', 'Member removed from the class.');
+
+        return;
+      }
+
+      if (action.type === 'request-removal') {
+        onRequestMemberRemoval(
+          action.classId,
+          action.memberId
+        );
+
+        showToast(
+          'success',
+          'Removal request sent to the Class Representative.'
+        );
+
+        return;
+      }
+
+      if (action.type === 'reject-join') {
+        if (!onRejectJoinRequest) return;
+
+        setProcessingJoinId(action.memberId);
+
+        await onRejectJoinRequest(
+          action.classId,
+          action.memberId
+        );
+
+        showToast('success', 'Join request denied.');
+      }
+    } catch (err: any) {
+      showToast(
+        'error',
+        err?.message || 'Something went wrong. Please try again.'
+      );
+    } finally {
+      setLeavingClassId(null);
+      setIsRegenerating(false);
+      setProcessingJoinId(null);
     }
   };
 
   const handleDelete = () => {
     if (!activeClass) return;
+
     if (currentUserRole !== 'representative') {
-      showToast('error', 'Only Class Representatives can delete classes.');
+      showToast(
+        'error',
+        'Only Class Representatives can delete classes.'
+      );
       return;
     }
 
-    if (confirm(`CRITICAL ACTION: Are you sure you want to permanently delete the class "${activeClass.name}"? This will delete the timetable entries.`)) {
-      trackClick('Button: Delete Class Success');
-      onDeleteClass(activeClass.id);
-      showToast('success', 'Class was successfully deleted.');
-    }
+    setConfirmAction({
+      type: 'delete',
+      classId: activeClass.id,
+      title: 'Delete classroom?',
+      description:
+        'This permanently removes the classroom and all of its scheduled timetable entries. This action cannot be undone.',
+      confirmLabel: 'Delete classroom',
+    });
   };
 
-  const handleRegenerateCode = async () => {
+  const handleRegenerateCode = () => {
     if (!activeClass) return;
-    if (confirm("Are you sure you want to regenerate and change the Class Code? Any student trying to join using the old code will no longer be able to do so.")) {
-      try {
-        setIsRegenerating(true);
-        trackClick('Button: Regenerate Class Code');
-        const newCode = await onUpdateClassCode(activeClass.id);
-        showToast('success', `Class code successfully changed to: ${newCode}`);
-      } catch (err) {
-        showToast('error', 'Failed to change class code.');
-      } finally {
-        setIsRegenerating(false);
-      }
-    }
+
+    setConfirmAction({
+      type: 'regenerate',
+      classId: activeClass.id,
+      title: 'Change class code?',
+      description:
+        'The current code will stop working immediately. Students using the old code will no longer be able to join with it.',
+      confirmLabel: 'Change code',
+    });
   };
 
   const handleApproveJoin = async (userId: string) => {
     if (!activeClass || !onApproveJoinRequest) return;
+
     setProcessingJoinId(userId);
+
     try {
       trackClick('Button: Approve Class Member Join');
-      await onApproveJoinRequest(activeClass.id, userId);
-      showToast('success', 'Student joining request approved!');
+
+      await onApproveJoinRequest(
+        activeClass.id,
+        userId
+      );
+
+      showToast('success', 'Student request approved.');
     } catch (err: any) {
-      showToast('error', `Failed to approve member: ${err.message || err}`);
+      showToast(
+        'error',
+        err?.message || 'Failed to approve member.'
+      );
     } finally {
       setProcessingJoinId(null);
     }
   };
 
-  const handleRejectJoin = async (userId: string) => {
+  const handleRejectJoin = (userId: string) => {
     if (!activeClass || !onRejectJoinRequest) return;
-    if (!confirm('Are you sure you want to deny and reject this student request?')) return;
-    setProcessingJoinId(userId);
+
+    setConfirmAction({
+      type: 'reject-join',
+      classId: activeClass.id,
+      memberId: userId,
+      title: 'Deny join request?',
+      description:
+        'This student will not be added to the classroom.',
+      confirmLabel: 'Deny request',
+    });
+  };
+
+  const copyClassCode = async () => {
+    if (!activeClass) return;
+
     try {
-      trackClick('Button: Reject Class Member Join');
-      await onRejectJoinRequest(activeClass.id, userId);
-      showToast('success', 'Student joining request denied.');
-    } catch (err: any) {
-      showToast('error', `Failed to reject member: ${err.message || err}`);
-    } finally {
-      setProcessingJoinId(null);
+      await navigator.clipboard.writeText(activeClass.code);
+      setCopiedCode(true);
+      showToast('success', 'Class code copied.');
+    } catch {
+      showToast('error', 'Could not copy the class code.');
     }
   };
 
-  const isUserAdminOrAssistantOfActiveClass = activeClass && (
-    activeClass.ownerId === currentUser.id || activeClass.assistantIds.includes(currentUser.id)
-  );
+  const isUserAdminOrAssistantOfActiveClass =
+    !!activeClass &&
+    (activeClass.ownerId === currentUser.id ||
+      activeClass.assistantIds.includes(currentUser.id));
+
+  const pendingRemovalCount = activeClass
+    ? pendingRemovals.filter(
+        (pr) => pr.classId === activeClass.id
+      ).length
+    : 0;
 
   return (
-    <div className="space-y-6" id="class-view-container">
-      {/* Transfer Modal */}
-      {showTransferModal && activeClass && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-6 max-w-md w-full shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-zinc-100 dark:border-zinc-800 pb-4 mb-4">
-              <CrownIcon className="w-5 h-5 text-amber-500" />
-              <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">Transfer Ownership</h3>
-            </div>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
-              You are the class representative. To leave this class, you must transfer ownership to one of the assistants below.
-            </p>
-            <div className="space-y-2 mb-4">
-              {activeClass.assistantIds.map((id) => (
-                <button
-                  key={id}
-                  onClick={() => setSelectedTransferId(id)}
-                  className={`w-full text-left p-3 border transition-all flex items-center justify-between ${
-                    selectedTransferId === id
-                      ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20'
-                      : 'border-zinc-200 dark:border-zinc-800 hover:border-amber-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <UserCog className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-                    <span className="font-medium text-zinc-900 dark:text-zinc-100">{getMemberName(id)}</span>
-                  </div>
-                  {selectedTransferId === id && (
-                    <Check className="w-4 h-4 text-amber-500" />
+    <div
+      className="space-y-6 pb-10"
+      id="class-view-container"
+    >
+      {/* Confirmation modal */}
+      {confirmAction && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex items-start justify-between gap-4 border-b border-zinc-100 p-5 dark:border-zinc-800">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900">
+                  {confirmAction.type === 'delete' ||
+                  confirmAction.type === 'remove-member' ? (
+                    <Trash2 className="h-5 w-5 text-red-600 dark:text-red-400" />
+                  ) : confirmAction.type === 'regenerate' ? (
+                    <RefreshCw className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-zinc-700 dark:text-zinc-300" />
                   )}
-                </button>
-              ))}
-            </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                </div>
+
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-zinc-950 dark:text-white">
+                    {confirmAction.title}
+                  </h3>
+
+                  <p className="mt-1.5 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                    {confirmAction.description}
+                  </p>
+                </div>
+              </div>
+
               <button
-                onClick={() => setShowTransferModal(false)}
-                className="px-4 py-2 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-white"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 p-4 sm:flex-row sm:justify-end dark:border-zinc-800">
+              <button
+                type="button"
+                onClick={() => setConfirmAction(null)}
+                className="rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
               >
                 Cancel
               </button>
+
               <button
-                onClick={handleTransferOwnership}
-                disabled={!selectedTransferId}
-                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                type="button"
+                onClick={handleConfirmAction}
+                className={`rounded-xl px-4 py-2.5 text-xs font-bold text-white transition ${
+                  confirmAction.type === 'delete' ||
+                  confirmAction.type === 'remove-member'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200'
+                }`}
               >
-                Transfer & Leave
+                {confirmAction.confirmLabel}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Ownership transfer modal */}
+      {showTransferModal && activeClass && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950/20">
+                    <Crown className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+
+                  <div>
+                    <h3 className="font-bold text-zinc-950 dark:text-white">
+                      Transfer ownership
+                    </h3>
+                    <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                      Required before you leave
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setSelectedTransferId(null);
+                  }}
+                  className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <p className="text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                You are the class representative. Select an assistant to
+                transfer                 ownership to before leaving this classroom.
+              </p>
+
+              <div className="space-y-2">
+                {activeClass.assistantIds.map((id) => {
+                  const selected = selectedTransferId === id;
+
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setSelectedTransferId(id)}
+                      className={`flex w-full items-center justify-between rounded-xl border p-3.5 text-left transition ${
+                        selected
+                          ? 'border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950'
+                          : 'border-zinc-200 bg-white hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600'
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                            selected
+                              ? 'bg-white/10 dark:bg-zinc-950/10'
+                              : 'bg-zinc-100 dark:bg-zinc-900'
+                          }`}
+                        >
+                          <UserCog
+                            className={`h-4 w-4 ${
+                              selected
+                                ? 'text-white dark:text-zinc-950'
+                                : 'text-zinc-500'
+                            }`}
+                          />
+                        </div>
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">
+                            {getMemberName(id)}
+                          </p>
+                          <p
+                            className={`mt-0.5 text-xs ${
+                              selected
+                                ? 'text-zinc-300 dark:text-zinc-600'
+                                : 'text-zinc-500 dark:text-zinc-400'
+                            }`}
+                          >
+                            Class Assistant
+                          </p>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                          selected
+                            ? 'border-white bg-white text-zinc-950 dark:border-zinc-950 dark:bg-zinc-950 dark:text-white'
+                            : 'border-zinc-300 dark:border-zinc-700'
+                        }`}
+                      >
+                        {selected && <Check className="h-3 w-3" />}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTransferModal(false);
+                    setSelectedTransferId(null);
+                  }}
+                  className="rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  disabled={
+                    !selectedTransferId ||
+                    !onTransferOwnership
+                  }
+                  onClick={async () => {
+                    if (!selectedTransferId || !onTransferOwnership) {
+                      return;
+                    }
+
+                    try {
+                      await onTransferOwnership(
+                        activeClass.id,
+                        selectedTransferId
+                      );
+
+                      showToast(
+                        'success',
+                        'Ownership transferred successfully.'
+                      );
+
+                      setShowTransferModal(false);
+                      setSelectedTransferId(null);
+                    } catch (err: any) {
+                      showToast(
+                        'error',
+                        err?.message ||
+                          'Failed to transfer ownership.'
+                      );
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                >
+                  Transfer ownership
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create loading modal */}
       {isCreating && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 max-w-sm w-full shadow-2xl text-center space-y-4">
-            <div className="flex justify-center">
-              <div className="w-12 h-12 border-4 border-zinc-200 dark:border-zinc-700 border-t-zinc-900 dark:border-t-white rounded-full animate-spin"></div>
+        <div
+          className="fixed inset-0 z-[65] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900">
+              <Plus className="h-5 w-5 text-zinc-900 dark:text-white" />
             </div>
-            <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{loadingMessage}</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-sans">Please wait while we set up your classroom...</p>
+
+            <h3 className="mt-4 text-base font-bold text-zinc-950 dark:text-white">
+              Creating your class
+            </h3>
+
+            <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+              {loadingMessage || 'Preparing classroom'}
+            </p>
+
+            <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900">
+              <div className="h-full w-1/2 animate-pulse rounded-full bg-zinc-950 dark:bg-white" />
+            </div>
           </div>
         </div>
       )}
 
+      {/* Join loading modal */}
       {isJoining && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-8 max-w-sm w-full shadow-2xl text-center space-y-4">
-            <div className="flex justify-center">
-              <div className="w-12 h-12 border-4 border-zinc-200 dark:border-zinc-700 border-t-zinc-900 dark:border-t-white rounded-full animate-spin"></div>
+        <div
+          className="fixed inset-0 z-[65] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-2xl dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900">
+              <KeyRound className="h-5 w-5 text-zinc-900 dark:text-white" />
             </div>
-            <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100">{joinMessage}</h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-sans">Please wait while we enroll you...</p>
+
+            <h3 className="mt-4 text-base font-bold text-zinc-950 dark:text-white">
+              Joining class
+            </h3>
+
+            <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+              {joinMessage || 'Checking class access'}
+            </p>
+
+            <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900">
+              <div className="h-full w-1/2 animate-pulse rounded-full bg-zinc-950 dark:bg-white" />
+            </div>
           </div>
         </div>
       )}
 
+      {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 p-4 max-w-sm w-full border shadow-lg transition-all animate-slide-in ${
-          toast.type === 'success' 
-            ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50' 
-            : toast.type === 'info'
-            ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50'
-            : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50'
-        }`}>
-          <div className="flex items-start gap-3">
+        <div
+          className={`fixed bottom-5 left-1/2 z-[80] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-xl border px-4 py-3 shadow-xl backdrop-blur ${
+            toast.type === 'success'
+              ? 'border-emerald-200 bg-white text-zinc-900 dark:border-emerald-900 dark:bg-zinc-950 dark:text-white'
+              : toast.type === 'error'
+                ? 'border-red-200 bg-white text-zinc-900 dark:border-red-900 dark:bg-zinc-950 dark:text-white'
+                : 'border-zinc-200 bg-white text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white'
+          }`}
+          role="status"
+        >
+          <div
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+              toast.type === 'success'
+                ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400'
+                : toast.type === 'error'
+                  ? 'bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400'
+                  : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400'
+            }`}
+          >
             {toast.type === 'success' ? (
-              <Check className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-            ) : toast.type === 'info' ? (
-              <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <Check className="h-4 w-4" />
+            ) : toast.type === 'error' ? (
+              <AlertCircle className="h-4 w-4" />
             ) : (
-              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <Shield className="h-4 w-4" />
             )}
+          </div>
+
+          <p className="min-w-0 flex-1 text-sm font-medium">
+            {toast.message}
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setToast(null)}
+            className="rounded-lg p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-900 dark:hover:text-white"
+            aria-label="Dismiss notification"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex flex-col gap-4 border-b border-zinc-200 dark:border-zinc-800 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+              <Users className="h-4 w-4" />
+            </div>
+
             <div>
-              <p className={`text-sm font-medium ${
-                toast.type === 'success' ? 'text-emerald-800 dark:text-emerald-300' : 
-                toast.type === 'info' ? 'text-blue-800 dark:text-blue-300' :
-                'text-red-800 dark:text-red-300'
-              }`}>
-                {toast.message}
+              <h2 className="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
+                Classes
+              </h2>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Manage your classrooms and membership
               </p>
             </div>
-            <button 
-              onClick={() => setToast(null)}
-              className="ml-auto text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-            >
-              ✕
-            </button>
           </div>
         </div>
-      )}
 
-      <div className="flex border-b border-zinc-200 dark:border-zinc-800 text-xs font-mono" id="class-subnav">
-        <button
-          onClick={() => { setActiveTab('details'); setErrorMessage(''); setSuccessMessage(''); }}
-          className={`px-4 py-2 border-b-2 -mb-[2px] cursor-pointer font-bold ${
-            activeTab === 'details' ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'border-transparent text-zinc-500 dark:text-zinc-455 hover:text-zinc-900 dark:hover:text-zinc-205'
-          }`}
+        <nav
+          className="flex items-center gap-1 overflow-x-auto pb-px"
+          aria-label="Class actions"
         >
-          My Classes
-        </button>
-        <button
-          id="tab-join-class"
-          onClick={() => { setActiveTab('join'); setErrorMessage(''); setSuccessMessage(''); }}
-          className={`px-4 py-2 border-b-2 -mb-[2px] cursor-pointer font-bold ${
-            activeTab === 'join' ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'border-transparent text-zinc-500 dark:text-zinc-455 hover:text-zinc-900 dark:hover:text-zinc-205'
-          }`}
-        >
-          Join with Code
-        </button>
-        <button
-          id="tab-create-class"
-          onClick={() => { setActiveTab('create'); setErrorMessage(''); setSuccessMessage(''); }}
-          className={`px-4 py-2 border-b-2 -mb-[2px] cursor-pointer font-bold ${
-            activeTab === 'create' ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100' : 'border-transparent text-zinc-500 dark:text-zinc-455 hover:text-zinc-900 dark:hover:text-zinc-205'
-          }`}
-        >
-          Create New Class
-        </button>
+          {[
+            {
+              id: 'details' as const,
+              label: 'Your classes',
+              icon: Users,
+            },
+            {
+              id: 'join' as const,
+              label: 'Join',
+              icon: KeyRound,
+            },
+            {
+              id: 'create' as const,
+              label: 'Create',
+              icon: Plus,
+            },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-3.5 py-2.5 text-xs font-bold transition ${
+                  active
+                    ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950'
+                    : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
       {activeTab === 'details' && (
-        <div className="space-y-6" id="details-section">
-          {classes.length === 0 ? (
-            <div className="border border-dashed border-zinc-200 dark:border-zinc-800 p-12 text-center space-y-4 rounded-none">
-              <p className="text-sm font-mono text-zinc-500 dark:text-zinc-400">You are not a member of any class group yet.</p>
-              <div className="flex justify-center gap-3">
+        <section id="details-section" className="space-y-5">
+          {!classes.length ? (
+            <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-14 text-center dark:border-zinc-700 dark:bg-zinc-950">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900">
+                <UserPlus className="h-6 w-6 text-zinc-700 dark:text-zinc-300" />
+              </div>
+
+              <h3 className="mt-5 text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
+                No classes yet
+              </h3>
+
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                Join an existing classroom with a class code or create one
+                for your course.
+              </p>
+
+              <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
                 <button
+                  type="button"
                   onClick={() => setActiveTab('join')}
-                  className="px-4 py-2 text-xs font-mono font-bold bg-zinc-900 dark:bg-zinc-800 text-white cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                 >
-                  Join Class
+                  <KeyRound className="h-3.5 w-3.5" />
+                  Join a class
                 </button>
+
                 <button
+                  type="button"
                   onClick={() => setActiveTab('create')}
-                  className="px-4 py-2 text-xs font-mono font-bold border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
                 >
-                  Create Class
+                  <Plus className="h-3.5 w-3.5" />
+                  Create a class
                 </button>
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" id="class-layout-grid">
-              <div className="space-y-3" id="class-sidebar-list">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                    Select Active Class
-                  </h3>
+            <div
+              id="class-layout-grid"
+              className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)]"
+            >
+              {/* Class sidebar */}
+              <aside className="h-fit rounded-2xl border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="flex items-center justify-between px-2 py-2">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+                      Your classes
+                    </p>
+                  </div>
+
+                  <span className="rounded-full bg-zinc-100 px-2 py-1 text-[10px] font-bold text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                    {classes.length}
+                  </span>
                 </div>
-                <div className="space-y-1.5" id="class-switching-list">
+
+                <div
+                  id="class-sidebar-list"
+                  className="mt-2 space-y-1"
+                >
                   {classes.map((cls) => {
-                    const isSelected = cls.id === activeClassId;
-                    const userIsOwner = cls.ownerId === currentUser.id;
-                    const userIsAssistant = cls.assistantIds.includes(currentUser.id);
-                    const isLeaving = leavingClassId === cls.id;
-                    
-                    let roleBadge = 'Member';
-                    let badgeColor = 'border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400';
-                    if (userIsOwner) {
-                      roleBadge = 'Rep';
-                      badgeColor = 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400';
-                    } else if (userIsAssistant) {
-                      roleBadge = 'Asst';
-                      badgeColor = 'border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400';
-                    }
+                    const selected = cls.id === activeClassId;
+                    const isOwner = cls.ownerId === currentUser.id;
+                    const isAssistant = cls.assistantIds.includes(
+                      currentUser.id
+                    );
 
                     return (
-                      <div key={cls.id} className="flex items-center gap-1">
+                      <div
+                        key={cls.id}
+                        className="group flex items-center gap-1"
+                      >
                         <button
                           id={`select-class-btn-${cls.id}`}
+                          type="button"
                           onClick={() => onSelectClass(cls.id)}
-                          className={`flex-1 text-left p-3 border transition-colors flex items-center justify-between rounded-none cursor-pointer ${
-                            isSelected
-                              ? 'border-zinc-900 dark:border-zinc-750 bg-zinc-900 dark:bg-zinc-800 text-white'
-                              : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100'
+                          className={`min-w-0 flex-1 rounded-xl px-3 py-3 text-left transition ${
+                            selected
+                              ? 'bg-zinc-950 text-white dark:bg-white dark:text-zinc-950'
+                              : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'
                           }`}
                         >
-                          <div className="truncate pr-2">
-                            <span className="block text-xs font-mono font-bold">{cls.code}</span>
-                            <span className="block text-xs truncate font-sans">{cls.name}</span>
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                                selected
+                                  ? 'bg-white/10 dark:bg-zinc-950/10'
+                                  : 'bg-zinc-100 dark:bg-zinc-900'
+                              }`}
+                            >
+                              <Users
+                                className={`h-3.5 w-3.5 ${
+                                  selected
+                                    ? 'text-white dark:text-zinc-950'
+                                    : 'text-zinc-500'
+                                }`}
+                              />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold">
+                                {cls.name}
+                              </p>
+
+                              <div className="mt-1 flex items-center gap-1.5">
+                                <span
+                                  className={`truncate text-[10px] ${
+                                    selected
+                                      ? 'text-zinc-300 dark:text-zinc-600'
+                                      : 'text-zinc-400'
+                                  }`}
+                                >
+                                  {cls.code}
+                                </span>
+
+                                <span
+                                  className={`h-1 w-1 shrink-0 rounded-full ${
+                                    selected
+                                      ? 'bg-zinc-500'
+                                      : 'bg-zinc-300 dark:bg-zinc-700'
+                                  }`}
+                                />
+
+                                <span
+                                  className={`truncate text-[10px] font-semibold ${
+                                    selected
+                                      ? 'text-zinc-300 dark:text-zinc-600'
+                                      : 'text-zinc-500 dark:text-zinc-400'
+                                  }`}
+                                >
+                                  {isOwner
+                                    ? 'Representative'
+                                    : isAssistant
+                                      ? 'Assistant'
+                                      : 'Member'}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <span className={`text-[9px] font-mono uppercase px-1.5 py-0.5 border ${badgeColor}`}>
-                            {roleBadge}
-                          </span>
                         </button>
-                        {!userIsOwner && (
+
+                        {!isOwner && (
                           <button
-                            onClick={() => handleLeaveClass(cls.id, cls.name)}
-                            disabled={isLeaving}
-                            className={`p-2 border transition-colors rounded-none cursor-pointer ${
-                              isSelected
-                                ? 'border-zinc-900 dark:border-zinc-750 bg-zinc-900 dark:bg-zinc-800 text-white hover:bg-zinc-800 dark:hover:bg-zinc-700'
-                                : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:text-red-600 dark:hover:text-red-400'
-                            }`}
-                            title="Leave this class"
+                            type="button"
+                            onClick={() =>
+                              requestLeaveClass(
+                                cls.id,
+                                cls.name
+                              )
+                            }
+                            className="mr-1 hidden rounded-lg p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-600 group-hover:block dark:hover:bg-red-950/20 dark:hover:text-red-400"
+                            aria-label={`Leave ${cls.name}`}
                           >
-                            <LogOut className={`w-4 h-4 ${isLeaving ? 'animate-spin' : ''}`} />
+                            <LogOut className="h-3.5 w-3.5" />
                           </button>
                         )}
                       </div>
                     );
                   })}
                 </div>
+
+                <div className="mt-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('join')}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    Join another class
+                    <ChevronRight className="ml-auto h-3.5 w-3.5" />
+                  </button>
+                </div>
+      {activeTab === 'join' && (
+        <section id="join-card" className="mx-auto w-full max-w-xl">
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="border-b border-zinc-100 p-6 dark:border-zinc-800">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
+                    Join a class
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                    Use the code shared by your class representative.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleJoin} className="space-y-5 p-6">
+              <div>
+                <label
+                  htmlFor="input-join-code"
+                  className="mb-2 block text-xs font-bold text-zinc-700 dark:text-zinc-300"
+                >
+                  Class code
+                </label>
+
+                <input
+                  id="input-join-code"
+                  type="text"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  placeholder="THESDEL-XXXX"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3.5 font-mono text-sm font-bold tracking-[0.18em] text-zinc-950 outline-none transition placeholder:font-sans placeholder:font-normal placeholder:tracking-normal placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/5 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-600 dark:focus:border-white dark:focus:ring-white/10"
+                />
               </div>
 
-              <div className="lg:col-span-2 space-y-6" id="class-main-details">
-                {activeClass ? (
-                  <div className="border border-zinc-200 dark:border-zinc-800 p-6 bg-white dark:bg-zinc-900 space-y-6 rounded-none">
-                    
-                    {isUserAdminOrAssistantOfActiveClass && activeClass.pendingMemberIds && activeClass.pendingMemberIds.length > 0 && (
-                      <div className="border border-indigo-200 dark:border-indigo-900 bg-indigo-50/40 dark:bg-indigo-950/15 p-4 rounded-none space-y-3" id="pending-join-requests-panel">
-                        <h4 className="text-xs font-mono font-bold text-indigo-800 dark:text-indigo-400 flex items-center gap-1.5 uppercase tracking-wider">
-                          <Shield className="w-4 h-4 text-indigo-650" />
-                          Pending Classroom Join Requests ({activeClass.pendingMemberIds.length})
-                        </h4>
-                        <p className="text-[11px] text-zinc-600 dark:text-zinc-400 font-sans leading-relaxed">
-                          The following student(s) requested to enroll in this Private classroom group. Approve or deny their access using the controls below:
-                        </p>
-                        <div className="divide-y divide-indigo-150 dark:divide-indigo-900/40 border border-indigo-200 dark:border-indigo-900/40">
-                          {activeClass.pendingMemberIds.map((userId) => {
-                            const isProcessing = processingJoinId === userId;
-                            return (
-                              <div key={userId} className="p-3 flex items-center justify-between text-xs font-mono bg-white dark:bg-zinc-900">
-                                <span className="font-bold text-zinc-900 dark:text-zinc-100">{getMemberName(userId)}</span>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => handleApproveJoin(userId)}
-                                    disabled={isProcessing}
-                                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-mono font-bold text-[10px] uppercase cursor-pointer disabled:opacity-50"
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={() => handleRejectJoin(userId)}
-                                    disabled={isProcessing}
-                                    className="px-2.5 py-1 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono font-bold text-[10px] uppercase cursor-pointer disabled:opacity-50"
-                                  >
-                                    Deny
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {currentUserRole === 'representative' && activeClass.ownerId === currentUser.id && pendingRemovals.filter(pr => pr.classId === activeClass.id).length > 0 && (
-                      <div className="border border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/10 p-4 rounded-none space-y-3" id="pending-removals-panel">
-                        <h4 className="text-xs font-mono font-bold text-amber-805 dark:text-amber-400 flex items-center gap-1.5 uppercase">
-                          <ShieldAlert className="w-4 h-4 text-amber-700 dark:text-amber-450" />
-                          Pending Member Removals (Action Required)
-                        </h4>
-                        <p className="text-[11px] text-amber-700 dark:text-amber-400 font-sans leading-relaxed">
-                          The following removal requests were initiated by class assistants. As the Class Representative, you must approve these pending requests before students are permanently removed.
-                        </p>
-                        <div className="divide-y divide-amber-100 dark:divide-amber-900/40 border border-amber-200 dark:border-amber-900/40">
-                          {pendingRemovals.filter(pr => pr.classId === activeClass.id).map((pr) => (
-                            <div key={pr.id} className="p-3 flex items-center justify-between text-xs font-mono bg-white dark:bg-zinc-900">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-zinc-900 dark:text-zinc-100">{getMemberName(pr.userId)}</span>
-                                <span className="text-[10px] text-zinc-450">Requested by: {getMemberName(pr.requestedBy)}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={() => onApproveMemberRemoval(activeClass.id, pr.userId)}
-                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold text-[10px] uppercase cursor-pointer"
-                                >
-                                  Approve Removal
-                                </button>
-                                <button
-                                  onClick={() => onRejectMemberRemoval(activeClass.id, pr.userId)}
-                                  className="px-2.5 py-1 border border-zinc-300 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-mono font-bold text-[10px] uppercase cursor-pointer"
-                                >
-                                  Dismiss
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="border-b border-zinc-100 dark:border-zinc-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono font-bold uppercase text-zinc-400 dark:text-zinc-500">Class Group Details</span>
-                          <span className={`text-[9px] font-mono font-bold uppercase px-2 py-0.5 border ${
-                            activeClass.visibility === 'private'
-                              ? 'border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400'
-                              : 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400'
-                          }`}>
-                            {activeClass.visibility || 'public'} Classroom
-                          </span>
-                        </div>
-                        <h2 className="text-xl font-bold tracking-tight text-zinc-950 dark:text-zinc-100">
-                          {activeClass.name}
-                        </h2>
-                        {activeClass.description && (
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-sans leading-relaxed max-w-xl">
-                            {activeClass.description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="border border-zinc-200 dark:border-zinc-800 p-3 bg-zinc-50 dark:bg-zinc-950 font-mono text-center shrink-0 relative">
-                          <span className="block text-[9px] text-zinc-400 dark:text-zinc-500 uppercase font-bold">Class Code</span>
-                          <div className="flex items-center justify-center gap-1.5 mt-0.5">
-                            <span className="text-base font-bold tracking-wider text-zinc-900 dark:text-zinc-100">{activeClass.code}</span>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(activeClass.code);
-                                showToast('success', 'Class code copied to clipboard!');
-                              }}
-                              className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors"
-                              title="Copy class code"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                              </svg>
-                            </button>
-                            {currentUserRole === 'representative' && activeClass.ownerId === currentUser.id && (
-                              <button
-                                onClick={handleRegenerateCode}
-                                disabled={isRegenerating}
-                                className="p-1 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors"
-                                title="Regenerate Class Code"
-                              >
-                                <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        {currentUserRole !== 'representative' && (
-                          <button
-                            onClick={() => handleLeaveClass(activeClass.id, activeClass.name)}
-                            className="px-3 py-2 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/40 font-mono text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
-                          >
-                            <LogOut className="w-3.5 h-3.5" />
-                            Leave
-                          </button>
-                        )}
-                      </div>
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+                      <Shield className="h-4 w-4" />
                     </div>
 
-                    <div className="space-y-3" id="class-members-section">
-                      <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                        <Users className="w-4 h-4" />
-                        Members & Roster ({activeClass.memberIds.length + activeClass.assistantIds.length + 1} enrolled)
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
+                        Security check
                       </h3>
-
-                      <div className="border border-zinc-200 dark:border-zinc-800 divide-y divide-zinc-100 dark:divide-zinc-800" id="members-list">
-                        
-                        <div className="p-3 flex items-center justify-between text-xs font-mono bg-zinc-50 dark:bg-zinc-950">
-                          <div className="flex items-center gap-2">
-                            <Crown className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-                            <span className="font-bold text-zinc-900 dark:text-zinc-100">{getMemberName(activeClass.ownerId)}</span>
-                          </div>
-                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40">
-                            Representative
-                          </span>
-                        </div>
-
-                        {activeClass.assistantIds.map((asstId) => (
-                          <div key={asstId} className="p-3 flex items-center justify-between text-xs font-mono">
-                            <div className="flex items-center gap-2">
-                              <UserCog className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-                              <span className="text-zinc-800 dark:text-zinc-200 font-medium">{getMemberName(asstId)}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-blue-100 dark:bg-blue-950/30 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-900/40">
-                                Assistant
-                              </span>
-                              {currentUserRole === 'representative' && (
-                                <>
-                                  <button
-                                    id={`demote-btn-${asstId}`}
-                                    onClick={() => onDemoteToMember(activeClass.id, asstId)}
-                                    className="text-[10px] text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 border border-zinc-200 dark:border-zinc-800 px-1.5 py-0.5 cursor-pointer bg-zinc-50 dark:bg-zinc-900"
-                                  >
-                                    Demote
-                                  </button>
-                                  <button
-                                    id={`remove-asst-btn-${asstId}`}
-                                    onClick={() => {
-                                      if (confirm(`Are you sure you want to instantly remove ${getMemberName(asstId)} from this class group?`)) {
-                                        onRemoveMemberInstantly(activeClass.id, asstId);
-                                      }
-                                    }}
-                                    className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 border border-red-100 dark:border-red-900/40 hover:border-red-200 dark:hover:border-red-650 px-1.5 py-0.5 cursor-pointer bg-red-50 dark:bg-red-950/20"
-                                  >
-                                    Remove
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-
-                        {activeClass.memberIds
-                          .filter((id) => id !== activeClass.ownerId && !activeClass.assistantIds.includes(id))
-                          .map((memId) => {
-                            const isPending = pendingRemovals.some(pr => pr.classId === activeClass.id && pr.userId === memId);
-                            return (
-                              <div key={memId} className="p-3 flex items-center justify-between text-xs font-mono">
-                                <div className="flex items-center gap-2">
-                                  <UserCheck className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
-                                  <span className="text-zinc-650 dark:text-zinc-300">{getMemberName(memId)}</span>
-                                  {isPending && (
-                                    <span className="text-[9px] font-mono uppercase px-1 py-0.2 bg-amber-50 dark:bg-amber-955/20 text-amber-700 dark:text-amber-400 border border-amber-250 dark:border-amber-900/40 animate-pulse">
-                                      Pending Removal
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] text-zinc-450 dark:text-zinc-500">Member</span>
-                                  
-                                  {currentUserRole === 'representative' && (
-                                    <>
-                                      <button
-                                        id={`promote-btn-${memId}`}
-                                        onClick={() => onPromoteToAssistant(activeClass.id, memId)}
-                                        className="text-[10px] text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 border border-blue-100 dark:border-blue-900/40 hover:border-blue-200 dark:hover:border-blue-650 px-1.5 py-0.5 cursor-pointer bg-blue-50 dark:bg-blue-950/20"
-                                      >
-                                        Promote
-                                      </button>
-                                      <button
-                                        id={`remove-inst-btn-${memId}`}
-                                        onClick={() => {
-                                          if (confirm(`Are you sure you want to instantly remove ${getMemberName(memId)}?`)) {
-                                            onRemoveMemberInstantly(activeClass.id, memId);
-                                          }
-                                        }}
-                                        className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 border border-red-100 dark:border-red-900/40 hover:border-red-200 dark:hover:border-red-650 px-1.5 py-0.5 cursor-pointer bg-red-50 dark:bg-red-950/20"
-                                      >
-                                        Remove
-                                      </button>
-                                    </>
-                                  )}
-
-                                  {currentUserRole === 'assistant' && !isPending && (
-                                    <button
-                                      id={`request-remove-btn-${memId}`}
-                                      onClick={() => {
-                                        if (confirm(`Send request to Class Representative to remove student ${getMemberName(memId)}?`)) {
-                                          onRequestMemberRemoval(activeClass.id, memId);
-                                          showToast('success', 'Removal request sent to Class Representative for final approval.');
-                                        }
-                                      }}
-                                      className="text-[10px] text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 border border-amber-100 dark:border-amber-900/40 hover:border-amber-200 dark:hover:border-amber-650 px-1.5 py-0.5 cursor-pointer bg-amber-50 dark:bg-amber-950/20"
-                                    >
-                                      Request Removal
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
+                      <p className="mt-0.5 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                        Solve this quick check to continue.
+                      </p>
                     </div>
-
-                    {currentUserRole === 'representative' && activeClass.ownerId === currentUser.id && (
-                      <div className="border border-red-200 dark:border-red-900/40 bg-red-50/10 dark:bg-red-950/5 p-4 rounded-none space-y-3" id="rep-admin-panel">
-                        <h4 className="text-xs font-mono font-bold text-red-800 dark:text-red-400 flex items-center gap-1.5 uppercase">
-                          <Trash2 className="w-4 h-4" />
-                          Danger Zone
-                        </h4>
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-mono">
-                          <p className="text-zinc-500 dark:text-zinc-400 font-sans">
-                            As the Class Representative, you have full ownership. You can permanently delete this classroom and all of its scheduled timetable entries from Thesdel.
-                          </p>
-                          <button
-                            id="btn-delete-class"
-                            onClick={handleDelete}
-                            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold transition-colors cursor-pointer shrink-0"
-                          >
-                            Delete Classroom
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                ) : (
-                  <p className="text-xs text-zinc-400 dark:text-zinc-500 font-sans italic text-center py-12">
-                    Select a class group from the list to view roster and details.
-                  </p>
+
+                  <button
+                    type="button"
+                    onClick={regenerateCaptcha}
+                    className="rounded-lg p-2 text-zinc-400 transition hover:bg-white hover:text-zinc-950 dark:hover:bg-zinc-950 dark:hover:text-white"
+                    aria-label="Generate a new security check"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_140px]">
+                  <div className="flex min-h-12 items-center justify-center rounded-xl bg-white px-4 font-mono text-lg font-bold text-zinc-950 dark:bg-zinc-950 dark:text-white">
+                    {captchaNum1} + {captchaNum2} = ?
+                  </div>
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={captchaAnswer}
+                    onChange={(e) =>
+                      setCaptchaAnswer(e.target.value.replace(/\D/g, ''))
+                    }
+                    placeholder="Answer"
+                    aria-label="Security check answer"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-center text-sm font-bold text-zinc-950 outline-none transition placeholder:font-normal placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/5 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-600 dark:focus:border-white dark:focus:ring-white/10"
+                  />
+                </div>
+
+                {captchaError && (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-medium text-red-600 dark:text-red-400">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{captchaError}</span>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
-        </div>
-      )}
 
-      {activeTab === 'join' && (
-        <div className="border border-zinc-200 dark:border-zinc-800 p-6 bg-white dark:bg-zinc-900 max-w-md mx-auto rounded-none space-y-4" id="join-card">
-          <div className="space-y-1 border-b border-zinc-100 dark:border-zinc-800 pb-3">
-            <h3 className="font-bold text-lg tracking-tight text-zinc-950 dark:text-zinc-100 flex items-center gap-2">
-              <Key className="w-5 h-5 text-zinc-700 dark:text-zinc-300" />
-              Join Class Group
-            </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-              Enter your class code to join.
-            </p>
-          </div>
-
-          <form onSubmit={handleJoin} className="space-y-4 font-mono text-xs">
-            <div className="space-y-1">
-              <label className="block text-zinc-600 dark:text-zinc-400 font-bold uppercase text-[10px]">Enter Class Code</label>
-              <input
-                id="input-join-code"
-                type="text"
-                required
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                placeholder="Enter your class code"
-                className="w-full border border-zinc-200 dark:border-zinc-800 px-3 py-2 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-100 focus:outline-none focus:border-zinc-800 dark:focus:border-zinc-600 rounded-none text-xs"
-              />
-            </div>
-
-            <div className="p-3 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 space-y-2 rounded-none">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] uppercase font-bold text-zinc-600 dark:text-zinc-400 font-mono">🤖 Human Verification Check</span>
-                <button 
-                  type="button" 
-                  onClick={regenerateCaptcha} 
-                  className="text-[9px] underline text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-205 font-mono"
-                >
-                  Regenerate
-                </button>
-              </div>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-sans">
-                Solve the security challenge below to verify you are not an automated form bot.
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-800 border border-zinc-350 dark:border-zinc-800 font-mono font-bold text-sm text-zinc-800 dark:text-zinc-200 select-none tracking-widest">
-                  {captchaNum1} + {captchaNum2} = ?
-                </div>
-                <input
-                  type="number"
-                  required
-                  value={captchaAnswer}
-                  onChange={(e) => setCaptchaAnswer(e.target.value)}
-                  placeholder="Answer"
-                  className="w-24 border border-zinc-200 dark:border-zinc-800 px-2 py-1.5 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-100 font-bold focus:outline-none focus:border-zinc-800 dark:focus:border-zinc-600 text-xs font-mono text-center"
-                />
-              </div>
-              {captchaError && (
-                <p className="text-[10px] text-red-600 dark:text-red-400 font-mono font-bold">
-                  ⚠️ {captchaError}
-                </p>
-              )}
-            </div>
-
-            <button
-              id="btn-join-submit"
-              type="submit"
-              disabled={isJoining}
-              className="w-full py-2.5 bg-zinc-900 dark:bg-zinc-800 hover:bg-zinc-800 dark:hover:bg-zinc-700 text-white font-mono font-bold text-xs uppercase cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isJoining ? 'Joining...' : 'Join Class Group'}
-            </button>
-          </form>
-
-          <div className="border-t border-zinc-100 dark:border-zinc-800 pt-3 text-[11px] text-zinc-400 dark:text-zinc-500 font-mono space-y-1">
-            <span className="block font-bold">Class code requirements:</span>
-            <span className="block">• A valid code must be 10 characters</span>
-            <span className="block">• Public classes join instantly without approval</span>
-            <span className="block">• Private classes require approval from the representative or assistant</span>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'create' && (
-        <div className="border border-zinc-200 dark:border-zinc-800 p-6 bg-white dark:bg-zinc-900 max-w-md mx-auto rounded-none space-y-4" id="create-card">
-          <div className="space-y-1 border-b border-zinc-100 dark:border-zinc-800 pb-3">
-            <h3 className="font-bold text-lg tracking-tight text-zinc-950 dark:text-zinc-100 flex items-center gap-2">
-              <Plus className="w-5 h-5 text-zinc-700 dark:text-zinc-300" />
-              Create Class Group
-            </h3>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-              Establish a new workspace and become the designated Class Representative.
-            </p>
-          </div>
-
-          <form onSubmit={handleCreate} className="space-y-4 font-mono text-xs">
-            <div className="space-y-1">
-              <label className="block text-zinc-600 dark:text-zinc-400 font-bold uppercase text-[10px]">Class Name</label>
-              <input
-                id="input-create-name"
-                type="text"
-                required
-                value={classNameInput}
-                onChange={(e) => setClassNameInput(e.target.value)}
-                placeholder="e.g. Mechanical Engineering Year 3"
-                className="w-full border border-zinc-200 dark:border-zinc-800 px-3 py-2 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-100 focus:outline-none focus:border-zinc-800 dark:focus:border-zinc-600 rounded-none text-xs font-sans"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-zinc-600 dark:text-zinc-400 font-bold uppercase text-[10px]">Description</label>
-              <textarea
-                id="input-create-description"
-                value={classDescriptionInput}
-                onChange={(e) => setClassDescriptionInput(e.target.value)}
-                placeholder="e.g. Class of Shege."
-                className="w-full border border-zinc-200 dark:border-zinc-800 px-3 py-2 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-100 focus:outline-none focus:border-zinc-800 dark:focus:border-zinc-600 rounded-none text-xs font-sans h-20 resize-none"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="block text-zinc-600 dark:text-zinc-400 font-bold uppercase text-[10px]">Visibility Mode</label>
-              <select
-                id="input-create-visibility"
-                value={classVisibilityInput}
-                onChange={(e) => setClassVisibilityInput(e.target.value as 'public' | 'private')}
-                className="w-full border border-zinc-200 dark:border-zinc-800 px-3 py-2 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-100 focus:outline-none focus:border-zinc-800 dark:focus:border-zinc-600 rounded-none text-xs font-mono cursor-pointer"
+              <button
+                id="btn-join-submit"
+                type="submit"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-3.5 text-xs font-bold text-white transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950/20 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 dark:focus:ring-white/20"
               >
-                <option value="public">Public (Anyone can join with code instantly)</option>
-                <option value="private">Private (Requires representative or assistant approval)</option>
-              </select>
-            </div>
+                <KeyRound className="h-4 w-4" />
+                Join class
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
 
-            <div className="p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-150 dark:border-zinc-800 space-y-1 font-sans text-zinc-500 text-[11px] leading-relaxed">
-              <span className="block font-bold text-zinc-700 dark:text-zinc-300 uppercase font-mono text-[9px] tracking-wider">🔒 Auto-Generated Class Code</span>
-              <span>
-                To ensure perfect uniqueness, the platform will auto-generate a secure 10-character code beginning with <strong className="font-mono text-zinc-800 dark:text-zinc-200">THESDEL-</strong> (consisting of upper/lower case letters and numbers only) when this class is saved to the database.
-              </span>
-            </div>
+              <div className="border-t border-zinc-100 pt-5 dark:border-zinc-800">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
+                    <div>
+                      <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                        Valid class code
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
+                        Enter the code shared by your class representative.
+                      </p>
+                    </div>
+                  </div>
 
-            <div className="p-3 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 space-y-2 rounded-none">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] uppercase font-bold text-zinc-600 dark:text-zinc-400 font-mono">🤖 Human Verification Check</span>
-                <button 
-                  type="button" 
-                  onClick={regenerateCaptcha} 
-                  className="text-[9px] underline text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-205 font-mono"
-                >
-                  Regenerate
-                </button>
-              </div>
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-sans">
-                Solve the security challenge below to verify you are not an automated form bot.
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="px-3 py-1.5 bg-zinc-200 dark:bg-zinc-800 border border-zinc-350 dark:border-zinc-800 font-mono font-bold text-sm text-zinc-800 dark:text-zinc-200 select-none tracking-widest">
-                  {captchaNum1} + {captchaNum2} = ?
+                  <div className="flex items-start gap-3">
+                    <Globe2 className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
+                    <div>
+                      <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                        Public classes
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
+                        You can join immediately when the class is public.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
+                    <div>
+                      <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                        Private classes
+                      </p>
+                      <p className="mt-0.5 text-[11px] leading-5 text-zinc-500 dark:text-zinc-400">
+                        Your join request is reviewed before you get access.
+                      </p>
+                    </div>
+                  </div>
                 </div>
+              </div>
+            </form>
+          </div>
+        </section>
+      )}
+      {activeTab === 'create' && (
+        <section id="create-card" className="mx-auto w-full max-w-xl">
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="border-b border-zinc-100 p-6 dark:border-zinc-800">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+                  <Plus className="h-5 w-5" />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
+                    Create a class
+                  </h2>
+                  <p className="mt-1 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                    Set up a shared space for your class, course, or study group.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreate} className="space-y-5 p-6">
+              <div>
+                <label
+                  htmlFor="input-create-name"
+                  className="mb-2 block text-xs font-bold text-zinc-700 dark:text-zinc-300"
+                >
+                  Class name
+                </label>
+
                 <input
-                  type="number"
-                  required
-                  value={captchaAnswer}
-                  onChange={(e) => setCaptchaAnswer(e.target.value)}
-                  placeholder="Answer"
-                  className="w-24 border border-zinc-200 dark:border-zinc-800 px-2 py-1.5 bg-white dark:bg-zinc-950 text-zinc-950 dark:text-zinc-100 font-bold focus:outline-none focus:border-zinc-800 dark:focus:border-zinc-600 text-xs font-mono text-center"
+                  id="input-create-name"
+                  type="text"
+                  value={classNameInput}
+                  onChange={(e) => setClassNameInput(e.target.value)}
+                  placeholder="e.g. MTH 102 — Mathematics"
+                  autoComplete="off"
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-sm font-medium text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/5 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-600 dark:focus:border-white dark:focus:ring-white/10"
                 />
               </div>
-              {captchaError && (
-                <p className="text-[10px] text-red-600 dark:text-red-400 font-mono font-bold">
-                  ⚠️ {captchaError}
-                </p>
-              )}
-            </div>
 
-            <button
-              id="btn-create-submit"
-              type="submit"
-              disabled={isCreating}
-              className="w-full py-2.5 bg-zinc-900 dark:bg-zinc-800 hover:bg-zinc-800 dark:hover:bg-zinc-700 text-white font-mono font-bold text-xs uppercase cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isCreating ? 'Creating...' : 'Create Class Group'}
-            </button>
-          </form>
-        </div>
+              <div>
+                <label
+                  htmlFor="input-create-description"
+                  className="mb-2 block text-xs font-bold text-zinc-700 dark:text-zinc-300"
+                >
+                  Description
+                </label>
+
+                <textarea
+                  id="input-create-description"
+                  value={classDescriptionInput}
+                  onChange={(e) => setClassDescriptionInput(e.target.value)}
+                  placeholder="What is this class for?"
+                  rows={4}
+                  className="w-full resize-none rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-sm font-medium leading-6 text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/5 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-600 dark:focus:border-white dark:focus:ring-white/10"
+                />
+              </div>
+
+              <div id="input-create-visibility">
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                    Visibility
+                  </label>
+
+                  <span className="text-[11px] font-medium text-zinc-400">
+                    Choose who can join
+                  </span>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setClassVisibilityInput('public')}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      classVisibilityInput === 'public'
+                        ? 'border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950'
+                        : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-600'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Globe2 className="mt-0.5 h-4 w-4 shrink-0" />
+
+                      <div>
+                        <p className="text-xs font-bold">Public</p>
+                        <p
+                          className={`mt-1 text-[11px] leading-5 ${
+                            classVisibilityInput === 'public'
+                              ? 'text-zinc-300 dark:text-zinc-600'
+                              : 'text-zinc-500 dark:text-zinc-400'
+                          }`}
+                        >
+                          Anyone with the code can join the class.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setClassVisibilityInput('private')}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      classVisibilityInput === 'private'
+                        ? 'border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950'
+                        : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-600'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0" />
+
+                      <div>
+                        <p className="text-xs font-bold">Private</p>
+                        <p
+                          className={`mt-1 text-[11px] leading-5 ${
+                            classVisibilityInput === 'private'
+                              ? 'text-zinc-300 dark:text-zinc-600'
+                              : 'text-zinc-500 dark:text-zinc-400'
+                          }`}
+                        >
+                          Join requests require approval.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+                  <LockKeyhole className="h-4 w-4" />
+                </div>
+
+                <div>
+                  <p className="text-sm font-bold text-zinc-950 dark:text-white">
+                    Your class code
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                    Your class code will be generated automatically using the
+                    THESDEL- prefix.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-900/40">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-zinc-600 dark:bg-zinc-950 dark:text-zinc-400">
+                      <Shield className="h-4 w-4" />
+                    </div>
+
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
+                        Security check
+                      </h3>
+                      <p className="mt-0.5 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                        Solve this quick check to create your class.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={regenerateCaptcha}
+                    className="rounded-lg p-2 text-zinc-400 transition hover:bg-white hover:text-zinc-950 dark:hover:bg-zinc-950 dark:hover:text-white"
+                    aria-label="Generate a new security check"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_140px]">
+                  <div className="flex min-h-12 items-center justify-center rounded-xl bg-white px-4 font-mono text-lg font-bold text-zinc-950 dark:bg-zinc-950 dark:text-white">
+                    {captchaNum1} + {captchaNum2} = ?
+                  </div>
+
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={captchaAnswer}
+                    onChange={(e) =>
+                      setCaptchaAnswer(e.target.value.replace(/\D/g, ''))
+                    }
+                    placeholder="Answer"
+                    aria-label="Security check answer"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-center text-sm font-bold text-zinc-950 outline-none transition placeholder:font-normal placeholder:text-zinc-400 focus:border-zinc-950 focus:ring-2 focus:ring-zinc-950/5 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:placeholder:text-zinc-600 dark:focus:border-white dark:focus:ring-white/10"
+                  />
+                </div>
+
+                {captchaError && (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-medium text-red-600 dark:text-red-400">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{captchaError}</span>
+                  </div>
+                )}
+              </div>
+
+              <button
+                id="btn-create-submit"
+                type="submit"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-3.5 text-xs font-bold text-white transition hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950/20 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 dark:focus:ring-white/20"
+              >
+                <Plus className="h-4 w-4" />
+                Create class
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </form>
+          </div>
+        </section>
       )}
     </div>
   );
 }
+               
