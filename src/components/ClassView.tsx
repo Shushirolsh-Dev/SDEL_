@@ -7,7 +7,6 @@ import {
   AlertCircle,
   RefreshCw,
   ArrowRight,
-  Settings2,
 } from 'lucide-react';
 import { ClassGroup, User, Role, PendingRemoval } from '../types';
 import { trackClick } from '../utils/tracker';
@@ -448,227 +447,236 @@ const ClassView: React.FC<ClassViewProps> = ({
   ).length;
 
   return (
-    <div className="relative min-h-full bg-white text-zinc-950 dark:bg-black dark:text-white">
-      <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">
-              Class spaces
+<div className="relative min-h-full bg-white text-zinc-950 dark:bg-black dark:text-white">
+  <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+    {/* Header */}
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+          Class spaces
+        </p>
+
+        <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
+          Your classes
+        </h1>
+
+        <p className="mt-1 max-w-xl text-sm text-zinc-500 dark:text-zinc-400">
+          Manage your class spaces, members, access and class codes.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('details');
+            trackClick('class_details_tab');
+          }}
+          className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+            activeTab === 'details'
+              ? 'bg-zinc-950 text-white dark:bg-white dark:text-black'
+              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
+          }`}
+        >
+          My classes
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('create');
+            regenerateCaptcha();
+            trackClick('class_create_tab');
+          }}
+          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+            activeTab === 'create'
+              ? 'bg-zinc-950 text-white dark:bg-white dark:text-black'
+              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
+          }`}
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Create class
+        </button>
+      </div>
+    </div>
+
+    {activeTab === 'details' && (
+      <section id="details-section" className="space-y-5">
+        {classes.length === 0 ? (
+          <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900">
+              <Users className="h-5 w-5 text-zinc-500" />
+            </div>
+
+            <h2 className="text-base font-black">No classes yet</h2>
+
+            <p className="mx-auto mt-1 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
+              Join an existing class with a class code or create a
+              new class space.
             </p>
 
-            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
-              Your classes
-            </h1>
-
-            <p className="mt-1 max-w-xl text-sm text-zinc-500 dark:text-zinc-400">
-              Manage your class spaces, members, access and class codes.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('details');
-                trackClick('class_details_tab');
-              }}
-              className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
-                activeTab === 'details'
-                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black'
-                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
-              }`}
-            >
-              My classes
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('create');
-                regenerateCaptcha();
-                trackClick('class_create_tab');
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
-                activeTab === 'create'
-                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black'
-                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
-              }`}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Create class
-            </button>
-          </div>
-        </div>
-
-        {activeTab === 'details' && (
-          <section id="details-section" className="space-y-5">
-            {classes.length === 0 ? (
-              <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900">
-                  <Users className="h-5 w-5 text-zinc-500" />
-                </div>
-
-                <h2 className="text-base font-black">No classes yet</h2>
-
-                <p className="mx-auto mt-1 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
-                  Join an existing class with a class code or create a
-                  new class space.
-                </p>
-
-                <div className="mt-5 flex flex-wrap justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('join');
-                      regenerateCaptcha();
-                    }}
-                    className="inline-flex items-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-                  >
-                    <KeyRound className="h-3.5 w-3.5" />
-                    Join a class
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('create');
-                      regenerateCaptcha();
-                    }}
-                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    Create a class
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div
-                id="class-layout-grid"
-                className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)]"
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('join');
+                  regenerateCaptcha();
+                }}
+                className="inline-flex items-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
               >
-                <ClassSidebar
-                  classes={classes}
-                  activeClassId={activeClassId}
-                  onSelectClass={onSelectClass}
-                  onJoinAnother={() => {
-                    setActiveTab('join');
-                    regenerateCaptcha();
-                    trackClick('join_another_class');
-                  }}
-                />
+                <KeyRound className="h-3.5 w-3.5" />
+                Join a class
+              </button>
 
-                <div className="min-w-0 space-y-5">
-                  {activeClass && (
-                    <>
-                      <ClassOverview
-                        activeClass={activeClass}
-                        currentUser={currentUser}
-                        copiedCode={copiedCode}
-                        onCopyCode={copyClassCode}
-                      />
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('create');
+                  regenerateCaptcha();
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Create a class
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div
+            id="class-layout-grid"
+            className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)]"
+          >
+            <ClassSidebar
+              classes={classes}
+              activeClassId={activeClassId}
+              onSelectClass={onSelectClass}
+              onJoinAnother={() => {
+                setActiveTab('join');
+                regenerateCaptcha();
+                trackClick('join_another_class');
+              }}
+            />
 
-                      {isUserAdminOrAssistantOfActiveClass && (
-                        <ClassRequests
-                          activeClass={activeClass}
-                          pendingRemovals={pendingRemovals}
-                          pendingRemovalCount={pendingRemovalCount}
-                          processingJoinId={processingJoinId}
-                          getMemberName={getMemberName}
-                          onApproveJoin={handleApproveJoin}
-                          onRejectJoinRequest={(
-                            classId,
-                            userId,
-                            userName
-                          ) =>
-                            setConfirmAction({
-                              type: 'reject-join',
-                              classId,
-                              userId,
-                              userName,
-                            })
-                          }
-                          onApproveRemoval={(classId, memberId) => {
-                            onApproveMemberRemoval(classId, memberId);
-                            showToast('success', 'Removal approved.');
-                          }}
-                          onRejectRemoval={(classId, memberId) => {
-                            onRejectMemberRemoval(classId, memberId);
-                            showToast(
-                              'info',
-                              'Removal request rejected.'
-                            );
-                          }}
-                        />
-                      )}
+            <div className="min-w-0 space-y-5">
+              {activeClass && (
+                <>
+                  <ClassOverview
+                    activeClass={activeClass}
+                    currentUser={currentUser}
+                    copiedCode={copiedCode}
+                    onCopyCode={copyClassCode}
+                  />
 
-                      <ClassMembersCard
-                        activeClass={activeClass}
-                        currentUser={currentUser}
-                        currentUserRole={currentUserRole}
-                        getMemberName={getMemberName}
-                        onPromote={(classId, memberId, memberName) => {
-                          onPromoteToAssistant(classId, memberId);
-                          showToast(
-                            'success',
-                            `${memberName} is now an assistant.`
-                          );
-                        }}
-                        onDemote={(classId, memberId, memberName) => {
-                          onDemoteToMember(classId, memberId);
-                          showToast(
-                            'success',
-                            `${memberName} is now a member.`
-                          );
-                        }}
-                                                  })
-                        }
-                        onRequestRemoval={(
+                  {isUserAdminOrAssistantOfActiveClass && (
+                    <ClassRequests
+                      activeClass={activeClass}
+                      pendingRemovals={pendingRemovals}
+                      pendingRemovalCount={pendingRemovalCount}
+                      processingJoinId={processingJoinId}
+                      getMemberName={getMemberName}
+                      onApproveJoin={handleApproveJoin}
+                      onRejectJoinRequest={(
+                        classId,
+                        userId,
+                        userName
+                      ) =>
+                        setConfirmAction({
+                          type: 'reject-join',
                           classId,
-                          memberId,
-                          memberName
-                        ) =>
-                          setConfirmAction({
-                            type: 'request-removal',
-                            classId,
-                            memberId,
-                            memberName,
-                          })
-                        }
-                      />
-
-                      <ClassManagementCard
-                        activeClass={activeClass}
-                        currentUser={currentUser}
-                        leavingClassId={leavingClassId}
-                        onRegenerateClick={(classId, className) =>
-                          setConfirmAction({
-                            type: 'regenerate',
-                            classId,
-                            className,
-                          })
-                        }
-                        onTransferClick={() => {
-                          setSelectedTransferId('');
-                          setShowTransferModal(true);
-                        }}
-                        onLeaveClick={requestLeaveClass}
-                        onDeleteClick={(classId, className) =>
-                          setConfirmAction({
-                            type: 'delete',
-                            classId,
-                            className,
-                          })
-                        }
-                      />
-                    </>
+                          userId,
+                          userName,
+                        })
+                      }
+                      onApproveRemoval={(classId, memberId) => {
+                        onApproveMemberRemoval(classId, memberId);
+                        showToast('success', 'Removal approved.');
+                      }}
+                      onRejectRemoval={(classId, memberId) => {
+                        onRejectMemberRemoval(classId, memberId);
+                        showToast(
+                          'info',
+                          'Removal request rejected.'
+                        );
+                      }}
+                    />
                   )}
-                </div>
-              </div>
-            )}
-          </section>
-        )}
 
+                  <ClassMembersCard
+                    activeClass={activeClass}
+                    currentUser={currentUser}
+                    currentUserRole={currentUserRole}
+                    getMemberName={getMemberName}
+                    onPromote={(classId, memberId, memberName) => {
+                      onPromoteToAssistant(classId, memberId);
+                      showToast(
+                        'success',
+                        `${memberName} is now an assistant.`
+                      );
+                    }}
+                    onDemote={(classId, memberId, memberName) => {
+                      onDemoteToMember(classId, memberId);
+                      showToast(
+                        'success',
+                        `${memberName} is now a member.`
+                      );
+                    }}
+                    onRemoveMember={(
+                      classId,
+                      memberId,
+                      memberName
+                    ) =>
+                      setConfirmAction({
+                        type: 'remove-member',
+                        classId,
+                        memberId,
+                        memberName,
+                      })
+                    }
+                    onRequestRemoval={(
+                      classId,
+                      memberId,
+                      memberName
+                    ) =>
+                      setConfirmAction({
+                        type: 'request-removal',
+                        classId,
+                        memberId,
+                        memberName,
+                      })
+                    }
+                  />
+
+                  <ClassManagementCard
+                    activeClass={activeClass}
+                    currentUser={currentUser}
+                    leavingClassId={leavingClassId}
+                    onRegenerateClick={(classId, className) =>
+                      setConfirmAction({
+                        type: 'regenerate',
+                        classId,
+                        className,
+                      })
+                    }
+                    onTransferClick={() => {
+                      setSelectedTransferId('');
+                      setShowTransferModal(true);
+                    }}
+                    onLeaveClick={requestLeaveClass}
+                    onDeleteClick={(classId, className) =>
+                      setConfirmAction({
+                        type: 'delete',
+                        classId,
+                        className,
+                      })
+                    }
+                  />
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+    )}
         {activeTab === 'join' && (
           <section
             id="join-section"
