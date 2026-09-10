@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Check, AlertCircle, Clock, MapPin, ChevronRight, Bell, Megaphone, ThumbsUp, Send, ArrowLeft } from 'lucide-react';
+import {
+  Check,
+  AlertCircle,
+  MapPin,
+  ChevronRight,
+  Bell,
+  Megaphone,
+  ThumbsUp,
+  Send,
+  ArrowLeft,
+  RefreshCw,
+} from 'lucide-react';
 import { ClassUpdate } from '../types';
 
 interface NotificationsViewProps {
@@ -24,43 +35,68 @@ export default function NotificationsView({
   const [repSuccess, setRepSuccess] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Upvotes for ordinary announcements
-  const [userVotes, setUserVotes] = useState<Record<string, { votes: number; hasVoted: boolean }>>(() => {
-    const saved = localStorage.getItem('thesdel_bulletin_votes');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  // Submitted votes for polls
-  const [pollVotes, setPollVotes] = useState<Record<string, { votedChoice: string; textResponse?: string; submittedAt?: number }>>(() => {
+  const [userVotes, setUserVotes] = useState<
+    Record<string, { votes: number; hasVoted: boolean }>
+  >(() => {
     try {
-      const stored = localStorage.getItem('thesdel_poll_votes');
-      return stored ? JSON.parse(stored) : {};
-    } catch (e) {
+      const saved = localStorage.getItem('thesdel_bulletin_votes');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
       return {};
     }
   });
 
-  // Selection state before submission
-  const [selectedPollChoices, setSelectedPollChoices] = useState<Record<string, string>>({});
-  const [pollToasts, setPollToasts] = useState<Record<string, string>>({});
-  const [pollTextInput, setPollTextInput] = useState<Record<string, string>>({});
+  const [pollVotes, setPollVotes] = useState<
+    Record<
+      string,
+      {
+        votedChoice: string;
+        textResponse?: string;
+        submittedAt?: number;
+      }
+    >
+  >(() => {
+    try {
+      const stored = localStorage.getItem('thesdel_poll_votes');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
 
-  const handleRegisterPollVote = (pollId: string, choice: string, textResponse?: string) => {
+  const [selectedPollChoices, setSelectedPollChoices] = useState<
+    Record<string, string>
+  >({});
+
+  const [pollToasts, setPollToasts] = useState<Record<string, string>>({});
+  const [pollTextInput, setPollTextInput] = useState<Record<string, string>>(
+    {}
+  );
+
+  const handleRegisterPollVote = (
+    pollId: string,
+    choice: string,
+    textResponse?: string
+  ) => {
     const updated = {
       ...pollVotes,
       [pollId]: {
         votedChoice: choice,
         textResponse,
-        submittedAt: Date.now() // Track submission time to expire in 24 hours
-      }
+        submittedAt: Date.now(),
+      },
     };
+
     setPollVotes(updated);
     localStorage.setItem('thesdel_poll_votes', JSON.stringify(updated));
 
-    // Show a temporary success feedback toast
-    setPollToasts(prev => ({ ...prev, [pollId]: 'Thanks for your feedback!' }));
+    setPollToasts((prev) => ({
+      ...prev,
+      [pollId]: 'Response registered',
+    }));
+
     setTimeout(() => {
-      setPollToasts(prev => {
+      setPollToasts((prev) => {
         const copy = { ...prev };
         delete copy[pollId];
         return copy;
@@ -69,31 +105,49 @@ export default function NotificationsView({
   };
 
   const handleRegisterVote = (updateId: string) => {
-    const current = userVotes[updateId] || { votes: Math.floor(Math.abs(updateId.charCodeAt(0) % 15) + 3), hasVoted: false };
+    const current = userVotes[updateId] || {
+      votes: Math.floor(Math.abs(updateId.charCodeAt(0) % 15) + 3),
+      hasVoted: false,
+    };
+
     if (current.hasVoted) return;
 
     const updated = {
       ...userVotes,
       [updateId]: {
         votes: current.votes + 1,
-        hasVoted: true
-      }
+        hasVoted: true,
+      },
     };
+
     setUserVotes(updated);
-    localStorage.setItem('thesdel_bulletin_votes', JSON.stringify(updated));
+
+    localStorage.setItem(
+      'thesdel_bulletin_votes',
+      JSON.stringify(updated)
+    );
   };
 
   const handleClassRepSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!classRepMsg.trim() || !onAddBroadcast || !activeClassId) return;
 
     setIsSubmittingRepMsg(true);
+
     try {
-      const ok = await onAddBroadcast(activeClassId, classRepMsg.trim());
+      const ok = await onAddBroadcast(
+        activeClassId,
+        classRepMsg.trim()
+      );
+
       if (ok) {
         setClassRepMsg('');
         setRepSuccess(true);
-        setTimeout(() => setRepSuccess(false), 3000);
+
+        setTimeout(() => {
+          setRepSuccess(false);
+        }, 3000);
       }
     } catch (e) {
       console.error(e);
@@ -102,367 +156,670 @@ export default function NotificationsView({
     }
   };
 
-  // Filter bulletin updates and hide completed polls older than 24 hours
+  const handleRefresh = async () => {
+    if (!onForceRefresh || isRefreshing) return;
+
+    setIsRefreshing(true);
+
+    try {
+      await onForceRefresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const bulletinUpdates = updates.filter((up) => {
-    if (up.description.startsWith('{') && up.description.endsWith('}')) {
+    if (
+      up.description.startsWith('{') &&
+      up.description.endsWith('}')
+    ) {
       try {
         const parsed = JSON.parse(up.description);
+
         if (parsed.isAd) return true;
+
         if (parsed.isPoll) {
           const userVoteRecord = pollVotes[up.id];
-          if (userVoteRecord && userVoteRecord.submittedAt) {
-            const elapsed = Date.now() - userVoteRecord.submittedAt;
-            // If submitted more than 24 hours ago, hide the poll from notifications view
+
+          if (userVoteRecord?.submittedAt) {
+            const elapsed =
+              Date.now() - userVoteRecord.submittedAt;
+
             if (elapsed >= 24 * 60 * 60 * 1000) {
               return false;
             }
           }
+
           return true;
         }
-      } catch (e) {}
+      } catch {}
     }
-    if (up.type === 'entry_added' || up.type === 'entry_edited' || up.type === 'entry_deleted') {
+
+    if (
+      up.type === 'entry_added' ||
+      up.type === 'entry_edited' ||
+      up.type === 'entry_deleted'
+    ) {
       return false;
     }
+
     return true;
   });
 
-  // Mark all as read when this page is loaded
   useEffect(() => {
     if (bulletinUpdates.length > 0) {
-      localStorage.setItem('thesdel_last_read_update_id', bulletinUpdates[0].id);
+      localStorage.setItem(
+        'thesdel_last_read_update_id',
+        bulletinUpdates[0].id
+      );
     }
   }, [updates, pollVotes]);
 
-  const getPillsForUpdate = (update: any): string[] => {
-    if (update.type === 'cancellation') return ['CANCELLED', 'URGENT'];
-    if (update.type === 'venue_change') return ['VENUE CHANGED', 'URGENT'];
+  const getPillsForUpdate = (update: ClassUpdate): string[] => {
+    if (update.type === 'cancellation') {
+      return ['CANCELLED', 'URGENT'];
+    }
+
+    if (update.type === 'venue_change') {
+      return ['VENUE CHANGED', 'URGENT'];
+    }
+
     return ['INFO'];
   };
 
+  const getUpdateIcon = (update: ClassUpdate) => {
+    if (update.type === 'cancellation') {
+      return <AlertCircle className="h-4 w-4" />;
+    }
+
+    if (update.type === 'venue_change') {
+      return <MapPin className="h-4 w-4" />;
+    }
+
+    return <Megaphone className="h-4 w-4" />;
+  };
+
   return (
-    <div className="space-y-6" id="notifications-standalone-view">
-      {/* Standalone Header Section with Close Button */}
-      <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 flex items-center justify-between" id="notifications-header">
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={onClose}
-            className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 cursor-pointer text-zinc-700 dark:text-zinc-300 transition-colors flex items-center justify-center rounded-none"
-            title="Go back to dashboard"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <h1 className="text-base font-bold font-mono tracking-wide text-zinc-900 dark:text-zinc-100 uppercase flex items-center gap-2">
-              <Megaphone className="w-4 h-4 text-zinc-900 dark:text-zinc-100" />
-              Notifications
-            </h1>
+    <div
+      id="notifications-standalone-view"
+      className="min-h-full bg-zinc-50 dark:bg-black"
+    >
+      <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
+
+        {/* Header */}
+        <header
+          id="notifications-header"
+          className="mb-5 flex items-center justify-between"
+        >
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              onClick={onClose}
+              title="Back"
+              className="flex h-9 w-9 shrink-0 items-center justify-center border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+                <Bell className="h-4 w-4" />
+              </div>
+
+              <div className="min-w-0">
+                <h1 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
+                  Notifications
+                </h1>
+
+                <p className="text-[11px] text-zinc-500">
+                  Class announcements and updates
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Main Notifications Content Card */}
-      <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 space-y-6" id="notifications-main-card">
-        {bulletinUpdates.length === 0 ? (
-          <div className="py-12 text-center space-y-3" id="notifications-empty">
-            <Bell className="w-8 h-8 text-zinc-300 dark:text-zinc-600 mx-auto animate-pulse" />
-            <p className="text-sm font-mono text-zinc-500">No official announcements have been dispatched yet for this class group.</p>
-          </div>
-        ) : (
-          <div className="space-y-6" id="notifications-list-wrapper">
-            {bulletinUpdates.map((up) => {
-              let isAd = false;
-              let isPoll = false;
-              let parsedData: any = null;
+          {onForceRefresh && (
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              title="Refresh notifications"
+              className="flex h-9 items-center gap-2 border border-zinc-200 bg-white px-3 text-[10px] font-bold uppercase tracking-wider text-zinc-700 transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${
+                  isRefreshing ? 'animate-spin' : ''
+                }`}
+              />
 
-              if (up.description.startsWith('{') && up.description.endsWith('}')) {
-                try {
-                  parsedData = JSON.parse(up.description);
-                  if (parsedData.isAd) isAd = true;
-                  if (parsedData.isPoll) isPoll = true;
-                } catch (e) {}
-              }
+              <span className="hidden sm:inline">
+                {isRefreshing ? 'Refreshing' : 'Refresh'}
+              </span>
+            </button>
+          )}
+        </header>
 
-              // Removed "INTERACTIVE POLL / ADMIN DECISION" pills as requested
-              const pills = isAd 
-                ? ['SPONSORED', 'AD SPACE'] 
-                : isPoll 
-                ? [] 
-                : getPillsForUpdate(up);
+        {/* Main */}
+        <main id="notifications-main-card">
+          {bulletinUpdates.length === 0 ? (
+            <div
+              id="notifications-empty"
+              className="border border-zinc-200 bg-white px-6 py-16 text-center dark:border-zinc-800 dark:bg-zinc-950"
+            >
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+                <Bell className="h-5 w-5 text-zinc-400" />
+              </div>
 
-              const hasVoted = userVotes[up.id]?.hasVoted;
-              const voteCount = userVotes[up.id]?.votes ?? Math.floor(Math.abs(up.id.charCodeAt(0) % 15) + 3);
-              
-              const isClassRepAnnouncement = up.userId && (
-                up.userId.startsWith('user_rep') || 
-                up.userId.includes('rep') || 
-                up.userId.includes('asst') ||
-                up.userName.toLowerCase().includes('rep') ||
-                up.userName.toLowerCase().includes('asst')
-              );
+              <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Nothing new
+              </h2>
 
-              return (
-                <div 
-                  key={up.id} 
-                  className={`border p-5 transition-all hover:shadow-[1px_1px_3px_rgba(0,0,0,0.05)] ${
-                    isAd 
-                      ? 'bg-amber-50/35 dark:bg-amber-950/5 border-amber-200 dark:border-amber-900/30' 
-                      : isPoll
-                      ? 'bg-zinc-50/50 dark:bg-zinc-950/20 border-zinc-200 dark:border-zinc-800'
-                      : 'bg-zinc-50/50 dark:bg-zinc-950/30 border-zinc-250 dark:border-zinc-800'
-                  }`}
-                  id={`notification-item-${up.id}`}
-                >
-                  <div className="flex flex-wrap items-center gap-1.5 mb-3">
-                    {pills.map((p, idx) => (
-                      <span 
-                        key={idx} 
-                        className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-none border ${
-                          p === 'URGENT'
-                            ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30' 
-                            : p === 'AD SPACE' || p === 'SPONSORED'
-                            ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/40'
-                            : 'bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-850 dark:text-zinc-400 dark:border-zinc-800'
-                        }`}
-                      >
-                        {p}
-                      </span>
-                    ))}
-                    {isAd && (
-                      <span className="text-[9px] text-amber-600 dark:text-amber-400 font-mono font-bold uppercase tracking-wider ml-1">
-                        • SPONSORED SPOTLIGHT
-                      </span>
-                    )}
-                    <span className="text-[10px] text-zinc-400 font-mono ml-auto">
-                      {new Date(up.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+              <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-zinc-500">
+                Official announcements and important class updates
+                will appear here.
+              </p>
+            </div>
+          ) : (
+            <div
+              id="notifications-list-wrapper"
+              className="space-y-3"
+            >
+              {bulletinUpdates.map((up) => {
+                let isAd = false;
+                let isPoll = false;
+                let parsedData: any = null;
 
-                  {/* Ad Payload Rendering */}
-                  {isAd && parsedData && (
-                    <div className="space-y-3 font-sans">
-                      {parsedData.adImageUrl && (
-                        <img 
-                          src={parsedData.adImageUrl} 
-                          alt="Campaign Promotion" 
-                          referrerPolicy="no-referrer"
-                          className="w-full max-h-48 object-cover border border-amber-200 dark:border-amber-900/30"
-                        />
-                      )}
-                      <h4 className="text-base font-bold text-zinc-900 dark:text-zinc-100 font-sans tracking-tight leading-snug">
-                        {parsedData.adTitle}
-                      </h4>
-                      <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed font-sans">
-                        {parsedData.description}
-                      </p>
-                      {parsedData.adUrl && (
-                        <a 
-                          href={parsedData.adUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-mono text-[11px] font-bold px-3 py-1.5 transition-all uppercase tracking-wider border border-amber-700 cursor-pointer"
-                        >
-                          {parsedData.adActionText || 'Learn More'}
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-                    </div>
-                  )}
+                if (
+                  up.description.startsWith('{') &&
+                  up.description.endsWith('}')
+                ) {
+                  try {
+                    parsedData = JSON.parse(up.description);
 
-                  {/* Poll Payload Rendering */}
-                  {isPoll && parsedData && (
-                    <div className="space-y-4 font-sans border-l-2 border-zinc-400 dark:border-zinc-600 pl-4 py-1">
-                      <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-start gap-1.5 font-sans leading-snug">
-                        <Megaphone className="w-4 h-4 text-zinc-800 dark:text-zinc-200 shrink-0 mt-0.5" />
-                        {parsedData.question}
-                      </h4>
+                    if (parsedData.isAd) isAd = true;
+                    if (parsedData.isPoll) isPoll = true;
+                  } catch {}
+                }
 
-                      {/* Interactive anonymous poll block */}
-                      {(() => {
-                        const choices: string[] = parsedData.choices && parsedData.choices.length > 0 
-                          ? parsedData.choices 
-                          : parsedData.pollType === 'single' 
-                          ? ['Yes', 'No'] 
-                          : [];
+                const pills = isAd
+                  ? ['SPONSORED', 'AD SPACE']
+                  : isPoll
+                  ? []
+                  : getPillsForUpdate(up);
 
-                        const userVoteRecord = pollVotes[up.id];
+                const hasVoted =
+                  userVotes[up.id]?.hasVoted ?? false;
 
-                        // If response is already registered, only show success message (totally anonymous, no results shown)
-                        if (userVoteRecord) {
-                          return (
-                            <div className="p-3 bg-zinc-100 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 font-mono text-xs space-y-1.5">
-                              <p className="font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide text-[10px] flex items-center gap-1">
-                                <Check className="w-4 h-4" /> Response Registered
-                              </p>
-                              <p className="italic font-sans text-xs text-zinc-650 dark:text-zinc-350">
-                                "Thanks for your feedback! Your response has been securely and anonymously registered with the school administrator."
-                              </p>
-                              {userVoteRecord.votedChoice && (
-                                <p className="text-[11px] text-zinc-550 dark:text-zinc-450">
-                                  Your selection: <strong className="font-mono">{userVoteRecord.votedChoice}</strong>
-                                </p>
-                              )}
-                            </div>
-                          );
-                        }
+                const voteCount =
+                  userVotes[up.id]?.votes ??
+                  Math.floor(
+                    Math.abs(up.id.charCodeAt(0) % 15) + 3
+                  );
 
-                        // Text input type of poll
-                        if (parsedData.pollType === 'word') {
-                          const currentTextVal = pollTextInput[up.id] || '';
-                          // Count line breaks to enforce max of 5 lines limit
-                          const lineCount = (currentTextVal.match(/\n/g) || []).length + 1;
+                const isClassRepAnnouncement =
+                  !!up.userId &&
+                  (
+                    up.userId.startsWith('user_rep') ||
+                    up.userId.includes('rep') ||
+                    up.userId.includes('asst') ||
+                    up.userName.toLowerCase().includes('rep') ||
+                    up.userName.toLowerCase().includes('asst')
+                  );
 
-                          return (
-                            <div className="space-y-3">
-                              <div className="space-y-1">
-                                <span className="text-[10px] font-mono text-zinc-400 uppercase">
-                                  Line breaks max of 5 lines ({lineCount}/5 used)
-                                </span>
-                                <textarea
-                                  placeholder="Type your open-ended response..."
-                                  rows={5}
-                                  value={currentTextVal}
-                                  onChange={(e) => {
-                                    const text = e.target.value;
-                                    const lines = text.split('\n');
-                                    if (lines.length <= 5) {
-                                      setPollTextInput({ ...pollTextInput, [up.id]: text });
-                                    }
-                                  }}
-                                  className="w-full bg-white dark:bg-zinc-900 border border-zinc-250 dark:border-zinc-850 p-2.5 text-sm font-mono text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-zinc-800 dark:focus:border-zinc-300 resize-none"
-                                />
-                              </div>
-                              <button
-                                onClick={() => {
-                                  const val = currentTextVal.trim();
-                                  if (val) {
-                                    handleRegisterPollVote(up.id, val, val);
-                                  }
-                                }}
-                                disabled={!currentTextVal.trim()}
-                                className="bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-150 text-white dark:text-zinc-950 font-mono text-[11px] font-bold px-4 py-2 border border-zinc-950 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider transition-all"
-                              >
-                                Submit Feedback
-                              </button>
-                            </div>
-                          );
-                        }
+                return (
+                  <article
+                    key={up.id}
+                    id={`notification-item-${up.id}`}
+                    className={`group overflow-hidden border bg-white transition-all dark:bg-zinc-950 ${
+                      isAd
+                        ? 'border-amber-200 dark:border-amber-900/40'
+                        : isPoll
+                        ? 'border-zinc-300 dark:border-zinc-700'
+                        : 'border-zinc-200 dark:border-zinc-800'
+                    }`}
+                  >
+                    <div
+                      className={`h-0.5 w-full ${
+                        isAd
+                          ? 'bg-amber-500'
+                          : isPoll
+                          ? 'bg-zinc-900 dark:bg-white'
+                          : up.type === 'cancellation'
+                          ? 'bg-rose-500'
+                          : up.type === 'venue_change'
+                          ? 'bg-zinc-500'
+                          : 'bg-zinc-300 dark:bg-zinc-700'
+                      }`}
+                    />
 
-                        // Multiple choice/single choice poll
-                        const currentSelected = selectedPollChoices[up.id];
+                    <div className="p-4 sm:p-5">
 
-                        return (
-                          <div className="space-y-3">
-                            <div className="flex flex-col gap-2">
-                              {choices.map((c) => {
-                                const isSelected = currentSelected === c;
-                                return (
-                                  <button
-                                    key={c}
-                                    onClick={() => setSelectedPollChoices({ ...selectedPollChoices, [up.id]: c })}
-                                    className={`w-full text-left p-3 border font-mono text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-zinc-900 border-zinc-950 text-white dark:bg-white dark:border-white dark:text-zinc-950'
-                                        : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-850 border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200'
-                                    }`}
-                                  >
-                                    <span>{c}</span>
-                                    {isSelected && <Check className="w-4 h-4 text-emerald-500" />}
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {/* Toast message display inside the card on submit */}
-                            {pollToasts[up.id] && (
-                              <div className="p-2 border border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 font-mono text-xs font-bold animate-fade-in">
-                                ✓ {pollToasts[up.id]}
-                              </div>
-                            )}
-
-                            {currentSelected && !pollToasts[up.id] && (
-                              <button
-                                onClick={() => handleRegisterPollVote(up.id, currentSelected)}
-                                className="bg-zinc-950 hover:bg-zinc-850 dark:bg-white dark:hover:bg-zinc-150 text-white dark:text-zinc-950 font-mono text-[11px] font-bold px-4 py-2 border border-zinc-950 cursor-pointer uppercase tracking-wider transition-all"
-                              >
-                                Submit Answer
-                              </button>
+                      <div className="mb-4 flex items-start justify-between gap-4">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <div
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center border ${
+                              isAd
+                                ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-400'
+                                : isPoll
+                                ? 'border-zinc-300 bg-zinc-100 text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'
+                                : 'border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400'
+                            }`}
+                          >
+                            {isAd ? (
+                              <Megaphone className="h-3.5 w-3.5" />
+                            ) : (
+                              getUpdateIcon(up)
                             )}
                           </div>
-                        );
-                      })()}
+
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {pills.map((pill) => (
+                                <span
+                                  key={pill}
+                                  className={`border px-1.5 py-0.5 text-[8px] font-bold tracking-wider ${
+                                    pill === 'URGENT'
+                                      ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-400'
+                                      : pill === 'AD SPACE' ||
+                                        pill === 'SPONSORED'
+                                      ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-400'
+                                      : 'border-zinc-200 bg-zinc-50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400'
+                                  }`}
+                                >
+                                  {pill}
+                                </span>
+                              ))}
+                            </div>
+
+                            {isAd && (
+                              <p className="mt-1 text-[9px] font-medium uppercase tracking-widest text-amber-600 dark:text-amber-400">
+                                Sponsored spotlight
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <time className="shrink-0 text-[9px] font-medium text-zinc-400">
+                          {new Date(up.timestamp).toLocaleDateString(
+                            undefined,
+                            {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            }
+                          )}
+                        </time>
+                      </div>
+                      {isAd && parsedData && (
+                        <div className="space-y-4">
+                          {parsedData.adImageUrl && (
+                            <div className="overflow-hidden border border-amber-200 dark:border-amber-900/30">
+                              <img
+                                src={parsedData.adImageUrl}
+                                alt="Campaign promotion"
+                                referrerPolicy="no-referrer"
+                                className="max-h-64 w-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
+                              />
+                            </div>
+                          )}
+
+                          <div>
+                            <h2 className="text-base font-bold tracking-tight text-zinc-950 dark:text-white">
+                              {parsedData.adTitle}
+                            </h2>
+
+                            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+                              {parsedData.description}
+                            </p>
+                          </div>
+
+                          {parsedData.adUrl && (
+                            <a
+                              href={parsedData.adUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 bg-zinc-950 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                            >
+                              {parsedData.adActionText || 'Learn More'}
+
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </a>
+                          )}
+                        </div>
+                      )}
+
+                      {isPoll && parsedData && (
+                        <div className="space-y-4">
+                          <div className="border-l-2 border-zinc-900 pl-4 dark:border-white">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                              Class poll
+                            </p>
+
+                            <h2 className="mt-1 text-base font-semibold leading-snug tracking-tight text-zinc-950 dark:text-white">
+                              {parsedData.question}
+                            </h2>
+                          </div>
+
+                          {(() => {
+                            const choices: string[] =
+                              parsedData.choices &&
+                              parsedData.choices.length > 0
+                                ? parsedData.choices
+                                : parsedData.pollType === 'single'
+                                ? ['Yes', 'No']
+                                : [];
+
+                            const userVoteRecord = pollVotes[up.id];
+
+                            if (userVoteRecord) {
+                              return (
+                                <div className="border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-900/40 dark:bg-emerald-950/10">
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center bg-emerald-600 text-white">
+                                      <Check className="h-4 w-4" />
+                                    </div>
+
+                                    <div>
+                                      <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                                        Response registered
+                                      </p>
+
+                                      <p className="mt-1 text-xs leading-relaxed text-emerald-800/80 dark:text-emerald-300/80">
+                                        Your response has been recorded.
+                                      </p>
+
+                                      {userVoteRecord.votedChoice && (
+                                        <div className="mt-2 inline-flex border border-emerald-200 bg-white px-2 py-1 dark:border-emerald-900/40 dark:bg-zinc-950">
+                                          <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                                            Selected:
+                                          </span>
+
+                                          <span className="ml-1.5 text-[9px] font-bold text-zinc-900 dark:text-white">
+                                            {userVoteRecord.votedChoice}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            if (parsedData.pollType === 'word') {
+                              const currentTextVal =
+                                pollTextInput[up.id] || '';
+
+                              const lineCount =
+                                (currentTextVal.match(/\n/g) || []).length + 1;
+
+                              return (
+                                <div className="space-y-3">
+                                  <div>
+                                    <div className="mb-1.5 flex items-center justify-between">
+                                      <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">
+                                        Your response
+                                      </span>
+
+                                      <span className="text-[9px] font-medium text-zinc-400">
+                                        {lineCount}/5 lines
+                                      </span>
+                                    </div>
+
+                                    <textarea
+                                      placeholder="Write your response..."
+                                      rows={4}
+                                      value={currentTextVal}
+                                      onChange={(e) => {
+                                        const text = e.target.value;
+                                        const lines = text.split('\n');
+
+                                        if (lines.length <= 5) {
+                                          setPollTextInput({
+                                            ...pollTextInput,
+                                            [up.id]: text,
+                                          });
+                                        }
+                                      }}
+                                      className="w-full resize-none border border-zinc-200 bg-zinc-50 p-3 text-sm leading-relaxed text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:focus:border-zinc-400"
+                                    />
+                                  </div>
+
+                                  <button
+                                    onClick={() => {
+                                      const value = currentTextVal.trim();
+
+                                      if (value) {
+                                        handleRegisterPollVote(
+                                          up.id,
+                                          value,
+                                          value
+                                        );
+                                      }
+                                    }}
+                                    disabled={!currentTextVal.trim()}
+                                    className="inline-flex items-center gap-2 bg-zinc-950 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                                  >
+                                    <Send className="h-3.5 w-3.5" />
+                                    Submit response
+                                  </button>
+                                </div>
+                              );
+                            }
+
+                            const currentSelected =
+                              selectedPollChoices[up.id];
+
+                            return (
+                              <div className="space-y-3">
+                                <div className="space-y-2">
+                                  {choices.map((choice) => {
+                                    const isSelected =
+                                      currentSelected === choice;
+
+                                    return (
+                                      <button
+                                        key={choice}
+                                        onClick={() =>
+                                          setSelectedPollChoices({
+                                            ...selectedPollChoices,
+                                            [up.id]: choice,
+                                          })
+                                        }
+                                        className={`group flex w-full items-center justify-between border p-3 text-left transition-all ${
+                                          isSelected
+                                            ? 'border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950'
+                                            : 'border-zinc-200 bg-white text-zinc-800 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:border-zinc-600'
+                                        }`}
+                                      >
+                                        <span className="text-xs font-semibold">
+                                          {choice}
+                                        </span>
+
+                                        <span
+                                          className={`flex h-5 w-5 items-center justify-center border ${
+                                            isSelected
+                                              ? 'border-white/30 dark:border-zinc-900/20'
+                                              : 'border-zinc-200 dark:border-zinc-700'
+                                          }`}
+                                        >
+                                          {isSelected && (
+                                            <Check className="h-3 w-3" />
+                                          )}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+
+                                {pollToasts[up.id] && (
+                                  <div className="flex items-center gap-2 border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/10 dark:text-emerald-400">
+                                    <Check className="h-3.5 w-3.5" />
+
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">
+                                      {pollToasts[up.id]}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {currentSelected &&
+                                  !pollToasts[up.id] && (
+                                    <button
+                                      onClick={() =>
+                                        handleRegisterPollVote(
+                                          up.id,
+                                          currentSelected
+                                        )
+                                      }
+                                      className="inline-flex items-center gap-2 bg-zinc-950 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                                    >
+                                      <Check className="h-3.5 w-3.5" />
+                                      Submit answer
+                                    </button>
+                                  )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {!isAd && !isPoll && (
+                        <div className="space-y-2">
+                          <p className="whitespace-pre-wrap text-sm leading-7 text-zinc-800 dark:text-zinc-200">
+                            {up.description}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3 dark:border-zinc-900">
+                        <span className="text-[9px] font-medium uppercase tracking-wider text-zinc-400">
+                          {isPoll ? (
+                            'THESDEL TEAM'
+                          ) : (
+                            <>
+                              By{' '}
+                              <span className="font-bold text-zinc-600 dark:text-zinc-300">
+                                {up.userName}
+                              </span>
+                            </>
+                          )}
+                        </span>
+
+                        {!isAd &&
+                          !isPoll &&
+                          !isClassRepAnnouncement && (
+                            <button
+                              onClick={() =>
+                                handleRegisterVote(up.id)
+                              }
+                              disabled={hasVoted}
+                              className={`inline-flex items-center gap-2 border px-3 py-1.5 text-[9px] font-bold uppercase tracking-wider transition-all ${
+                                hasVoted
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/10 dark:text-emerald-400'
+                                  : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:text-white'
+                              }`}
+                            >
+                              <ThumbsUp
+                                className={`h-3 w-3 ${
+                                  hasVoted ? 'fill-current' : ''
+                                }`}
+                              />
+
+                              <span>
+                                {hasVoted
+                                  ? `Agreed · ${voteCount}`
+                                  : `Agree · ${voteCount}`}
+                              </span>
+                            </button>
+                          )}
+                      </div>
                     </div>
-                  )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+          {userRole === 'representative' &&
+            onAddBroadcast &&
+            activeClassId && (
+              <section
+                id="class-representative-console"
+                className="mt-6 border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+              >
+                <div className="border-b border-zinc-100 px-4 py-3 dark:border-zinc-900">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center bg-zinc-950 text-white dark:bg-white dark:text-zinc-950">
+                      <Megaphone className="h-3.5 w-3.5" />
+                    </div>
 
-                  {/* Regular Plaintext Broadcast Rendering */}
-                  {!isAd && !isPoll && (
-                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 leading-relaxed font-sans select-text">
-                      {up.description}
-                    </p>
-                  )}
+                    <div>
+                      <h2 className="text-[11px] font-bold uppercase tracking-wider text-zinc-900 dark:text-white">
+                        Representative broadcast
+                      </h2>
 
-                  <div className="mt-4 pt-3 border-t border-zinc-150 dark:border-zinc-800/60 flex items-center justify-between">
-                    <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono uppercase tracking-wider">
-                      {isPoll ? 'From Thesdel team' : <>By: <span className="font-bold text-zinc-600 dark:text-zinc-300">{up.userName}</span></>}
-                    </span>
-
-                    {/* Standard Upvoting (Omit for Class Representative Broadcasts, only available for admin plain broadcasts) */}
-                    {!isAd && !isPoll && !isClassRepAnnouncement ? (
-                      <button
-                        onClick={() => handleRegisterVote(up.id)}
-                        disabled={hasVoted}
-                        className={`px-3 py-1 text-[10px] font-mono font-bold flex items-center gap-1.5 border transition-all ${
-                          hasVoted
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
-                            : 'bg-zinc-55 hover:bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-850 dark:text-zinc-300 dark:border-zinc-800 cursor-pointer'
-                        }`}
-                      >
-                        <ThumbsUp className={`w-3 h-3 ${hasVoted ? 'fill-emerald-500 text-emerald-500' : ''}`} />
-                        <span>{hasVoted ? `Vote Counted (${voteCount})` : `Upvote / Agree (${voteCount})`}</span>
-                      </button>
-                    ) : null}
+                      <p className="text-[9px] text-zinc-400">
+                        Send an official update to your class
+                      </p>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
 
-        {/* Class Representative Broadcaster Input Form (only show if rep/admin and feature is active) */}
-        {userRole === 'representative' && onAddBroadcast && activeClassId && (
-          <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800">
-            <h4 className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-400 mb-2">
-              Class Rep Broadcaster Console
-            </h4>
-            <form onSubmit={handleClassRepSubmit} className="space-y-2">
-              <textarea
-                value={classRepMsg}
-                onChange={(e) => setClassRepMsg(e.target.value)}
-                placeholder="Post a study tip, schedule reminder, or important classroom notice to your members..."
-                maxLength={250}
-                rows={2}
-                required
-                className="w-full bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-2.5 text-xs font-mono text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-indigo-500 resize-none"
-              />
-              <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono">
-                <span>Max 250 characters. Broadcast updates feed instantly.</span>
-                <button
-                  type="submit"
-                  disabled={isSubmittingRepMsg || !classRepMsg.trim()}
-                  className="bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 px-3 py-1 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer border border-zinc-800 dark:border-zinc-300 transition-colors"
+                <form
+                  onSubmit={handleClassRepSubmit}
+                  className="p-4"
                 >
-                  <Send className="w-3 h-3" />
-                  <span>{isSubmittingRepMsg ? 'Transmitting...' : 'Post Broadcast'}</span>
-                </button>
-              </div>
-            </form>
-            {repSuccess && (
-              <div className="mt-2 p-2.5 border border-emerald-200 dark:border-emerald-900/30 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 font-mono text-xs">
-                ✓ Broadcast dispatched successfully!
-              </div>
+                  <textarea
+                    value={classRepMsg}
+                    onChange={(e) =>
+                      setClassRepMsg(e.target.value)
+                    }
+                    placeholder="Share a study tip, reminder, schedule change, or important class notice..."
+                    maxLength={250}
+                    rows={3}
+                    required
+                    className="w-full resize-none border border-zinc-200 bg-zinc-50 p-3 text-sm leading-relaxed text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:focus:border-zinc-400"
+                  />
+
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-medium text-zinc-400">
+                        {classRepMsg.length}/250
+                      </span>
+
+                      <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+
+                      <span className="text-[9px] text-zinc-400">
+                        Visible to class members
+                      </span>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={
+                        isSubmittingRepMsg ||
+                        !classRepMsg.trim()
+                      }
+                      className="inline-flex items-center justify-center gap-2 bg-zinc-950 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+
+                      {isSubmittingRepMsg
+                        ? 'Posting'
+                        : 'Post broadcast'}
+                    </button>
+                  </div>
+
+                  {repSuccess && (
+                    <div className="mt-3 flex items-center gap-2 border border-emerald-200 bg-emerald-50 px-3 py-2.5 dark:border-emerald-900/40 dark:bg-emerald-950/10">
+                      <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        Broadcast posted successfully
+                      </span>
+                    </div>
+                  )}
+                </form>
+              </section>
             )}
-          </div>
-        )}
+        </main>
       </div>
     </div>
   );
