@@ -1509,7 +1509,7 @@ export default function ClassView({
           </div>
         </section>
       )}
-    </div>
+    </asside>
   );
 }
                
