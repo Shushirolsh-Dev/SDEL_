@@ -1109,7 +1109,7 @@ export default function HomeView({
           )}
         </section>
 
-        {/* SIDEBAR */}
+                {/* SIDEBAR */}
         <aside className="space-y-6">
           {/* ATTENDANCE */}
           <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
@@ -1276,12 +1276,6 @@ export default function HomeView({
 
                         {!poll && (
                           <button
-                            type="button"
-                            disabled={
-                              userVotes[update.id]
-                                ?.hasVoted
-                            }
-                            <button
                             type="button"
                             disabled={
                               userVotes[update.id]
