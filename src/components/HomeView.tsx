@@ -28,11 +28,116 @@ interface HomeViewProps {
   onMarkAttendance: (entryId: string, date: string) => void;
   userRole: string;
   activeClassId?: string;
-  onAddBroadcast?: (classId: string, description: string) => Promise<boolean>;
+  onAddBroadcast?: (
+    classId: string,
+    description: string
+  ) => Promise<boolean>;
   onForceRefresh?: () => Promise<void>;
   onNavigateToNotifications?: () => void;
-  onTrackAdEvent?: (adId: string, eventType: 'view' | 'click') => void;
+  onTrackAdEvent?: (
+    adId: string,
+    eventType: 'view' | 'click'
+  ) => void;
 }
+
+/*
+ * ---------------------------------------------------------
+ * LOCALIZATION-READY UI COPY
+ * ---------------------------------------------------------
+ *
+ * Keep user-facing text here.
+ * When THESDEL adds more languages, this object can become
+ * a locale dictionary without rebuilding the component.
+ */
+
+const TEXT = {
+  today: 'Today',
+  academicDay: 'Your academic day.',
+  nextClass: 'Next class',
+  liveNow: 'Live now',
+  status: 'Status',
+  startsIn: 'Starts in',
+  noMoreClasses: 'No more classes.',
+  schedule: 'Today’s schedule',
+  nothingScheduled: 'Nothing scheduled',
+  classScheduled: 'class',
+  classesScheduled: 'classes',
+  attendance: 'Attendance',
+  currentStanding: 'Current standing',
+  onTarget: 'On target',
+  belowTarget: 'Below target',
+  attended: 'Attended',
+  missed: 'Missed',
+  updates: 'Updates',
+  bulletin: 'Bulletin',
+  new: 'New',
+  representative: 'Representative',
+  broadcastToClass: 'Broadcast to class',
+  sponsored: 'Sponsored',
+} as const;
+
+/*
+ * ---------------------------------------------------------
+ * USERNAME
+ * ---------------------------------------------------------
+ *
+ * Read the existing locally stored THESDEL profile/user
+ * rather than hardcoding a username.
+ *
+ * This intentionally checks several existing-style storage
+ * locations so the dashboard remains usable across auth
+ * versions.
+ */
+
+const getStoredUsername = (): string => {
+  const storageKeys = [
+    'thesdel_user',
+    'thesdel_profile',
+    'user',
+    'profile',
+  ];
+
+  for (const key of storageKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+
+      if (!raw) continue;
+
+      try {
+        const parsed = JSON.parse(raw);
+
+        const name =
+          parsed?.username ||
+          parsed?.userName ||
+          parsed?.displayName ||
+          parsed?.fullName ||
+          parsed?.name;
+
+        if (
+          typeof name === 'string' &&
+          name.trim()
+        ) {
+          return name.trim();
+        }
+      } catch {
+        if (raw.trim()) {
+          return raw.trim();
+        }
+      }
+    } catch {}
+  }
+
+  return 'Student';
+};
+
+const getGreeting = (): string => {
+  const hour = new Date().getHours();
+
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+
+  return 'Good evening';
+};
 
 const getMinutes = (timeStr: string) => {
   const [h, m] = timeStr.split(':').map(Number);
@@ -53,7 +158,11 @@ const calculateRealAttendanceStats = (
 
   const pastEntries = classEntries.filter((entry) => {
     const endMins = getMinutes(entry.endTime);
-    return endMins < currentMins && !entry.isCancelled;
+
+    return (
+      endMins < currentMins &&
+      !entry.isCancelled
+    );
   });
 
   const attendedCount = pastEntries.filter((entry) =>
@@ -65,24 +174,31 @@ const calculateRealAttendanceStats = (
   ).length;
 
   const totalScheduled = pastEntries.length;
-  const missedCount = totalScheduled - attendedCount;
+  const missedCount =
+    totalScheduled - attendedCount;
 
   const attendancePercentage =
     totalScheduled > 0
-      ? Math.round((attendedCount / totalScheduled) * 100)
+      ? Math.round(
+          (attendedCount / totalScheduled) * 100
+        )
       : 100;
 
   let currentStreak = 0;
   let longestStreak = 0;
   let streak = 0;
 
-  const sortedEntries = [...pastEntries].sort((a, b) => {
-    if (a.dayOfWeek !== b.dayOfWeek) {
-      return b.dayOfWeek - a.dayOfWeek;
-    }
+  const sortedEntries = [...pastEntries].sort(
+    (a, b) => {
+      if (a.dayOfWeek !== b.dayOfWeek) {
+        return b.dayOfWeek - a.dayOfWeek;
+      }
 
-    return b.startTime.localeCompare(a.startTime);
-  });
+      return b.startTime.localeCompare(
+        a.startTime
+      );
+    }
+  );
 
   for (const entry of sortedEntries) {
     const attended = attendanceLogs.some(
@@ -128,20 +244,54 @@ export default function HomeView({
   onNavigateToNotifications,
   onTrackAdEvent,
 }: HomeViewProps) {
-  const [currentTimeMins, setCurrentTimeMins] = useState(0);
-  const [liveCountdown, setLiveCountdown] = useState('');
-  const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
-  const [classRepMsg, setClassRepMsg] = useState('');
-  const [isSubmittingRepMsg, setIsSubmittingRepMsg] = useState(false);
-  const [repSuccess, setRepSuccess] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [currentTimeMins, setCurrentTimeMins] =
+    useState(0);
+
+  const [liveCountdown, setLiveCountdown] =
+    useState('');
+
+  const [
+    isAnnouncementOpen,
+    setIsAnnouncementOpen,
+  ] = useState(false);
+
+  const [hasUnread, setHasUnread] =
+    useState(false);
+
+  const [classRepMsg, setClassRepMsg] =
+    useState('');
+
+  const [
+    isSubmittingRepMsg,
+    setIsSubmittingRepMsg,
+  ] = useState(false);
+
+  const [repSuccess, setRepSuccess] =
+    useState(false);
+
+  const [isRefreshing, setIsRefreshing] =
+    useState(false);
+
+  const [username, setUsername] =
+    useState('Student');
+
+  const [greeting, setGreeting] =
+    useState(getGreeting());
 
   const [userVotes, setUserVotes] = useState<
-    Record<string, { votes: number; hasVoted: boolean }>
+    Record<
+      string,
+      {
+        votes: number;
+        hasVoted: boolean;
+      }
+    >
   >(() => {
     try {
-      const saved = localStorage.getItem('thesdel_bulletin_votes');
+      const saved = localStorage.getItem(
+        'thesdel_bulletin_votes'
+      );
+
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -159,15 +309,38 @@ export default function HomeView({
     >
   >(() => {
     try {
-      const stored = localStorage.getItem('thesdel_poll_votes');
+      const stored = localStorage.getItem(
+        'thesdel_poll_votes'
+      );
+
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
     }
   });
 
+  useEffect(() => {
+    setUsername(getStoredUsername());
+    setGreeting(getGreeting());
+  }, []);
+
+  useEffect(() => {
+    const updateGreeting = () => {
+      setGreeting(getGreeting());
+    };
+
+    const interval = setInterval(
+      updateGreeting,
+      60000
+    );
+
+    return () => clearInterval(interval);
+  }, []);
+
   const handleForceRefresh = async () => {
-    if (!onForceRefresh || isRefreshing) return;
+    if (!onForceRefresh || isRefreshing) {
+      return;
+    }
 
     setIsRefreshing(true);
 
@@ -195,6 +368,7 @@ export default function HomeView({
     };
 
     setPollVotes(updated);
+
     localStorage.setItem(
       'thesdel_poll_votes',
       JSON.stringify(updated)
@@ -208,7 +382,9 @@ export default function HomeView({
         up.description.endsWith('}')
       ) {
         try {
-          const parsed = JSON.parse(up.description);
+          const parsed = JSON.parse(
+            up.description
+          );
 
           if (parsed.isAd) return true;
 
@@ -216,9 +392,13 @@ export default function HomeView({
             const vote = pollVotes[up.id];
 
             if (vote?.submittedAt) {
-              const elapsed = Date.now() - vote.submittedAt;
+              const elapsed =
+                Date.now() - vote.submittedAt;
 
-              if (elapsed >= 24 * 60 * 60 * 1000) {
+              if (
+                elapsed >=
+                24 * 60 * 60 * 1000
+              ) {
                 return false;
               }
             }
@@ -240,11 +420,13 @@ export default function HomeView({
     });
 
     if (bulletinUpdates.length > 0) {
-      const lastReadId = localStorage.getItem(
-        'thesdel_last_read_update_id'
-      );
+      const lastReadId =
+        localStorage.getItem(
+          'thesdel_last_read_update_id'
+        );
 
-      const latestId = bulletinUpdates[0].id;
+      const latestId =
+        bulletinUpdates[0].id;
 
       if (lastReadId !== latestId) {
         setHasUnread(true);
@@ -254,7 +436,9 @@ export default function HomeView({
   }, [updates, pollVotes]);
 
   const handleToggleAnnouncements = () => {
-    setIsAnnouncementOpen((previous) => !previous);
+    setIsAnnouncementOpen(
+      (previous) => !previous
+    );
 
     const bulletinUpdates = updates.filter((up) => {
       if (
@@ -262,7 +446,9 @@ export default function HomeView({
         up.description.endsWith('}')
       ) {
         try {
-          const parsed = JSON.parse(up.description);
+          const parsed = JSON.parse(
+            up.description
+          );
 
           if (parsed.isAd) return true;
 
@@ -270,9 +456,13 @@ export default function HomeView({
             const vote = pollVotes[up.id];
 
             if (vote?.submittedAt) {
-              const elapsed = Date.now() - vote.submittedAt;
+              const elapsed =
+                Date.now() - vote.submittedAt;
 
-              if (elapsed >= 24 * 60 * 60 * 1000) {
+              if (
+                elapsed >=
+                24 * 60 * 60 * 1000
+              ) {
                 return false;
               }
             }
@@ -303,7 +493,9 @@ export default function HomeView({
     }
   };
 
-  const handleRegisterVote = (updateId: string) => {
+  const handleRegisterVote = (
+    updateId: string
+  ) => {
     const current = userVotes[updateId];
 
     if (current?.hasVoted) return;
@@ -357,10 +549,14 @@ export default function HomeView({
   };
 
   useEffect(() => {
-    setCurrentTimeMins(getMinutes(currentSimulatedTime));
+    setCurrentTimeMins(
+      getMinutes(currentSimulatedTime)
+    );
   }, [currentSimulatedTime]);
 
-  const joinedClassIds = joinedClasses.map((c) => c.id);
+  const joinedClassIds = joinedClasses.map(
+    (c) => c.id
+  );
 
   const deviceToday = (() => {
     const d = new Date();
@@ -374,6 +570,7 @@ export default function HomeView({
 
   const todayDayOfWeek = (() => {
     const day = new Date().getDay();
+
     return day === 0 ? 7 : day;
   })();
 
@@ -399,10 +596,14 @@ export default function HomeView({
 
   const updateCountdown = () => {
     const now = new Date();
-    const currentMinutes =
-      now.getHours() * 60 + now.getMinutes();
 
-    let foundClass: TimetableEntry | null = null;
+    const currentMinutes =
+      now.getHours() * 60 +
+      now.getMinutes();
+
+    let foundClass: TimetableEntry | null =
+      null;
+
     let foundIsLive = false;
     let remaining = -1;
     let timeUntil = -1;
@@ -410,8 +611,13 @@ export default function HomeView({
     for (const entry of todayEntries) {
       if (entry.isCancelled) continue;
 
-      const start = getMinutes(entry.startTime);
-      const end = getMinutes(entry.endTime);
+      const start = getMinutes(
+        entry.startTime
+      );
+
+      const end = getMinutes(
+        entry.endTime
+      );
 
       if (
         currentMinutes >= start &&
@@ -419,18 +625,21 @@ export default function HomeView({
       ) {
         foundClass = entry;
         foundIsLive = true;
-        remaining = end - currentMinutes;
+        remaining =
+          end - currentMinutes;
         break;
       }
 
       if (
         currentMinutes < start &&
         (timeUntil === -1 ||
-          start - currentMinutes < timeUntil)
+          start - currentMinutes <
+            timeUntil)
       ) {
         foundClass = entry;
         foundIsLive = false;
-        timeUntil = start - currentMinutes;
+        timeUntil =
+          start - currentMinutes;
       }
     }
 
@@ -439,10 +648,16 @@ export default function HomeView({
 
     if (foundIsLive && foundClass) {
       setLiveCountdown(
-        `LIVE NOW · ${Math.max(0, remaining)}m remaining`
+        `LIVE NOW · ${Math.max(
+          0,
+          remaining
+        )}m remaining`
       );
     } else if (foundClass) {
-      const hours = Math.floor(timeUntil / 60);
+      const hours = Math.floor(
+        timeUntil / 60
+      );
+
       const minutes = timeUntil % 60;
 
       setLiveCountdown(
@@ -451,7 +666,9 @@ export default function HomeView({
           : `Starts in ${minutes}m`
       );
     } else {
-      setLiveCountdown('No more classes today');
+      setLiveCountdown(
+        'No more classes today'
+      );
     }
   };
 
@@ -466,15 +683,16 @@ export default function HomeView({
     return () => clearInterval(interval);
   }, [todayEntries]);
 
-  const formattedDate = new Date().toLocaleDateString(
-    'en-US',
-    {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    }
-  );
+  const formattedDate =
+    new Date().toLocaleDateString(
+      'en-US',
+      {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }
+    );
 
   const activeAd = updates.find((up) => {
     if (
@@ -482,7 +700,10 @@ export default function HomeView({
       up.description.endsWith('}')
     ) {
       try {
-        const parsed = JSON.parse(up.description);
+        const parsed = JSON.parse(
+          up.description
+        );
+
         return parsed.isAd === true;
       } catch {
         return false;
@@ -493,63 +714,90 @@ export default function HomeView({
   });
 
   useEffect(() => {
-    if (activeAd && onTrackAdEvent) {
-      const sessionKey = `thesdel_ad_viewed_${activeAd.id}`;
+    if (
+      activeAd &&
+      onTrackAdEvent
+    ) {
+      const sessionKey =
+        `thesdel_ad_viewed_${activeAd.id}`;
 
-      if (!sessionStorage.getItem(sessionKey)) {
-        onTrackAdEvent(activeAd.id, 'view');
-        sessionStorage.setItem(sessionKey, 'true');
+      if (
+        !sessionStorage.getItem(
+          sessionKey
+        )
+      ) {
+        onTrackAdEvent(
+          activeAd.id,
+          'view'
+        );
+
+        sessionStorage.setItem(
+          sessionKey,
+          'true'
+        );
       }
     }
-  }, [activeAd, onTrackAdEvent]);
+  }, [
+    activeAd,
+    onTrackAdEvent,
+  ]);
+
   /*
    * ---------------------------------------------------------
    * DERIVED BULLETIN / UPDATE DATA
    * ---------------------------------------------------------
    */
 
-  const bulletinUpdates = updates.filter((up) => {
-    if (
-      up.type === 'entry_added' ||
-      up.type === 'entry_edited' ||
-      up.type === 'entry_deleted'
-    ) {
-      return false;
-    }
+  const bulletinUpdates = updates.filter(
+    (up) => {
+      if (
+        up.type === 'entry_added' ||
+        up.type === 'entry_edited' ||
+        up.type === 'entry_deleted'
+      ) {
+        return false;
+      }
 
-    if (
-      up.description.startsWith('{') &&
-      up.description.endsWith('}')
-    ) {
-      try {
-        const parsed = JSON.parse(up.description);
+      if (
+        up.description.startsWith('{') &&
+        up.description.endsWith('}')
+      ) {
+        try {
+          const parsed = JSON.parse(
+            up.description
+          );
 
-        // Ads are displayed separately in the sponsor area.
-        if (parsed.isAd) return false;
+          if (parsed.isAd) return false;
 
-        if (parsed.isPoll) {
-          const vote = pollVotes[up.id];
+          if (parsed.isPoll) {
+            const vote = pollVotes[up.id];
 
-          if (vote?.submittedAt) {
-            const elapsed =
-              Date.now() - vote.submittedAt;
+            if (vote?.submittedAt) {
+              const elapsed =
+                Date.now() -
+                vote.submittedAt;
 
-            if (elapsed >= 24 * 60 * 60 * 1000) {
-              return false;
+              if (
+                elapsed >=
+                24 * 60 * 60 * 1000
+              ) {
+                return false;
+              }
             }
+
+            return true;
           }
+        } catch {}
+      }
 
-          return true;
-        }
-      } catch {}
+      return true;
     }
+  );
 
-    return true;
-  });
-
-  const visibleBulletinUpdates = isAnnouncementOpen
-    ? bulletinUpdates.slice(0, 5)
-    : bulletinUpdates.slice(0, 3);
+  const visibleBulletinUpdates =
+    isAnnouncementOpen
+      ? bulletinUpdates.slice(0, 5)
+      : bulletinUpdates.slice(0, 3);
 
   /*
    * ---------------------------------------------------------
@@ -557,13 +805,17 @@ export default function HomeView({
    * ---------------------------------------------------------
    */
 
-  const parseUpdate = (update: ClassUpdate) => {
+  const parseUpdate = (
+    update: ClassUpdate
+  ) => {
     if (
       update.description.startsWith('{') &&
       update.description.endsWith('}')
     ) {
       try {
-        return JSON.parse(update.description);
+        return JSON.parse(
+          update.description
+        );
       } catch {
         return null;
       }
@@ -572,7 +824,9 @@ export default function HomeView({
     return null;
   };
 
-  const getUpdateLabel = (update: ClassUpdate) => {
+  const getUpdateLabel = (
+    update: ClassUpdate
+  ) => {
     if (update.type === 'cancellation') {
       return {
         text: 'CANCELLED',
@@ -581,7 +835,9 @@ export default function HomeView({
       };
     }
 
-    if (update.type === 'venue_change') {
+    if (
+      update.type === 'venue_change'
+    ) {
       return {
         text: 'VENUE CHANGED',
         className:
@@ -614,7 +870,9 @@ export default function HomeView({
 
   if (activeAd) {
     try {
-      const parsed = JSON.parse(activeAd.description);
+      const parsed = JSON.parse(
+        activeAd.description
+      );
 
       if (parsed.isAd) {
         activeAdData = parsed;
@@ -630,27 +888,44 @@ export default function HomeView({
    * ---------------------------------------------------------
    */
 
-  const currentMinutes = getMinutes(currentSimulatedTime);
+  const currentMinutes =
+    getMinutes(currentSimulatedTime);
 
-  const liveEntry = todayEntries.find((entry) => {
-    if (entry.isCancelled) return false;
+  const liveEntry = todayEntries.find(
+    (entry) => {
+      if (entry.isCancelled) return false;
 
-    const start = getMinutes(entry.startTime);
-    const end = getMinutes(entry.endTime);
+      const start = getMinutes(
+        entry.startTime
+      );
 
-    return currentMinutes >= start && currentMinutes < end;
-  });
+      const end = getMinutes(
+        entry.endTime
+      );
 
-  const upcomingEntry = todayEntries.find((entry) => {
-    if (entry.isCancelled) return false;
+      return (
+        currentMinutes >= start &&
+        currentMinutes < end
+      );
+    }
+  );
 
-    const start = getMinutes(entry.startTime);
+  const upcomingEntry = todayEntries.find(
+    (entry) => {
+      if (entry.isCancelled) return false;
 
-    return start > currentMinutes;
-  });
+      const start = getMinutes(
+        entry.startTime
+      );
+
+      return start > currentMinutes;
+    }
+  );
 
   const displayNextClass =
-    liveEntry || upcomingEntry || null;
+    liveEntry ||
+    upcomingEntry ||
+    null;
 
   /*
    * ---------------------------------------------------------
@@ -676,12 +951,12 @@ export default function HomeView({
             <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
 
             <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
-              Today
+              {TEXT.today}
             </span>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
-            Your academic day.
+            {greeting}, {username}.
           </h1>
 
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -689,7 +964,7 @@ export default function HomeView({
           </p>
         </div>
 
-        <button
+                <button
           onClick={onNavigateToNotifications}
           className="relative self-start sm:self-auto flex items-center justify-center w-10 h-10 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors cursor-pointer"
           title="Notifications"
@@ -713,8 +988,6 @@ export default function HomeView({
         id="next-class-hero"
         className="relative overflow-hidden border border-zinc-900 dark:border-zinc-100 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950"
       >
-        <div className="absolute top-0 right-0 w-40 h-40 border-l border-b border-white/10 dark:border-zinc-900/10" />
-
         <div className="relative p-6 sm:p-8">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
             <div className="min-w-0">
@@ -729,8 +1002,8 @@ export default function HomeView({
 
                 <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
                   {nextClassIsLive
-                    ? 'Live now'
-                    : 'Next class'}
+                    ? TEXT.liveNow
+                    : TEXT.nextClass}
                 </span>
               </div>
 
@@ -743,12 +1016,14 @@ export default function HomeView({
                   <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 text-sm text-zinc-300 dark:text-zinc-600">
                     <span className="flex items-center gap-1.5 font-mono">
                       <Clock className="w-3.5 h-3.5" />
+
                       {displayNextClass.startTime} —{' '}
                       {displayNextClass.endTime}
                     </span>
 
                     <span className="flex items-center gap-1.5 font-mono">
                       <MapPin className="w-3.5 h-3.5" />
+
                       {displayNextClass.venue}
                     </span>
                   </div>
@@ -756,11 +1031,11 @@ export default function HomeView({
               ) : (
                 <>
                   <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-                    No more classes.
+                    {TEXT.noMoreClasses}
                   </h2>
 
                   <p className="mt-3 text-sm text-zinc-400 dark:text-zinc-500">
-                    Your academic schedule is clear for today.
+                    {TEXT.nothingScheduled}
                   </p>
                 </>
               )}
@@ -768,11 +1043,12 @@ export default function HomeView({
 
             <div className="lg:text-right shrink-0">
               <span className="block text-[10px] font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">
-                Status
+                {TEXT.status}
               </span>
 
               <span className="text-xl sm:text-2xl font-mono font-bold tracking-tight">
-                {liveCountdown || 'No more classes today'}
+                {liveCountdown ||
+                  'No more classes today'}
               </span>
             </div>
           </div>
@@ -795,16 +1071,16 @@ export default function HomeView({
           <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
             <div>
               <h2 className="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
-                Today’s schedule
+                {TEXT.schedule}
               </h2>
 
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                 {todayEntries.length === 0
-                  ? 'Nothing scheduled'
+                  ? TEXT.nothingScheduled
                   : `${todayEntries.length} ${
                       todayEntries.length === 1
-                        ? 'class'
-                        : 'classes'
+                        ? TEXT.classScheduled
+                        : TEXT.classesScheduled
                     } scheduled`}
               </p>
             </div>
@@ -824,7 +1100,8 @@ export default function HomeView({
               </p>
 
               <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
-                Join a class from the Class tab to build your schedule.
+                Join a class from the Class tab to build
+                your schedule.
               </p>
             </div>
           ) : todayEntries.length === 0 ? (
@@ -837,7 +1114,8 @@ export default function HomeView({
               </p>
 
               <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
-                Your next classes will appear on the timetable.
+                Your next classes will appear on the
+                timetable.
               </p>
             </div>
           ) : (
@@ -859,7 +1137,9 @@ export default function HomeView({
 
                 if (entry.isCancelled) {
                   statusLabel = 'cancelled';
-                } else if (currentTimeMins >= endMins) {
+                } else if (
+                  currentTimeMins >= endMins
+                ) {
                   statusLabel = 'completed';
                 } else if (
                   currentTimeMins >= startMins &&
@@ -949,17 +1229,15 @@ export default function HomeView({
                           className={`text-[9px] font-mono font-bold uppercase tracking-wider ${
                             statusLabel === 'live'
                               ? 'text-emerald-600 dark:text-emerald-400'
-                              : statusLabel === 'cancelled'
-                              ? 'text-zinc-400 dark:text-zinc-500'
                               : 'text-zinc-400 dark:text-zinc-500'
                           }`}
                         >
                           {statusLabel === 'live'
-                            ? 'Live now'
+                            ? TEXT.liveNow
                             : statusLabel ===
                               'completed'
                             ? hasAttended
-                              ? 'Completed'
+                              ? TEXT.attended
                               : 'Missed check-in'
                             : statusLabel ===
                               'cancelled'
@@ -970,7 +1248,7 @@ export default function HomeView({
                         {hasAttended && (
                           <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold uppercase text-emerald-600 dark:text-emerald-400">
                             <Check className="w-3 h-3" />
-                            Attended
+                            {TEXT.attended}
                           </span>
                         )}
                       </div>
@@ -988,7 +1266,6 @@ export default function HomeView({
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs font-mono text-zinc-500 dark:text-zinc-400">
                         <span className="flex items-center gap-1">
                           <MapPin className="w-3 h-3" />
-
                           {entry.venue}
                         </span>
 
@@ -1044,8 +1321,8 @@ export default function HomeView({
             </div>
           )}
         </main>
-        {/* ===================================================
-            RIGHT SIDEBAR
+{/* ===================================================
+            RIGHT / SIDEBAR
         ==================================================== */}
 
         <aside
@@ -1064,11 +1341,11 @@ export default function HomeView({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
-                    Attendance
+                    {TEXT.attendance}
                   </p>
 
                   <h3 className="text-sm font-bold text-zinc-950 dark:text-white mt-1">
-                    Current standing
+                    {TEXT.currentStanding}
                   </h3>
                 </div>
 
@@ -1080,8 +1357,8 @@ export default function HomeView({
                   }`}
                 >
                   {stats.attendancePercentage >= 75
-                    ? 'On target'
-                    : 'Below target'}
+                    ? TEXT.onTarget
+                    : TEXT.belowTarget}
                 </span>
               </div>
 
@@ -1091,8 +1368,8 @@ export default function HomeView({
                 </span>
 
                 <span className="text-[9px] font-mono text-zinc-400 dark:text-zinc-500 pb-1">
-                  {stats.attendedCount} /{' '}
-                  {stats.totalScheduled} attended
+                  {stats.attendedCount} / {stats.totalScheduled}{' '}
+                  attended
                 </span>
               </div>
 
@@ -1116,7 +1393,7 @@ export default function HomeView({
             <div className="grid grid-cols-2 border-t border-zinc-200 dark:border-zinc-800">
               <div className="p-4 border-r border-zinc-200 dark:border-zinc-800">
                 <span className="block text-[9px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  Attended
+                  {TEXT.attended}
                 </span>
 
                 <span className="block text-lg font-bold text-zinc-950 dark:text-white mt-1">
@@ -1126,7 +1403,7 @@ export default function HomeView({
 
               <div className="p-4">
                 <span className="block text-[9px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  Missed
+                  {TEXT.missed}
                 </span>
 
                 <span className="block text-lg font-bold text-zinc-950 dark:text-white mt-1">
@@ -1153,18 +1430,18 @@ export default function HomeView({
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
-                      Bulletin
+                      {TEXT.bulletin}
                     </p>
 
                     {hasUnread && (
                       <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                        New
+                        {TEXT.new}
                       </span>
                     )}
                   </div>
 
                   <h3 className="text-sm font-bold text-zinc-950 dark:text-white mt-1">
-                    Updates
+                    {TEXT.updates}
                   </h3>
                 </div>
 
@@ -1178,9 +1455,7 @@ export default function HomeView({
                     >
                       <RotateCw
                         className={`w-3.5 h-3.5 ${
-                          isRefreshing
-                            ? 'animate-spin'
-                            : ''
+                          isRefreshing ? 'animate-spin' : ''
                         }`}
                       />
                     </button>
@@ -1209,31 +1484,20 @@ export default function HomeView({
               <div className="border-t border-zinc-200 dark:border-zinc-800">
                 {visibleBulletinUpdates.map((up) => {
                   const parsedData = parseUpdate(up);
-                  const isPoll =
-                    parsedData?.isPoll === true;
-
+                  const isPoll = parsedData?.isPoll === true;
                   const label = getUpdateLabel(up);
+                  const hasVoted = userVotes[up.id]?.hasVoted === true;
 
-                  const hasVoted =
-                    userVotes[up.id]?.hasVoted === true;
-
-                  const isClassRepAnnouncement =
-                    Boolean(
-                      up.userId &&
-                        (
-                          up.userId.startsWith(
-                            'user_rep'
-                          ) ||
-                          up.userId.includes('rep') ||
-                          up.userId.includes('asst') ||
-                          up.userName
-                            .toLowerCase()
-                            .includes('rep') ||
-                          up.userName
-                            .toLowerCase()
-                            .includes('asst')
-                        )
-                    );
+                  const isClassRepAnnouncement = Boolean(
+                    up.userId &&
+                      (
+                        up.userId.startsWith('user_rep') ||
+                        up.userId.includes('rep') ||
+                        up.userId.includes('asst') ||
+                        up.userName.toLowerCase().includes('rep') ||
+                        up.userName.toLowerCase().includes('asst')
+                      )
+                  );
 
                   return (
                     <article
@@ -1252,9 +1516,7 @@ export default function HomeView({
                         </span>
 
                         <span className="text-[8px] font-mono text-zinc-400 dark:text-zinc-600 shrink-0">
-                          {new Date(
-                            up.timestamp
-                          ).toLocaleDateString(
+                          {new Date(up.timestamp).toLocaleDateString(
                             undefined,
                             {
                               month: 'short',
@@ -1271,9 +1533,7 @@ export default function HomeView({
                           </p>
 
                           <button
-                            onClick={
-                              onNavigateToNotifications
-                            }
+                            onClick={onNavigateToNotifications}
                             className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-950 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer"
                           >
                             Respond anonymously
@@ -1294,11 +1554,7 @@ export default function HomeView({
                             </span>
 
                             <button
-                              onClick={() =>
-                                handleRegisterVote(
-                                  up.id
-                                )
-                              }
+                              onClick={() => handleRegisterVote(up.id)}
                               disabled={hasVoted}
                               className={`shrink-0 inline-flex items-center gap-1.5 text-[8px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer ${
                                 hasVoted
@@ -1308,15 +1564,11 @@ export default function HomeView({
                             >
                               <ThumbsUp
                                 className={`w-3 h-3 ${
-                                  hasVoted
-                                    ? 'fill-current'
-                                    : ''
+                                  hasVoted ? 'fill-current' : ''
                                 }`}
                               />
 
-                              {hasVoted
-                                ? 'Agreed'
-                                : 'Agree'}
+                              {hasVoted ? 'Agreed' : 'Agree'}
                             </button>
                           </div>
                         </>
@@ -1342,17 +1594,14 @@ export default function HomeView({
 
                   <ChevronRight
                     className={`w-3 h-3 transition-transform ${
-                      isAnnouncementOpen
-                        ? 'rotate-90'
-                        : ''
+                      isAnnouncementOpen ? 'rotate-90' : ''
                     }`}
                   />
                 </button>
               </div>
             )}
           </section>
-
-          {/* =================================================
+{/* =================================================
               CLASS REP CONSOLE
           ================================================== */}
 
@@ -1368,12 +1617,12 @@ export default function HomeView({
                     <Megaphone className="w-3.5 h-3.5 text-zinc-500" />
 
                     <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
-                      Representative
+                      {TEXT.representative}
                     </p>
                   </div>
 
                   <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
-                    Broadcast to class
+                    {TEXT.broadcastToClass}
                   </h3>
 
                   <form
@@ -1389,7 +1638,7 @@ export default function HomeView({
                       maxLength={250}
                       rows={3}
                       required
-                      className="w-full resize-none bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-amber-500 dark:focus:border-amber-500"
+                      className="w-full resize-none bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-amber-500"
                     />
 
                     <div className="flex items-center justify-between gap-3 mt-2">
@@ -1461,7 +1710,7 @@ export default function HomeView({
                     <Megaphone className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
 
                     <span className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-400">
-                      Sponsored
+                      {TEXT.sponsored}
                     </span>
                   </div>
 
@@ -1490,6 +1739,7 @@ export default function HomeView({
                 {activeAdData.adActionText && (
                   <span className="inline-flex items-center gap-1 mt-3 text-[9px] font-mono font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
                     {activeAdData.adActionText}
+
                     <ChevronRight className="w-3 h-3" />
                   </span>
                 )}
