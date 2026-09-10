@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Play, Check, AlertCircle, Clock, MapPin, Award, ChevronRight, Bell, Megaphone, ThumbsUp, Send, RotateCw } from 'lucide-react';
-import { TimetableEntry, AttendanceLog, ClassGroup, ClassUpdate } from '../types';
+import {
+  Check,
+  AlertCircle,
+  Clock,
+  MapPin,
+  ChevronRight,
+  Bell,
+  Megaphone,
+  ThumbsUp,
+  Send,
+  RotateCw,
+  ArrowUpRight,
+} from 'lucide-react';
+import {
+  TimetableEntry,
+  AttendanceLog,
+  ClassGroup,
+  ClassUpdate,
+} from '../types';
 
 interface HomeViewProps {
   timetable: TimetableEntry[];
@@ -17,57 +34,74 @@ interface HomeViewProps {
   onTrackAdEvent?: (adId: string, eventType: 'view' | 'click') => void;
 }
 
+const getMinutes = (timeStr: string) => {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+};
+
 const calculateRealAttendanceStats = (
   timetable: TimetableEntry[],
   attendanceLogs: AttendanceLog[],
   joinedClassIds: string[],
   currentTime: string
 ) => {
-  const getMinutes = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
-    return h * 60 + m;
-  };
-
   const currentMins = getMinutes(currentTime);
-  const classEntries = timetable.filter(entry => joinedClassIds.includes(entry.classId));
-  const pastEntries = classEntries.filter(entry => {
+
+  const classEntries = timetable.filter((entry) =>
+    joinedClassIds.includes(entry.classId)
+  );
+
+  const pastEntries = classEntries.filter((entry) => {
     const endMins = getMinutes(entry.endTime);
     return endMins < currentMins && !entry.isCancelled;
   });
 
-  const attendedCount = pastEntries.filter(entry =>
-    attendanceLogs.some(log =>
-      log.timetableEntryId === entry.id &&
-      log.status === 'attended'
+  const attendedCount = pastEntries.filter((entry) =>
+    attendanceLogs.some(
+      (log) =>
+        log.timetableEntryId === entry.id &&
+        log.status === 'attended'
     )
   ).length;
 
   const totalScheduled = pastEntries.length;
   const missedCount = totalScheduled - attendedCount;
-  const attendancePercentage = totalScheduled > 0 ? Math.round((attendedCount / totalScheduled) * 100) : 100;
+
+  const attendancePercentage =
+    totalScheduled > 0
+      ? Math.round((attendedCount / totalScheduled) * 100)
+      : 100;
 
   let currentStreak = 0;
   let longestStreak = 0;
   let streak = 0;
 
   const sortedEntries = [...pastEntries].sort((a, b) => {
-    if (a.dayOfWeek !== b.dayOfWeek) return b.dayOfWeek - a.dayOfWeek;
+    if (a.dayOfWeek !== b.dayOfWeek) {
+      return b.dayOfWeek - a.dayOfWeek;
+    }
+
     return b.startTime.localeCompare(a.startTime);
   });
 
   for (const entry of sortedEntries) {
-    const attended = attendanceLogs.some(log =>
-      log.timetableEntryId === entry.id &&
-      log.status === 'attended'
+    const attended = attendanceLogs.some(
+      (log) =>
+        log.timetableEntryId === entry.id &&
+        log.status === 'attended'
     );
 
     if (attended) {
       streak++;
-      if (streak > longestStreak) longestStreak = streak;
+
+      if (streak > longestStreak) {
+        longestStreak = streak;
+      }
     } else {
       break;
     }
   }
+
   currentStreak = streak;
 
   return {
@@ -76,7 +110,7 @@ const calculateRealAttendanceStats = (
     missedCount,
     attendancePercentage,
     currentStreak,
-    longestStreak
+    longestStreak,
   };
 };
 
@@ -95,25 +129,7 @@ export default function HomeView({
   onTrackAdEvent,
 }: HomeViewProps) {
   const [currentTimeMins, setCurrentTimeMins] = useState(0);
-  const [visibleLogsCount, setVisibleLogsCount] = useState(5);
-  const [liveCountdown, setLiveCountdown] = useState<string>('');
-
-  const renderActivityDescription = (description: string) => {
-    if (description.startsWith('{') && description.endsWith('}')) {
-      try {
-        const parsed = JSON.parse(description);
-        if (parsed.isAd) {
-          return `📢 [Sponsored Spotlight] ${parsed.adTitle || parsed.description || 'Campaign Promotion'}`;
-        }
-        if (parsed.isPoll) {
-          return `📊 [Interactive Poll] ${parsed.question || 'Academic Survey'}`;
-        }
-      } catch (e) {
-      }
-    }
-    return description;
-  };
-
+  const [liveCountdown, setLiveCountdown] = useState('');
   const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
   const [classRepMsg, setClassRepMsg] = useState('');
@@ -121,73 +137,115 @@ export default function HomeView({
   const [repSuccess, setRepSuccess] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const handleForceRefresh = async () => {
-    if (!onForceRefresh || isRefreshing) return;
-    setIsRefreshing(true);
+  const [userVotes, setUserVotes] = useState<
+    Record<string, { votes: number; hasVoted: boolean }>
+  >(() => {
     try {
-      await onForceRefresh();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-  const [userVotes, setUserVotes] = useState<Record<string, { votes: number; hasVoted: boolean }>>(() => {
-    const saved = localStorage.getItem('thesdel_bulletin_votes');
-    return saved ? JSON.parse(saved) : {};
-  });
-
-  const [pollVotes, setPollVotes] = useState<Record<string, { votedChoice: string; textResponse?: string; submittedAt?: number }>>(() => {
-    try {
-      const stored = localStorage.getItem('thesdel_poll_votes');
-      return stored ? JSON.parse(stored) : {};
-    } catch (e) {
+      const saved = localStorage.getItem('thesdel_bulletin_votes');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
       return {};
     }
   });
 
-  const [pollTextInput, setPollTextInput] = useState<Record<string, string>>({});
+  const [pollVotes, setPollVotes] = useState<
+    Record<
+      string,
+      {
+        votedChoice: string;
+        textResponse?: string;
+        submittedAt?: number;
+      }
+    >
+  >(() => {
+    try {
+      const stored = localStorage.getItem('thesdel_poll_votes');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
 
-  const handleRegisterPollVote = (pollId: string, choice: string, textResponse?: string) => {
+  const handleForceRefresh = async () => {
+    if (!onForceRefresh || isRefreshing) return;
+
+    setIsRefreshing(true);
+
+    try {
+      await onForceRefresh();
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleRegisterPollVote = (
+    pollId: string,
+    choice: string,
+    textResponse?: string
+  ) => {
     const updated = {
       ...pollVotes,
       [pollId]: {
         votedChoice: choice,
         textResponse,
-        submittedAt: Date.now()
-      }
+        submittedAt: Date.now(),
+      },
     };
+
     setPollVotes(updated);
-    localStorage.setItem('thesdel_poll_votes', JSON.stringify(updated));
+    localStorage.setItem(
+      'thesdel_poll_votes',
+      JSON.stringify(updated)
+    );
   };
 
   useEffect(() => {
     const bulletinUpdates = updates.filter((up) => {
-      if (up.description.startsWith('{') && up.description.endsWith('}')) {
+      if (
+        up.description.startsWith('{') &&
+        up.description.endsWith('}')
+      ) {
         try {
           const parsed = JSON.parse(up.description);
+
           if (parsed.isAd) return true;
+
           if (parsed.isPoll) {
-            const userVoteRecord = pollVotes[up.id];
-            if (userVoteRecord && userVoteRecord.submittedAt) {
-              const elapsed = Date.now() - userVoteRecord.submittedAt;
+            const vote = pollVotes[up.id];
+
+            if (vote?.submittedAt) {
+              const elapsed = Date.now() - vote.submittedAt;
+
               if (elapsed >= 24 * 60 * 60 * 1000) {
                 return false;
               }
             }
+
             return true;
           }
-        } catch (e) {}
+        } catch {}
       }
-      if (up.type === 'entry_added' || up.type === 'entry_edited' || up.type === 'entry_deleted') {
+
+      if (
+        up.type === 'entry_added' ||
+        up.type === 'entry_edited' ||
+        up.type === 'entry_deleted'
+      ) {
         return false;
       }
+
       return true;
     });
 
     if (bulletinUpdates.length > 0) {
-      const lastReadId = localStorage.getItem('thesdel_last_read_update_id');
+      const lastReadId = localStorage.getItem(
+        'thesdel_last_read_update_id'
+      );
+
       const latestId = bulletinUpdates[0].id;
+
       if (lastReadId !== latestId) {
         setHasUnread(true);
         setIsAnnouncementOpen(true);
@@ -196,91 +254,106 @@ export default function HomeView({
   }, [updates, pollVotes]);
 
   const handleToggleAnnouncements = () => {
-    setIsAnnouncementOpen(!isAnnouncementOpen);
+    setIsAnnouncementOpen((previous) => !previous);
+
     const bulletinUpdates = updates.filter((up) => {
-      if (up.description.startsWith('{') && up.description.endsWith('}')) {
+      if (
+        up.description.startsWith('{') &&
+        up.description.endsWith('}')
+      ) {
         try {
           const parsed = JSON.parse(up.description);
+
           if (parsed.isAd) return true;
+
           if (parsed.isPoll) {
-            const userVoteRecord = pollVotes[up.id];
-            if (userVoteRecord && userVoteRecord.submittedAt) {
-              const elapsed = Date.now() - userVoteRecord.submittedAt;
+            const vote = pollVotes[up.id];
+
+            if (vote?.submittedAt) {
+              const elapsed = Date.now() - vote.submittedAt;
+
               if (elapsed >= 24 * 60 * 60 * 1000) {
                 return false;
               }
             }
+
             return true;
           }
-        } catch (e) {}
+        } catch {}
       }
-      if (up.type === 'entry_added' || up.type === 'entry_edited' || up.type === 'entry_deleted') {
+
+      if (
+        up.type === 'entry_added' ||
+        up.type === 'entry_edited' ||
+        up.type === 'entry_deleted'
+      ) {
         return false;
       }
+
       return true;
     });
 
     if (bulletinUpdates.length > 0) {
-      localStorage.setItem('thesdel_last_read_update_id', bulletinUpdates[0].id);
+      localStorage.setItem(
+        'thesdel_last_read_update_id',
+        bulletinUpdates[0].id
+      );
+
       setHasUnread(false);
     }
   };
 
   const handleRegisterVote = (updateId: string) => {
-    const current = userVotes[updateId] || { votes: Math.floor(Math.abs(updateId.charCodeAt(0) % 20) + 2), hasVoted: false };
-    if (current.hasVoted) return;
+    const current = userVotes[updateId];
+
+    if (current?.hasVoted) return;
 
     const updated = {
       ...userVotes,
       [updateId]: {
-        votes: current.votes + 1,
-        hasVoted: true
-      }
+        votes: (current?.votes || 0) + 1,
+        hasVoted: true,
+      },
     };
+
     setUserVotes(updated);
-    localStorage.setItem('thesdel_bulletin_votes', JSON.stringify(updated));
+
+    localStorage.setItem(
+      'thesdel_bulletin_votes',
+      JSON.stringify(updated)
+    );
   };
 
-  const handleClassRepSubmit = async (e: React.FormEvent) => {
+  const handleClassRepSubmit = async (
+    e: React.FormEvent
+  ) => {
     e.preventDefault();
-    if (!classRepMsg.trim() || !onAddBroadcast || !activeClassId) return;
+
+    if (
+      !classRepMsg.trim() ||
+      !onAddBroadcast ||
+      !activeClassId
+    ) {
+      return;
+    }
 
     setIsSubmittingRepMsg(true);
-    const success = await onAddBroadcast(activeClassId, classRepMsg);
+
+    const success = await onAddBroadcast(
+      activeClassId,
+      classRepMsg
+    );
+
     setIsSubmittingRepMsg(false);
 
     if (success) {
       setClassRepMsg('');
       setRepSuccess(true);
-      setTimeout(() => setRepSuccess(false), 3000);
-    }
-  };
 
-  const getPillsForUpdate = (update: ClassUpdate) => {
-    const desc = update.description.toLowerCase();
-    const pills: string[] = [];
-    
-    if (update.classId === 'global') {
-      pills.push('GLOBAL ANNOUNCEMENT');
-    } else {
-      pills.push('CLASS FEED');
+      setTimeout(() => {
+        setRepSuccess(false);
+      }, 3000);
     }
-
-    if (desc.includes('ad ') || desc.includes('sponsor') || desc.includes('promo') || desc.includes('advert')) {
-      pills.push('AD SPACE');
-    } else if (desc.includes('urgent') || desc.includes('alert') || desc.includes('attention') || desc.includes('critical')) {
-      pills.push('URGENT');
-    } else if (desc.includes('feature') || desc.includes('update') || desc.includes('upgrade') || desc.includes('app')) {
-      pills.push('FEATURE UPDATE');
-    } else {
-      pills.push('SYSTEM NOTICE');
-    }
-    return pills;
-  };
-
-  const getMinutes = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
-    return h * 60 + m;
   };
 
   useEffect(() => {
@@ -289,582 +362,1141 @@ export default function HomeView({
 
   const joinedClassIds = joinedClasses.map((c) => c.id);
 
-  const getDeviceTodayDate = () => {
+  const deviceToday = (() => {
     const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  const deviceToday = getDeviceTodayDate();
+
+    return [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, '0'),
+      String(d.getDate()).padStart(2, '0'),
+    ].join('-');
+  })();
 
   const todayDayOfWeek = (() => {
     const day = new Date().getDay();
     return day === 0 ? 7 : day;
   })();
 
-  const activeAd = updates.find(up => {
-    if (up.description.startsWith('{') && up.description.endsWith('}')) {
+  const todayEntries = timetable
+    .filter(
+      (entry) =>
+        entry.dayOfWeek === todayDayOfWeek &&
+        joinedClassIds.includes(entry.classId)
+    )
+    .sort((a, b) =>
+      a.startTime.localeCompare(b.startTime)
+    );
+
+  const stats = calculateRealAttendanceStats(
+    timetable,
+    attendanceLogs,
+    joinedClassIds,
+    currentSimulatedTime
+  );
+
+  let nextClass: TimetableEntry | null = null;
+  let nextClassIsLive = false;
+
+  const updateCountdown = () => {
+    const now = new Date();
+    const currentMinutes =
+      now.getHours() * 60 + now.getMinutes();
+
+    let foundClass: TimetableEntry | null = null;
+    let foundIsLive = false;
+    let remaining = -1;
+    let timeUntil = -1;
+
+    for (const entry of todayEntries) {
+      if (entry.isCancelled) continue;
+
+      const start = getMinutes(entry.startTime);
+      const end = getMinutes(entry.endTime);
+
+      if (
+        currentMinutes >= start &&
+        currentMinutes < end
+      ) {
+        foundClass = entry;
+        foundIsLive = true;
+        remaining = end - currentMinutes;
+        break;
+      }
+
+      if (
+        currentMinutes < start &&
+        (timeUntil === -1 ||
+          start - currentMinutes < timeUntil)
+      ) {
+        foundClass = entry;
+        foundIsLive = false;
+        timeUntil = start - currentMinutes;
+      }
+    }
+
+    nextClass = foundClass;
+    nextClassIsLive = foundIsLive;
+
+    if (foundIsLive && foundClass) {
+      setLiveCountdown(
+        `LIVE NOW · ${Math.max(0, remaining)}m remaining`
+      );
+    } else if (foundClass) {
+      const hours = Math.floor(timeUntil / 60);
+      const minutes = timeUntil % 60;
+
+      setLiveCountdown(
+        hours > 0
+          ? `Starts in ${hours}h ${minutes}m`
+          : `Starts in ${minutes}m`
+      );
+    } else {
+      setLiveCountdown('No more classes today');
+    }
+  };
+
+  useEffect(() => {
+    updateCountdown();
+
+    const interval = setInterval(
+      updateCountdown,
+      60000
+    );
+
+    return () => clearInterval(interval);
+  }, [todayEntries]);
+
+  const formattedDate = new Date().toLocaleDateString(
+    'en-US',
+    {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }
+  );
+
+  const activeAd = updates.find((up) => {
+    if (
+      up.description.startsWith('{') &&
+      up.description.endsWith('}')
+    ) {
       try {
         const parsed = JSON.parse(up.description);
         return parsed.isAd === true;
-      } catch (e) {
+      } catch {
         return false;
       }
     }
+
     return false;
   });
 
   useEffect(() => {
     if (activeAd && onTrackAdEvent) {
       const sessionKey = `thesdel_ad_viewed_${activeAd.id}`;
+
       if (!sessionStorage.getItem(sessionKey)) {
         onTrackAdEvent(activeAd.id, 'view');
         sessionStorage.setItem(sessionKey, 'true');
       }
     }
   }, [activeAd, onTrackAdEvent]);
+  /*
+   * ---------------------------------------------------------
+   * DERIVED BULLETIN / UPDATE DATA
+   * ---------------------------------------------------------
+   */
 
-  const todayEntries = timetable
-    .filter((entry) => entry.dayOfWeek === todayDayOfWeek && joinedClassIds.includes(entry.classId))
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const bulletinUpdates = updates.filter((up) => {
+    if (
+      up.type === 'entry_added' ||
+      up.type === 'entry_edited' ||
+      up.type === 'entry_deleted'
+    ) {
+      return false;
+    }
 
-  const stats = calculateRealAttendanceStats(timetable, attendanceLogs, joinedClassIds, currentSimulatedTime);
+    if (
+      up.description.startsWith('{') &&
+      up.description.endsWith('}')
+    ) {
+      try {
+        const parsed = JSON.parse(up.description);
 
-  let nextClass: TimetableEntry | null = null;
-  let nextClassTimeDiffMinutes = -1;
-  let nextClassIsLive = false;
-  let liveClassRemainingMinutes = -1;
+        // Ads are displayed separately in the sponsor area.
+        if (parsed.isAd) return false;
 
-  const updateCountdown = () => {
-    const now = new Date();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        if (parsed.isPoll) {
+          const vote = pollVotes[up.id];
 
-    let foundNextClass: TimetableEntry | null = null;
-    let foundNextClassIsLive = false;
-    let foundLiveRemaining = -1;
-    let foundTimeDiff = -1;
+          if (vote?.submittedAt) {
+            const elapsed =
+              Date.now() - vote.submittedAt;
 
-    for (const entry of todayEntries) {
-      if (entry.isCancelled) continue;
-      const startMins = getMinutes(entry.startTime);
-      const endMins = getMinutes(entry.endTime);
-
-      if (currentMinutes < startMins) {
-        if (!foundNextClass || startMins < getMinutes(foundNextClass.startTime)) {
-          if (!foundNextClassIsLive) {
-            foundNextClass = entry;
-            foundTimeDiff = startMins - currentMinutes;
+            if (elapsed >= 24 * 60 * 60 * 1000) {
+              return false;
+            }
           }
+
+          return true;
         }
-      } else if (currentMinutes >= startMins && currentMinutes < endMins) {
-        foundNextClass = entry;
-        foundNextClassIsLive = true;
-        foundLiveRemaining = endMins - currentMinutes;
+      } catch {}
+    }
+
+    return true;
+  });
+
+  const visibleBulletinUpdates = isAnnouncementOpen
+    ? bulletinUpdates.slice(0, 5)
+    : bulletinUpdates.slice(0, 3);
+
+  /*
+   * ---------------------------------------------------------
+   * UPDATE HELPERS
+   * ---------------------------------------------------------
+   */
+
+  const parseUpdate = (update: ClassUpdate) => {
+    if (
+      update.description.startsWith('{') &&
+      update.description.endsWith('}')
+    ) {
+      try {
+        return JSON.parse(update.description);
+      } catch {
+        return null;
       }
     }
 
-    nextClass = foundNextClass;
-    nextClassIsLive = foundNextClassIsLive;
-    liveClassRemainingMinutes = foundLiveRemaining;
-    nextClassTimeDiffMinutes = foundTimeDiff;
-
-    if (foundNextClassIsLive && foundNextClass) {
-      const mins = Math.max(0, foundLiveRemaining);
-      setLiveCountdown(`LIVE NOW (${mins}m left)`);
-    } else if (foundNextClass) {
-      const totalMinutes = foundTimeDiff;
-      const hrs = Math.floor(totalMinutes / 60);
-      const mins = totalMinutes % 60;
-      const countdownStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
-      setLiveCountdown(`starts in ${countdownStr} (${foundNextClass.subject})`);
-    } else {
-      setLiveCountdown('No more classes scheduled today');
-    }
+    return null;
   };
 
-  useEffect(() => {
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 60000);
-    return () => clearInterval(interval);
-  }, [todayEntries]);
+  const getUpdateLabel = (update: ClassUpdate) => {
+    if (update.type === 'cancellation') {
+      return {
+        text: 'CANCELLED',
+        className:
+          'text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/40',
+      };
+    }
 
-  const formattedDate = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+    if (update.type === 'venue_change') {
+      return {
+        text: 'VENUE CHANGED',
+        className:
+          'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40',
+      };
+    }
+
+    if (update.classId === 'global') {
+      return {
+        text: 'GLOBAL',
+        className:
+          'text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700',
+      };
+    }
+
+    return {
+      text: 'CLASS UPDATE',
+      className:
+        'text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800',
+    };
+  };
+
+  /*
+   * ---------------------------------------------------------
+   * ACTIVE AD DATA
+   * ---------------------------------------------------------
+   */
+
+  let activeAdData: any = null;
+
+  if (activeAd) {
+    try {
+      const parsed = JSON.parse(activeAd.description);
+
+      if (parsed.isAd) {
+        activeAdData = parsed;
+      }
+    } catch {
+      activeAdData = null;
+    }
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * NEXT CLASS
+   * ---------------------------------------------------------
+   */
+
+  const currentMinutes = getMinutes(currentSimulatedTime);
+
+  const liveEntry = todayEntries.find((entry) => {
+    if (entry.isCancelled) return false;
+
+    const start = getMinutes(entry.startTime);
+    const end = getMinutes(entry.endTime);
+
+    return currentMinutes >= start && currentMinutes < end;
   });
 
-  return (
-    <div className="space-y-8" id="home-view-container">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="home-status-grid">
-        <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 rounded-none flex flex-col justify-between" id="streak-card">
-          <div>
-            <span className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-mono">Current Streak</span>
-            <div className="text-4xl font-bold font-mono tracking-tight text-zinc-900 dark:text-zinc-100 mt-1 flex items-baseline gap-2">
-              {stats.currentStreak}
-              <span className="text-xs font-mono font-normal text-zinc-400 dark:text-zinc-500">classes</span>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-            <span>Longest Streak: {stats.longestStreak}</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-medium">Streak Safe</span>
-          </div>
-        </div>
+  const upcomingEntry = todayEntries.find((entry) => {
+    if (entry.isCancelled) return false;
 
-        <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 rounded-none flex flex-col justify-between" id="percentage-card">
-          <div>
-            <span className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-mono">Attendance Rate</span>
-            <div className="text-4xl font-bold font-mono tracking-tight text-zinc-900 dark:text-zinc-100 mt-1">
-              {stats.attendancePercentage}%
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
-            <span>{stats.attendedCount} of {stats.totalScheduled} past classes</span>
-            <span className={`${stats.attendancePercentage >= 75 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'} font-medium`}>
-              {stats.attendancePercentage >= 75 ? 'Target safe' : 'Below 75% target'}
+    const start = getMinutes(entry.startTime);
+
+    return start > currentMinutes;
+  });
+
+  const displayNextClass =
+    liveEntry || upcomingEntry || null;
+
+  /*
+   * ---------------------------------------------------------
+   * RENDER
+   * ---------------------------------------------------------
+   */
+
+  return (
+    <div
+      className="space-y-8 pb-10"
+      id="home-view-container"
+    >
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
+
+      <header
+        className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4"
+        id="home-header"
+      >
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+
+            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
+              Today
             </span>
           </div>
+
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
+            Your academic day.
+          </h1>
+
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            {formattedDate}
+          </p>
         </div>
 
-        <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 rounded-none flex flex-col justify-between" id="countdown-card">
-          <div>
-            <span className="text-xs uppercase tracking-wider text-zinc-500 dark:text-zinc-400 font-mono">Next Class Alert</span>
-            <div className="text-xl font-medium tracking-tight text-zinc-900 dark:text-zinc-100 mt-2 leading-snug">
-              {liveCountdown}
-            </div>
-          </div>
-        </div>
-      </div>
+        <button
+          onClick={onNavigateToNotifications}
+          className="relative self-start sm:self-auto flex items-center justify-center w-10 h-10 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors cursor-pointer"
+          title="Notifications"
+        >
+          <Bell className="w-4 h-4" />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8" id="home-main-layout">
-        <div className="lg:col-span-2 space-y-4" id="today-timeline">
-          <div className="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-800 pb-2">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100">Today’s Schedule</h2>
-              
-              <button 
-                onClick={onNavigateToNotifications}
-                className="relative p-1.5 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 focus:outline-none transition-colors cursor-pointer rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                title="System Bulletin & Announcement Hub"
-              >
-                <Bell className="w-4 h-4" />
-                {hasUnread && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full animate-ping"></span>
-                )}
-                {hasUnread && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full"></span>
-                )}
-              </button>
-            </div>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono">{formattedDate}</span>
-          </div>
+          {hasUnread && (
+            <>
+              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" />
+            </>
+          )}
+        </button>
+      </header>
 
-          {activeAd && (() => {
-            try {
-              const parsed = JSON.parse(activeAd.description);
-              if (parsed.isAd) {
-                return (
-                  <div 
-                    onClick={() => {
-                      if (onTrackAdEvent) onTrackAdEvent(activeAd.id, 'click');
-                      if (parsed.adLink) {
-                        window.open(parsed.adLink, '_blank', 'noopener,noreferrer');
-                      }
-                    }}
-                    className="border border-amber-200 dark:border-amber-900/40 bg-amber-50/20 dark:bg-amber-950/10 p-4 rounded-none cursor-pointer hover:bg-amber-50/40 dark:hover:bg-amber-955/20 transition-all flex flex-col sm:flex-row gap-4 items-center justify-between"
-                  >
-                    <div className="flex items-start gap-3">
-                      <Megaphone className="w-5 h-5 text-amber-600 dark:text-amber-450 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="text-[9px] font-mono font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider block">SPONSOR SPOTLIGHT</span>
-                        <h4 className="text-xs font-bold font-sans text-zinc-900 dark:text-zinc-100 mt-0.5">{parsed.adTitle || 'Campaign Promotion'}</h4>
-                        <p className="text-[11px] text-zinc-600 dark:text-zinc-400 font-sans leading-normal mt-1">{parsed.description || 'Promoted partner offer'}</p>
-                      </div>
-                    </div>
-                    {parsed.adButtonText && (
-                      <span className="px-3 py-1.5 bg-amber-600 dark:bg-amber-750 text-white font-mono font-bold text-[10px] uppercase tracking-wider shrink-0">
-                        {parsed.adButtonText}
-                      </span>
-                    )}
-                  </div>
-                );
-              }
-            } catch (e) {
-              return null;
-            }
-          })()}
+      {/* =====================================================
+          NEXT CLASS HERO
+      ====================================================== */}
 
-          {isAnnouncementOpen && (
-            <div className="border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-4 space-y-4" id="bulletin-announcement-hub">
-              <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-2">
-                <div className="flex items-center gap-2">
-                  <Megaphone className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 animate-pulse" />
-                  <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-200">
-                    Bulletin Board & Updates
-                  </h3>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {onForceRefresh && (
-                    <button
-                      onClick={handleForceRefresh}
-                      disabled={isRefreshing}
-                      title="Pull-to-refresh latest announcements"
-                      className="p-1 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 focus:outline-none transition-colors rounded-full cursor-pointer disabled:opacity-50"
-                    >
-                      <RotateCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin text-indigo-500' : ''}`} />
-                    </button>
-                  )}
-                  <span className="text-[8px] font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-900 px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-800">
-                    REAL-TIME SYNCED
-                  </span>
-                </div>
+      <section
+        id="next-class-hero"
+        className="relative overflow-hidden border border-zinc-900 dark:border-zinc-100 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950"
+      >
+        <div className="absolute top-0 right-0 w-40 h-40 border-l border-b border-white/10 dark:border-zinc-900/10" />
+
+        <div className="relative p-6 sm:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-5">
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    nextClassIsLive
+                      ? 'bg-emerald-400 animate-pulse'
+                      : 'bg-amber-400'
+                  }`}
+                />
+
+                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+                  {nextClassIsLive
+                    ? 'Live now'
+                    : 'Next class'}
+                </span>
               </div>
 
-              {(() => {
-                const bulletinUpdates = updates.filter((up) => {
-                  if (up.description.startsWith('{') && up.description.endsWith('}')) {
-                    try {
-                      const parsed = JSON.parse(up.description);
-                      if (parsed.isAd || parsed.isPoll) return true;
-                    } catch (e) {}
-                  }
-                  if (up.type === 'entry_added' || up.type === 'entry_edited' || up.type === 'entry_deleted') {
-                    return false;
-                  }
-                  return true;
-                });
+              {displayNextClass ? (
+                <>
+                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight max-w-2xl">
+                    {displayNextClass.subject}
+                  </h2>
 
-                const getPillsForUpdate = (update: ClassUpdate): string[] => {
-                  if (update.type === 'cancellation') return ['CANCELLED', 'URGENT'];
-                  if (update.type === 'venue_change') return ['VENUE CHANGED', 'URGENT'];
-                  return ['INFO'];
-                };
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 text-sm text-zinc-300 dark:text-zinc-600">
+                    <span className="flex items-center gap-1.5 font-mono">
+                      <Clock className="w-3.5 h-3.5" />
+                      {displayNextClass.startTime} —{' '}
+                      {displayNextClass.endTime}
+                    </span>
 
-                if (bulletinUpdates.length === 0) {
-                  return <p className="text-[10px] font-mono text-zinc-400 py-2">No official announcements have been dispatched yet.</p>;
-                }
-
-                return (
-                  <div className="space-y-3">
-                    {bulletinUpdates.slice(0, 5).map((up) => {
-                      let isAd = false;
-                      let isPoll = false;
-                      let parsedData: any = null;
-
-                      if (up.description.startsWith('{') && up.description.endsWith('}')) {
-                        try {
-                          parsedData = JSON.parse(up.description);
-                          if (parsedData.isAd) isAd = true;
-                          if (parsedData.isPoll) isPoll = true;
-                        } catch (e) {}
-                      }
-
-                      const pills = isAd 
-                        ? ['SPONSORED', 'AD SPACE'] 
-                        : isPoll 
-                        ? [] 
-                        : getPillsForUpdate(up);
-
-                      const hasVoted = userVotes[up.id]?.hasVoted;
-                      const voteCount = userVotes[up.id]?.votes || Math.floor(Math.abs(up.id.charCodeAt(0) % 15) + 3);
-                      
-                      const isClassRepAnnouncement = up.userId && (
-                        up.userId.startsWith('user_rep') || 
-                        up.userId.includes('rep') || 
-                        up.userId.includes('asst') ||
-                        up.userName.toLowerCase().includes('rep') ||
-                        up.userName.toLowerCase().includes('asst')
-                      );
-
-                      return (
-                        <div 
-                          key={up.id} 
-                          className={`border p-3.5 transition-all ${
-                            isAd 
-                              ? 'bg-amber-50/40 dark:bg-amber-950/10 border-amber-200 dark:border-amber-900/30 shadow-sm' 
-                              : isPoll
-                              ? 'bg-zinc-50 dark:bg-zinc-950/10 border-zinc-200 dark:border-zinc-800 shadow-sm'
-                              : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800'
-                          }`}
-                        >
-                          <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                            {pills.map((p, idx) => (
-                              <span 
-                                key={idx} 
-                                className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-none border ${
-                                  p === 'URGENT'
-                                    ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30' 
-                                    : p === 'AD SPACE' || p === 'SPONSORED'
-                                    ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/40'
-                                    : 'bg-zinc-50 text-zinc-600 border-zinc-200 dark:bg-zinc-850 dark:text-zinc-400 dark:border-zinc-800'
-                                }`}
-                              >
-                                {p}
-                              </span>
-                            ))}
-                            {isAd && (
-                              <span className="text-[8px] text-amber-600 dark:text-amber-400 font-mono font-bold uppercase tracking-wider ml-1">
-                                • SPONSORED SPOTLIGHT
-                              </span>
-                            )}
-                            <span className="text-[9px] text-zinc-400 font-mono ml-auto">
-                              {new Date(up.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-
-                          {isAd && parsedData && (
-                            <div className="space-y-3 font-sans">
-                              {parsedData.adImageUrl && (
-                                <img 
-                                  src={parsedData.adImageUrl} 
-                                  alt="Campaign Promotion" 
-                                  referrerPolicy="no-referrer"
-                                  className="w-full max-h-40 object-cover border border-amber-200 dark:border-amber-900/30"
-                                />
-                              )}
-                              <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 font-sans tracking-tight leading-snug">
-                                {parsedData.adTitle}
-                              </h4>
-                              <p className="text-xs text-zinc-600 dark:text-zinc-350 leading-relaxed font-sans">
-                                {parsedData.description}
-                              </p>
-                              {parsedData.adUrl && (
-                                <a 
-                                  href={parsedData.adUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-mono text-[10px] font-bold px-3 py-1.5 transition-all uppercase tracking-wider border border-amber-700 cursor-pointer"
-                                >
-                                  {parsedData.adActionText || 'Learn More'}
-                                  <ChevronRight className="w-3 h-3" />
-                                </a>
-                              )}
-                            </div>
-                          )}
-
-                          {isPoll && parsedData && (
-                            <div className="space-y-3 font-sans border-l-2 border-zinc-400 dark:border-zinc-600 pl-3">
-                              <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 tracking-tight flex items-start gap-1.5 leading-snug">
-                                <Megaphone className="w-3.5 h-3.5 text-zinc-850 dark:text-zinc-150 shrink-0 mt-0.5 animate-pulse" />
-                                {parsedData.question}
-                              </h4>
-                              <div className="pt-1">
-                                <button
-                                  onClick={onNavigateToNotifications}
-                                  className="inline-flex items-center gap-1 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-150 text-white dark:text-zinc-950 font-mono text-[9px] font-bold px-2.5 py-1.5 border border-zinc-950 transition-all uppercase tracking-wider cursor-pointer"
-                                >
-                                  <span>Respond Anonymously</span>
-                                  <ChevronRight className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
-                          {!isAd && !isPoll && (
-                            <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed font-sans select-text">
-                              {up.description}
-                            </p>
-                          )}
-
-                          <div className="mt-3 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/60 flex items-center justify-between">
-                            <span className="text-[9px] text-zinc-450 dark:text-zinc-400 font-mono uppercase tracking-wider">
-                              {isPoll ? 'From Thesdel team' : <>By: <span className="font-bold text-zinc-650 dark:text-zinc-300">{up.userName}</span></>}
-                            </span>
-
-                            {!isAd && !isPoll && !isClassRepAnnouncement ? (
-                              <button
-                                onClick={() => handleRegisterVote(up.id)}
-                                disabled={hasVoted}
-                                className={`px-2.5 py-1 text-[9px] font-mono font-bold flex items-center gap-1.5 border transition-all ${
-                                  hasVoted
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30'
-                                    : 'bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-850 dark:text-zinc-300 dark:border-zinc-800 cursor-pointer'
-                                }`}
-                              >
-                                <ThumbsUp className={`w-2.5 h-2.5 ${hasVoted ? 'fill-emerald-500 text-emerald-500' : ''}`} />
-                                <span>{hasVoted ? `Vote Counted (${voteCount})` : `Upvote / Agree (${voteCount})`}</span>
-                              </button>
-                            ) : null}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <span className="flex items-center gap-1.5 font-mono">
+                      <MapPin className="w-3.5 h-3.5" />
+                      {displayNextClass.venue}
+                    </span>
                   </div>
-                );
-              })()}
+                </>
+              ) : (
+                <>
+                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+                    No more classes.
+                  </h2>
 
-              {userRole === 'representative' && onAddBroadcast && activeClassId && (
-                <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
-                  <h4 className="text-[9px] font-mono font-bold uppercase tracking-widest text-zinc-400 mb-2">
-                    Class Rep Broadcaster Console
-                  </h4>
-                  <form onSubmit={handleClassRepSubmit} className="space-y-2">
-                    <textarea
-                      value={classRepMsg}
-                      onChange={(e) => setClassRepMsg(e.target.value)}
-                      placeholder="Post a study tip, schedule reminder, or important classroom notice to your members..."
-                      maxLength={250}
-                      rows={2}
-                      required
-                      className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-2.5 text-xs font-mono text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-indigo-500 resize-none"
-                    />
-                    <div className="flex justify-between items-center text-[9px] text-zinc-450 font-mono">
-                      <span>Max 250 characters. Broadcast updates feed instantly.</span>
-                      <button
-                        type="submit"
-                        disabled={isSubmittingRepMsg || !classRepMsg.trim()}
-                        className="bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100 text-white dark:text-zinc-950 px-3 py-1 text-[10px] font-bold flex items-center gap-1.5 cursor-pointer border border-zinc-800 dark:border-zinc-300 transition-colors"
-                      >
-                        {isSubmittingRepMsg ? 'Publishing...' : 'Broadcast Bulletin'}
-                        <Send className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  </form>
-                  {repSuccess && (
-                    <div className="mt-2 text-[9px] text-emerald-600 dark:text-emerald-400 font-mono font-bold">
-                      ✓ Broadcast dispatched successfully!
-                    </div>
-                  )}
-                </div>
+                  <p className="mt-3 text-sm text-zinc-400 dark:text-zinc-500">
+                    Your academic schedule is clear for today.
+                  </p>
+                </>
               )}
             </div>
-          )}
+
+            <div className="lg:text-right shrink-0">
+              <span className="block text-[10px] font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">
+                Status
+              </span>
+
+              <span className="text-xl sm:text-2xl font-mono font-bold tracking-tight">
+                {liveCountdown || 'No more classes today'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          MAIN CONTENT
+      ====================================================== */}
+
+      <div
+        className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8"
+        id="home-main-layout"
+      >
+        {/* ===================================================
+            LEFT / TODAY'S TIMELINE
+        ==================================================== */}
+
+        <main id="today-timeline">
+          <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+            <div>
+              <h2 className="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
+                Today’s schedule
+              </h2>
+
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                {todayEntries.length === 0
+                  ? 'Nothing scheduled'
+                  : `${todayEntries.length} ${
+                      todayEntries.length === 1
+                        ? 'class'
+                        : 'classes'
+                    } scheduled`}
+              </p>
+            </div>
+
+            <span className="hidden sm:block text-[10px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+              {currentSimulatedTime}
+            </span>
+          </div>
 
           {joinedClasses.length === 0 ? (
-            <div className="border border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-12 text-center" id="empty-classes-prompt">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-mono">You haven't joined any classes yet.</p>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Go to the "Class" tab and enter a class code to join.</p>
+            <div
+              className="py-16 text-center border-b border-zinc-200 dark:border-zinc-800"
+              id="empty-classes-prompt"
+            >
+              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                No classes connected.
+              </p>
+
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
+                Join a class from the Class tab to build your schedule.
+              </p>
             </div>
           ) : todayEntries.length === 0 ? (
-            <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-12 text-center" id="no-classes-today">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-mono">No classes scheduled for today.</p>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Enjoy your free time or check the Timetable tab.</p>
+            <div
+              className="py-16 text-center border-b border-zinc-200 dark:border-zinc-800"
+              id="no-classes-today"
+            >
+              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                No classes scheduled today.
+              </p>
+
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
+                Your next classes will appear on the timetable.
+              </p>
             </div>
           ) : (
-            <div className="space-y-3" id="classes-list">
-              {todayEntries.map((entry) => {
-                const startMins = getMinutes(entry.startTime);
-                const endMins = getMinutes(entry.endTime);
+            <div id="classes-list">
+              {todayEntries.map((entry, index) => {
+                const startMins = getMinutes(
+                  entry.startTime
+                );
 
-                let statusLabel: 'upcoming' | 'live' | 'completed' | 'cancelled' | 'missed' = 'upcoming';
-                let statusText = 'Upcoming';
-                let badgeStyle = 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950';
+                const endMins = getMinutes(
+                  entry.endTime
+                );
+
+                let statusLabel:
+                  | 'upcoming'
+                  | 'live'
+                  | 'completed'
+                  | 'cancelled' = 'upcoming';
 
                 if (entry.isCancelled) {
                   statusLabel = 'cancelled';
-                  statusText = 'Cancelled';
-                  badgeStyle = 'border-zinc-200 dark:border-zinc-800 text-zinc-400 dark:text-zinc-500 bg-zinc-50 dark:bg-zinc-950 line-through';
                 } else if (currentTimeMins >= endMins) {
                   statusLabel = 'completed';
-                  statusText = 'Completed';
-                  badgeStyle = 'border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 bg-zinc-100 dark:bg-zinc-800';
-                } else if (currentTimeMins >= startMins && currentTimeMins < endMins) {
+                } else if (
+                  currentTimeMins >= startMins &&
+                  currentTimeMins < endMins
+                ) {
                   statusLabel = 'live';
-                  statusText = 'Live Now';
-                  badgeStyle = 'border-emerald-200 dark:border-emerald-950/40 text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20';
                 }
 
-                const hasAttended = attendanceLogs.some(
-                  (log) => log.timetableEntryId === entry.id && log.date === deviceToday && log.status === 'attended'
-                );
+                const hasAttended =
+                  attendanceLogs.some(
+                    (log) =>
+                      log.timetableEntryId ===
+                        entry.id &&
+                      log.date === deviceToday &&
+                      log.status === 'attended'
+                  );
 
-                const isInteractable = !entry.isCancelled && (statusLabel === 'live' || statusLabel === 'completed');
+                const isInteractable =
+                  !entry.isCancelled &&
+                  (statusLabel === 'live' ||
+                    statusLabel === 'completed');
+
+                const isLast =
+                  index === todayEntries.length - 1;
 
                 return (
                   <div
                     key={entry.id}
                     id={`class-item-${entry.id}`}
-                    className={`border p-4 transition-all duration-150 rounded-none bg-white dark:bg-zinc-900 ${
-                      entry.isCancelled
-                        ? 'opacity-60 border-zinc-100 dark:border-zinc-800'
-                        : statusLabel === 'live'
-                        ? 'border-blue-600 dark:border-blue-550 ring-1 ring-blue-600 ring-offset-0'
-                        : 'border-zinc-200 dark:border-zinc-800'
+                    className={`relative grid grid-cols-[64px_18px_minmax(0,1fr)] md:grid-cols-[78px_20px_minmax(0,1fr)_auto] gap-3 md:gap-4 py-5 border-b border-zinc-200 dark:border-zinc-800 ${
+                      statusLabel === 'live'
+                        ? 'bg-amber-50/50 dark:bg-amber-950/10'
+                        : ''
                     }`}
                   >
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-1.5 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-mono font-bold uppercase text-zinc-500 dark:text-zinc-400">
-                            {entry.startTime} - {entry.endTime}
-                          </span>
-                          <span className={`text-[10px] font-mono uppercase px-1.5 py-0.5 border ${badgeStyle}`}>
-                            {statusText}
-                          </span>
-                          {hasAttended && (
-                            <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-emerald-200 dark:border-emerald-950/40 text-emerald-800 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 flex items-center gap-1">
-                              <Check className="w-3 h-3" /> Attended
-                            </span>
-                          )}
-                          {!hasAttended && statusLabel === 'completed' && !entry.isCancelled && (
-                            <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-red-200 dark:border-red-950/40 text-red-800 dark:text-red-400 bg-red-50 dark:bg-red-950/20 flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" /> Missed Check-in
-                            </span>
-                          )}
-                          {entry.isCancelled && (
-                            <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800">
-                              Streak Safe
-                            </span>
-                          )}
-                        </div>
+                    {/* TIME */}
 
-                        <h3 className={`font-bold text-base text-zinc-900 dark:text-zinc-100 tracking-tight ${entry.isCancelled ? 'line-through text-zinc-400 dark:text-zinc-500' : ''}`}>
-                          {entry.subject}
-                        </h3>
+                    <div className="pt-0.5 text-right">
+                      <span
+                        className={`text-[11px] font-mono font-bold ${
+                          statusLabel === 'live'
+                            ? 'text-amber-700 dark:text-amber-400'
+                            : 'text-zinc-500 dark:text-zinc-400'
+                        }`}
+                      >
+                        {entry.startTime}
+                      </span>
 
-                        <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 font-mono">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
-                            {entry.venue}
-                            {entry.originalVenue && (
-                              <span className="text-zinc-400 dark:text-zinc-500 line-through text-[11px] ml-1">
-                                (was {entry.originalVenue})
-                              </span>
-                            )}
+                      <span className="block text-[9px] font-mono text-zinc-400 dark:text-zinc-600 mt-0.5">
+                        {entry.endTime}
+                      </span>
+                    </div>
+
+                    {/* TIMELINE */}
+
+                    <div className="relative flex justify-center">
+                      {!isLast && (
+                        <span className="absolute top-3 bottom-[-21px] w-px bg-zinc-200 dark:bg-zinc-800" />
+                      )}
+
+                      <span
+                        className={`relative z-10 mt-1.5 w-2.5 h-2.5 rounded-full border-2 ${
+                          statusLabel === 'live'
+                            ? 'bg-amber-500 border-amber-500'
+                            : statusLabel === 'completed'
+                            ? 'bg-zinc-400 border-zinc-400 dark:bg-zinc-600 dark:border-zinc-600'
+                            : statusLabel === 'cancelled'
+                            ? 'bg-white border-zinc-300 dark:bg-zinc-950 dark:border-zinc-700'
+                            : 'bg-white border-zinc-400 dark:bg-zinc-950 dark:border-zinc-500'
+                        }`}
+                      />
+                    </div>
+
+                    {/* CLASS CONTENT */}
+
+                    <div
+                      className={`min-w-0 ${
+                        statusLabel === 'completed'
+                          ? 'opacity-70'
+                          : entry.isCancelled
+                          ? 'opacity-55'
+                          : ''
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                        <span
+                          className={`text-[9px] font-mono font-bold uppercase tracking-wider ${
+                            statusLabel === 'live'
+                              ? 'text-emerald-600 dark:text-emerald-400'
+                              : statusLabel === 'cancelled'
+                              ? 'text-zinc-400 dark:text-zinc-500'
+                              : 'text-zinc-400 dark:text-zinc-500'
+                          }`}
+                        >
+                          {statusLabel === 'live'
+                            ? 'Live now'
+                            : statusLabel ===
+                              'completed'
+                            ? hasAttended
+                              ? 'Completed'
+                              : 'Missed check-in'
+                            : statusLabel ===
+                              'cancelled'
+                            ? 'Cancelled'
+                            : 'Upcoming'}
+                        </span>
+
+                        {hasAttended && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold uppercase text-emerald-600 dark:text-emerald-400">
+                            <Check className="w-3 h-3" />
+                            Attended
                           </span>
-                          <span>{entry.durationMinutes} mins</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        {hasAttended ? (
-                          <div className="px-4 py-2 text-xs font-mono text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 flex items-center gap-1.5 select-none w-full md:w-auto justify-center">
-                            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                            Attendance Logged
-                          </div>
-                        ) : entry.isCancelled ? (
-                          <div className="px-4 py-2 text-xs font-mono text-zinc-400 dark:text-zinc-500 border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 select-none text-center">
-                            No Attendance Required
-                          </div>
-                        ) : isInteractable ? (
-                          <button
-                            id={`btn-mark-${entry.id}`}
-                            onClick={() => onMarkAttendance(entry.id, deviceToday)}
-                            className="px-4 py-2 text-xs font-mono font-bold bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 transition-colors flex items-center gap-1.5 w-full md:w-auto justify-center shadow-sm cursor-pointer"
-                          >
-                            Mark attendance
-                          </button>
-                        ) : (
-                          <button
-                            disabled
-                            className="px-4 py-2 text-xs font-mono text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 select-none w-full md:w-auto text-center"
-                          >
-                            Check-in locked
-                          </button>
                         )}
                       </div>
+
+                      <h3
+                        className={`text-base font-bold tracking-tight text-zinc-950 dark:text-white ${
+                          entry.isCancelled
+                            ? 'line-through'
+                            : ''
+                        }`}
+                      >
+                        {entry.subject}
+                      </h3>
+
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs font-mono text-zinc-500 dark:text-zinc-400">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+
+                          {entry.venue}
+                        </span>
+
+                        <span>
+                          {entry.durationMinutes} min
+                        </span>
+                      </div>
+
+                      {entry.originalVenue && (
+                        <p className="mt-1 text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
+                          Originally:{' '}
+                          <span className="line-through">
+                            {entry.originalVenue}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* ACTION */}
+
+                    <div className="col-start-3 md:col-start-4 md:self-center md:row-start-1">
+                      {hasAttended ? (
+                        <div className="inline-flex items-center gap-1.5 px-3 py-2 border border-zinc-200 dark:border-zinc-800 text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
+                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                          Logged
+                        </div>
+                      ) : entry.isCancelled ? (
+                        <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
+                          No check-in
+                        </span>
+                      ) : isInteractable ? (
+                        <button
+                          id={`btn-mark-${entry.id}`}
+                          onClick={() =>
+                            onMarkAttendance(
+                              entry.id,
+                              deviceToday
+                            )
+                          }
+                          className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 border border-zinc-950 dark:border-white text-[10px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                        >
+                          Mark attendance
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
+                          Check-in opens during class
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
           )}
-        </div>
+        </main>
+        {/* ===================================================
+            RIGHT SIDEBAR
+        ==================================================== */}
 
-        <div className="space-y-6" id="home-sidebar">
-        </div>
+        <aside
+          id="home-sidebar"
+          className="space-y-5"
+        >
+          {/* =================================================
+              ATTENDANCE
+          ================================================== */}
+
+          <section
+            id="attendance-summary"
+            className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
+          >
+            <div className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
+                    Attendance
+                  </p>
+
+                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white mt-1">
+                    Current standing
+                  </h3>
+                </div>
+
+                <span
+                  className={`text-[9px] font-mono font-bold uppercase tracking-wider ${
+                    stats.attendancePercentage >= 75
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-amber-600 dark:text-amber-400'
+                  }`}
+                >
+                  {stats.attendancePercentage >= 75
+                    ? 'On target'
+                    : 'Below target'}
+                </span>
+              </div>
+
+              <div className="flex items-end justify-between mt-6">
+                <span className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-white">
+                  {stats.attendancePercentage}%
+                </span>
+
+                <span className="text-[9px] font-mono text-zinc-400 dark:text-zinc-500 pb-1">
+                  {stats.attendedCount} /{' '}
+                  {stats.totalScheduled} attended
+                </span>
+              </div>
+
+              <div className="mt-4 h-1.5 bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                <div
+                  className={`h-full transition-all ${
+                    stats.attendancePercentage >= 75
+                      ? 'bg-zinc-950 dark:bg-white'
+                      : 'bg-amber-500'
+                  }`}
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      stats.attendancePercentage
+                    )}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 border-t border-zinc-200 dark:border-zinc-800">
+              <div className="p-4 border-r border-zinc-200 dark:border-zinc-800">
+                <span className="block text-[9px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                  Attended
+                </span>
+
+                <span className="block text-lg font-bold text-zinc-950 dark:text-white mt-1">
+                  {stats.attendedCount}
+                </span>
+              </div>
+
+              <div className="p-4">
+                <span className="block text-[9px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                  Missed
+                </span>
+
+                <span className="block text-lg font-bold text-zinc-950 dark:text-white mt-1">
+                  {stats.missedCount}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* =================================================
+              UPDATES
+          ================================================== */}
+
+          <section
+            id="updates-panel"
+            className={`border bg-white dark:bg-zinc-900 ${
+              hasUnread
+                ? 'border-amber-300 dark:border-amber-800'
+                : 'border-zinc-200 dark:border-zinc-800'
+            }`}
+          >
+            <div className="p-5 pb-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
+                      Bulletin
+                    </p>
+
+                    {hasUnread && (
+                      <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                        New
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white mt-1">
+                    Updates
+                  </h3>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {onForceRefresh && (
+                    <button
+                      onClick={handleForceRefresh}
+                      disabled={isRefreshing}
+                      className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer disabled:opacity-40"
+                      title="Refresh updates"
+                    >
+                      <RotateCw
+                        className={`w-3.5 h-3.5 ${
+                          isRefreshing
+                            ? 'animate-spin'
+                            : ''
+                        }`}
+                      />
+                    </button>
+                  )}
+
+                  {onNavigateToNotifications && (
+                    <button
+                      onClick={onNavigateToNotifications}
+                      className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
+                      title="Open notifications"
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {visibleBulletinUpdates.length === 0 ? (
+              <div className="px-5 py-7 border-t border-zinc-200 dark:border-zinc-800">
+                <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                  No new updates.
+                </p>
+              </div>
+            ) : (
+              <div className="border-t border-zinc-200 dark:border-zinc-800">
+                {visibleBulletinUpdates.map((up) => {
+                  const parsedData = parseUpdate(up);
+                  const isPoll =
+                    parsedData?.isPoll === true;
+
+                  const label = getUpdateLabel(up);
+
+                  const hasVoted =
+                    userVotes[up.id]?.hasVoted === true;
+
+                  const isClassRepAnnouncement =
+                    Boolean(
+                      up.userId &&
+                        (
+                          up.userId.startsWith(
+                            'user_rep'
+                          ) ||
+                          up.userId.includes('rep') ||
+                          up.userId.includes('asst') ||
+                          up.userName
+                            .toLowerCase()
+                            .includes('rep') ||
+                          up.userName
+                            .toLowerCase()
+                            .includes('asst')
+                        )
+                    );
+
+                  return (
+                    <article
+                      key={up.id}
+                      className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-2">
+                        <span
+                          className={`px-1.5 py-0.5 border text-[8px] font-mono font-bold uppercase tracking-wider ${label.className}`}
+                        >
+                          {isPoll
+                            ? 'POLL'
+                            : isClassRepAnnouncement
+                            ? 'CLASS REP'
+                            : label.text}
+                        </span>
+
+                        <span className="text-[8px] font-mono text-zinc-400 dark:text-zinc-600 shrink-0">
+                          {new Date(
+                            up.timestamp
+                          ).toLocaleDateString(
+                            undefined,
+                            {
+                              month: 'short',
+                              day: 'numeric',
+                            }
+                          )}
+                        </span>
+                      </div>
+
+                      {isPoll && parsedData ? (
+                        <div>
+                          <p className="text-xs font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100">
+                            {parsedData.question}
+                          </p>
+
+                          <button
+                            onClick={
+                              onNavigateToNotifications
+                            }
+                            className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-950 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer"
+                          >
+                            Respond anonymously
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+                            {up.description}
+                          </p>
+
+                          <div className="flex items-center justify-between gap-3 mt-3">
+                            <span className="text-[8px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-600 truncate">
+                              {isClassRepAnnouncement
+                                ? 'Class representative'
+                                : `By ${up.userName}`}
+                            </span>
+
+                            <button
+                              onClick={() =>
+                                handleRegisterVote(
+                                  up.id
+                                )
+                              }
+                              disabled={hasVoted}
+                              className={`shrink-0 inline-flex items-center gap-1.5 text-[8px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer ${
+                                hasVoted
+                                  ? 'text-emerald-600 dark:text-emerald-400 cursor-default'
+                                  : 'text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
+                              }`}
+                            >
+                              <ThumbsUp
+                                className={`w-3 h-3 ${
+                                  hasVoted
+                                    ? 'fill-current'
+                                    : ''
+                                }`}
+                              />
+
+                              {hasVoted
+                                ? 'Agreed'
+                                : 'Agree'}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            {bulletinUpdates.length > 3 && (
+              <div className="border-t border-zinc-200 dark:border-zinc-800 px-5 py-3">
+                <button
+                  onClick={handleToggleAnnouncements}
+                  className="flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
+                >
+                  {isAnnouncementOpen
+                    ? 'Show less'
+                    : `Show ${Math.min(
+                        bulletinUpdates.length,
+                        5
+                      )} updates`}
+
+                  <ChevronRight
+                    className={`w-3 h-3 transition-transform ${
+                      isAnnouncementOpen
+                        ? 'rotate-90'
+                        : ''
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* =================================================
+              CLASS REP CONSOLE
+          ================================================== */}
+
+          {userRole === 'representative' &&
+            onAddBroadcast &&
+            activeClassId && (
+              <section
+                id="class-rep-console"
+                className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
+              >
+                <div className="p-5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Megaphone className="w-3.5 h-3.5 text-zinc-500" />
+
+                    <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
+                      Representative
+                    </p>
+                  </div>
+
+                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
+                    Broadcast to class
+                  </h3>
+
+                  <form
+                    onSubmit={handleClassRepSubmit}
+                    className="mt-4"
+                  >
+                    <textarea
+                      value={classRepMsg}
+                      onChange={(e) =>
+                        setClassRepMsg(e.target.value)
+                      }
+                      placeholder="Share a reminder or important class notice..."
+                      maxLength={250}
+                      rows={3}
+                      required
+                      className="w-full resize-none bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-amber-500 dark:focus:border-amber-500"
+                    />
+
+                    <div className="flex items-center justify-between gap-3 mt-2">
+                      <span className="text-[8px] font-mono text-zinc-400 dark:text-zinc-600">
+                        {classRepMsg.length}/250
+                      </span>
+
+                      <button
+                        type="submit"
+                        disabled={
+                          isSubmittingRepMsg ||
+                          !classRepMsg.trim()
+                        }
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 text-[9px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isSubmittingRepMsg
+                          ? 'Publishing...'
+                          : 'Broadcast'}
+
+                        <Send className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    {repSuccess && (
+                      <p className="mt-3 text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        Broadcast dispatched successfully.
+                      </p>
+                    )}
+                  </form>
+                </div>
+              </section>
+            )}
+
+          {/* =================================================
+              SPONSOR SPOTLIGHT
+          ================================================== */}
+
+          {activeAd && activeAdData && (
+            <section
+              id="sponsor-spotlight"
+              className="border border-amber-200 dark:border-amber-900/40 bg-amber-50/30 dark:bg-amber-950/10"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  if (onTrackAdEvent) {
+                    onTrackAdEvent(
+                      activeAd.id,
+                      'click'
+                    );
+                  }
+
+                  const destination =
+                    activeAdData.adUrl ||
+                    activeAdData.adLink;
+
+                  if (destination) {
+                    window.open(
+                      destination,
+                      '_blank',
+                      'noopener,noreferrer'
+                    );
+                  }
+                }}
+                className="w-full text-left p-5 cursor-pointer"
+              >
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Megaphone className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+
+                    <span className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-400">
+                      Sponsored
+                    </span>
+                  </div>
+
+                  <ArrowUpRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                </div>
+
+                {activeAdData.adImageUrl && (
+                  <img
+                    src={activeAdData.adImageUrl}
+                    alt="Sponsored promotion"
+                    referrerPolicy="no-referrer"
+                    className="w-full h-28 object-cover border border-amber-200 dark:border-amber-900/40 mb-4"
+                  />
+                )}
+
+                <h3 className="text-sm font-bold tracking-tight text-zinc-950 dark:text-white">
+                  {activeAdData.adTitle ||
+                    'Campaign promotion'}
+                </h3>
+
+                <p className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400 mt-1.5">
+                  {activeAdData.description ||
+                    'Promoted partner offer'}
+                </p>
+
+                {activeAdData.adActionText && (
+                  <span className="inline-flex items-center gap-1 mt-3 text-[9px] font-mono font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                    {activeAdData.adActionText}
+                    <ChevronRight className="w-3 h-3" />
+                  </span>
+                )}
+              </button>
+            </section>
+          )}
+        </aside>
       </div>
     </div>
   );
