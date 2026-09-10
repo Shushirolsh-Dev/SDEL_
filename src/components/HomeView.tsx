@@ -17,9 +17,12 @@ import {
   AttendanceLog,
   ClassGroup,
   ClassUpdate,
+  User,
 } from '../types';
 
 interface HomeViewProps {
+  currentUser: User;
+
   timetable: TimetableEntry[];
   attendanceLogs: AttendanceLog[];
   joinedClasses: ClassGroup[];
@@ -44,10 +47,6 @@ interface HomeViewProps {
  * ---------------------------------------------------------
  * LOCALIZATION-READY UI COPY
  * ---------------------------------------------------------
- *
- * Keep user-facing text here.
- * When THESDEL adds more languages, this object can become
- * a locale dictionary without rebuilding the component.
  */
 
 const TEXT = {
@@ -75,60 +74,6 @@ const TEXT = {
   broadcastToClass: 'Broadcast to class',
   sponsored: 'Sponsored',
 } as const;
-
-/*
- * ---------------------------------------------------------
- * USERNAME
- * ---------------------------------------------------------
- *
- * Read the existing locally stored THESDEL profile/user
- * rather than hardcoding a username.
- *
- * This intentionally checks several existing-style storage
- * locations so the dashboard remains usable across auth
- * versions.
- */
-
-const getStoredUsername = (): string => {
-  const storageKeys = [
-    'thesdel_user',
-    'thesdel_profile',
-    'user',
-    'profile',
-  ];
-
-  for (const key of storageKeys) {
-    try {
-      const raw = localStorage.getItem(key);
-
-      if (!raw) continue;
-
-      try {
-        const parsed = JSON.parse(raw);
-
-        const name =
-          parsed?.username ||
-          parsed?.userName ||
-          parsed?.displayName ||
-          parsed?.fullName ||
-          parsed?.name;
-
-        if (
-          typeof name === 'string' &&
-          name.trim()
-        ) {
-          return name.trim();
-        }
-      } catch {
-        if (raw.trim()) {
-          return raw.trim();
-        }
-      }
-    } catch {}
-  }
-
-  return 'Student';
-};
 
 const getGreeting = (): string => {
   const hour = new Date().getHours();
@@ -174,6 +119,7 @@ const calculateRealAttendanceStats = (
   ).length;
 
   const totalScheduled = pastEntries.length;
+
   const missedCount =
     totalScheduled - attendedCount;
 
@@ -231,6 +177,7 @@ const calculateRealAttendanceStats = (
 };
 
 export default function HomeView({
+  currentUser,
   timetable,
   attendanceLogs,
   joinedClasses,
@@ -244,6 +191,19 @@ export default function HomeView({
   onNavigateToNotifications,
   onTrackAdEvent,
 }: HomeViewProps) {
+  /*
+   * ---------------------------------------------------------
+   * AUTHENTICATED USER
+   * ---------------------------------------------------------
+   *
+   * The authenticated user is supplied by the parent.
+   * HomeView does NOT perform another profile/database read.
+   */
+
+  const firstName =
+    currentUser.name?.trim().split(/\s+/)[0] ||
+    'Student';
+
   const [currentTimeMins, setCurrentTimeMins] =
     useState(0);
 
@@ -271,9 +231,6 @@ export default function HomeView({
 
   const [isRefreshing, setIsRefreshing] =
     useState(false);
-
-  const [username, setUsername] =
-    useState('Student');
 
   const [greeting, setGreeting] =
     useState(getGreeting());
@@ -320,7 +277,6 @@ export default function HomeView({
   });
 
   useEffect(() => {
-    setUsername(getStoredUsername());
     setGreeting(getGreeting());
   }, []);
 
@@ -374,7 +330,6 @@ export default function HomeView({
       JSON.stringify(updated)
     );
   };
-
   useEffect(() => {
     const bulletinUpdates = updates.filter((up) => {
       if (
@@ -741,13 +696,6 @@ export default function HomeView({
     activeAd,
     onTrackAdEvent,
   ]);
-
-  /*
-   * ---------------------------------------------------------
-   * DERIVED BULLETIN / UPDATE DATA
-   * ---------------------------------------------------------
-   */
-
   const bulletinUpdates = updates.filter(
     (up) => {
       if (
@@ -798,12 +746,6 @@ export default function HomeView({
     isAnnouncementOpen
       ? bulletinUpdates.slice(0, 5)
       : bulletinUpdates.slice(0, 3);
-
-  /*
-   * ---------------------------------------------------------
-   * UPDATE HELPERS
-   * ---------------------------------------------------------
-   */
 
   const parseUpdate = (
     update: ClassUpdate
@@ -860,12 +802,6 @@ export default function HomeView({
     };
   };
 
-  /*
-   * ---------------------------------------------------------
-   * ACTIVE AD DATA
-   * ---------------------------------------------------------
-   */
-
   let activeAdData: any = null;
 
   if (activeAd) {
@@ -881,12 +817,6 @@ export default function HomeView({
       activeAdData = null;
     }
   }
-
-  /*
-   * ---------------------------------------------------------
-   * NEXT CLASS
-   * ---------------------------------------------------------
-   */
 
   const currentMinutes =
     getMinutes(currentSimulatedTime);
@@ -927,36 +857,20 @@ export default function HomeView({
     upcomingEntry ||
     null;
 
-  /*
-   * ---------------------------------------------------------
-   * RENDER
-   * ---------------------------------------------------------
-   */
-
   return (
     <div
       className="space-y-8 pb-10"
       id="home-view-container"
     >
-      {/* =====================================================
-          HEADER
-      ====================================================== */}
-
-      <header
-        className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4"
-        id="home-header"
-      >
+      {/* HEADER */}
+      <header className="flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
+            Today
+          </p>
 
-            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
-              {TEXT.today}
-            </span>
-          </div>
-
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
-            {greeting}, {username}.
+          <h1 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
+            {greeting}, {firstName}.
           </h1>
 
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -964,786 +878,543 @@ export default function HomeView({
           </p>
         </div>
 
-                <button
+        <button
+          type="button"
           onClick={onNavigateToNotifications}
-          className="relative self-start sm:self-auto flex items-center justify-center w-10 h-10 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-500 hover:text-zinc-950 dark:hover:text-white hover:border-zinc-400 dark:hover:border-zinc-600 transition-colors cursor-pointer"
-          title="Notifications"
+          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          aria-label="Open notifications"
         >
-          <Bell className="w-4 h-4" />
+          <Bell className="h-5 w-5" />
 
           {hasUnread && (
-            <>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full animate-ping" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full" />
-            </>
+            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-500" />
           )}
         </button>
       </header>
 
-      {/* =====================================================
-          NEXT CLASS HERO
-      ====================================================== */}
-
-      <section
-        id="next-class-hero"
-        className="relative overflow-hidden border border-zinc-900 dark:border-zinc-100 bg-zinc-950 dark:bg-white text-white dark:text-zinc-950"
-      >
+      {/* NEXT CLASS */}
+      <section className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-950 text-white dark:border-zinc-800">
         <div className="relative p-6 sm:p-8">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
+          <div className="flex flex-col gap-7 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-5">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    nextClassIsLive
-                      ? 'bg-emerald-400 animate-pulse'
-                      : 'bg-amber-400'
-                  }`}
-                />
-
-                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
-                  {nextClassIsLive
-                    ? TEXT.liveNow
-                    : TEXT.nextClass}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                  {nextClassIsLive ? 'Live class' : 'Next class'}
                 </span>
+
+                {nextClassIsLive && (
+                  <span className="h-2 w-2 rounded-full bg-amber-400" />
+                )}
               </div>
 
               {displayNextClass ? (
                 <>
-                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight max-w-2xl">
-                    {displayNextClass.subject}
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                    {displayNextClass.courseCode ||
+                      displayNextClass.subject ||
+                      'Class'}
                   </h2>
 
-                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 text-sm text-zinc-300 dark:text-zinc-600">
-                    <span className="flex items-center gap-1.5 font-mono">
-                      <Clock className="w-3.5 h-3.5" />
-
-                      {displayNextClass.startTime} —{' '}
+                  <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-zinc-300">
+                    <span className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      {displayNextClass.startTime} –{' '}
                       {displayNextClass.endTime}
                     </span>
 
-                    <span className="flex items-center gap-1.5 font-mono">
-                      <MapPin className="w-3.5 h-3.5" />
-
-                      {displayNextClass.venue}
-                    </span>
+                    {displayNextClass.venue && (
+                      <span className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        {displayNextClass.venue}
+                      </span>
+                    )}
                   </div>
                 </>
               ) : (
                 <>
-                  <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-                    {TEXT.noMoreClasses}
+                  <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+                    No more classes
                   </h2>
 
-                  <p className="mt-3 text-sm text-zinc-400 dark:text-zinc-500">
-                    {TEXT.nothingScheduled}
+                  <p className="mt-3 text-sm text-zinc-400">
+                    Your academic day is clear.
                   </p>
                 </>
               )}
             </div>
 
-            <div className="lg:text-right shrink-0">
-              <span className="block text-[10px] font-mono uppercase tracking-[0.2em] text-zinc-500 mb-2">
-                {TEXT.status}
-              </span>
-
-              <span className="text-xl sm:text-2xl font-mono font-bold tracking-tight">
-                {liveCountdown ||
-                  'No more classes today'}
-              </span>
+            <div className="shrink-0">
+              <p className="text-sm font-semibold text-amber-400">
+                {liveCountdown}
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* =====================================================
-          MAIN CONTENT
-      ====================================================== */}
-
-      <div
-        className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8"
-        id="home-main-layout"
-      >
-        {/* ===================================================
-            LEFT / TODAY'S TIMELINE
-        ==================================================== */}
-
-        <main id="today-timeline">
-          <div className="flex items-center justify-between pb-3 border-b border-zinc-200 dark:border-zinc-800">
+      {/* MAIN GRID */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {/* TODAY'S TIMETABLE */}
+        <section>
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">
-                {TEXT.schedule}
+              <h2 className="text-lg font-bold text-zinc-950 dark:text-white">
+                Today
               </h2>
 
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                {todayEntries.length === 0
-                  ? TEXT.nothingScheduled
-                  : `${todayEntries.length} ${
-                      todayEntries.length === 1
-                        ? TEXT.classScheduled
-                        : TEXT.classesScheduled
-                    } scheduled`}
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Your class schedule
               </p>
             </div>
 
-            <span className="hidden sm:block text-[10px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-              {currentSimulatedTime}
-            </span>
+            {onForceRefresh && (
+              <button
+                type="button"
+                onClick={onForceRefresh}
+                className="flex items-center gap-2 text-xs font-semibold text-zinc-500 transition hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
+              >
+                <RotateCw className="h-4 w-4" />
+                Refresh
+              </button>
+            )}
           </div>
 
-          {joinedClasses.length === 0 ? (
-            <div
-              className="py-16 text-center border-b border-zinc-200 dark:border-zinc-800"
-              id="empty-classes-prompt"
-            >
-              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                No classes connected.
+          {todayEntries.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center dark:border-zinc-800 dark:bg-zinc-950">
+              <p className="font-semibold text-zinc-900 dark:text-white">
+                No classes today
               </p>
 
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
-                Join a class from the Class tab to build
-                your schedule.
-              </p>
-            </div>
-          ) : todayEntries.length === 0 ? (
-            <div
-              className="py-16 text-center border-b border-zinc-200 dark:border-zinc-800"
-              id="no-classes-today"
-            >
-              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                No classes scheduled today.
-              </p>
-
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">
-                Your next classes will appear on the
-                timetable.
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Enjoy the free time or get ahead.
               </p>
             </div>
           ) : (
-            <div id="classes-list">
-              {todayEntries.map((entry, index) => {
-                const startMins = getMinutes(
+            <div className="divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+              {todayEntries.map((entry) => {
+                const start = getMinutes(
                   entry.startTime
                 );
 
-                const endMins = getMinutes(
+                const end = getMinutes(
                   entry.endTime
                 );
 
-                let statusLabel:
-                  | 'upcoming'
-                  | 'live'
-                  | 'completed'
-                  | 'cancelled' = 'upcoming';
+                const isLive =
+                  currentMinutes >= start &&
+                  currentMinutes < end &&
+                  !entry.isCancelled;
 
-                if (entry.isCancelled) {
-                  statusLabel = 'cancelled';
-                } else if (
-                  currentTimeMins >= endMins
-                ) {
-                  statusLabel = 'completed';
-                } else if (
-                  currentTimeMins >= startMins &&
-                  currentTimeMins < endMins
-                ) {
-                  statusLabel = 'live';
-                }
+                const attendance = attendanceLogs.find(
+                  (log) =>
+                    log.entryId === entry.id &&
+                    log.date === deviceToday
+                );
 
-                const hasAttended =
-                  attendanceLogs.some(
-                    (log) =>
-                      log.timetableEntryId ===
-                        entry.id &&
-                      log.date === deviceToday &&
-                      log.status === 'attended'
-                  );
-
-                const isInteractable =
-                  !entry.isCancelled &&
-                  (statusLabel === 'live' ||
-                    statusLabel === 'completed');
-
-                const isLast =
-                  index === todayEntries.length - 1;
+                const isMarked =
+                  attendance?.status === 'present';
 
                 return (
                   <div
                     key={entry.id}
-                    id={`class-item-${entry.id}`}
-                    className={`relative grid grid-cols-[64px_18px_minmax(0,1fr)] md:grid-cols-[78px_20px_minmax(0,1fr)_auto] gap-3 md:gap-4 py-5 border-b border-zinc-200 dark:border-zinc-800 ${
-                      statusLabel === 'live'
+                    className={`group flex items-center gap-4 py-5 ${
+                      isLive
                         ? 'bg-amber-50/50 dark:bg-amber-950/10'
                         : ''
                     }`}
                   >
-                    {/* TIME */}
-
-                    <div className="pt-0.5 text-right">
-                      <span
-                        className={`text-[11px] font-mono font-bold ${
-                          statusLabel === 'live'
-                            ? 'text-amber-700 dark:text-amber-400'
-                            : 'text-zinc-500 dark:text-zinc-400'
-                        }`}
-                      >
+                    <div className="w-20 shrink-0">
+                      <p className="text-sm font-semibold text-zinc-950 dark:text-white">
                         {entry.startTime}
-                      </span>
+                      </p>
 
-                      <span className="block text-[9px] font-mono text-zinc-400 dark:text-zinc-600 mt-0.5">
+                      <p className="mt-1 text-xs text-zinc-400">
                         {entry.endTime}
-                      </span>
+                      </p>
                     </div>
 
-                    {/* TIMELINE */}
-
-                    <div className="relative flex justify-center">
-                      {!isLast && (
-                        <span className="absolute top-3 bottom-[-21px] w-px bg-zinc-200 dark:bg-zinc-800" />
-                      )}
-
-                      <span
-                        className={`relative z-10 mt-1.5 w-2.5 h-2.5 rounded-full border-2 ${
-                          statusLabel === 'live'
-                            ? 'bg-amber-500 border-amber-500'
-                            : statusLabel === 'completed'
-                            ? 'bg-zinc-400 border-zinc-400 dark:bg-zinc-600 dark:border-zinc-600'
-                            : statusLabel === 'cancelled'
-                            ? 'bg-white border-zinc-300 dark:bg-zinc-950 dark:border-zinc-700'
-                            : 'bg-white border-zinc-400 dark:bg-zinc-950 dark:border-zinc-500'
+                    <div className="relative flex min-w-0 flex-1 items-center gap-4">
+                      <div
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          isLive
+                            ? 'bg-amber-500'
+                            : entry.isCancelled
+                            ? 'bg-rose-500'
+                            : 'bg-zinc-300 dark:bg-zinc-700'
                         }`}
                       />
-                    </div>
 
-                    {/* CLASS CONTENT */}
-
-                    <div
-                      className={`min-w-0 ${
-                        statusLabel === 'completed'
-                          ? 'opacity-70'
-                          : entry.isCancelled
-                          ? 'opacity-55'
-                          : ''
-                      }`}
-                    >
-                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                        <span
-                          className={`text-[9px] font-mono font-bold uppercase tracking-wider ${
-                            statusLabel === 'live'
-                              ? 'text-emerald-600 dark:text-emerald-400'
-                              : 'text-zinc-400 dark:text-zinc-500'
+                      <div className="min-w-0">
+                        <p
+                          className={`truncate font-semibold ${
+                            entry.isCancelled
+                              ? 'text-zinc-400 line-through'
+                              : 'text-zinc-950 dark:text-white'
                           }`}
                         >
-                          {statusLabel === 'live'
-                            ? TEXT.liveNow
-                            : statusLabel ===
-                              'completed'
-                            ? hasAttended
-                              ? TEXT.attended
-                              : 'Missed check-in'
-                            : statusLabel ===
-                              'cancelled'
-                            ? 'Cancelled'
-                            : 'Upcoming'}
-                        </span>
+                          {entry.courseCode ||
+                            entry.subject ||
+                            'Class'}
+                        </p>
 
-                        {hasAttended && (
-                          <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold uppercase text-emerald-600 dark:text-emerald-400">
-                            <Check className="w-3 h-3" />
-                            {TEXT.attended}
-                          </span>
-                        )}
+                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                          {entry.venue && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {entry.venue}
+                            </span>
+                          )}
+
+                          {isLive && (
+                            <span className="font-semibold text-amber-600 dark:text-amber-400">
+                              LIVE
+                            </span>
+                          )}
+
+                          {entry.isCancelled && (
+                            <span className="font-semibold text-rose-600 dark:text-rose-400">
+                              CANCELLED
+                            </span>
+                          )}
+                        </div>
                       </div>
+                    </div>
 
-                      <h3
-                        className={`text-base font-bold tracking-tight text-zinc-950 dark:text-white ${
-                          entry.isCancelled
-                            ? 'line-through'
-                            : ''
+                    {!entry.isCancelled && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onMarkAttendance(
+                            entry.id,
+                            deviceToday
+                          )
+                        }
+                        disabled={isMarked}
+                        className={`flex h-9 shrink-0 items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition ${
+                          isMarked
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-400'
+                            : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:text-white'
                         }`}
                       >
-                        {entry.subject}
-                      </h3>
-
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs font-mono text-zinc-500 dark:text-zinc-400">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {entry.venue}
-                        </span>
-
-                        <span>
-                          {entry.durationMinutes} min
-                        </span>
-                      </div>
-
-                      {entry.originalVenue && (
-                        <p className="mt-1 text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
-                          Originally:{' '}
-                          <span className="line-through">
-                            {entry.originalVenue}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-
-                    {/* ACTION */}
-
-                    <div className="col-start-3 md:col-start-4 md:self-center md:row-start-1">
-                      {hasAttended ? (
-                        <div className="inline-flex items-center gap-1.5 px-3 py-2 border border-zinc-200 dark:border-zinc-800 text-[10px] font-mono text-zinc-500 dark:text-zinc-400">
-                          <Check className="w-3.5 h-3.5 text-emerald-500" />
-                          Logged
-                        </div>
-                      ) : entry.isCancelled ? (
-                        <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
-                          No check-in
-                        </span>
-                      ) : isInteractable ? (
-                        <button
-                          id={`btn-mark-${entry.id}`}
-                          onClick={() =>
-                            onMarkAttendance(
-                              entry.id,
-                              deviceToday
-                            )
-                          }
-                          className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 border border-zinc-950 dark:border-white text-[10px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer"
-                        >
-                          Mark attendance
-                        </button>
-                      ) : (
-                        <span className="text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
-                          Check-in opens during class
-                        </span>
-                      )}
-                    </div>
+                        <Check className="h-3.5 w-3.5" />
+                        {isMarked
+                          ? 'Present'
+                          : 'Mark'}
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
           )}
-        </main>
-{/* ===================================================
-            RIGHT / SIDEBAR
-        ==================================================== */}
+        </section>
 
-        <aside
-          id="home-sidebar"
-          className="space-y-5"
-        >
-          {/* =================================================
-              ATTENDANCE
-          ================================================== */}
+        {/* SIDEBAR */}
+        <aside className="space-y-6">
+          {/* ATTENDANCE */}
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
+                  Attendance
+                </p>
 
-          <section
-            id="attendance-summary"
-            className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
-          >
-            <div className="p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
-                    {TEXT.attendance}
-                  </p>
-
-                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white mt-1">
-                    {TEXT.currentStanding}
-                  </h3>
-                </div>
-
-                <span
-                  className={`text-[9px] font-mono font-bold uppercase tracking-wider ${
-                    stats.attendancePercentage >= 75
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-amber-600 dark:text-amber-400'
-                  }`}
-                >
-                  {stats.attendancePercentage >= 75
-                    ? TEXT.onTarget
-                    : TEXT.belowTarget}
-                </span>
+                <p className="mt-2 text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
+                  {stats.percentage}%
+                </p>
               </div>
 
-              <div className="flex items-end justify-between mt-6">
-                <span className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-white">
-                  {stats.attendancePercentage}%
-                </span>
-
-                <span className="text-[9px] font-mono text-zinc-400 dark:text-zinc-500 pb-1">
-                  {stats.attendedCount} / {stats.totalScheduled}{' '}
-                  attended
-                </span>
-              </div>
-
-              <div className="mt-4 h-1.5 bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                <div
-                  className={`h-full transition-all ${
-                    stats.attendancePercentage >= 75
-                      ? 'bg-zinc-950 dark:bg-white'
-                      : 'bg-amber-500'
-                  }`}
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      stats.attendancePercentage
-                    )}%`,
-                  }}
-                />
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-900">
+                {stats.percentage >= 75 ? (
+                  <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 border-t border-zinc-200 dark:border-zinc-800">
-              <div className="p-4 border-r border-zinc-200 dark:border-zinc-800">
-                <span className="block text-[9px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  {TEXT.attended}
-                </span>
+            <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+              <div
+                className="h-full rounded-full bg-zinc-900 transition-all dark:bg-white"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      stats.percentage
+                    )
+                  )}%`,
+                }}
+              />
+            </div>
 
-                <span className="block text-lg font-bold text-zinc-950 dark:text-white mt-1">
-                  {stats.attendedCount}
-                </span>
-              </div>
-
-              <div className="p-4">
-                <span className="block text-[9px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                  {TEXT.missed}
-                </span>
-
-                <span className="block text-lg font-bold text-zinc-950 dark:text-white mt-1">
-                  {stats.missedCount}
-                </span>
-              </div>
+            <div className="mt-4 flex justify-between text-xs text-zinc-500 dark:text-zinc-400">
+              <span>
+                {stats.attended} attended
+              </span>
+              <span>
+                {stats.total} total
+              </span>
             </div>
           </section>
 
-          {/* =================================================
-              UPDATES
-          ================================================== */}
+          {/* UPDATES */}
+          <section className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
+            <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Megaphone className="h-4 w-4 text-zinc-500" />
 
-          <section
-            id="updates-panel"
-            className={`border bg-white dark:bg-zinc-900 ${
-              hasUnread
-                ? 'border-amber-300 dark:border-amber-800'
-                : 'border-zinc-200 dark:border-zinc-800'
-            }`}
-          >
-            <div className="p-5 pb-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
-                      {TEXT.bulletin}
-                    </p>
+                <h2 className="text-sm font-bold text-zinc-950 dark:text-white">
+                  Updates
+                </h2>
 
-                    {hasUnread && (
-                      <span className="text-[8px] font-mono font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-                        {TEXT.new}
-                      </span>
-                    )}
-                  </div>
-
-                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white mt-1">
-                    {TEXT.updates}
-                  </h3>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  {onForceRefresh && (
-                    <button
-                      onClick={handleForceRefresh}
-                      disabled={isRefreshing}
-                      className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer disabled:opacity-40"
-                      title="Refresh updates"
-                    >
-                      <RotateCw
-                        className={`w-3.5 h-3.5 ${
-                          isRefreshing ? 'animate-spin' : ''
-                        }`}
-                      />
-                    </button>
-                  )}
-
-                  {onNavigateToNotifications && (
-                    <button
-                      onClick={onNavigateToNotifications}
-                      className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
-                      title="Open notifications"
-                    >
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
+                {hasUnread && (
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                )}
               </div>
-            </div>
 
-            {visibleBulletinUpdates.length === 0 ? (
-              <div className="px-5 py-7 border-t border-zinc-200 dark:border-zinc-800">
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                  No new updates.
-                </p>
-              </div>
-            ) : (
-              <div className="border-t border-zinc-200 dark:border-zinc-800">
-                {visibleBulletinUpdates.map((up) => {
-                  const parsedData = parseUpdate(up);
-                  const isPoll = parsedData?.isPoll === true;
-                  const label = getUpdateLabel(up);
-                  const hasVoted = userVotes[up.id]?.hasVoted === true;
-
-                  const isClassRepAnnouncement = Boolean(
-                    up.userId &&
-                      (
-                        up.userId.startsWith('user_rep') ||
-                        up.userId.includes('rep') ||
-                        up.userId.includes('asst') ||
-                        up.userName.toLowerCase().includes('rep') ||
-                        up.userName.toLowerCase().includes('asst')
-                      )
-                  );
-
-                  return (
-                    <article
-                      key={up.id}
-                      className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
-                    >
-                      <div className="flex items-center justify-between gap-3 mb-2">
-                        <span
-                          className={`px-1.5 py-0.5 border text-[8px] font-mono font-bold uppercase tracking-wider ${label.className}`}
-                        >
-                          {isPoll
-                            ? 'POLL'
-                            : isClassRepAnnouncement
-                            ? 'CLASS REP'
-                            : label.text}
-                        </span>
-
-                        <span className="text-[8px] font-mono text-zinc-400 dark:text-zinc-600 shrink-0">
-                          {new Date(up.timestamp).toLocaleDateString(
-                            undefined,
-                            {
-                              month: 'short',
-                              day: 'numeric',
-                            }
-                          )}
-                        </span>
-                      </div>
-
-                      {isPoll && parsedData ? (
-                        <div>
-                          <p className="text-xs font-semibold leading-relaxed text-zinc-900 dark:text-zinc-100">
-                            {parsedData.question}
-                          </p>
-
-                          <button
-                            onClick={onNavigateToNotifications}
-                            className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-950 dark:text-white hover:text-amber-600 dark:hover:text-amber-400 transition-colors cursor-pointer"
-                          >
-                            Respond anonymously
-                            <ChevronRight className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
-                            {up.description}
-                          </p>
-
-                          <div className="flex items-center justify-between gap-3 mt-3">
-                            <span className="text-[8px] font-mono uppercase tracking-wider text-zinc-400 dark:text-zinc-600 truncate">
-                              {isClassRepAnnouncement
-                                ? 'Class representative'
-                                : `By ${up.userName}`}
-                            </span>
-
-                            <button
-                              onClick={() => handleRegisterVote(up.id)}
-                              disabled={hasVoted}
-                              className={`shrink-0 inline-flex items-center gap-1.5 text-[8px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer ${
-                                hasVoted
-                                  ? 'text-emerald-600 dark:text-emerald-400 cursor-default'
-                                  : 'text-zinc-400 hover:text-zinc-950 dark:hover:text-white'
-                              }`}
-                            >
-                              <ThumbsUp
-                                className={`w-3 h-3 ${
-                                  hasVoted ? 'fill-current' : ''
-                                }`}
-                              />
-
-                              {hasVoted ? 'Agreed' : 'Agree'}
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-
-            {bulletinUpdates.length > 3 && (
-              <div className="border-t border-zinc-200 dark:border-zinc-800 px-5 py-3">
+              {bulletinUpdates.length > 3 && (
                 <button
+                  type="button"
                   onClick={handleToggleAnnouncements}
-                  className="flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-950 dark:hover:text-white transition-colors cursor-pointer"
+                  className="text-xs font-semibold text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white"
                 >
                   {isAnnouncementOpen
                     ? 'Show less'
-                    : `Show ${Math.min(
-                        bulletinUpdates.length,
-                        5
-                      )} updates`}
-
-                  <ChevronRight
-                    className={`w-3 h-3 transition-transform ${
-                      isAnnouncementOpen ? 'rotate-90' : ''
-                    }`}
-                  />
+                    : 'View all'}
                 </button>
-              </div>
-            )}
-          </section>
-{/* =================================================
-              CLASS REP CONSOLE
-          ================================================== */}
+              )}
+            </div>
 
-          {userRole === 'representative' &&
+            <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {visibleBulletinUpdates.length === 0 ? (
+                <div className="px-5 py-8 text-center">
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    No updates yet.
+                  </p>
+                </div>
+              ) : (
+                visibleBulletinUpdates.map(
+                  (update) => {
+                    const parsed =
+                      parseUpdate(update);
+
+                    const label =
+                      getUpdateLabel(update);
+
+                    const poll =
+                      parsed?.isPoll
+                        ? parsed
+                        : null;
+
+                    const vote =
+                      pollVotes[update.id];
+
+                    return (
+                      <div
+                        key={update.id}
+                        className="px-5 py-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <span
+                            className={`rounded-full border px-2 py-1 text-[9px] font-bold tracking-wide ${label.className}`}
+                          >
+                            {label.text}
+                          </span>
+
+                          <span className="text-[10px] text-zinc-400">
+                            {new Date(
+                              update.createdAt
+                            ).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <p className="mt-3 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
+                          {poll?.question ||
+                            parsed?.message ||
+                            update.description}
+                        </p>
+
+                        {poll && (
+                          <div className="mt-4 space-y-2">
+                            {poll.options?.map(
+                              (
+                                option: string
+                              ) => (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  disabled={
+                                    !!vote
+                                  }
+                                  onClick={() =>
+                                    handleRegisterPollVote(
+                                      update.id,
+                                      option
+                                    )
+                                  }
+                                  className={`flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left text-xs font-medium transition ${
+                                    vote?.votedChoice ===
+                                    option
+                                      ? 'border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950'
+                                      : 'border-zinc-200 text-zinc-600 hover:border-zinc-400 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600'
+                                  }`}
+                                >
+                                  <span>
+                                    {option}
+                                  </span>
+
+                                  {vote?.votedChoice ===
+                                    option && (
+                                    <Check className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
+                              )
+                            )}
+                          </div>
+                        )}
+
+                        {!poll && (
+                          <button
+                            type="button"
+                            disabled={
+                              userVotes[update.id]
+                                ?.hasVoted
+                            }
+                            <button
+                            type="button"
+                            disabled={
+                              userVotes[update.id]
+                                ?.hasVoted
+                            }
+                            onClick={() =>
+                              handleRegisterVote(
+                                update.id
+                              )
+                            }
+                            className="mt-3 flex items-center gap-1 text-xs font-semibold text-zinc-500 transition hover:text-zinc-950 disabled:cursor-default disabled:opacity-50 dark:text-zinc-400 dark:hover:text-white"
+                          >
+                            <ThumbsUp className="h-3.5 w-3.5" />
+
+                            {userVotes[update.id]
+                              ?.hasVoted
+                              ? 'Reacted'
+                              : 'Acknowledge'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  }
+                )
+              )}
+            </div>
+          </section>
+
+          {/* CLASS REP CONSOLE */}
+          {userRole === 'class_rep' &&
             onAddBroadcast &&
             activeClassId && (
-              <section
-                id="class-rep-console"
-                className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
-              >
-                <div className="p-5">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Megaphone className="w-3.5 h-3.5 text-zinc-500" />
+              <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="flex items-center gap-2">
+                  <Send className="h-4 w-4 text-zinc-500" />
 
-                    <p className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">
-                      {TEXT.representative}
-                    </p>
-                  </div>
-
-                  <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
-                    {TEXT.broadcastToClass}
-                  </h3>
-
-                  <form
-                    onSubmit={handleClassRepSubmit}
-                    className="mt-4"
-                  >
-                    <textarea
-                      value={classRepMsg}
-                      onChange={(e) =>
-                        setClassRepMsg(e.target.value)
-                      }
-                      placeholder="Share a reminder or important class notice..."
-                      maxLength={250}
-                      rows={3}
-                      required
-                      className="w-full resize-none bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 p-3 text-xs text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:border-amber-500"
-                    />
-
-                    <div className="flex items-center justify-between gap-3 mt-2">
-                      <span className="text-[8px] font-mono text-zinc-400 dark:text-zinc-600">
-                        {classRepMsg.length}/250
-                      </span>
-
-                      <button
-                        type="submit"
-                        disabled={
-                          isSubmittingRepMsg ||
-                          !classRepMsg.trim()
-                        }
-                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-zinc-950 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-950 text-[9px] font-mono font-bold uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {isSubmittingRepMsg
-                          ? 'Publishing...'
-                          : 'Broadcast'}
-
-                        <Send className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    {repSuccess && (
-                      <p className="mt-3 text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        Broadcast dispatched successfully.
-                      </p>
-                    )}
-                  </form>
+                  <h2 className="text-sm font-bold text-zinc-950 dark:text-white">
+                    Class rep
+                  </h2>
                 </div>
+
+                <p className="mt-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                  Send a broadcast to your class.
+                </p>
+
+                <form
+                  onSubmit={handleClassRepSubmit}
+                  className="mt-4 space-y-3"
+                >
+                  <textarea
+                    value={classRepMsg}
+                    onChange={(e) =>
+                      setClassRepMsg(
+                        e.target.value
+                      )
+                    }
+                    placeholder="Write an announcement..."
+                    rows={3}
+                    className="w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-600 dark:focus:border-zinc-600"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={
+                      isSubmittingRepMsg ||
+                      !classRepMsg.trim()
+                    }
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+
+                    {isSubmittingRepMsg
+                      ? 'Sending...'
+                      : 'Broadcast'}
+                  </button>
+                </form>
+
+                {repSuccess && (
+                  <p className="mt-3 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                    Broadcast sent successfully.
+                  </p>
+                )}
               </section>
             )}
 
-          {/* =================================================
-              SPONSOR SPOTLIGHT
-          ================================================== */}
-
-          {activeAd && activeAdData && (
+          {/* SPONSOR AD */}
+          {activeAdData && (
             <section
-              id="sponsor-spotlight"
-              className="border border-amber-200 dark:border-amber-900/40 bg-amber-50/30 dark:bg-amber-950/10"
+              className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
+              onClick={() => {
+                if (
+                  activeAd &&
+                  onTrackAdEvent
+                ) {
+                  onTrackAdEvent(
+                    activeAd.id,
+                    'click'
+                  );
+                }
+              }}
             >
-              <button
-                type="button"
-                onClick={() => {
-                  if (onTrackAdEvent) {
-                    onTrackAdEvent(
-                      activeAd.id,
-                      'click'
-                    );
+              {activeAdData.imageUrl && (
+                <img
+                  src={activeAdData.imageUrl}
+                  alt={
+                    activeAdData.title ||
+                    'Sponsored'
                   }
+                  className="h-36 w-full object-cover"
+                />
+              )}
 
-                  const destination =
-                    activeAdData.adUrl ||
-                    activeAdData.adLink;
+              <div className="p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+                    Sponsored
+                  </span>
 
-                  if (destination) {
-                    window.open(
-                      destination,
-                      '_blank',
-                      'noopener,noreferrer'
-                    );
-                  }
-                }}
-                className="w-full text-left p-5 cursor-pointer"
-              >
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2">
-                    <Megaphone className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-
-                    <span className="text-[9px] font-mono font-bold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-400">
-                      {TEXT.sponsored}
-                    </span>
-                  </div>
-
-                  <ArrowUpRight className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <ArrowUpRight className="h-4 w-4 text-zinc-400" />
                 </div>
 
-                {activeAdData.adImageUrl && (
-                  <img
-                    src={activeAdData.adImageUrl}
-                    alt="Sponsored promotion"
-                    referrerPolicy="no-referrer"
-                    className="w-full h-28 object-cover border border-amber-200 dark:border-amber-900/40 mb-4"
-                  />
+                {activeAdData.title && (
+                  <h3 className="mt-3 text-sm font-bold text-zinc-950 dark:text-white">
+                    {activeAdData.title}
+                  </h3>
                 )}
 
-                <h3 className="text-sm font-bold tracking-tight text-zinc-950 dark:text-white">
-                  {activeAdData.adTitle ||
-                    'Campaign promotion'}
-                </h3>
-
-                <p className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400 mt-1.5">
-                  {activeAdData.description ||
-                    'Promoted partner offer'}
-                </p>
-
-                {activeAdData.adActionText && (
-                  <span className="inline-flex items-center gap-1 mt-3 text-[9px] font-mono font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                    {activeAdData.adActionText}
-
-                    <ChevronRight className="w-3 h-3" />
-                  </span>
+                {activeAdData.description && (
+                  <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+                    {activeAdData.description}
+                  </p>
                 )}
-              </button>
+              </div>
             </section>
           )}
         </aside>
