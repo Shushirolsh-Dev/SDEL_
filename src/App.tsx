@@ -333,6 +333,7 @@ export default function App() {
             attendanceLogs={attendanceLogs}
             joinedClasses={userJoinedClasses}
             currentSimulatedTime={simulatedTime}
+            strings={strings.attendance}
           />
         );
       case 'class':
