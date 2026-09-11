@@ -527,6 +527,94 @@ const EN: AppStrings = {
       unableToTransfer: 'Unable to transfer ownership.',
     },
   },
+  settings: {
+    header: {
+      backButton: 'Profile',
+      eyebrow: 'Account',
+      title: 'Settings',
+      subtitle: 'Manage your preferences and class controls.',
+    },
+    theme: {
+      sectionLabel: 'Appearance',
+      sectionTitle: 'Theme',
+      systemTitle: 'System',
+      systemSubtitle: 'Follow your device',
+      darkTitle: 'Dark',
+      darkSubtitle: 'Always use dark mode',
+    },
+    language: {
+      sectionLabel: 'Preferences',
+      title: 'Language',
+      dropdownLabel: 'Display language',
+      hint: 'The interface will display in this language across the app.',
+    },
+    visibility: {
+      sectionLabel: 'Class management',
+      title: 'Class visibility',
+      subtitle:
+        'Control whether students can join your classes immediately or require approval.',
+      applyAllTitle: 'Apply to all classes',
+      applyAllSubtitle: 'Change every class you own at once.',
+      publicButton: 'Public',
+      privateButton: 'Private',
+      yourClassesLabel: 'Your classes',
+      classSingular: 'class',
+      classPlural: 'classes',
+      emptyTitle: 'No classes owned yet.',
+      emptySubtitle: 'Classes you create will appear here.',
+      joinCodeLabel: 'Join code ·',
+            updatingButton: 'Updating',
+      makePrivateButton: 'Make private',
+      makePublicButton: 'Make public',
+      alertGlobalEmpty:
+        'You do not own any classes to apply global visibility settings.',
+      alertGlobalConfirm: (visibility) =>
+        `Are you sure you want to change all your owned classes to ${visibility}?`,
+      alertGlobalSuccess: (visibility) =>
+        `Success: All your owned classes are now ${visibility}.`,
+      alertGlobalFailed: (message) =>
+        `Failed to apply global visibility: ${message}`,
+      alertToggleFailed: (message) =>
+        `Failed to update visibility: ${message}`,
+    },
+    danger: {
+      sectionLabel: 'Account',
+      title: 'Danger zone',
+      deleteTitle: 'Delete your account',
+      deleteSubtitle:
+        'Permanently remove your account, classes, memberships, attendance records and related data.',
+      deleteButton: 'Delete account',
+    },
+    deleteModal: {
+      eyebrow: 'Permanent action',
+      title: 'Delete account?',
+      subtitle:
+        'This action cannot be undone. Your account and associated data will be permanently deleted.',
+      passwordLabel: 'Confirm with password',
+      passwordPlaceholder: 'Enter your password',
+      confirmLabel:
+        'I understand that deleting my account is permanent and cannot be undone.',
+      cancelButton: 'Cancel',
+      deleteButton: 'Delete permanently',
+      deletingButton: 'Deleting',
+      errorPasswordRequired:
+        'Please enter your password to authorize this action.',
+      errorConfirmRequired:
+        'You must check the confirmation box to proceed.',
+      errorPasswordIncorrect:
+        'Password verification failed. Please enter your correct current password.',
+      errorProfileDelete:
+        'Failed to delete profile. Please contact support.',
+      errorAuthDelete:
+        'Failed to delete auth user. Please contact support.',
+      errorGeneric:
+        'An unexpected error occurred during account deletion.',
+    },
+    footer: {
+      title: 'Settings',
+      subtitle: 'Manage your account and preferences.',
+    },
+  },
 };
 
 export default EN;
