@@ -5,16 +5,22 @@ import {
   Check,
   X,
 } from 'lucide-react';
-import { ClassGroup, PendingRemoval } from '../types';
+import { ClassGroup, PendingRemoval } from '../../types';
+import type { ClassRequestsStrings } from '../../i18n/types.app';
 
 interface ClassRequestsProps {
   activeClass: ClassGroup;
   pendingRemovals: PendingRemoval[];
   pendingRemovalCount: number;
   processingJoinId: string | null;
+  strings: ClassRequestsStrings;
   getMemberName: (memberId: string) => string;
   onApproveJoin: (classId: string, userId: string) => void;
-  onRejectJoinRequest: (classId: string, userId: string, userName: string) => void;
+  onRejectJoinRequest: (
+    classId: string,
+    userId: string,
+    userName: string
+  ) => void;
   onApproveRemoval: (classId: string, memberId: string) => void;
   onRejectRemoval: (classId: string, memberId: string) => void;
 }
@@ -24,6 +30,7 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
   pendingRemovals,
   pendingRemovalCount,
   processingJoinId,
+  strings,
   getMemberName,
   onApproveJoin,
   onRejectJoinRequest,
@@ -40,11 +47,13 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <UserPlus className="h-4 w-4 text-zinc-500" />
-                <h3 className="text-sm font-black">Join requests</h3>
+                <h3 className="text-sm font-black">
+                  {strings.joinRequestsTitle}
+                </h3>
               </div>
 
               <p className="mt-1 text-xs text-zinc-400">
-                Review students waiting to enter this class.
+                {strings.joinRequestsSubtitle}
               </p>
             </div>
 
@@ -81,7 +90,7 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
                       </p>
 
                       <p className="text-[10px] text-zinc-400">
-                        Waiting for approval
+                        {strings.waitingForApproval}
                       </p>
                     </div>
                   </div>
@@ -96,7 +105,7 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
                       className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-3 py-2 text-[10px] font-black text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
                     >
                       <Check className="h-3 w-3" />
-                      Approve
+                      {strings.approveButton}
                     </button>
 
                     <button
@@ -112,7 +121,7 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
                       className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[10px] font-black text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
                     >
                       <X className="h-3 w-3" />
-                      Deny
+                      {strings.denyButton}
                     </button>
                   </div>
                 </div>
@@ -129,12 +138,12 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
               <div className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-zinc-500" />
                 <h3 className="text-sm font-black">
-                  Removal requests
+                  {strings.removalRequestsTitle}
                 </h3>
               </div>
 
               <p className="mt-1 text-xs text-zinc-400">
-                Review requests to remove members.
+                {strings.removalRequestsSubtitle}
               </p>
             </div>
 
@@ -165,7 +174,7 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
                         </p>
 
                         <p className="text-[10px] text-zinc-400">
-                          Member removal requested
+                          {strings.memberRemovalRequested}
                         </p>
                       </div>
                     </div>
@@ -182,7 +191,7 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
                         className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-3 py-2 text-[10px] font-black text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
                       >
                         <Check className="h-3 w-3" />
-                        Approve
+                        {strings.approveButton}
                       </button>
 
                       <button
@@ -196,7 +205,7 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
                         className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[10px] font-black text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
                       >
                         <X className="h-3 w-3" />
-                        Reject
+                        {strings.rejectButton}
                       </button>
                     </div>
                   </div>
