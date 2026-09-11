@@ -1,5 +1,5 @@
-import React from 'react';
-import { Globe } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Globe, Check, ChevronDown } from 'lucide-react';
 import { AVAILABLE_LOCALES } from '../i18n/strings';
 
 interface LanguageSectionProps {
@@ -11,6 +11,27 @@ const LanguageSection: React.FC<LanguageSectionProps> = ({
   locale,
   onChange,
 }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [open]);
+
+  const current =
+    AVAILABLE_LOCALES.find((l) => l.code === locale) ??
+    AVAILABLE_LOCALES[0];
+
   return (
     <section
       id="settings-language-section"
@@ -31,30 +52,51 @@ const LanguageSection: React.FC<LanguageSectionProps> = ({
       </div>
 
       <div className="p-6">
-        <label
-          htmlFor="language-select"
-          className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-500"
-        >
+        <label className="mb-2 block text-xs font-bold uppercase tracking-[0.16em] text-zinc-500">
           Display language
         </label>
 
-        <div className="relative">
-          <select
-            id="language-select"
-            value={locale}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full appearance-none border border-zinc-200 bg-zinc-50 py-3.5 pl-4 pr-10 text-sm font-semibold text-zinc-950 outline-none transition-all hover:border-zinc-300 focus:border-zinc-950 focus:bg-white focus:ring-1 focus:ring-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:hover:border-zinc-700 dark:focus:border-white dark:focus:ring-white"
+        <div ref={ref} className="relative">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="flex w-full items-center justify-between border border-zinc-200 bg-zinc-50 px-4 py-3.5 text-left text-sm font-semibold text-zinc-950 outline-none transition-all hover:border-zinc-300 focus:border-zinc-950 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:hover:border-zinc-700"
           >
-            {AVAILABLE_LOCALES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.nativeName}
-              </option>
-            ))}
-          </select>
+            <span>{current?.nativeName ?? locale}</span>
+            <ChevronDown
+              className={`h-4 w-4 text-zinc-400 transition-transform ${
+                open ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
 
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400">
-            ▾
-          </span>
+          {open && (
+            <div className="absolute left-0 right-0 z-50 mt-1 max-h-72 overflow-y-auto border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-950">
+              {AVAILABLE_LOCALES.map((l) => {
+                const isActive = l.code === locale;
+                return (
+                  <button
+                    key={l.code}
+                    type="button"
+                    onClick={() => {
+                      onChange(l.code);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors ${
+                      isActive
+                        ? 'bg-zinc-100 font-bold text-zinc-950 dark:bg-zinc-900 dark:text-white'
+                        : 'text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-900'
+                    }`}
+                  >
+                    <span>{l.nativeName}</span>
+                    {isActive && (
+                      <Check className="h-4 w-4 text-zinc-950 dark:text-white" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <p className="mt-2 text-xs text-zinc-400">
