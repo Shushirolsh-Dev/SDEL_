@@ -14,6 +14,7 @@ import { trackPageView, trackClick } from './utils/tracker';
 import { Calendar, CheckCircle2, Clock, Shield, User as UserIcon, BookOpen, Layers, Terminal } from 'lucide-react';
 import { useAppStore } from './lib/store';
 import { getAppStrings } from './i18n/strings';
+import { detectLocale } from './i18n/detect';
 import {
   supabase,
   getCached,
@@ -24,7 +25,6 @@ import {
   getOfflineQueue,
 } from './lib/supabase';
 
-// Custom Toast Component
 const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) => {
   useEffect(() => {
     const timer = setTimeout(onClose, 3000);
@@ -43,13 +43,16 @@ export default function App() {
   const queryClient = useQueryClient();
   const { theme, setTheme, currentView, setView, activeClassId, setActiveClassId } = useAppStore();
 
-  // Locale — read from localStorage for now; will be replaced by phone-language detection later
-  const locale =
-    (typeof localStorage !== 'undefined' &&
-      localStorage.getItem('thesdel_locale')) ||
-    'en';
+  const [locale, setLocale] = useState<string>(() => detectLocale());
 
   const strings = getAppStrings(locale);
+
+  const handleChangeLocale = (next: string) => {
+    setLocale(next);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('thesdel_locale', next);
+    }
+  };
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return getCached(CACHE_KEYS.LOGGED_IN, false);
@@ -371,7 +374,6 @@ useEffect(() => {
     setActiveClassId(userJoinedClasses[0].id);
   }
 }, [classes, userJoinedClasses, activeClassId, setActiveClassId]);
-// --- ACTIONS & HANDLERS ---
 const handleClassRepBroadcast = async (classId: string, description: string): Promise<boolean> => {
   if (!user) return false;
   try {
@@ -792,6 +794,7 @@ const handleDeleteClass = async (classId: string) => {
   await queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });
   showToast(strings.toast.classDeleted, 'success');
 };
+
 const handleLeaveClass = async (classId: string) => {
   if (!user) {
     showToast(strings.toast.mustBeLoggedIn, 'error');
@@ -915,7 +918,6 @@ const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
 
   showToast(strings.toast.leftAfterTransfer, 'success');
 };
-
 const renderViewContent = () => {
   if (!user) return null;
 
@@ -1010,6 +1012,8 @@ const renderViewContent = () => {
           currentUser={user}
           classes={classes}
           onBack={() => setView('profile')}
+          locale={locale}
+          onChangeLocale={handleChangeLocale}
         />
       );
     case 'notifications':
@@ -1041,7 +1045,13 @@ const renderViewContent = () => {
 const isInsideAdmin = window.location.pathname.startsWith('/admin') || window.location.hash.startsWith('#/admin');
 
 if (!isLoggedIn || !user) {
-  return <LandingView onLoginSuccess={handleLoginSuccess} classesCount={classes.length} />;
+  return (
+    <LandingView
+      onLoginSuccess={handleLoginSuccess}
+      classesCount={classes.length}
+      locale={locale}
+    />
+  );
 }
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-zinc-50 flex flex-col font-sans" id="thesdel-root">
