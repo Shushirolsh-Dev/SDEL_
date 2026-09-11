@@ -209,12 +209,12 @@ export default function LandingView({
             <LandingFeatureGrid strings={strings.features} />
 
             {/* LINKS */}
-            <div className="mt-20 flex flex-col items-start justify-between gap-6 border-t border-zinc-200 py-8 dark:border-zinc-800 sm:flex-row sm:items-center">
+            <div className="mt-24 grid grid-cols-1 gap-8 border-t border-zinc-200 py-10 dark:border-zinc-800 sm:grid-cols-2 sm:items-center">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
                 Your school schedule, organized.
               </p>
 
-              <nav className="flex items-center gap-6 font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
+              <nav className="flex items-center gap-8 font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400 sm:justify-end">
                 <button
                   type="button"
                   onClick={() => setActiveScreen('terms')}
@@ -293,17 +293,17 @@ export default function LandingView({
 
       {/* FOOTER */}
       <footer className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
             THESDEL
           </p>
 
-          <p className="flex min-h-[16px] items-center gap-1 font-mono text-[10px] text-zinc-400">
+          <p className="flex min-h-[16px] items-center gap-1 font-mono text-[10px] text-zinc-400 sm:order-3">
             <span>{footerText}</span>
             <span className="animate-pulse">|</span>
           </p>
 
-          <p className="hidden font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400 sm:block">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400 sm:order-2 sm:text-right">
             Student Digital Exchange Layer
           </p>
         </div>
