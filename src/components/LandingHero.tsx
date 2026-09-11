@@ -1,84 +1,99 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
 
+export interface HeroStrings {
+  eyebrow: string;
+  replacesLabel: string;
+  headlineLine1: string;
+  headlineLine2: string;
+  subtitle: string;
+  ctaPrimary: string;
+  ctaSecondary: string;
+  trustRealTime: string;
+  trustOffline: string;
+  trustNoAds: string;
+}
+
 interface LandingHeroProps {
   currentText: string;
+  strings: HeroStrings;
   onGoSignup: () => void;
   onGoLogin: () => void;
 }
 
 const LandingHero: React.FC<LandingHeroProps> = ({
   currentText,
+  strings,
   onGoSignup,
   onGoLogin,
 }) => {
   return (
-    <section className="mx-auto flex w-full max-w-4xl flex-col items-center px-4 text-center sm:px-6">
-      {/* STATUS */}
-      <div className="mb-7 inline-flex items-center gap-2 border border-zinc-200 bg-white px-3 py-1.5 dark:border-zinc-800 dark:bg-zinc-950">
-        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-
-        <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
-          Built for university life
+    <section className="relative mx-auto max-w-3xl">
+      {/* Eyebrow */}
+      <div className="mb-8 flex items-center justify-center">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.32em] text-zinc-400">
+          {strings.eyebrow}
         </span>
       </div>
 
-      {/* HEADLINE */}
-      <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.05] tracking-[-0.04em] text-zinc-950 sm:text-6xl dark:text-white">
-        Your timetable should work
-        <br className="hidden sm:block" /> for you, not against you.
+      {/* Headline */}
+      <h1 className="text-center text-5xl font-extrabold leading-[0.98] tracking-[-0.03em] text-zinc-950 sm:text-7xl">
+        {strings.headlineLine1}
+        <br />
+        <span className="text-zinc-300">
+          {strings.headlineLine2}
+        </span>
       </h1>
 
-      {/* ROTATING LINE */}
-      <div className="mt-5 flex min-h-[32px] items-center justify-center">
-        <span className="font-mono text-sm font-bold uppercase tracking-wider text-zinc-400 sm:text-base">
-          No more
+      {/* Replaces ticker */}
+      <div className="mt-10 flex items-center justify-center gap-3">
+        <span className="h-px w-10 bg-zinc-200" />
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
+          {strings.replacesLabel}
         </span>
-
-        <span className="mx-2 min-w-[145px] font-mono text-sm font-bold uppercase tracking-wider text-zinc-950 sm:text-base dark:text-white">
+        <span className="font-mono text-sm font-bold tabular-nums text-zinc-950">
           {currentText}
-          <span className="ml-0.5 font-normal text-zinc-400">
+          <span className="ml-0.5 inline-block w-[0.6ch] animate-pulse text-zinc-400">
             |
           </span>
         </span>
+        <span className="h-px w-10 bg-zinc-200" />
+      </div>
 
-        <span className="font-mono text-sm font-bold uppercase tracking-wider text-zinc-400 sm:text-base">
-          clutter.
+      {/* Subtitle */}
+      <p className="mx-auto mt-10 max-w-xl text-center text-base leading-relaxed text-zinc-600">
+        {strings.subtitle}
+      </p>
+
+      {/* CTAs */}
+      <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <button
+          onClick={onGoSignup}
+          className="group inline-flex w-full items-center justify-center gap-2 border border-zinc-950 bg-zinc-950 px-7 py-4 font-mono text-xs font-bold uppercase tracking-[0.14em] text-white transition-all hover:bg-zinc-800 sm:w-auto"
+        >
+          {strings.ctaPrimary}
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+        </button>
+        <button
+          onClick={onGoLogin}
+          className="inline-flex w-full items-center justify-center border border-zinc-300 bg-transparent px-7 py-4 font-mono text-xs font-bold uppercase tracking-[0.14em] text-zinc-950 transition-colors hover:border-zinc-900 sm:w-auto"
+        >
+          {strings.ctaSecondary}
+        </button>
+      </div>
+
+      {/* Trust row — text only, no card, no box */}
+      <div className="mt-16 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
+          {strings.trustRealTime}
+        </span>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
+          {strings.trustOffline}
+        </span>
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
+          {strings.trustNoAds}
         </span>
       </div>
-
-      {/* DESCRIPTION */}
-      <p className="mx-auto mt-6 max-w-2xl text-sm leading-7 text-zinc-500 sm:text-base dark:text-zinc-400">
-        THESDEL keeps your university schedule organized in one
-        place — helping you stay on top of classes, changes,
-        cancellations, and everything that matters around them.
-      </p>
-
-      {/* ACTIONS */}
-      <div className="mt-8 flex w-full flex-col items-center justify-center gap-2.5 sm:w-auto sm:flex-row">
-        <button
-          type="button"
-          onClick={onGoSignup}
-          className="group inline-flex w-full items-center justify-center gap-2 border border-zinc-950 bg-zinc-950 px-6 py-3.5 text-[10px] font-bold uppercase tracking-[0.14em] text-white transition-all hover:bg-zinc-800 sm:w-auto dark:border-white dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
-        >
-          Create student account
-
-          <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onGoLogin}
-          className="w-full border border-zinc-200 bg-white px-6 py-3.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-950 sm:w-auto dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white"
-        >
-          Sign in
-        </button>
-      </div>
-
-      {/* SMALL FOOTER LINE */}
-      <p className="mt-7 text-[9px] font-medium uppercase tracking-[0.16em] text-zinc-400">
-        One place for your academic schedule
-      </p>
     </section>
   );
 };
