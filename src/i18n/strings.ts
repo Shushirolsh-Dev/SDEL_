@@ -45,6 +45,17 @@ export type {
   AttendanceWeekStrings,
   AttendanceStatusStrings,
   AttendanceEmptyStrings,
+  ClassStrings,
+  ClassHeaderStrings,
+  ClassSidebarStrings,
+  ClassOverviewStrings,
+  ClassRequestsStrings,
+  ClassMembersStrings,
+  ClassManagementStrings,
+  ClassModalsStrings,
+  ClassJoinStrings,
+  ClassCreateStrings,
+  ClassToastStrings,
 } from './types.app';
 
 export type {
