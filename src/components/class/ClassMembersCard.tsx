@@ -7,23 +7,42 @@ import {
   Trash2,
   ShieldAlert,
 } from 'lucide-react';
-import { ClassGroup, User, Role } from '../types';
+import { ClassGroup, User, Role } from '../../types';
+import type { ClassMembersStrings } from '../../i18n/types.app';
 
 interface ClassMembersCardProps {
   activeClass: ClassGroup;
   currentUser: User;
   currentUserRole: Role;
+  strings: ClassMembersStrings;
   getMemberName: (memberId: string) => string;
-  onPromote: (classId: string, memberId: string, memberName: string) => void;
-  onDemote: (classId: string, memberId: string, memberName: string) => void;
-  onRemoveMember: (classId: string, memberId: string, memberName: string) => void;
-  onRequestRemoval: (classId: string, memberId: string, memberName: string) => void;
+  onPromote: (
+    classId: string,
+    memberId: string,
+    memberName: string
+  ) => void;
+  onDemote: (
+    classId: string,
+    memberId: string,
+    memberName: string
+  ) => void;
+  onRemoveMember: (
+    classId: string,
+    memberId: string,
+    memberName: string
+  ) => void;
+  onRequestRemoval: (
+    classId: string,
+    memberId: string,
+    memberName: string
+  ) => void;
 }
 
 const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
   activeClass,
   currentUser,
   currentUserRole,
+  strings,
   getMemberName,
   onPromote,
   onDemote,
@@ -37,11 +56,13 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-zinc-500" />
-              <h3 className="text-sm font-black">Members</h3>
+              <h3 className="text-sm font-black">
+                {strings.title}
+              </h3>
             </div>
 
             <p className="mt-1 text-xs text-zinc-400">
-              Students currently inside this class.
+              {strings.subtitle}
             </p>
           </div>
 
@@ -90,7 +111,7 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
 
                     {isCurrentUser && (
                       <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
-                        You
+                        {strings.youBadge}
                       </span>
                     )}
                   </div>
@@ -99,18 +120,18 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
                     {memberRole === 'owner' || isOwner ? (
                       <>
                         <Crown className="h-3 w-3" />
-                        Representative
+                        {strings.roleRepresentative}
                       </>
                     ) : memberRole === 'assistant' ||
                       memberRole === 'admin' ? (
                       <>
                         <UserCog className="h-3 w-3" />
-                        Assistant
+                        {strings.roleAssistant}
                       </>
                     ) : (
                       <>
                         <UserCheck className="h-3 w-3" />
-                        Member
+                        {strings.roleMember}
                       </>
                     )}
                   </div>
@@ -124,35 +145,47 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
                     <button
                       type="button"
                       onClick={() =>
-                        onDemote(activeClass.id, memberId, memberName)
+                        onDemote(
+                          activeClass.id,
+                          memberId,
+                          memberName
+                        )
                       }
                       className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[10px] font-black text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
                     >
                       <UserCheck className="h-3 w-3" />
-                      Demote
+                      {strings.demoteButton}
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() =>
-                        onPromote(activeClass.id, memberId, memberName)
+                        onPromote(
+                          activeClass.id,
+                          memberId,
+                          memberName
+                        )
                       }
                       className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[10px] font-black text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
                     >
                       <UserCog className="h-3 w-3" />
-                      Make assistant
+                      {strings.promoteButton}
                     </button>
                   )}
 
                   <button
                     type="button"
                     onClick={() =>
-                      onRemoveMember(activeClass.id, memberId, memberName)
+                      onRemoveMember(
+                        activeClass.id,
+                        memberId,
+                        memberName
+                      )
                     }
                     className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[10px] font-black text-zinc-500 transition hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-950 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white"
                   >
                     <Trash2 className="h-3 w-3" />
-                    Remove
+                    {strings.removeButton}
                   </button>
                 </div>
               )}
@@ -174,7 +207,7 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
                     className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[10px] font-black text-zinc-500 transition hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
                   >
                     <ShieldAlert className="h-3 w-3" />
-                    Request removal
+                    {strings.requestRemovalButton}
                   </button>
                 )}
             </div>
@@ -186,7 +219,7 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
           <div className="p-8 text-center">
             <Users className="mx-auto h-5 w-5 text-zinc-400" />
             <p className="mt-2 text-xs font-bold text-zinc-500">
-              No members yet.
+              {strings.emptyMessage}
             </p>
           </div>
         )}
