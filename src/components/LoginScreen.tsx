@@ -1,24 +1,66 @@
 import React, { useState } from 'react';
 import {
   AlertTriangle,
+  ArrowRight,
   Check,
   Eye,
   EyeOff,
+  KeyRound,
+  Mail,
+  LockKeyhole,
 } from 'lucide-react';
 import { User, Role } from '../types';
 import { supabase } from '../lib/supabase';
+import type {
+  LoginStrings,
+  ForgotStrings,
+} from './LandingView';
+
+/* ============================================================
+   SHARED UI
+   ============================================================ */
+
+const FieldLabel = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => (
+  <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+    {children}
+  </label>
+);
+
+const FieldShell = ({
+  icon,
+  children,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) => (
+  <div className="group relative">
+    <div className="pointer-events-none absolute left-3.5 top-1/2 z-10 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-950">
+      {icon}
+    </div>
+    {children}
+  </div>
+);
+
+const inputClass =
+  'w-full border border-zinc-200 bg-zinc-50 py-3.5 pl-10 pr-4 text-sm text-zinc-950 outline-none transition-all placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-950 focus:bg-white focus:ring-1 focus:ring-zinc-950';
 
 /* ============================================================
    LOGIN SCREEN
    ============================================================ */
 
 interface LoginScreenProps {
+  strings: LoginStrings;
   onLoginSuccess: (user: User) => void;
   onGoSignup: () => void;
   onGoForgotPassword: () => void;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
+  strings,
   onLoginSuccess,
   onGoSignup,
   onGoForgotPassword,
@@ -37,9 +79,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     if (loading) return;
 
     if (!loginEmail || !loginPassword) {
-      setLoginError(
-        'Please enter both email and password.'
-      );
+      setLoginError(strings.emptyFieldsError);
       return;
     }
 
@@ -61,6 +101,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
       if (authData.user) {
         let profileErrorDetails = '';
+
         let { data: profile, error: profileError } =
           await supabase
             .from('profiles')
@@ -76,34 +117,42 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             );
             profileErrorDetails = `Select error: ${profileError.message}`;
           }
-          // If profile is missing in the DB on login, try to
-          // insert it using auth metadata or defaults
-          const metadata = authData.user.user_metadata || {};
+
+          const metadata =
+            authData.user.user_metadata || {};
+
           const fallbackName =
             metadata.name ||
             authData.user.email?.split('@')[0] ||
             'User';
+
           const fallbackUsername =
             metadata.username ||
             authData.user.email?.split('@')[0] ||
             'user';
-          const fallbackRole = metadata.role || 'member';
-          const fallbackPhone = metadata.phone || '';
 
-          const { data: insertedProfile, error: insertError } =
-            await supabase
-              .from('profiles')
-              .insert({
-                id: authData.user.id,
-                name: fallbackName,
-                username: fallbackUsername,
-                email: authData.user.email || '',
-                role: fallbackRole,
-                phone: fallbackPhone,
-                plan: 'free',
-              })
-              .select()
-              .single();
+          const fallbackRole =
+            metadata.role || 'member';
+
+          const fallbackPhone =
+            metadata.phone || '';
+
+          const {
+            data: insertedProfile,
+            error: insertError,
+          } = await supabase
+            .from('profiles')
+            .insert({
+              id: authData.user.id,
+              name: fallbackName,
+              username: fallbackUsername,
+              email: authData.user.email || '',
+              role: fallbackRole,
+              phone: fallbackPhone,
+              plan: 'free',
+            })
+            .select()
+            .single();
 
           if (!insertError && insertedProfile) {
             profile = insertedProfile;
@@ -113,16 +162,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               '[LoginScreen] Profile insert error:',
               insertError
             );
+
             profileErrorDetails = `Insert error: ${insertError.message}`;
           }
         }
 
         if (profileError || !profile) {
           setLoginError(
-            `Unable to load your profile. Please contact support. (${
+            `${strings.fallbackProfileError} (${
               profileErrorDetails || 'Profile not found'
             })`
           );
+
           setLoading(false);
           return;
         }
@@ -140,11 +191,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           isReminderNumberLocked:
             profile.is_reminder_number_locked,
         };
+
         onLoginSuccess(loggedInUser);
       }
     } catch (err: any) {
       setLoginError(
-        err.message || 'An error occurred during log in.'
+        err.message || strings.genericError
       );
     } finally {
       setLoading(false);
@@ -152,115 +204,172 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   };
 
   return (
-    <div
-      className="max-w-md w-full mx-auto border border-zinc-200 bg-white p-6 sm:p-8 rounded-none space-y-6 shadow-[2px_2px_0px_rgba(0,0,0,0.05)] animate-fade-in"
+    <section
       id="login-screen"
+      className="w-full max-w-[440px] animate-fade-in"
     >
-      <div className="space-y-1.5 text-center">
-        <h2 className="text-2xl font-sans font-extrabold text-zinc-900">
-          Sign In to Thesdel
-        </h2>
-        <p className="text-xs text-zinc-500 font-sans">
-          Enter your registered credentials to synchronize your
-          device.
+      {/* TOP MARKER */}
+      <div className="mb-8 flex items-center justify-center gap-3">
+        <span className="h-px w-10 bg-zinc-200" />
+
+        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+          {strings.topMarker}
+        </span>
+
+        <span className="h-px w-10 bg-zinc-200" />
+      </div>
+
+      {/* HEADER */}
+      <div className="mb-8 text-center">
+        <div className="mx-auto mb-5 flex h-11 w-11 items-center justify-center border border-zinc-200 bg-white">
+          <LockKeyhole className="h-4 w-4 text-zinc-800" />
+        </div>
+
+        <h1 className="text-3xl font-extrabold tracking-[-0.04em] text-zinc-950 sm:text-[34px]">
+          {strings.title}
+        </h1>
+
+        <p className="mx-auto mt-3 max-w-[310px] text-sm leading-6 text-zinc-500">
+          {strings.subtitle}
         </p>
       </div>
 
+      {/* ERROR */}
       {loginError && (
-        <div className="p-3 border border-red-200 bg-red-50 text-red-800 text-xs font-mono flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>{loginError}</span>
+        <div className="mb-5 flex items-start gap-3 border border-red-200 bg-red-50 px-4 py-3.5 text-red-800 animate-fade-in">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+
+          <p className="text-xs leading-5">
+            {loginError}
+          </p>
         </div>
       )}
 
+      {/* FORM */}
       <form
         onSubmit={handleLoginSubmit}
-        className="space-y-4 font-mono text-xs"
+        className="space-y-5"
       >
-        {/* Email */}
-        <div className="space-y-1">
-          <label className="text-zinc-600 font-bold block uppercase text-[10px]">
-            Academic Email
-          </label>
-          <input
-            id="login-email-input"
-            type="email"
-            required
-            placeholder="thestruggle@thesdel.edu"
-            value={loginEmail}
-            onChange={(e) => {
-              setLoginEmail(e.target.value);
-              setLoginError('');
-            }}
-            className="w-full px-3 py-2 border border-zinc-200 bg-zinc-50 focus:bg-white text-zinc-900 rounded-none focus:outline-none focus:border-zinc-800 font-sans"
-          />
+        {/* EMAIL */}
+        <div>
+          <FieldLabel>{strings.emailLabel}</FieldLabel>
+
+          <FieldShell
+            icon={<Mail className="h-4 w-4" />}
+          >
+            <input
+              id="login-email-input"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder={strings.emailPlaceholder}
+              value={loginEmail}
+              onChange={(e) => {
+                setLoginEmail(e.target.value);
+                setLoginError('');
+              }}
+              className={inputClass}
+            />
+          </FieldShell>
         </div>
 
-        {/* Password */}
-        <div className="space-y-1">
-          <div className="flex justify-between items-center">
-            <label className="text-zinc-600 font-bold block uppercase text-[10px]">
-              Password
-            </label>
+        {/* PASSWORD */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <FieldLabel>{strings.passwordLabel}</FieldLabel>
+
             <button
               type="button"
               onClick={onGoForgotPassword}
-              className="text-[10px] text-zinc-500 hover:text-zinc-950 transition-colors cursor-pointer underline"
+              className="text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-400 transition-colors hover:text-zinc-950"
             >
-              forgot password?
+              {strings.forgotLink}
             </button>
           </div>
-          <div className="relative">
+
+          <FieldShell
+            icon={<KeyRound className="h-4 w-4" />}
+          >
             <input
               id="login-password-input"
-              type={showLoginPassword ? 'text' : 'password'}
+              type={
+                showLoginPassword
+                  ? 'text'
+                  : 'password'
+              }
               required
-              placeholder="••••••••"
+              autoComplete="current-password"
+              placeholder={strings.passwordPlaceholder}
               value={loginPassword}
               onChange={(e) => {
                 setLoginPassword(e.target.value);
                 setLoginError('');
               }}
-              className="w-full px-3 pr-10 py-2 border border-zinc-200 bg-zinc-50 focus:bg-white text-zinc-900 rounded-none focus:outline-none focus:border-zinc-800 font-sans"
+              className={`${inputClass} pr-12`}
             />
+
             <button
               type="button"
-              onClick={() =>
-                setShowLoginPassword(!showLoginPassword)
+              aria-label={
+                showLoginPassword
+                  ? strings.hidePassword
+                  : strings.showPassword
               }
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer"
+              onClick={() =>
+                setShowLoginPassword(
+                  !showLoginPassword
+                )
+              }
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 transition-colors hover:text-zinc-950"
             >
               {showLoginPassword ? (
-                <EyeOff className="w-4 h-4" />
+                <EyeOff className="h-4 w-4" />
               ) : (
-                <Eye className="w-4 h-4" />
+                <Eye className="h-4 w-4" />
               )}
             </button>
-          </div>
+          </FieldShell>
         </div>
 
-        {/* Submit Button */}
+        {/* SUBMIT */}
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-2.5 bg-zinc-950 text-white border border-zinc-950 font-bold font-mono text-xs uppercase hover:bg-zinc-800 transition-colors cursor-pointer mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="group mt-2 flex w-full items-center justify-center gap-2 bg-zinc-950 px-5 py-4 text-[10px] font-bold uppercase tracking-[0.16em] text-white transition-all hover:bg-zinc-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? 'Signing In...' : 'Sign In'}
+          {loading ? (
+            <>
+              <span className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-white" />
+              {strings.submitLoading}
+            </>
+          ) : (
+            <>
+              {strings.submitIdle}
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </>
+          )}
         </button>
       </form>
 
-      <div className="border-t border-zinc-100 pt-4 text-center">
-        <p className="text-xs text-zinc-500 font-sans">
-          Don't have an account yet?{' '}
+      {/* SIGNUP */}
+      <div className="mt-7 border-t border-zinc-200 pt-6 text-center">
+        <p className="text-xs text-zinc-500">
+          {strings.newTo}{' '}
           <button
+            type="button"
             onClick={onGoSignup}
-            className="font-mono text-xs font-bold text-zinc-950 underline hover:text-zinc-600"
+            className="font-bold text-zinc-950 underline decoration-zinc-300 underline-offset-4 transition-colors hover:decoration-zinc-950"
           >
-            Register Now
+            {strings.createAccount}
           </button>
         </p>
       </div>
-    </div>
+
+      {/* FOOT NOTE */}
+      <p className="mt-8 text-center font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-300">
+        {strings.footnote}
+      </p>
+    </section>
   );
 };
 
@@ -269,14 +378,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
    ============================================================ */
 
 interface ForgotPasswordScreenProps {
+  strings: ForgotStrings;
   onGoLogin: () => void;
 }
 
 export const ForgotPasswordScreen: React.FC<
   ForgotPasswordScreenProps
-> = ({ onGoLogin }) => {
+> = ({ strings, onGoLogin }) => {
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSuccess, setForgotSuccess] = useState(false);
+  const [forgotSuccess, setForgotSuccess] =
+    useState(false);
   const [forgotError, setForgotError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -287,7 +398,7 @@ export const ForgotPasswordScreen: React.FC<
     if (loading) return;
 
     if (!forgotEmail) {
-      setForgotError('Please enter your email address.');
+      setForgotError(strings.emptyEmailError);
       return;
     }
 
@@ -311,8 +422,7 @@ export const ForgotPasswordScreen: React.FC<
       }
     } catch (err: any) {
       setForgotError(
-        err.message ||
-          'An error occurred during password reset request.'
+        err.message || strings.genericError
       );
     } finally {
       setLoading(false);
@@ -320,93 +430,137 @@ export const ForgotPasswordScreen: React.FC<
   };
 
   return (
-    <div
-      className="max-w-md w-full mx-auto border border-zinc-200 bg-white p-6 sm:p-8 rounded-none space-y-6 shadow-[2px_2px_0px_rgba(0,0,0,0.05)] animate-fade-in"
+    <section
       id="forgot-password-screen"
+      className="w-full max-w-[440px] animate-fade-in"
     >
-      <div className="space-y-1.5 text-center">
-        <h2 className="text-2xl font-sans font-extrabold text-zinc-900">
-          Recover Secret Key
-        </h2>
-        <p className="text-xs text-zinc-500 font-sans">
-          Enter your registered email address to receive password
-          recovery instructions.
+      {/* TOP MARKER */}
+      <div className="mb-8 flex items-center justify-center gap-3">
+        <span className="h-px w-10 bg-zinc-200" />
+
+        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.22em] text-zinc-400">
+          {strings.topMarker}
+        </span>
+
+        <span className="h-px w-10 bg-zinc-200" />
+      </div>
+
+      {/* HEADER */}
+      <div className="mb-8 text-center">
+        <div className="mx-auto mb-5 flex h-11 w-11 items-center justify-center border border-zinc-200 bg-white">
+          <KeyRound className="h-4 w-4 text-zinc-800" />
+        </div>
+
+        <h1 className="text-3xl font-extrabold tracking-[-0.04em] text-zinc-950 sm:text-[34px]">
+          {strings.title}
+        </h1>
+
+        <p className="mx-auto mt-3 max-w-[330px] text-sm leading-6 text-zinc-500">
+          {strings.subtitle}
         </p>
       </div>
 
+      {/* ERROR */}
       {forgotError && (
-        <div className="p-3 border border-red-200 bg-red-50 text-red-800 text-xs font-mono flex items-center gap-2 animate-fade-in">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>{forgotError}</span>
+        <div className="mb-5 flex items-start gap-3 border border-red-200 bg-red-50 px-4 py-3.5 text-red-800 animate-fade-in">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+
+          <p className="text-xs leading-5">
+            {forgotError}
+          </p>
         </div>
       )}
 
       {forgotSuccess ? (
-        <div className="space-y-4 font-sans text-xs">
-          <div className="p-4 border border-emerald-200 bg-emerald-50 text-emerald-800 flex flex-col gap-2 rounded-none">
-            <div className="flex items-center gap-2 font-mono font-bold uppercase text-[10px]">
-              <Check className="w-4 h-4 text-emerald-600" />
-              <span>Reset Link Transmitted</span>
+        <div className="animate-fade-in">
+          <div className="border border-emerald-200 bg-emerald-50 p-5">
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center bg-emerald-100">
+                <Check className="h-3.5 w-3.5 text-emerald-700" />
+              </div>
+
+              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-800">
+                {strings.successTitle}
+              </span>
             </div>
-            <p className="leading-relaxed">
-              A password reset email has been successfully sent to{' '}
-              <strong className="font-mono">{forgotEmail}</strong>.
-              Please check your inbox (and spam folder) for further
-              instructions.
+
+            <p className="text-xs leading-5 text-emerald-800/80">
+              {strings.successBodyPrefix}{' '}
+              <strong className="font-mono font-bold text-emerald-900">
+                {forgotEmail}
+              </strong>{' '}
+              {strings.successBodySuffix}
             </p>
           </div>
 
           <button
+            type="button"
             onClick={onGoLogin}
-            className="w-full py-2.5 bg-zinc-950 text-white border border-zinc-950 font-bold font-mono text-xs uppercase hover:bg-zinc-800 transition-colors cursor-pointer text-center block"
+            className="mt-4 flex w-full items-center justify-center gap-2 bg-zinc-950 px-5 py-4 text-[10px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800"
           >
-            Return to Sign In
+            {strings.returnToSignIn}
+            <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </div>
       ) : (
         <form
           onSubmit={handleForgotPasswordSubmit}
-          className="space-y-4 font-mono text-xs"
+          className="space-y-5"
         >
-          {/* Email input */}
-          <div className="space-y-1">
-            <label className="text-zinc-600 font-bold block uppercase text-[10px]">
-              Academic Email
-            </label>
-            <input
-              id="forgot-email-input"
-              type="email"
-              required
-              placeholder="thestruggle@thesdel.edu"
-              value={forgotEmail}
-              onChange={(e) => {
-                setForgotEmail(e.target.value);
-                setForgotError('');
-              }}
-              className="w-full px-3 py-2 border border-zinc-200 bg-zinc-50 focus:bg-white text-zinc-900 rounded-none focus:outline-none focus:border-zinc-800 font-sans"
-            />
+          <div>
+            <FieldLabel>{strings.emailLabel}</FieldLabel>
+
+            <FieldShell
+              icon={<Mail className="h-4 w-4" />}
+            >
+              <input
+                id="forgot-email-input"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder={strings.emailPlaceholder}
+                value={forgotEmail}
+                onChange={(e) => {
+                  setForgotEmail(e.target.value);
+                  setForgotError('');
+                }}
+                className={inputClass}
+              />
+            </FieldShell>
           </div>
 
-          {/* Submit button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-zinc-950 text-white border border-zinc-950 font-bold font-mono text-xs uppercase hover:bg-zinc-800 transition-colors cursor-pointer mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group flex w-full items-center justify-center gap-2 bg-zinc-950 px-5 py-4 text-[10px] font-bold uppercase tracking-[0.16em] text-white transition-all hover:bg-zinc-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? 'Sending Request...' : 'Send Reset Link'}
+            {loading ? (
+              <>
+                <span className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-white" />
+                {strings.submitLoading}
+              </>
+            ) : (
+              <>
+                {strings.submitIdle}
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </>
+            )}
           </button>
 
-          <div className="text-center pt-2">
-            <button
-              type="button"
-              onClick={onGoLogin}
-              className="font-mono text-xs font-bold text-zinc-950 underline hover:text-zinc-600"
-            >
-              Back to Sign In
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onGoLogin}
+            className="flex w-full items-center justify-center pt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400 transition-colors hover:text-zinc-950"
+          >
+            {strings.backToSignIn}
+          </button>
         </form>
       )}
-    </div>
+
+      {/* FOOT NOTE */}
+      <p className="mt-8 text-center font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-300">
+        {strings.footnote}
+      </p>
+    </section>
   );
 };
