@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
-import type { LandingHeroStrings } from './LandingView';
+import type { LandingHeroStrings } from '../i18n/types.landing';
 
 interface LandingHeroProps {
   currentText: string;
