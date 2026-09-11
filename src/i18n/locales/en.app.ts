@@ -286,6 +286,69 @@ const EN: AppStrings = {
       removeButton: 'Remove',
     },
   },
+  attendance: {
+    header: {
+      sectionLabel: 'Academic Record',
+      title: 'Attendance',
+      subtitle:
+        'Track your attendance, streaks, and completed classes.',
+      statusSafe: 'Attendance Safe',
+      statusNeedsAttention: 'Needs Attention',
+    },
+    summary: {
+      attendanceLabel: 'Attendance',
+      targetLabel: 'Target: 75%+',
+      attendedLabel: 'Attended',
+      attendedSubtitle: 'Completed classes attended',
+      missedLabel: 'Missed',
+      missedSubtitle: 'Completed classes missed',
+      cancelledLabel: 'Cancelled',
+      cancelledSubtitle: 'Safely excluded from stats',
+    },
+    streak: {
+      sectionTitle: 'Attendance Streak',
+      currentStreakLabel: 'Current streak',
+      consecutiveSuffix: 'consecutive classes',
+      explanation:
+        'Attend every scheduled class to keep the streak alive. Cancelled classes do not break your streak. Missing a scheduled class resets it.',
+      currentRow: 'Current',
+      longestRow: 'Longest',
+      classesSuffix: 'classes',
+      statusRow: 'Status',
+      statusSafe: 'Safe',
+      statusLow: 'Low',
+    },
+    week: {
+      sectionTitle: 'Weekly attendance',
+      sectionSubtitle:
+        'Review every scheduled class for the selected week.',
+      todayBadge: 'Today',
+      noClassesScheduled: 'No classes scheduled',
+      showLess: 'Show less',
+      showWeekend: (count) => `Show weekend · ${count} more days`,
+      weekDaysLong: [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+      ],
+      weekDaysShort: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    },
+    status: {
+      cancelledSafe: 'Cancelled · Safe',
+      attended: 'Attended',
+      missed: 'Missed',
+      upcoming: 'Upcoming',
+    },
+    empty: {
+      noClassesTitle: 'No classes yet',
+      noClassesSubtitle:
+        'Join a class to start tracking your attendance.',
+    },
+  },
 };
 
 export default EN;
