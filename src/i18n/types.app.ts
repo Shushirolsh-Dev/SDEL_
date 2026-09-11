@@ -529,6 +529,94 @@ export interface ClassStrings {
   toast: ClassToastStrings;
 }
 
+export interface SettingsHeaderStrings {
+  backButton: string;
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+}
+
+export interface SettingsThemeStrings {
+  sectionLabel: string;
+  sectionTitle: string;
+  systemTitle: string;
+  systemSubtitle: string;
+  darkTitle: string;
+  darkSubtitle: string;
+}
+
+export interface SettingsLanguageStrings {
+  sectionLabel: string;
+  title: string;
+  dropdownLabel: string;
+  hint: string;
+}
+
+export interface SettingsVisibilityStrings {
+  sectionLabel: string;
+  title: string;
+  subtitle: string;
+  applyAllTitle: string;
+  applyAllSubtitle: string;
+  publicButton: string;
+  privateButton: string;
+  yourClassesLabel: string;
+  classSingular: string;
+  classPlural: string;
+  emptyTitle: string;
+  emptySubtitle: string;
+  joinCodeLabel: string;
+  updatingButton: string;
+  makePrivateButton: string;
+  makePublicButton: string;
+  alertGlobalEmpty: string;
+  alertGlobalConfirm: (visibility: string) => string;
+  alertGlobalSuccess: (visibility: string) => string;
+  alertGlobalFailed: (message: string) => string;
+  alertToggleFailed: (message: string) => string;
+}
+
+export interface SettingsDangerStrings {
+  sectionLabel: string;
+  title: string;
+  deleteTitle: string;
+  deleteSubtitle: string;
+  deleteButton: string;
+}
+
+export interface SettingsDeleteModalStrings {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  passwordLabel: string;
+  passwordPlaceholder: string;
+  confirmLabel: string;
+  cancelButton: string;
+  deleteButton: string;
+  deletingButton: string;
+  errorPasswordRequired: string;
+  errorConfirmRequired: string;
+  errorPasswordIncorrect: string;
+  errorProfileDelete: string;
+  errorAuthDelete: string;
+  errorGeneric: string;
+}
+
+export interface SettingsFooterStrings {
+  title: string;
+  subtitle: string;
+}
+
+export interface SettingsStrings {
+  header: SettingsHeaderStrings;
+  theme: SettingsThemeStrings;
+  language: SettingsLanguageStrings;
+  visibility: SettingsVisibilityStrings;
+  danger: SettingsDangerStrings;
+  deleteModal: SettingsDeleteModalStrings;
+  footer: SettingsFooterStrings;
+}
+
 export interface AppStrings {
   header: HeaderStrings;
   nav: NavStrings;
@@ -541,4 +629,5 @@ export interface AppStrings {
   timetable: TimetableStrings;
   attendance: AttendanceStrings;
   class: ClassStrings;
+  settings: SettingsStrings;
 }
