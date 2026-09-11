@@ -4,28 +4,33 @@ import { useAppStore } from '../lib/store';
 import { supabase } from '../lib/supabase';
 import { useQueryClient } from '@tanstack/react-query';
 import { trackClick } from '../utils/tracker';
+import type { SettingsStrings } from '../i18n/types.app';
 
-import SettingsHeader from './SettingsHeader';
-import SettingsThemeSection from './SettingsThemeSection';
-import LanguageSection from './LanguageSection';
-import SettingsVisibilitySection from './SettingsVisibilitySection';
-import SettingsDangerZone from './SettingsDangerZone';
-import DeleteAccountModal from './DeleteAccountModal';
+import SettingsHeader from './settings/SettingsHeader';
+import SettingsThemeSection from './settings/SettingsThemeSection';
+import SettingsLanguageSection from './settings/SettingsLanguageSection';
+import SettingsVisibilitySection from './settings/SettingsVisibilitySection';
+import SettingsDangerZone from './settings/SettingsDangerZone';
+import DeleteAccountModal from './settings/DeleteAccountModal';
 
 interface SettingsViewProps {
   currentUser: User;
   classes: ClassGroup[];
+  strings: SettingsStrings;
   onBack?: () => void;
   locale: string;
   onChangeLocale: (code: string) => void;
+  onToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
 export default function SettingsView({
   currentUser,
   classes,
+  strings,
   onBack,
   locale,
   onChangeLocale,
+  onToast,
 }: SettingsViewProps) {
   const queryClient = useQueryClient();
   const { theme, setTheme } = useAppStore();
@@ -78,8 +83,11 @@ export default function SettingsView({
         queryKey: ['classes'],
       });
     } catch (err: any) {
-      alert(
-        `Failed to update visibility: ${err.message || err}`
+      onToast(
+        strings.visibility.alertToggleFailed(
+          err.message || String(err)
+        ),
+        'error'
       );
     } finally {
       setUpdatingClassId(null);
@@ -90,13 +98,13 @@ export default function SettingsView({
     nextVisibility: 'public' | 'private'
   ) => {
     if (ownedClasses.length === 0) {
-      alert(
-        'You do not own any classes to apply global visibility settings.'
-      );
+      onToast(strings.visibility.alertGlobalEmpty, 'error');
       return;
     }
 
-    const confirmMsg = `Are you sure you want to change all your owned classes to ${nextVisibility.toUpperCase()}?`;
+    const confirmMsg = strings.visibility.alertGlobalConfirm(
+      nextVisibility.toUpperCase()
+    );
 
     if (!confirm(confirmMsg)) return;
 
@@ -116,12 +124,18 @@ export default function SettingsView({
         queryKey: ['classes'],
       });
 
-      alert(
-        `Success: All your owned classes are now ${nextVisibility}.`
+      onToast(
+        strings.visibility.alertGlobalSuccess(
+          nextVisibility.toUpperCase()
+        ),
+        'success'
       );
     } catch (err: any) {
-      alert(
-        `Failed to apply global visibility: ${err.message || err}`
+      onToast(
+        strings.visibility.alertGlobalFailed(
+          err.message || String(err)
+        ),
+        'error'
       );
     } finally {
       setIsUpdatingGlobal(false);
@@ -138,14 +152,14 @@ export default function SettingsView({
   const handleDeleteAccount = async () => {
     if (!deletePassword) {
       setDeleteError(
-        'Please enter your password to authorize this action.'
+        strings.deleteModal.errorPasswordRequired
       );
       return;
     }
 
     if (!deleteConfirmed) {
       setDeleteError(
-        'You must check the confirmation box to proceed.'
+        strings.deleteModal.errorConfirmRequired
       );
       return;
     }
@@ -164,7 +178,7 @@ export default function SettingsView({
 
       if (authError) {
         setDeleteError(
-          'Password verification failed. Please enter your correct current password.'
+          strings.deleteModal.errorPasswordIncorrect
         );
         setIsDeleting(false);
         return;
@@ -215,9 +229,7 @@ export default function SettingsView({
           'Error deleting profile:',
           profileError
         );
-        setDeleteError(
-          'Failed to delete profile. Please contact support.'
-        );
+        setDeleteError(strings.deleteModal.errorProfileDelete);
         setIsDeleting(false);
         return;
       }
@@ -234,9 +246,7 @@ export default function SettingsView({
           'Error deleting auth user:',
           authDeleteError
         );
-        setDeleteError(
-          'Failed to delete auth user. Please contact support.'
-        );
+        setDeleteError(strings.deleteModal.errorAuthDelete);
         setIsDeleting(false);
         return;
       }
@@ -256,8 +266,7 @@ export default function SettingsView({
       );
 
       setDeleteError(
-        err.message ||
-          'An unexpected error occurred during account deletion.'
+        err.message || strings.deleteModal.errorGeneric
       );
 
       setIsDeleting(false);
@@ -269,15 +278,17 @@ export default function SettingsView({
       id="settings-view-container"
       className="mx-auto min-h-full w-full max-w-6xl bg-zinc-50 px-4 py-6 dark:bg-black sm:px-6 lg:px-8"
     >
-      <SettingsHeader onBack={onBack} />
+      <SettingsHeader strings={strings.header} onBack={onBack} />
 
       <SettingsThemeSection
         theme={theme}
+        strings={strings.theme}
         onSelectTheme={handleSelectTheme}
       />
 
-      <LanguageSection
+      <SettingsLanguageSection
         locale={locale}
+        strings={strings.language}
         onChange={onChangeLocale}
       />
 
@@ -286,11 +297,13 @@ export default function SettingsView({
         ownedClasses={ownedClasses}
         updatingClassId={updatingClassId}
         isUpdatingGlobal={isUpdatingGlobal}
+        strings={strings.visibility}
         onToggleVisibility={handleToggleVisibility}
         onGlobalVisibility={handleGlobalVisibility}
       />
 
       <SettingsDangerZone
+        strings={strings.danger}
         onDeleteClick={() => setShowDeleteModal(true)}
       />
 
@@ -300,6 +313,7 @@ export default function SettingsView({
         confirmed={deleteConfirmed}
         error={deleteError}
         isDeleting={isDeleting}
+        strings={strings.deleteModal}
         onPasswordChange={setDeletePassword}
         onConfirmedChange={setDeleteConfirmed}
         onClose={handleCloseDeleteModal}
@@ -311,11 +325,11 @@ export default function SettingsView({
         className="border-t border-zinc-200 py-6 text-center dark:border-zinc-900"
       >
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-400">
-          Settings
+          {strings.footer.title}
         </p>
 
         <p className="mt-1 text-xs text-zinc-400">
-          Manage your account and preferences.
+          {strings.footer.subtitle}
         </p>
       </footer>
     </div>
