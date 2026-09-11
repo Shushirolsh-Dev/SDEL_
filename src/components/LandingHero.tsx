@@ -1,22 +1,10 @@
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
-
-export interface HeroStrings {
-  eyebrow: string;
-  replacesLabel: string;
-  headlineLine1: string;
-  headlineLine2: string;
-  subtitle: string;
-  ctaPrimary: string;
-  ctaSecondary: string;
-  trustRealTime: string;
-  trustOffline: string;
-  trustNoAds: string;
-}
+import { LandingHeroStrings } from '../i18n/landing';
 
 interface LandingHeroProps {
   currentText: string;
-  strings: HeroStrings;
+  strings: LandingHeroStrings;
   onGoSignup: () => void;
   onGoLogin: () => void;
 }
@@ -28,73 +16,41 @@ const LandingHero: React.FC<LandingHeroProps> = ({
   onGoLogin,
 }) => {
   return (
-    <section className="relative mx-auto max-w-3xl">
-      {/* Eyebrow */}
-      <div className="mb-8 flex items-center justify-center">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.32em] text-zinc-400">
-          {strings.eyebrow}
-        </span>
-      </div>
-
-      {/* Headline */}
-      <h1 className="text-center text-5xl font-extrabold leading-[0.98] tracking-[-0.03em] text-zinc-950 sm:text-7xl">
-        {strings.headlineLine1}
-        <br />
-        <span className="text-zinc-300">
-          {strings.headlineLine2}
-        </span>
-      </h1>
-
-      {/* Replaces ticker */}
-      <div className="mt-10 flex items-center justify-center gap-3">
-        <span className="h-px w-10 bg-zinc-200" />
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
-          {strings.replacesLabel}
-        </span>
-        <span className="font-mono text-sm font-bold tabular-nums text-zinc-950">
+    <div className="text-center space-y-6 max-w-2xl mx-auto">
+      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-none border border-zinc-200 bg-white text-[10px] font-mono font-bold tracking-wider uppercase text-zinc-600">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        {strings.badge}
+      </span>
+      <h1 className="text-4xl sm:text-5xl font-sans font-extrabold tracking-tight text-zinc-900 leading-tight">
+        {strings.headlinePrefix}{' '}
+        <span className="inline-block text-center font-mono text-zinc-950 w-[5.5em]">
           {currentText}
-          <span className="ml-0.5 inline-block w-[0.6ch] animate-pulse text-zinc-400">
+          <span className="text-zinc-400 animate-pulse font-normal">
             |
           </span>
-        </span>
-        <span className="h-px w-10 bg-zinc-200" />
-      </div>
-
-      {/* Subtitle */}
-      <p className="mx-auto mt-10 max-w-xl text-center text-base leading-relaxed text-zinc-600">
+        </span>{' '}
+        {strings.headlineSuffix}
+      </h1>
+      <p className="text-sm sm:text-base text-zinc-600 font-sans max-w-xl mx-auto leading-relaxed">
         {strings.subtitle}
       </p>
 
-      {/* CTAs */}
-      <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
         <button
           onClick={onGoSignup}
-          className="group inline-flex w-full items-center justify-center gap-2 border border-zinc-950 bg-zinc-950 px-7 py-4 font-mono text-xs font-bold uppercase tracking-[0.14em] text-white transition-all hover:bg-zinc-800 sm:w-auto"
+          className="w-full sm:w-auto px-6 py-3 bg-zinc-950 text-white font-mono text-xs font-bold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-[2px_2px_0px_rgba(0,0,0,0.15)] border border-zinc-950"
         >
           {strings.ctaPrimary}
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+          <ArrowRight className="w-4 h-4" />
         </button>
         <button
           onClick={onGoLogin}
-          className="inline-flex w-full items-center justify-center border border-zinc-300 bg-transparent px-7 py-4 font-mono text-xs font-bold uppercase tracking-[0.14em] text-zinc-950 transition-colors hover:border-zinc-900 sm:w-auto"
+          className="w-full sm:w-auto px-6 py-3 bg-white text-zinc-950 border border-zinc-300 font-mono text-xs font-bold hover:border-zinc-800 hover:bg-zinc-50 transition-colors cursor-pointer"
         >
           {strings.ctaSecondary}
         </button>
       </div>
-
-      {/* Trust row — text only, no card, no box */}
-      <div className="mt-16 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
-          {strings.trustRealTime}
-        </span>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
-          {strings.trustOffline}
-        </span>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
-          {strings.trustNoAds}
-        </span>
-      </div>
-    </section>
+    </div>
   );
 };
 
