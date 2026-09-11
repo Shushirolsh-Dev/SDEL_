@@ -208,6 +208,84 @@ const EN: AppStrings = {
       altFallback: 'Sponsored',
     },
   },
+  timetable: {
+    header: {
+      sectionLabel: 'Academic Schedule',
+      title: 'Timetable',
+      noClassSelected: 'No class selected',
+      weekButton: 'Week',
+      addClassButton: 'Add class',
+    },
+    permission: {
+      managerPrefix: 'You have',
+      managerSuffix: 'privileges. You can manage the shared timetable.',
+      memberPrefix: 'You are viewing this timetable as a',
+      memberMiddle: 'member',
+      memberSuffix: '. Only class managers can modify entries.',
+    },
+    empty: {
+      noClassTitle: 'No class yet',
+      noClassSubtitle:
+        'Join or create a class to start viewing its shared timetable.',
+      emptyTitle: 'Timetable is empty',
+      emptySubtitle:
+        'There are no classes scheduled for this class group yet.',
+      addFirstClassButton: 'Add first class',
+      nothingScheduledTitle: 'Nothing scheduled',
+      nothingScheduledSubtitle:
+        'No classes are scheduled for this day.',
+    },
+    days: {
+      labels: [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday',
+      ],
+      short: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    },
+    entryCard: {
+      cancelledBadge: 'Cancelled',
+      roomShiftedBadge: 'Room shifted',
+      originallyLabel: 'Originally:',
+      minutesSuffix: 'min',
+      editButton: 'Edit',
+      deleteButton: 'Delete',
+    },
+    form: {
+      newClassEyebrow: 'New class',
+      editClassEyebrow: 'Manage class',
+      addTitle: 'Add timetable entry',
+      editTitle: 'Edit timetable entry',
+      subjectLabel: 'Subject',
+      subjectPlaceholder: 'e.g. Software Engineering',
+      dayLabel: 'Day',
+      venueLabel: 'Venue',
+      venuePlaceholder: 'e.g. LT 1',
+      startsLabel: 'Starts',
+      endsLabel: 'Ends',
+      cancelClassTitle: 'Cancel class',
+      cancelClassSubtitle:
+        'Keep the entry visible but mark it as cancelled.',
+      cancelButton: 'Cancel',
+      saveChangesButton: 'Save changes',
+      addClassButton: 'Add class',
+      errorSubjectRequired: 'Subject name is required.',
+      errorVenueRequired: 'Venue is required.',
+      errorTimeOrder: 'Start time must be before end time.',
+    },
+    deleteDialog: {
+      title: 'Remove this class?',
+      descriptionPrefix: 'You are about to remove',
+      descriptionSuffix:
+        'from the shared timetable. This action cannot be undone.',
+      keepButton: 'Keep class',
+      removeButton: 'Remove',
+    },
+  },
 };
 
 export default EN;
