@@ -283,6 +283,70 @@ export interface TimetableStrings {
   deleteDialog: TimetableDeleteStrings;
 }
 
+export interface AttendanceHeaderStrings {
+  sectionLabel: string;
+  title: string;
+  subtitle: string;
+  statusSafe: string;
+  statusNeedsAttention: string;
+}
+
+export interface AttendanceSummaryStrings {
+  attendanceLabel: string;
+  targetLabel: string;
+  attendedLabel: string;
+  attendedSubtitle: string;
+  missedLabel: string;
+  missedSubtitle: string;
+  cancelledLabel: string;
+  cancelledSubtitle: string;
+}
+
+export interface AttendanceStreakStrings {
+  sectionTitle: string;
+  currentStreakLabel: string;
+  consecutiveSuffix: string;
+  explanation: string;
+  currentRow: string;
+  longestRow: string;
+  classesSuffix: string;
+  statusRow: string;
+  statusSafe: string;
+  statusLow: string;
+}
+
+export interface AttendanceWeekStrings {
+  sectionTitle: string;
+  sectionSubtitle: string;
+  todayBadge: string;
+  noClassesScheduled: string;
+  showLess: string;
+  showWeekend: (count: number) => string;
+  weekDaysLong: string[];
+  weekDaysShort: string[];
+}
+
+export interface AttendanceStatusStrings {
+  cancelledSafe: string;
+  attended: string;
+  missed: string;
+  upcoming: string;
+}
+
+export interface AttendanceEmptyStrings {
+  noClassesTitle: string;
+  noClassesSubtitle: string;
+}
+
+export interface AttendanceStrings {
+  header: AttendanceHeaderStrings;
+  summary: AttendanceSummaryStrings;
+  streak: AttendanceStreakStrings;
+  week: AttendanceWeekStrings;
+  status: AttendanceStatusStrings;
+  empty: AttendanceEmptyStrings;
+}
+
 export interface AppStrings {
   header: HeaderStrings;
   nav: NavStrings;
@@ -293,4 +357,5 @@ export interface AppStrings {
   notifications: NotificationsStrings;
   home: HomeStrings;
   timetable: TimetableStrings;
+  attendance: AttendanceStrings;
 }
