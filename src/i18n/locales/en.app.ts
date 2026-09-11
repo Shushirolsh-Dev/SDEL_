@@ -1,4 +1,4 @@
-import type { AppStrings } from '../types';
+import type { AppStrings } from '../types.app';
 
 const EN: AppStrings = {
   header: {
