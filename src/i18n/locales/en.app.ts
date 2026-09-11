@@ -88,6 +88,63 @@ const EN: AppStrings = {
       'Sunday',
     ],
   },
+  profile: {
+    roleFallback: 'Student',
+    studentFallback: 'Student',
+    settingsButton: 'Settings',
+    logoutButton: 'Log out',
+  },
+  notifications: {
+    header: {
+      backTitle: 'Back',
+      title: 'Notifications',
+      subtitle: 'Class announcements and updates',
+      refreshButton: 'Refresh',
+      refreshingButton: 'Refreshing',
+    },
+    empty: {
+      title: 'Nothing new',
+      subtitle:
+        'Official announcements and important class updates will appear here.',
+    },
+    card: {
+      labelCancelled: 'CANCELLED',
+      labelUrgent: 'URGENT',
+      labelVenueChanged: 'VENUE CHANGED',
+      labelInfo: 'INFO',
+      labelSponsored: 'SPONSORED',
+      labelAdSpace: 'AD SPACE',
+      sponsoredSpotlight: 'Sponsored spotlight',
+      byLabel: 'By',
+      teamLabel: 'THESDEL TEAM',
+      agreedButton: (count) => `Agreed · ${count}`,
+      agreeButton: (count) => `Agree · ${count}`,
+      adLearnMore: 'Learn More',
+      pollSectionLabel: 'Class poll',
+      pollResponseRegistered: 'Response registered',
+      pollResponseRecorded: 'Your response has been recorded.',
+      pollSelected: 'Selected:',
+      pollYourResponse: 'Your response',
+      pollLineCounter: (current, max) =>
+        `${current}/${max} lines`,
+      pollTextareaPlaceholder: 'Write your response...',
+      pollSubmitResponse: 'Submit response',
+      pollSubmitAnswer: 'Submit answer',
+      pollDefaultYes: 'Yes',
+      pollDefaultNo: 'No',
+    },
+    rep: {
+      title: 'Representative broadcast',
+      subtitle: 'Send an official update to your class',
+      textareaPlaceholder:
+        'Share a study tip, reminder, schedule change, or important class notice...',
+      counterLabel: (current, max) => `${current}/${max}`,
+      visibleToMembers: 'Visible to class members',
+      postButton: 'Post broadcast',
+      postingButton: 'Posting',
+      successMessage: 'Broadcast posted successfully',
+    },
+  },
 };
 
 export default EN;
