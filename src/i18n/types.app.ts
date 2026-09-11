@@ -61,10 +61,18 @@ export interface BroadcastStrings {
   dayNames: string[];
 }
 
+export interface ProfileStrings {
+  roleFallback: string;
+  studentFallback: string;
+  settingsButton: string;
+  logoutButton: string;
+}
+
 export interface AppStrings {
   header: HeaderStrings;
   nav: NavStrings;
   toast: ToastStrings;
   confirm: ConfirmStrings;
   broadcast: BroadcastStrings;
+  profile: ProfileStrings;
 }
