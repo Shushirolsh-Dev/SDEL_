@@ -7,11 +7,7 @@ import {
   LockKeyhole,
   ShieldCheck,
 } from 'lucide-react';
-import type { LegalScreenStrings } from './LandingView';
-
-/* ============================================================
-   SHARED UI
-============================================================ */
+import type { LegalScreenStrings } from '../i18n/types.landing';
 
 const LegalHeader = ({
   eyebrow,
@@ -119,10 +115,6 @@ const LegalShell = ({
   </section>
 );
 
-/* ============================================================
-   TERMS OF SERVICE
-============================================================ */
-
 interface TermsScreenProps {
   strings: LegalScreenStrings;
   onReturnToSignup: () => void;
@@ -173,9 +165,6 @@ export const TermsScreen: React.FC<TermsScreenProps> = ({
     </LegalShell>
   );
 };
-/* ============================================================
-   PRIVACY POLICY
-============================================================ */
 
 interface PrivacyScreenProps {
   strings: LegalScreenStrings;
@@ -227,10 +216,6 @@ export const PrivacyScreen: React.FC<PrivacyScreenProps> = ({
     </LegalShell>
   );
 };
-
-/* ============================================================
-   ABOUT
-============================================================ */
 
 interface AboutScreenProps {
   strings: LegalScreenStrings;
