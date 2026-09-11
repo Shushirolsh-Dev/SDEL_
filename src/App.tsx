@@ -279,7 +279,6 @@ export default function App() {
     showToast,
     setActiveClassId,
   });
-
   const renderViewContent = () => {
     if (!user) return null;
 
@@ -341,6 +340,7 @@ export default function App() {
           <ClassView
             classes={userJoinedClasses}
             activeClassId={activeClassId}
+            strings={strings.class}
             onSelectClass={setActiveClassId}
             onJoinClass={handleJoinClass}
             onCreateClass={handleCreateClass}
