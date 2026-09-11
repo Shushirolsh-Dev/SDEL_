@@ -203,6 +203,86 @@ export interface HomeStrings {
   ad: HomeAdStrings;
 }
 
+export interface TimetableHeaderStrings {
+  sectionLabel: string;
+  title: string;
+  noClassSelected: string;
+  weekButton: string;
+  addClassButton: string;
+}
+
+export interface TimetablePermissionStrings {
+  managerPrefix: string;
+  managerSuffix: string;
+  memberPrefix: string;
+  memberMiddle: string;
+  memberSuffix: string;
+}
+
+export interface TimetableEmptyStrings {
+  noClassTitle: string;
+  noClassSubtitle: string;
+  emptyTitle: string;
+  emptySubtitle: string;
+  addFirstClassButton: string;
+  nothingScheduledTitle: string;
+  nothingScheduledSubtitle: string;
+}
+
+export interface TimetableDayStrings {
+  labels: string[];
+  short: string[];
+}
+
+export interface TimetableEntryCardStrings {
+  cancelledBadge: string;
+  roomShiftedBadge: string;
+  originallyLabel: string;
+  minutesSuffix: string;
+  editButton: string;
+  deleteButton: string;
+}
+
+export interface TimetableFormStrings {
+  newClassEyebrow: string;
+  editClassEyebrow: string;
+  addTitle: string;
+  editTitle: string;
+  subjectLabel: string;
+  subjectPlaceholder: string;
+  dayLabel: string;
+  venueLabel: string;
+  venuePlaceholder: string;
+  startsLabel: string;
+  endsLabel: string;
+  cancelClassTitle: string;
+  cancelClassSubtitle: string;
+  cancelButton: string;
+  saveChangesButton: string;
+  addClassButton: string;
+  errorSubjectRequired: string;
+  errorVenueRequired: string;
+  errorTimeOrder: string;
+}
+
+export interface TimetableDeleteStrings {
+  title: string;
+  descriptionPrefix: string;
+  descriptionSuffix: string;
+  keepButton: string;
+  removeButton: string;
+}
+
+export interface TimetableStrings {
+  header: TimetableHeaderStrings;
+  permission: TimetablePermissionStrings;
+  empty: TimetableEmptyStrings;
+  days: TimetableDayStrings;
+  entryCard: TimetableEntryCardStrings;
+  form: TimetableFormStrings;
+  deleteDialog: TimetableDeleteStrings;
+}
+
 export interface AppStrings {
   header: HeaderStrings;
   nav: NavStrings;
@@ -212,4 +292,5 @@ export interface AppStrings {
   profile: ProfileStrings;
   notifications: NotificationsStrings;
   home: HomeStrings;
+  timetable: TimetableStrings;
 }
