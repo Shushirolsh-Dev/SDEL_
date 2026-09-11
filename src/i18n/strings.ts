@@ -16,6 +16,12 @@ export type {
   ToastStrings,
   ConfirmStrings,
   BroadcastStrings,
+  ProfileStrings,
+  NotificationsStrings,
+  NotificationsHeaderStrings,
+  NotificationsEmptyStrings,
+  NotificationsCardStrings,
+  NotificationsRepStrings,
 } from './types.app';
 
 export type {
