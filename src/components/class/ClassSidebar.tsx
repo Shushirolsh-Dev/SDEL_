@@ -1,11 +1,13 @@
 import React from 'react';
 import { Users, KeyRound, ChevronRight } from 'lucide-react';
-import { ClassGroup } from '../types';
-import { trackClick } from '../utils/tracker';
+import { ClassGroup } from '../../types';
+import { trackClick } from '../../utils/tracker';
+import type { ClassSidebarStrings } from '../../i18n/types.app';
 
 interface ClassSidebarProps {
   classes: ClassGroup[];
   activeClassId: string;
+  strings: ClassSidebarStrings;
   onSelectClass: (id: string) => void;
   onJoinAnother: () => void;
 }
@@ -13,6 +15,7 @@ interface ClassSidebarProps {
 const ClassSidebar: React.FC<ClassSidebarProps> = ({
   classes,
   activeClassId,
+  strings,
   onSelectClass,
   onJoinAnother,
 }) => {
@@ -21,7 +24,7 @@ const ClassSidebar: React.FC<ClassSidebarProps> = ({
       <div className="px-3 pb-2 pt-2">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-black uppercase tracking-[0.16em] text-zinc-400">
-            Classes
+            {strings.sectionLabel}
           </span>
 
           <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
@@ -76,7 +79,8 @@ const ClassSidebar: React.FC<ClassSidebarProps> = ({
                       : 'text-zinc-400'
                   }`}
                 >
-                  {classItem.members?.length || 0} members
+                  {classItem.members?.length || 0}{' '}
+                  {strings.membersSuffix}
                 </p>
               </div>
 
@@ -99,7 +103,7 @@ const ClassSidebar: React.FC<ClassSidebarProps> = ({
           className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white"
         >
           <KeyRound className="h-3.5 w-3.5" />
-          Join another class
+          {strings.joinAnother}
           <ChevronRight className="ml-auto h-3.5 w-3.5" />
         </button>
       </div>
