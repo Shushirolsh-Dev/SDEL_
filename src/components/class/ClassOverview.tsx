@@ -8,12 +8,14 @@ import {
   Globe2,
   LockKeyhole,
 } from 'lucide-react';
-import { ClassGroup, User } from '../types';
+import { ClassGroup, User } from '../../types';
+import type { ClassOverviewStrings } from '../../i18n/types.app';
 
 interface ClassOverviewProps {
   activeClass: ClassGroup;
   currentUser: User;
   copiedCode: boolean;
+  strings: ClassOverviewStrings;
   onCopyCode: (code?: string) => void;
 }
 
@@ -21,6 +23,7 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
   activeClass,
   currentUser,
   copiedCode,
+  strings,
   onCopyCode,
 }) => {
   return (
@@ -31,14 +34,14 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
                 <Users className="h-3 w-3" />
-                Class space
+                {strings.badgeClassSpace}
               </span>
 
               {(activeClass.ownerId === currentUser.id ||
                 activeClass.representativeId === currentUser.id) && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-950 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white dark:bg-white dark:text-black">
                   <Crown className="h-3 w-3" />
-                  Representative
+                  {strings.badgeRepresentative}
                 </span>
               )}
             </div>
@@ -48,8 +51,7 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
             </h2>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-              {activeClass.description ||
-                'No class description has been added yet.'}
+              {activeClass.description || strings.noDescription}
             </p>
           </div>
 
@@ -57,12 +59,12 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
             {activeClass.visibility === 'public' ? (
               <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[10px] font-bold text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <Globe2 className="h-3.5 w-3.5" />
-                Public
+                {strings.visibilityPublic}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[10px] font-bold text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
                 <LockKeyhole className="h-3.5 w-3.5" />
-                Private
+                {strings.visibilityPrivate}
               </span>
             )}
           </div>
@@ -73,7 +75,7 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
           <div className="mb-2 flex items-center justify-between gap-3">
             <span className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-400">
-              Class code
+              {strings.classCodeLabel}
             </span>
 
             <KeyRound className="h-3.5 w-3.5 text-zinc-400" />
@@ -88,7 +90,7 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
               type="button"
               onClick={() => onCopyCode(activeClass.code)}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-950 dark:border-zinc-700 dark:bg-zinc-950 dark:hover:bg-zinc-800 dark:hover:text-white"
-              title="Copy class code"
+              title={strings.copyCodeTitle}
             >
               {copiedCode ? (
                 <Check className="h-3.5 w-3.5" />
@@ -102,7 +104,7 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[10px] font-black uppercase tracking-[0.14em] text-zinc-400">
-              Members
+              {strings.membersLabel}
             </span>
 
             <Users className="h-3.5 w-3.5 text-zinc-400" />
@@ -113,7 +115,7 @@ const ClassOverview: React.FC<ClassOverviewProps> = ({
           </p>
 
           <p className="mt-0.5 text-[11px] text-zinc-400">
-            students in this class
+            {strings.studentsSubtitle}
           </p>
         </div>
       </div>
