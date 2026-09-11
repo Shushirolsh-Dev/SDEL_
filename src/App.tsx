@@ -13,6 +13,7 @@ import NotificationsView from './components/NotificationsView';
 import { trackPageView, trackClick } from './utils/tracker';
 import { Calendar, CheckCircle2, Clock, Shield, User as UserIcon, BookOpen, Layers, Terminal } from 'lucide-react';
 import { useAppStore } from './lib/store';
+import { getAppStrings } from './i18n/strings';
 import {
   supabase,
   getCached,
@@ -42,7 +43,14 @@ export default function App() {
   const queryClient = useQueryClient();
   const { theme, setTheme, currentView, setView, activeClassId, setActiveClassId } = useAppStore();
 
-  const [profileSubTab, setProfileSubTab] = useState<'identity' | 'settings'>('identity');
+  // Locale — read from localStorage for now; will be replaced by phone-language detection later
+  const locale =
+    (typeof localStorage !== 'undefined' &&
+      localStorage.getItem('thesdel_locale')) ||
+    'en';
+
+  const strings = getAppStrings(locale);
+
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
     return getCached(CACHE_KEYS.LOGGED_IN, false);
   });
@@ -57,76 +65,15 @@ export default function App() {
   });
 
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
-  const [isDevSwitcherExpanded, setIsDevSwitcherExpanded] = useState<boolean>(true);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setToast({ message, type });
   };
 
-  const [switcherPosition, setSwitcherPosition] = useState({ x: 0, y: 0 });
-  const [isDraggingSwitcher, setIsDraggingSwitcher] = useState(false);
-  const [dragStartPoint, setDragStartPoint] = useState({ x: 0, y: 0 });
-
   useEffect(() => {
     trackPageView(currentView);
   }, [currentView]);
-const handleSwitcherMouseDown = (e: React.MouseEvent) => {
-  if ((e.target as HTMLElement).closest('button')) return;
-  setIsDraggingSwitcher(true);
-  setDragStartPoint({
-    x: e.clientX - switcherPosition.x,
-    y: e.clientY - switcherPosition.y
-  });
-};
-
-const handleSwitcherTouchStart = (e: React.TouchEvent) => {
-  if ((e.target as HTMLElement).closest('button')) return;
-  setIsDraggingSwitcher(true);
-  const touch = e.touches[0];
-  setDragStartPoint({
-    x: touch.clientX - switcherPosition.x,
-    y: touch.clientY - switcherPosition.y
-  });
-};
-
-useEffect(() => {
-  const handleGlobalMouseMove = (e: MouseEvent) => {
-    if (!isDraggingSwitcher) return;
-    setSwitcherPosition({
-      x: e.clientX - dragStartPoint.x,
-      y: e.clientY - dragStartPoint.y
-    });
-  };
-
-  const handleGlobalTouchMove = (e: TouchEvent) => {
-    if (!isDraggingSwitcher) return;
-    const touch = e.touches[0];
-    setSwitcherPosition({
-      x: touch.clientX - dragStartPoint.x,
-      y: touch.clientY - dragStartPoint.y
-    });
-  };
-
-  const handleGlobalMouseUp = () => {
-    setIsDraggingSwitcher(false);
-  };
-
-  if (isDraggingSwitcher) {
-    window.addEventListener('mousemove', handleGlobalMouseMove);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
-    window.addEventListener('touchend', handleGlobalMouseUp);
-  }
-
-  return () => {
-    window.removeEventListener('mousemove', handleGlobalMouseMove);
-    window.removeEventListener('mouseup', handleGlobalMouseUp);
-    window.removeEventListener('touchmove', handleGlobalTouchMove);
-    window.removeEventListener('touchend', handleGlobalMouseUp);
-  };
-}, [isDraggingSwitcher, dragStartPoint, switcherPosition]);
-
 // --- TANSTACK QUERY DATA FETCHES ---
 const { data: classes = [] } = useQuery<ClassGroup[]>({
   queryKey: ['classes'],
@@ -431,7 +378,7 @@ const handleClassRepBroadcast = async (classId: string, description: string): Pr
     const newUpdate = {
       class_id: classId,
       user_id: user.id,
-      user_name: `${user.name} (Class Representative)`,
+      user_name: `${user.name} (${strings.broadcast.classRepMarker})`,
       type: 'entry_added',
       description,
       timestamp: new Date().toISOString()
@@ -490,7 +437,7 @@ const handleCreateClass = async (name: string, description: string, visibility: 
     user_id: user.id,
     user_name: user.name,
     type: 'entry_added',
-    description: `Class "${name}" was created by representative ${user.name} with unique code: ${code}`,
+    description: strings.broadcast.classCreated(name, user.name, code),
     timestamp: new Date().toISOString(),
   });
 
@@ -511,7 +458,7 @@ const handleJoinClass = async (code: string) => {
     .maybeSingle();
 
   if (dbErr || !dbClass) {
-    showToast(`Class code "${code}" not found.`, 'error');
+    showToast(strings.toast.classCodeNotFound(code), 'error');
     return;
   }
 
@@ -523,7 +470,7 @@ const handleJoinClass = async (code: string) => {
     .maybeSingle();
 
   if (existingMember) {
-    showToast(`You have already joined or requested to join this class.`, 'info');
+    showToast(strings.toast.alreadyJoined, 'info');
     setActiveClassId(dbClass.id);
     return;
   }
@@ -541,14 +488,14 @@ const handleJoinClass = async (code: string) => {
     });
 
   if (joinErr) {
-    showToast(`Error joining class: ${joinErr.message}`, 'error');
+    showToast(strings.toast.errorJoining(joinErr.message), 'error');
     return;
   }
 
   if (isPrivate) {
-    showToast(`Your enrollment request has been submitted for approval.`, 'info');
+    showToast(strings.toast.requestSubmitted, 'info');
   } else {
-    showToast(`Successfully enrolled in "${dbClass.name}"!`, 'success');
+    showToast(strings.toast.enrolledSuccess(dbClass.name), 'success');
     setActiveClassId(dbClass.id);
   }
 
@@ -563,7 +510,7 @@ const handleApproveJoinRequest = async (classId: string, userId: string) => {
     .eq('user_id', userId);
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast('Student joining request approved!', 'success');
+  showToast(strings.toast.joinApproved, 'success');
 };
 
 const handleRejectJoinRequest = async (classId: string, userId: string) => {
@@ -574,7 +521,7 @@ const handleRejectJoinRequest = async (classId: string, userId: string) => {
     .eq('user_id', userId);
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast('Student joining request denied.', 'info');
+  showToast(strings.toast.joinDenied, 'info');
 };
 
 const handleRequestMemberRemoval = async (classId: string, memberId: string) => {
@@ -588,7 +535,7 @@ const handleRequestMemberRemoval = async (classId: string, memberId: string) => 
   });
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
-  showToast('Removal request sent to Class Representative.', 'info');
+  showToast(strings.toast.removalRequestSent, 'info');
 };
 
 const handleRemoveMemberInstantly = async (classId: string, memberId: string) => {
@@ -599,7 +546,7 @@ const handleRemoveMemberInstantly = async (classId: string, memberId: string) =>
     .eq('user_id', memberId);
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast('Member removed successfully.', 'success');
+  showToast(strings.toast.memberRemoved, 'success');
 };
 
 const handleApproveMemberRemoval = async (classId: string, memberId: string) => {
@@ -619,7 +566,7 @@ const handleApproveMemberRemoval = async (classId: string, memberId: string) => 
 
   await queryClient.invalidateQueries({ queryKey: ['classes'] });
   await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
-  showToast('Member removal approved.', 'success');
+  showToast(strings.toast.removalApproved, 'success');
 };
 
 const handleRejectMemberRemoval = async (classId: string, memberId: string) => {
@@ -630,7 +577,7 @@ const handleRejectMemberRemoval = async (classId: string, memberId: string) => {
     .eq('user_id', memberId);
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
-  showToast('Member removal rejected.', 'info');
+  showToast(strings.toast.removalRejected, 'info');
 };
 
 const handleUpdateClassCode = async (classId: string): Promise<string> => {
@@ -663,7 +610,7 @@ const handleUpdateClassCode = async (classId: string): Promise<string> => {
   if (error) throw error;
 
   await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(`Class code changed to: ${newCode}`, 'success');
+  showToast(strings.toast.codeChanged(newCode), 'success');
   return newCode;
 };
 
@@ -681,7 +628,7 @@ const handleMarkAttendance = async (entryId: string, date: string) => {
   });
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['attendanceLogs', user.id] });
-  showToast('Attendance marked!', 'success');
+  showToast(strings.toast.attendanceMarked, 'success');
 };
 
 const handleAddTimetableEntry = async (entry: Omit<TimetableEntry, 'id'>) => {
@@ -706,15 +653,17 @@ const handleAddTimetableEntry = async (entry: Omit<TimetableEntry, 'id'>) => {
     user_id: user.id,
     user_name: user.name,
     type: 'entry_added',
-    description: `Added timetable schedule: ${entry.subject} on ${
-      ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][entry.dayOfWeek - 1]
-    }s at ${entry.startTime}.`,
+    description: strings.broadcast.entryAdded(
+      entry.subject,
+      strings.broadcast.dayNames[entry.dayOfWeek - 1],
+      entry.startTime
+    ),
     timestamp: new Date().toISOString(),
   });
 
   await queryClient.invalidateQueries({ queryKey: ['timetable'] });
   await queryClient.invalidateQueries({ queryKey: ['updates'] });
-  showToast('Timetable entry added!', 'success');
+  showToast(strings.toast.timetableAdded, 'success');
 };
 
 const handleEditTimetableEntry = async (id: string, updatedFields: Partial<TimetableEntry>) => {
@@ -735,16 +684,16 @@ const handleEditTimetableEntry = async (id: string, updatedFields: Partial<Timet
     updatedWithMetadata.venue = updatedFields.venue;
     updatedWithMetadata.original_venue = entry.venue;
     updatedWithMetadata.venue_changed_at = new Date().toISOString();
-    changesDescription += `${entry.subject} room was moved from ${entry.venue} to ${updatedFields.venue}. `;
+    changesDescription += strings.broadcast.venueChanged(entry.subject, entry.venue || '', updatedFields.venue);
   }
 
   if (updatedFields.isCancelled !== undefined && updatedFields.isCancelled !== entry.isCancelled) {
     updatedWithMetadata.is_cancelled = updatedFields.isCancelled;
     if (updatedFields.isCancelled) {
       updatedWithMetadata.cancelled_at = new Date().toISOString();
-      changesDescription += `${entry.subject} class schedule is officially CANCELLED (Streak Safe). `;
+      changesDescription += strings.broadcast.classCancelled(entry.subject);
     } else {
-      changesDescription += `${entry.subject} class cancellation has been reverted. `;
+      changesDescription += strings.broadcast.cancellationReverted(entry.subject);
     }
   }
 
@@ -769,7 +718,7 @@ const handleEditTimetableEntry = async (id: string, updatedFields: Partial<Timet
 
   await queryClient.invalidateQueries({ queryKey: ['timetable'] });
   await queryClient.invalidateQueries({ queryKey: ['updates'] });
-  showToast('Timetable entry updated!', 'success');
+  showToast(strings.toast.timetableUpdated, 'success');
 };
 
 const handleDeleteTimetableEntry = async (id: string) => {
@@ -787,13 +736,13 @@ const handleDeleteTimetableEntry = async (id: string) => {
     user_id: user.id,
     user_name: user.name,
     type: 'entry_deleted',
-    description: `Schedule for ${entry.subject} was permanently removed from timetable.`,
+    description: strings.broadcast.entryDeleted(entry.subject),
     timestamp: new Date().toISOString(),
   });
 
   await queryClient.invalidateQueries({ queryKey: ['timetable'] });
   await queryClient.invalidateQueries({ queryKey: ['updates'] });
-  showToast('Timetable entry deleted.', 'info');
+  showToast(strings.toast.timetableDeleted, 'info');
 };
 
 const handleTrackAdEvent = async (adId: string, eventType: 'view' | 'click') => {
@@ -821,7 +770,7 @@ const handlePromoteToAssistant = async (classId: string, memberId: string) => {
     .eq('user_id', memberId);
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast('Member promoted to Assistant!', 'success');
+  showToast(strings.toast.memberPromoted, 'success');
 };
 
 const handleDemoteToMember = async (classId: string, assistantId: string) => {
@@ -832,7 +781,7 @@ const handleDemoteToMember = async (classId: string, assistantId: string) => {
     .eq('user_id', assistantId);
   if (error) throw error;
   await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast('Assistant demoted to Member.', 'info');
+  showToast(strings.toast.assistantDemoted, 'info');
 };
 
 const handleDeleteClass = async (classId: string) => {
@@ -841,35 +790,30 @@ const handleDeleteClass = async (classId: string) => {
   await queryClient.invalidateQueries({ queryKey: ['classes'] });
   await queryClient.invalidateQueries({ queryKey: ['timetable'] });
   await queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });
-  showToast('Class deleted successfully.', 'success');
+  showToast(strings.toast.classDeleted, 'success');
 };
 const handleLeaveClass = async (classId: string) => {
   if (!user) {
-    showToast('You must be logged in to leave a class.', 'error');
+    showToast(strings.toast.mustBeLoggedIn, 'error');
     return;
   }
 
-  // Check if user is the owner (representative)
   const activeClass = classes.find(c => c.id === classId);
   if (activeClass && activeClass.ownerId === user.id) {
-    // Check if there are assistants to transfer to
     if (activeClass.assistantIds.length === 0) {
-      showToast('You are the class representative. You must delete the class or promote someone to assistant first.', 'error');
+      showToast(strings.toast.cannotLeaveAsRep, 'error');
       return;
     }
 
-    // If there are assistants, prompt transfer
     const assistantName = memberNamesMap[activeClass.assistantIds[0]] || 'Assistant';
     if (activeClass.assistantIds.length === 1) {
-      // Auto-transfer to the only assistant
-      if (confirm(`You are the class representative. Transfer ownership to ${assistantName} and leave the class?`)) {
+      if (confirm(strings.confirm.transferOwnershipToOne(assistantName))) {
         await handleTransferOwnership(classId, activeClass.assistantIds[0]);
         return;
       }
       return;
     } else {
-      // Multiple assistants - open selection modal (handled in ClassView)
-      showToast('Please select an assistant to transfer ownership to.', 'info');
+      showToast(strings.toast.selectAssistantToTransfer, 'info');
       return;
     }
   }
@@ -882,7 +826,7 @@ const handleLeaveClass = async (classId: string) => {
 
   if (error) {
     console.error('Error leaving class:', error);
-    showToast('Failed to leave class. Please try again.', 'error');
+    showToast(strings.toast.leaveFailed, 'error');
     return;
   }
 
@@ -898,13 +842,12 @@ const handleLeaveClass = async (classId: string) => {
     }
   }
 
-  showToast('You have successfully left the class.', 'success');
+  showToast(strings.toast.leftClass, 'success');
 };
 
 const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
   if (!user) return;
 
-  // Update the class owner
   const { error: updateError } = await supabase
     .from('classes')
     .update({ owner_id: newOwnerId })
@@ -912,11 +855,10 @@ const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
 
   if (updateError) {
     console.error('Error transferring ownership:', updateError);
-    showToast('Failed to transfer ownership. Please try again.', 'error');
+    showToast(strings.toast.transferFailed, 'error');
     return;
   }
 
-  // Update the new owner's role in class_members to 'representative'
   const { error: roleError } = await supabase
     .from('class_members')
     .update({ role: 'representative' })
@@ -925,11 +867,10 @@ const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
 
   if (roleError) {
     console.error('Error updating role:', roleError);
-    showToast('Failed to update role. Please try again.', 'error');
+    showToast(strings.toast.roleUpdateFailed, 'error');
     return;
   }
 
-  // Update the old owner's role to 'member'
   const { error: oldRoleError } = await supabase
     .from('class_members')
     .update({ role: 'member' })
@@ -938,7 +879,7 @@ const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
 
   if (oldRoleError) {
     console.error('Error updating old owner role:', oldRoleError);
-    showToast('Failed to update your role. Please try again.', 'error');
+    showToast(strings.toast.roleUpdateFailedSelf, 'error');
     return;
   }
 
@@ -946,9 +887,8 @@ const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
   await queryClient.refetchQueries({ queryKey: ['classes'] });
 
   const newOwnerName = memberNamesMap[newOwnerId] || 'Assistant';
-  showToast(`Ownership transferred to ${newOwnerName}. You are now a member.`, 'success');
+  showToast(strings.toast.ownershipTransferred(newOwnerName), 'success');
 
-  // Now let the user leave
   const { error: leaveError } = await supabase
     .from('class_members')
     .delete()
@@ -957,7 +897,7 @@ const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
 
   if (leaveError) {
     console.error('Error leaving after transfer:', leaveError);
-    showToast('Ownership transferred but failed to leave. Please try leaving again.', 'error');
+    showToast(strings.toast.leaveAfterTransferFailed, 'error');
     return;
   }
 
@@ -973,39 +913,7 @@ const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
     }
   }
 
-  showToast('You have successfully left the class after transferring ownership.', 'success');
-};
-
-const handleDevRoleOverride = (targetRole: Role) => {
-  if (!user) return;
-  console.log('[App] Switching preview role to:', targetRole);
-
-  let targetName = user.name;
-  let targetEmail = user.email;
-
-  if (targetRole === 'admin') {
-    targetName = 'Philip Jonathan (Admin)';
-    targetEmail = 'philipjonathanpeter24@gmail.com';
-  } else if (targetRole === 'investor') {
-    targetName = 'Efe Omowole (Investor)';
-    targetEmail = 'efe.investor@thesdel.com';
-  } else if (targetRole === 'representative') {
-    targetName = 'Thesdel Class Rep';
-  } else if (targetRole === 'assistant') {
-    targetName = 'Thesdel Assistant';
-  } else {
-    targetName = 'Thesdel Member';
-  }
-
-  const updatedUser: User = {
-    ...user,
-    name: targetName,
-    email: targetEmail,
-    role: targetRole,
-  };
-
-  setUser(updatedUser);
-  setCached(CACHE_KEYS.USER, updatedUser);
+  showToast(strings.toast.leftAfterTransfer, 'success');
 };
 
 const renderViewContent = () => {
@@ -1146,19 +1054,19 @@ if (!isLoggedIn || !user) {
             <div className="max-w-4xl mx-auto px-4 flex items-center justify-between h-14">
               <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('home')}>
                 <BookOpen className="w-5 h-5 text-zinc-950 dark:text-zinc-50 shrink-0" />
-                <span className="font-mono text-base font-bold tracking-wider text-zinc-950 dark:text-zinc-100">THESDEL</span>
+                <span className="font-mono text-base font-bold tracking-wider text-zinc-950 dark:text-zinc-100">{strings.header.brand}</span>
               </div>
 
               <div className="flex items-center gap-3">
                 {pendingSyncCount > 0 ? (
                   <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono border border-amber-200 dark:border-amber-950/40 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-                    <span className="hidden sm:inline">PENDING SYNC:</span> <span>{pendingSyncCount}</span>
+                    <span className="hidden sm:inline">{strings.header.syncPending}</span> <span>{pendingSyncCount}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono border border-emerald-200 dark:border-emerald-950/40 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                    <span>SYNCED</span>
+                    <span>{strings.header.syncSynced}</span>
                   </div>
                 )}
                 {((user.role as string) === 'admin' || (user.role as string) === 'investor') && (
@@ -1169,7 +1077,7 @@ if (!isLoggedIn || !user) {
                     className="flex items-center gap-1.5 text-xs font-mono border border-zinc-900 bg-zinc-950 hover:bg-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white px-2.5 py-1 text-white transition-all cursor-pointer font-bold"
                   >
                     <Terminal className="w-3.5 h-3.5" />
-                    <span>Console</span>
+                    <span>{strings.header.console}</span>
                   </button>
                 )}
                 <div className="flex items-center gap-1.5 text-xs font-mono border border-zinc-200 dark:border-zinc-800 px-2.5 py-1 bg-zinc-50 dark:bg-zinc-950">
@@ -1194,7 +1102,7 @@ if (!isLoggedIn || !user) {
                 }`}
               >
                 <Clock className={`w-5 h-5 ${currentView === 'home' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">Today</span>
+                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.today}</span>
               </button>
 
               <button
@@ -1205,7 +1113,7 @@ if (!isLoggedIn || !user) {
                 }`}
               >
                 <Calendar className={`w-5 h-5 ${currentView === 'timetable' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">Timetable</span>
+                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.timetable}</span>
               </button>
 
               <button
@@ -1216,7 +1124,7 @@ if (!isLoggedIn || !user) {
                 }`}
               >
                 <CheckCircle2 className={`w-5 h-5 ${currentView === 'attendance' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">Attendance</span>
+                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.attendance}</span>
               </button>
 
               <button
@@ -1227,7 +1135,7 @@ if (!isLoggedIn || !user) {
                 }`}
               >
                 <Layers className={`w-5 h-5 ${currentView === 'class' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">Class</span>
+                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.class}</span>
               </button>
 
               <button
@@ -1238,7 +1146,7 @@ if (!isLoggedIn || !user) {
                 }`}
               >
                 <UserIcon className={`w-5 h-5 ${currentView === 'profile' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">Profile</span>
+                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.profile}</span>
               </button>
             </nav>
           </div>
