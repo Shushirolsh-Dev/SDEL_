@@ -1,15 +1,18 @@
 import React from 'react';
 import { Monitor, Check } from 'lucide-react';
+import type { SettingsThemeStrings } from '../../i18n/types.app';
 
 type Theme = 'system' | 'dark';
 
 interface SettingsThemeSectionProps {
   theme: Theme;
+  strings: SettingsThemeStrings;
   onSelectTheme: (theme: Theme) => void;
 }
 
 const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
   theme,
+  strings,
   onSelectTheme,
 }) => {
   return (
@@ -20,11 +23,11 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
       <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-5 dark:border-zinc-900">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-400">
-            Appearance
+            {strings.sectionLabel}
           </p>
 
           <h2 className="mt-1 text-base font-bold text-zinc-950 dark:text-white">
-            Theme
+            {strings.sectionTitle}
           </h2>
         </div>
 
@@ -43,7 +46,9 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
             }`}
           >
             <div>
-              <span className="block text-sm font-bold">System</span>
+              <span className="block text-sm font-bold">
+                {strings.systemTitle}
+              </span>
 
               <span
                 className={`mt-0.5 block text-xs ${
@@ -52,7 +57,7 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
                     : 'text-zinc-400'
                 }`}
               >
-                Follow your device
+                {strings.systemSubtitle}
               </span>
             </div>
 
@@ -69,7 +74,9 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
             }`}
           >
             <div>
-              <span className="block text-sm font-bold">Dark</span>
+              <span className="block text-sm font-bold">
+                {strings.darkTitle}
+              </span>
 
               <span
                 className={`mt-0.5 block text-xs ${
@@ -78,7 +85,7 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
                     : 'text-zinc-400'
                 }`}
               >
-                Always use dark mode
+                {strings.darkSubtitle}
               </span>
             </div>
 
