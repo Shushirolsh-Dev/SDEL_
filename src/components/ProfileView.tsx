@@ -2,22 +2,25 @@ import React from 'react';
 import { User, ClassGroup } from '../types';
 import { LogOut, Settings } from 'lucide-react';
 import { trackClick } from '../utils/tracker';
+import type { ProfileStrings } from '../i18n/types.app';
 
 interface ProfileViewProps {
   currentUser: User;
   joinedClasses: ClassGroup[];
+  strings: ProfileStrings;
   onLogout?: () => void;
   onOpenSettings?: () => void;
 }
 
 export default function ProfileView({
   currentUser,
+  joinedClasses,
+  strings,
   onLogout,
   onOpenSettings,
 }: ProfileViewProps) {
   const handleLogout = () => {
     trackClick('Button: Log Out');
-
     if (onLogout) {
       onLogout();
     }
@@ -26,13 +29,11 @@ export default function ProfileView({
   const role =
     (currentUser as any).role ||
     (currentUser as any).user_role ||
-    'Student';
+    strings.roleFallback;
 
   return (
     <div className="max-w-2xl mx-auto">
       <div className="border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-
-        {/* Account */}
         <div className="p-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center text-lg font-bold text-zinc-700 dark:text-zinc-300">
@@ -43,7 +44,7 @@ export default function ProfileView({
 
             <div>
               <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                {currentUser.name || 'Student'}
+                {currentUser.name || strings.studentFallback}
               </h1>
 
               {currentUser.username && (
@@ -59,9 +60,7 @@ export default function ProfileView({
           </div>
         </div>
 
-        {/* Actions */}
         <div className="border-t border-zinc-200 dark:border-zinc-800">
-
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
@@ -71,7 +70,7 @@ export default function ProfileView({
                 <Settings className="w-4 h-4 text-zinc-500" />
 
                 <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                  Settings
+                  {strings.settingsButton}
                 </span>
               </div>
             </button>
@@ -85,11 +84,10 @@ export default function ProfileView({
               <LogOut className="w-4 h-4 text-zinc-500" />
 
               <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                Log out
+                {strings.logoutButton}
               </span>
             </div>
           </button>
-
         </div>
       </div>
     </div>
