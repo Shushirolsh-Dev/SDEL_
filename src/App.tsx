@@ -391,6 +391,7 @@ export default function App() {
                 u.classId === 'region_south' ||
                 u.classId === 'country_all'
             )}
+            strings={strings.notifications}
             onForceRefresh={async () => {
               await queryClient.invalidateQueries({
                 queryKey: ['updates'],
