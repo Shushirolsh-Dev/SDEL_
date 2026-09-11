@@ -56,6 +56,14 @@ export type {
   ClassJoinStrings,
   ClassCreateStrings,
   ClassToastStrings,
+  SettingsStrings,
+  SettingsHeaderStrings,
+  SettingsThemeStrings,
+  SettingsLanguageStrings,
+  SettingsVisibilityStrings,
+  SettingsDangerStrings,
+  SettingsDeleteModalStrings,
+  SettingsFooterStrings,
 } from './types.app';
 
 export type {
