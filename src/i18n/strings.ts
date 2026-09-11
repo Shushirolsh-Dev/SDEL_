@@ -38,6 +38,13 @@ export type {
   TimetableEntryCardStrings,
   TimetableFormStrings,
   TimetableDeleteStrings,
+  AttendanceStrings,
+  AttendanceHeaderStrings,
+  AttendanceSummaryStrings,
+  AttendanceStreakStrings,
+  AttendanceWeekStrings,
+  AttendanceStatusStrings,
+  AttendanceEmptyStrings,
 } from './types.app';
 
 export type {
