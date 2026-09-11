@@ -68,6 +68,63 @@ export interface ProfileStrings {
   logoutButton: string;
 }
 
+export interface NotificationsHeaderStrings {
+  backTitle: string;
+  title: string;
+  subtitle: string;
+  refreshButton: string;
+  refreshingButton: string;
+}
+
+export interface NotificationsEmptyStrings {
+  title: string;
+  subtitle: string;
+}
+
+export interface NotificationsCardStrings {
+  labelCancelled: string;
+  labelUrgent: string;
+  labelVenueChanged: string;
+  labelInfo: string;
+  labelSponsored: string;
+  labelAdSpace: string;
+  sponsoredSpotlight: string;
+  byLabel: string;
+  teamLabel: string;
+  agreedButton: (count: number) => string;
+  agreeButton: (count: number) => string;
+  adLearnMore: string;
+  pollSectionLabel: string;
+  pollResponseRegistered: string;
+  pollResponseRecorded: string;
+  pollSelected: string;
+  pollYourResponse: string;
+  pollLineCounter: (current: number, max: number) => string;
+  pollTextareaPlaceholder: string;
+  pollSubmitResponse: string;
+  pollSubmitAnswer: string;
+  pollDefaultYes: string;
+  pollDefaultNo: string;
+}
+
+export interface NotificationsRepStrings {
+  title: string;
+  subtitle: string;
+  textareaPlaceholder: string;
+  counterLabel: (current: number, max: number) => string;
+  visibleToMembers: string;
+  postButton: string;
+  postingButton: string;
+  successMessage: string;
+}
+
+export interface NotificationsStrings {
+  header: NotificationsHeaderStrings;
+  empty: NotificationsEmptyStrings;
+  card: NotificationsCardStrings;
+  rep: NotificationsRepStrings;
+}
+
 export interface AppStrings {
   header: HeaderStrings;
   nav: NavStrings;
@@ -75,4 +132,5 @@ export interface AppStrings {
   confirm: ConfirmStrings;
   broadcast: BroadcastStrings;
   profile: ProfileStrings;
+  notifications: NotificationsStrings;
 }
