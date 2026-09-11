@@ -22,6 +22,14 @@ export type {
   NotificationsEmptyStrings,
   NotificationsCardStrings,
   NotificationsRepStrings,
+  HomeStrings,
+  HomeHeaderStrings,
+  HomeNextClassStrings,
+  HomeScheduleStrings,
+  HomeAttendanceStrings,
+  HomeUpdatesStrings,
+  HomeRepStrings,
+  HomeAdStrings,
 } from './types.app';
 
 export type {
