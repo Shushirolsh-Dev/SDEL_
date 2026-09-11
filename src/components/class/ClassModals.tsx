@@ -8,7 +8,8 @@ import {
   Shield,
   AlertCircle,
 } from 'lucide-react';
-import { ClassGroup, User } from '../types';
+import { ClassGroup, User } from '../../types';
+import type { ClassModalsStrings } from '../../i18n/types.app';
 
 type ConfirmAction =
   | { type: 'leave'; classId: string; className: string }
@@ -43,6 +44,7 @@ interface ClassModalsProps {
   activeClass: ClassGroup | undefined;
   currentUser: User;
   selectedTransferId: string;
+  strings: ClassModalsStrings;
   getMemberName: (memberId: string) => string;
   onSelectTransfer: (id: string) => void;
   onCloseTransfer: () => void;
@@ -68,6 +70,7 @@ const ClassModals: React.FC<ClassModalsProps> = ({
   activeClass,
   currentUser,
   selectedTransferId,
+  strings,
   getMemberName,
   onSelectTransfer,
   onCloseTransfer,
@@ -92,13 +95,13 @@ const ClassModals: React.FC<ClassModalsProps> = ({
               <div>
                 <p className="text-sm font-black">
                   {isCreating
-                    ? 'Creating class'
+                    ? strings.loadingCreating
                     : isJoining
-                    ? 'Joining class'
-                    : 'Updating class'}
+                    ? strings.loadingJoining
+                    : strings.loadingUpdating}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {loadingMessage || 'Please wait...'}
+                  {loadingMessage || strings.loadingFallback}
                 </p>
               </div>
             </div>
@@ -113,10 +116,10 @@ const ClassModals: React.FC<ClassModalsProps> = ({
             <div className="flex items-center justify-between border-b border-zinc-200 px-5 py-4 dark:border-zinc-800">
               <div>
                 <p className="text-sm font-black">
-                  Transfer ownership
+                  {strings.transferTitle}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  Select an assistant to become the new owner.
+                  {strings.transferSubtitle}
                 </p>
               </div>
 
@@ -183,7 +186,7 @@ const ClassModals: React.FC<ClassModalsProps> = ({
                 onClick={onCloseTransfer}
                 className="flex-1 rounded-xl border border-zinc-300 px-4 py-3 text-sm font-black transition hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
               >
-                Cancel
+                {strings.cancelButton}
               </button>
 
               <button
@@ -192,7 +195,7 @@ const ClassModals: React.FC<ClassModalsProps> = ({
                 onClick={onConfirmTransfer}
                 className="flex-1 rounded-xl bg-zinc-950 px-4 py-3 text-sm font-black text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
               >
-                Transfer
+                {strings.transferConfirmButton}
               </button>
             </div>
           </div>
@@ -218,26 +221,36 @@ const ClassModals: React.FC<ClassModalsProps> = ({
 
               <h3 className="mt-4 text-lg font-black">
                 {confirmAction.type === 'delete'
-                  ? 'Delete class?'
+                  ? strings.confirmDeleteTitle
                   : confirmAction.type === 'regenerate'
-                  ? 'Regenerate class code?'
+                  ? strings.confirmRegenerateTitle
                   : confirmAction.type === 'reject-join'
-                  ? 'Reject join request?'
+                  ? strings.confirmRejectJoinTitle
                   : confirmAction.type === 'remove-member'
-                  ? 'Remove member?'
-                  : 'Request member removal?'}
+                  ? strings.confirmRemoveMemberTitle
+                  : strings.confirmRequestRemovalTitle}
               </h3>
 
               <p className="mt-2 text-sm leading-6 text-zinc-500">
                 {confirmAction.type === 'delete'
-                  ? `This will permanently delete "${confirmAction.className}". This action cannot be undone.`
+                  ? strings.confirmDeleteBody(
+                      confirmAction.className
+                    )
                   : confirmAction.type === 'regenerate'
-                  ? `The current code for "${confirmAction.className}" will stop working and a new code will be generated.`
+                  ? strings.confirmRegenerateBody(
+                      confirmAction.className
+                    )
                   : confirmAction.type === 'reject-join'
-                  ? `${confirmAction.userName}'s request to join this class will be rejected.`
+                  ? strings.confirmRejectJoinBody(
+                      confirmAction.userName
+                    )
                   : confirmAction.type === 'remove-member'
-                  ? `${confirmAction.memberName} will be removed from this class.`
-                  : `${confirmAction.memberName} will receive a removal request for this class.`}
+                  ? strings.confirmRemoveMemberBody(
+                      confirmAction.memberName
+                    )
+                  : strings.confirmRequestRemovalBody(
+                      confirmAction.memberName
+                    )}
               </p>
             </div>
 
@@ -247,7 +260,7 @@ const ClassModals: React.FC<ClassModalsProps> = ({
                 onClick={onCancelConfirm}
                 className="flex-1 rounded-xl border border-zinc-300 px-4 py-3 text-sm font-black transition hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
               >
-                Cancel
+                {strings.cancelButton}
               </button>
 
               <button
@@ -262,14 +275,14 @@ const ClassModals: React.FC<ClassModalsProps> = ({
                 }`}
               >
                 {confirmAction.type === 'delete'
-                  ? 'Delete'
+                  ? strings.confirmDeleteButton
                   : confirmAction.type === 'regenerate'
-                  ? 'Regenerate'
+                  ? strings.confirmRegenerateButton
                   : confirmAction.type === 'reject-join'
-                  ? 'Reject'
+                  ? strings.confirmRejectButton
                   : confirmAction.type === 'remove-member'
-                  ? 'Remove'
-                  : 'Request removal'}
+                  ? strings.confirmRemoveButton
+                  : strings.confirmRequestRemovalButton}
               </button>
             </div>
           </div>
