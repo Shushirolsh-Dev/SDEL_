@@ -1,5 +1,5 @@
 import React from 'react';
-import { Megaphone, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import type { NotificationsCardStrings } from '../../i18n/types.app';
 
 interface NotificationCardAdProps {
