@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import AdminApp from '../admin/AdminApp';
-import { User, ClassGroup, TimetableEntry, AttendanceLog, ClassUpdate, Role, PendingRemoval } from './types';
+import { User, Role } from './types';
 import HomeView from './components/HomeView';
 import TimetableView from './components/TimetableView';
 import AttendanceView from './components/AttendanceView';
@@ -10,41 +10,35 @@ import ProfileView from './components/ProfileView';
 import SettingsView from './components/SettingsView';
 import LandingView from './components/LandingView';
 import NotificationsView from './components/NotificationsView';
-import { trackPageView, trackClick } from './utils/tracker';
-import { Calendar, CheckCircle2, Clock, Shield, User as UserIcon, BookOpen, Layers, Terminal } from 'lucide-react';
+import AppHeader from './components/AppHeader';
+import AppBottomNav from './components/AppBottomNav';
+import AppToast from './components/AppToast';
+import { trackPageView } from './utils/tracker';
 import { useAppStore } from './lib/store';
 import { getAppStrings } from './i18n/strings';
 import { detectLocale } from './i18n/detect';
+import { useAppData } from './hooks/useAppData';
+import { useAppHandlers } from './hooks/useAppHandlers';
 import {
   supabase,
   getCached,
   setCached,
   CACHE_KEYS,
-  enqueueOfflineAction,
   processOfflineQueue,
   getOfflineQueue,
 } from './lib/supabase';
 
-const Toast = ({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 3000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const bgColor = type === 'success' ? 'bg-emerald-500' : type === 'error' ? 'bg-red-500' : 'bg-blue-500';
-  return (
-    <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-medium ${bgColor} animate-slide-in`}>
-      {message}
-    </div>
-  );
-};
-
 export default function App() {
   const queryClient = useQueryClient();
-  const { theme, setTheme, currentView, setView, activeClassId, setActiveClassId } = useAppStore();
+  const {
+    theme,
+    currentView,
+    setView,
+    activeClassId,
+    setActiveClassId,
+  } = useAppStore();
 
   const [locale, setLocale] = useState<string>(() => detectLocale());
-
   const strings = getAppStrings(locale);
 
   const handleChangeLocale = (next: string) => {
@@ -54,13 +48,13 @@ export default function App() {
     }
   };
 
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    return getCached(CACHE_KEYS.LOGGED_IN, false);
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() =>
+    getCached(CACHE_KEYS.LOGGED_IN, false)
+  );
 
-  const [user, setUser] = useState<User | null>(() => {
-    return getCached<User | null>(CACHE_KEYS.USER, null);
-  });
+  const [user, setUser] = useState<User | null>(() =>
+    getCached<User | null>(CACHE_KEYS.USER, null)
+  );
 
   const [simulatedTime, setSimulatedTime] = useState<string>(() => {
     const saved = localStorage.getItem('thesdel_simulated_time');
@@ -68,1098 +62,399 @@ export default function App() {
   });
 
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+  const showToast = (
+    message: string,
+    type: 'success' | 'error' | 'info' = 'success'
+  ) => {
     setToast({ message, type });
   };
 
   useEffect(() => {
     trackPageView(currentView);
   }, [currentView]);
-// --- TANSTACK QUERY DATA FETCHES ---
-const { data: classes = [] } = useQuery<ClassGroup[]>({
-  queryKey: ['classes'],
-  queryFn: async () => {
-    const { data: dbClasses, error } = await supabase.from('classes').select('*');
-    if (error) throw error;
 
-    const formattedClasses: ClassGroup[] = [];
-    for (const cls of (dbClasses || [])) {
-      const { data: membersData } = await supabase
-        .from('class_members')
-        .select('*')
-        .eq('class_id', cls.id);
-
-      const assistantIds = (membersData || [])
-        .filter((m) => m.role === 'assistant' && m.status === 'approved')
-        .map((m) => m.user_id);
-
-      const memberIds = (membersData || [])
-        .filter((m) => m.role === 'member' && m.status === 'approved')
-        .map((m) => m.user_id);
-
-      const pendingMemberIds = (membersData || [])
-        .filter((m) => m.status === 'pending')
-        .map((m) => m.user_id);
-
-      formattedClasses.push({
-        id: cls.id,
-        name: cls.name,
-        code: cls.code,
-        ownerId: cls.owner_id,
-        assistantIds,
-        memberIds,
-        pendingMemberIds,
-        description: cls.description || undefined,
-        visibility: cls.visibility || 'public'
-      });
-    }
-    return formattedClasses;
-  },
-  enabled: isLoggedIn && !!user?.id,
-});
-
-const { data: timetable = [] } = useQuery<TimetableEntry[]>({
-  queryKey: ['timetable'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('timetable').select('*');
-    if (error) throw error;
-    return (data || []).map((e) => ({
-      id: e.id,
-      classId: e.class_id,
-      subject: e.subject,
-      dayOfWeek: e.day_of_week,
-      startTime: e.start_time,
-      endTime: e.end_time,
-      durationMinutes: e.duration_minutes,
-      venue: e.venue,
-      originalVenue: e.original_venue || undefined,
-      venueChangedAt: e.venue_changed_at || undefined,
-      isCancelled: e.is_cancelled,
-      cancelledAt: e.cancelled_at || undefined,
-    }));
-  },
-  enabled: isLoggedIn && !!user?.id,
-});
-
-const { data: attendanceLogs = [] } = useQuery<AttendanceLog[]>({
-  queryKey: ['attendanceLogs', user?.id],
-  queryFn: async () => {
-    if (!user?.id) return [];
-    const { data, error } = await supabase
-      .from('attendance_logs')
-      .select('*')
-      .eq('user_id', user.id);
-    if (error) throw error;
-    return (data || []).map((l) => ({
-      id: l.id,
-      classId: l.class_id,
-      timetableEntryId: l.timetable_entry_id,
-      date: l.date,
-      status: l.status as any,
-      timestamp: l.timestamp,
-    }));
-  },
-  enabled: isLoggedIn && !!user?.id,
-});
-
-const { data: updates = [] } = useQuery<ClassUpdate[]>({
-  queryKey: ['updates'],
-  queryFn: async () => {
-    const { data, error } = await supabase
-      .from('updates')
-      .select('*')
-      .order('timestamp', { ascending: false });
-    if (error) throw error;
-
-    return (data || []).map((u) => ({
-      id: u.id,
-      classId: u.class_id,
-      userId: u.user_id || undefined,
-      userName: u.user_name,
-      type: u.type as any,
-      description: u.description,
-      timestamp: u.timestamp,
-    }));
-  },
-  enabled: isLoggedIn && !!user?.id,
-});
-
-const { data: pendingRemovals = [] } = useQuery<PendingRemoval[]>({
-  queryKey: ['pendingRemovals'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('pending_removals').select('*');
-    if (error) throw error;
-    return (data || []).map((pr) => ({
-      id: pr.id,
-      classId: pr.class_id,
-      userId: pr.user_id,
-      requestedBy: pr.requested_by,
-      createdAt: pr.created_at,
-    }));
-  },
-  enabled: isLoggedIn && !!user?.id,
-});
-
-const { data: memberNamesMap = {} } = useQuery<Record<string, string>>({
-  queryKey: ['memberNamesMap'],
-  queryFn: async () => {
-    const { data, error } = await supabase.from('profiles').select('id, name');
-    if (error) throw error;
-    const profileMap: Record<string, string> = {};
-    for (const p of (data || [])) {
-      profileMap[p.id] = p.name;
-    }
-    return profileMap;
-  },
-  enabled: isLoggedIn && !!user?.id,
-});
-const genUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
+  const {
+    classes,
+    timetable,
+    attendanceLogs,
+    updates,
+    pendingRemovals,
+    memberNamesMap,
+  } = useAppData({
+    isLoggedIn,
+    userId: user?.id,
   });
-};
 
-const fetchActiveProfile = async (userId: string) => {
-  try {
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (!error && profile) {
-      const u: User = {
-        id: profile.id,
-        name: profile.name,
-        username: profile.username,
-        email: profile.email,
-        role: profile.role as Role,
-        phone: profile.phone,
-        plan: profile.plan as any,
-        whatsappNumber: profile.whatsapp_number || undefined,
-        isReminderNumberLocked: profile.is_reminder_number_locked,
-      };
-      setUser(u);
-      setCached(CACHE_KEYS.USER, u);
-    }
-  } catch (e) {
-    console.warn('Failed to refresh user profile:', e);
-  }
-};
-
-useEffect(() => {
-  const checkSession = async () => {
+  const fetchActiveProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase.auth.getSession();
-      if (!error && data.session?.user) {
-        setIsLoggedIn(true);
-        setCached(CACHE_KEYS.LOGGED_IN, true);
-        await fetchActiveProfile(data.session.user.id);
-      } else {
-        const cachedLoggedIn = getCached(CACHE_KEYS.LOGGED_IN, false);
-        if (cachedLoggedIn) {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (!error && profile) {
+        const u: User = {
+          id: profile.id,
+          name: profile.name,
+          username: profile.username,
+          email: profile.email,
+          role: profile.role as Role,
+          phone: profile.phone,
+          plan: profile.plan as any,
+          whatsappNumber: profile.whatsapp_number || undefined,
+          isReminderNumberLocked: profile.is_reminder_number_locked,
+        };
+        setUser(u);
+        setCached(CACHE_KEYS.USER, u);
+      }
+    } catch (e) {
+      console.warn('Failed to refresh user profile:', e);
+    }
+  };
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (!error && data.session?.user) {
           setIsLoggedIn(true);
-          const cachedUser = getCached<User | null>(CACHE_KEYS.USER, null);
-          if (cachedUser) {
-            setUser(cachedUser);
+          setCached(CACHE_KEYS.LOGGED_IN, true);
+          await fetchActiveProfile(data.session.user.id);
+        } else {
+          const cachedLoggedIn = getCached(
+            CACHE_KEYS.LOGGED_IN,
+            false
+          );
+          if (cachedLoggedIn) {
+            setIsLoggedIn(true);
+            const cachedUser = getCached<User | null>(
+              CACHE_KEYS.USER,
+              null
+            );
+            if (cachedUser) setUser(cachedUser);
           }
         }
+      } catch (err) {
+        console.warn('Exception checking session:', err);
       }
-    } catch (err) {
-      console.warn('Exception checking session:', err);
-    }
-  };
-  checkSession();
-}, [isLoggedIn]);
-
-useEffect(() => {
-  setPendingSyncCount(getOfflineQueue().length);
-  const handleOnline = async () => {
-    console.log('[App] Online state detected. Syncing...');
-    try {
-      await processOfflineQueue((count) => setPendingSyncCount(count));
-      const session = await supabase.auth.getSession();
-      if (session.data.session?.user) {
-        await fetchActiveProfile(session.data.session.user.id);
-        queryClient.invalidateQueries();
-      }
-    } catch (err) {
-      console.warn('Error on online sync:', err);
-    }
-  };
-  window.addEventListener('online', handleOnline);
-  return () => window.removeEventListener('online', handleOnline);
-}, [queryClient]);
-
-useEffect(() => {
-  if (activeClassId) {
-    localStorage.setItem('thesdel_active_class_id', activeClassId);
-  }
-}, [activeClassId]);
-
-useEffect(() => {
-  localStorage.setItem('thesdel_simulated_time', simulatedTime);
-}, [simulatedTime]);
-
-useEffect(() => {
-  const applyTheme = () => {
-    const isDark =
-      theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
-  applyTheme();
-
-  if (theme === 'system') {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const listener = () => applyTheme();
-    mediaQuery.addEventListener('change', listener);
-    return () => mediaQuery.removeEventListener('change', listener);
-  }
-}, [theme]);
-
-const handleLoginSuccess = async (loggedInUser: User) => {
-  setUser(loggedInUser);
-  setIsLoggedIn(true);
-  setCached(CACHE_KEYS.LOGGED_IN, true);
-  setCached(CACHE_KEYS.USER, loggedInUser);
-  await fetchActiveProfile(loggedInUser.id);
-  queryClient.invalidateQueries();
-};
-
-const handleLogout = async () => {
-  try {
-    trackClick('Button: Log Out');
-  } catch (e) {
-    console.error(e);
-  }
-  await supabase.auth.signOut().catch(console.error);
-  setIsLoggedIn(false);
-  localStorage.clear();
-  sessionStorage.clear();
-  window.location.href = window.location.origin + '/';
-};
-
-const getActiveUserRoleInClass = (): Role => {
-  if (!user) return 'member';
-  if (user.role === 'admin' || user.role === 'investor') return user.role;
-  const activeClass = classes.find((c) => c.id === activeClassId);
-  if (!activeClass) return 'member';
-  if (activeClass.ownerId === user.id) return 'representative';
-  if (activeClass.assistantIds.includes(user.id)) return 'assistant';
-  return 'member';
-};
-
-const currentUserRole = getActiveUserRoleInClass();
-
-const userJoinedClasses = classes.filter(
-  (c) =>
-    !user ||
-    user.role === 'admin' ||
-    user.role === 'investor' ||
-    c.memberIds.includes(user.id) ||
-    c.ownerId === user.id ||
-    c.assistantIds.includes(user.id)
-);
-
-useEffect(() => {
-  if (userJoinedClasses.length > 0 && !userJoinedClasses.some((c) => c.id === activeClassId)) {
-    setActiveClassId(userJoinedClasses[0].id);
-  }
-}, [classes, userJoinedClasses, activeClassId, setActiveClassId]);
-const handleClassRepBroadcast = async (classId: string, description: string): Promise<boolean> => {
-  if (!user) return false;
-  try {
-    const newUpdate = {
-      class_id: classId,
-      user_id: user.id,
-      user_name: `${user.name} (${strings.broadcast.classRepMarker})`,
-      type: 'entry_added',
-      description,
-      timestamp: new Date().toISOString()
     };
+    checkSession();
+  }, [isLoggedIn]);
 
-    const { error } = await supabase.from('updates').insert([newUpdate]);
-    if (error) throw error;
-
-    await queryClient.invalidateQueries({ queryKey: ['updates'] });
-    return true;
-  } catch (err) {
-    console.error('[App] Failed to post class rep broadcast:', err);
-    return false;
-  }
-};
-
-const handleCreateClass = async (name: string, description: string, visibility: 'public' | 'private'): Promise<string> => {
-  if (!user) return '';
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let code = '';
-  let isUnique = false;
-
-  while (!isUnique) {
-    let randomPart = '';
-    for (let i = 0; i < 10; i++) {
-      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    code = randomPart;
-
-    const { data } = await supabase
-      .from('classes')
-      .select('code')
-      .eq('code', code)
-      .maybeSingle();
-
-    if (!data) {
-      isUnique = true;
-    }
-  }
-
-  const newId = genUUID();
-  const { error } = await supabase.from('classes').insert({
-    id: newId,
-    name,
-    code,
-    owner_id: user.id,
-    description,
-    visibility
-  });
-  if (error) throw error;
-
-  const updateId = genUUID();
-  await supabase.from('updates').insert({
-    id: updateId,
-    class_id: newId,
-    user_id: user.id,
-    user_name: user.name,
-    type: 'entry_added',
-    description: strings.broadcast.classCreated(name, user.name, code),
-    timestamp: new Date().toISOString(),
-  });
-
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  await queryClient.invalidateQueries({ queryKey: ['updates'] });
-  setActiveClassId(newId);
-
-  return code;
-};
-
-const handleJoinClass = async (code: string) => {
-  if (!user) return;
-
-  const { data: dbClass, error: dbErr } = await supabase
-    .from('classes')
-    .select('*')
-    .eq('code', code)
-    .maybeSingle();
-
-  if (dbErr || !dbClass) {
-    showToast(strings.toast.classCodeNotFound(code), 'error');
-    return;
-  }
-
-  const { data: existingMember } = await supabase
-    .from('class_members')
-    .select('*')
-    .eq('class_id', dbClass.id)
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (existingMember) {
-    showToast(strings.toast.alreadyJoined, 'info');
-    setActiveClassId(dbClass.id);
-    return;
-  }
-
-  const isPrivate = dbClass.visibility === 'private';
-  const initialStatus = isPrivate ? 'pending' : 'approved';
-
-  const { error: joinErr } = await supabase
-    .from('class_members')
-    .insert({
-      class_id: dbClass.id,
-      user_id: user.id,
-      role: 'member',
-      status: initialStatus
-    });
-
-  if (joinErr) {
-    showToast(strings.toast.errorJoining(joinErr.message), 'error');
-    return;
-  }
-
-  if (isPrivate) {
-    showToast(strings.toast.requestSubmitted, 'info');
-  } else {
-    showToast(strings.toast.enrolledSuccess(dbClass.name), 'success');
-    setActiveClassId(dbClass.id);
-  }
-
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-};
-
-const handleApproveJoinRequest = async (classId: string, userId: string) => {
-  const { error } = await supabase
-    .from('class_members')
-    .update({ status: 'approved' })
-    .eq('class_id', classId)
-    .eq('user_id', userId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.joinApproved, 'success');
-};
-
-const handleRejectJoinRequest = async (classId: string, userId: string) => {
-  const { error } = await supabase
-    .from('class_members')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', userId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.joinDenied, 'info');
-};
-
-const handleRequestMemberRemoval = async (classId: string, memberId: string) => {
-  if (!user) return;
-  const { error } = await supabase.from('pending_removals').insert({
-    id: genUUID(),
-    class_id: classId,
-    user_id: memberId,
-    requested_by: user.id,
-    created_at: new Date().toISOString(),
-  });
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
-  showToast(strings.toast.removalRequestSent, 'info');
-};
-
-const handleRemoveMemberInstantly = async (classId: string, memberId: string) => {
-  const { error } = await supabase
-    .from('class_members')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', memberId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.memberRemoved, 'success');
-};
-
-const handleApproveMemberRemoval = async (classId: string, memberId: string) => {
-  const { error: delMember } = await supabase
-    .from('class_members')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', memberId);
-  if (delMember) throw delMember;
-
-  const { error: delPR } = await supabase
-    .from('pending_removals')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', memberId);
-  if (delPR) throw delPR;
-
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
-  showToast(strings.toast.removalApproved, 'success');
-};
-
-const handleRejectMemberRemoval = async (classId: string, memberId: string) => {
-  const { error } = await supabase
-    .from('pending_removals')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', memberId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
-  showToast(strings.toast.removalRejected, 'info');
-};
-
-const handleUpdateClassCode = async (classId: string): Promise<string> => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let newCode = '';
-  let isUnique = false;
-
-  while (!isUnique) {
-    let randomPart = '';
-    for (let i = 0; i < 10; i++) {
-      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    newCode = randomPart;
-
-    const { data } = await supabase
-      .from('classes')
-      .select('code')
-      .eq('code', newCode)
-      .maybeSingle();
-
-    if (!data) {
-      isUnique = true;
-    }
-  }
-
-  const { error } = await supabase
-    .from('classes')
-    .update({ code: newCode })
-    .eq('id', classId);
-  if (error) throw error;
-
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.codeChanged(newCode), 'success');
-  return newCode;
-};
-
-const handleMarkAttendance = async (entryId: string, date: string) => {
-  if (!user) return;
-  const newLogId = genUUID();
-  const { error } = await supabase.from('attendance_logs').insert({
-    id: newLogId,
-    class_id: activeClassId,
-    timetable_entry_id: entryId,
-    user_id: user.id,
-    date,
-    status: 'attended',
-    timestamp: new Date().toISOString(),
-  });
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['attendanceLogs', user.id] });
-  showToast(strings.toast.attendanceMarked, 'success');
-};
-
-const handleAddTimetableEntry = async (entry: Omit<TimetableEntry, 'id'>) => {
-  if (!user) return;
-  const newId = genUUID();
-  const { error } = await supabase.from('timetable').insert({
-    id: newId,
-    class_id: activeClassId,
-    subject: entry.subject,
-    day_of_week: entry.dayOfWeek,
-    start_time: entry.startTime,
-    end_time: entry.endTime,
-    duration_minutes: entry.durationMinutes,
-    venue: entry.venue,
-  });
-  if (error) throw error;
-
-  const updateId = genUUID();
-  await supabase.from('updates').insert({
-    id: updateId,
-    class_id: activeClassId,
-    user_id: user.id,
-    user_name: user.name,
-    type: 'entry_added',
-    description: strings.broadcast.entryAdded(
-      entry.subject,
-      strings.broadcast.dayNames[entry.dayOfWeek - 1],
-      entry.startTime
-    ),
-    timestamp: new Date().toISOString(),
-  });
-
-  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-  await queryClient.invalidateQueries({ queryKey: ['updates'] });
-  showToast(strings.toast.timetableAdded, 'success');
-};
-
-const handleEditTimetableEntry = async (id: string, updatedFields: Partial<TimetableEntry>) => {
-  if (!user) return;
-  const entry = timetable.find((e) => e.id === id);
-  if (!entry) return;
-
-  let changesDescription = '';
-  const updatedWithMetadata: any = {};
-
-  if (updatedFields.subject) updatedWithMetadata.subject = updatedFields.subject;
-  if (updatedFields.startTime) updatedWithMetadata.start_time = updatedFields.startTime;
-  if (updatedFields.endTime) updatedWithMetadata.end_time = updatedFields.endTime;
-  if (updatedFields.durationMinutes) updatedWithMetadata.duration_minutes = updatedFields.durationMinutes;
-  if (updatedFields.dayOfWeek) updatedWithMetadata.day_of_week = updatedFields.dayOfWeek;
-
-  if (updatedFields.venue && updatedFields.venue !== entry.venue) {
-    updatedWithMetadata.venue = updatedFields.venue;
-    updatedWithMetadata.original_venue = entry.venue;
-    updatedWithMetadata.venue_changed_at = new Date().toISOString();
-    changesDescription += strings.broadcast.venueChanged(entry.subject, entry.venue || '', updatedFields.venue);
-  }
-
-  if (updatedFields.isCancelled !== undefined && updatedFields.isCancelled !== entry.isCancelled) {
-    updatedWithMetadata.is_cancelled = updatedFields.isCancelled;
-    if (updatedFields.isCancelled) {
-      updatedWithMetadata.cancelled_at = new Date().toISOString();
-      changesDescription += strings.broadcast.classCancelled(entry.subject);
-    } else {
-      changesDescription += strings.broadcast.cancellationReverted(entry.subject);
-    }
-  }
-
-  const { error } = await supabase
-    .from('timetable')
-    .update(updatedWithMetadata)
-    .eq('id', id);
-  if (error) throw error;
-
-  if (changesDescription) {
-    const updateId = genUUID();
-    await supabase.from('updates').insert({
-      id: updateId,
-      class_id: activeClassId,
-      user_id: user.id,
-      user_name: user.name,
-      type: updatedFields.isCancelled ? 'cancellation' : 'venue_change',
-      description: changesDescription,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-  await queryClient.invalidateQueries({ queryKey: ['updates'] });
-  showToast(strings.toast.timetableUpdated, 'success');
-};
-
-const handleDeleteTimetableEntry = async (id: string) => {
-  if (!user) return;
-  const entry = timetable.find((e) => e.id === id);
-  if (!entry) return;
-
-  const { error } = await supabase.from('timetable').delete().eq('id', id);
-  if (error) throw error;
-
-  const updateId = genUUID();
-  await supabase.from('updates').insert({
-    id: updateId,
-    class_id: activeClassId,
-    user_id: user.id,
-    user_name: user.name,
-    type: 'entry_deleted',
-    description: strings.broadcast.entryDeleted(entry.subject),
-    timestamp: new Date().toISOString(),
-  });
-
-  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-  await queryClient.invalidateQueries({ queryKey: ['updates'] });
-  showToast(strings.toast.timetableDeleted, 'info');
-};
-
-const handleTrackAdEvent = async (adId: string, eventType: 'view' | 'click') => {
-  if (!user) return;
-  try {
-    const { error } = await supabase
-      .from('ad_analytics')
-      .insert({
-        ad_id: adId,
-        user_id: user.id,
-        event_type: eventType,
-      });
-    if (error) throw error;
-    console.log(`[Ad Analytics] Logged ${eventType} for ad ${adId}`);
-  } catch (err) {
-    console.warn('[Ad Analytics] Failed to log ad event:', err);
-  }
-};
-
-const handlePromoteToAssistant = async (classId: string, memberId: string) => {
-  const { error } = await supabase
-    .from('class_members')
-    .update({ role: 'assistant' })
-    .eq('class_id', classId)
-    .eq('user_id', memberId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.memberPromoted, 'success');
-};
-
-const handleDemoteToMember = async (classId: string, assistantId: string) => {
-  const { error } = await supabase
-    .from('class_members')
-    .update({ role: 'member' })
-    .eq('class_id', classId)
-    .eq('user_id', assistantId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.assistantDemoted, 'info');
-};
-
-const handleDeleteClass = async (classId: string) => {
-  const { error } = await supabase.from('classes').delete().eq('id', classId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-  await queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });
-  showToast(strings.toast.classDeleted, 'success');
-};
-
-const handleLeaveClass = async (classId: string) => {
-  if (!user) {
-    showToast(strings.toast.mustBeLoggedIn, 'error');
-    return;
-  }
-
-  const activeClass = classes.find(c => c.id === classId);
-  if (activeClass && activeClass.ownerId === user.id) {
-    if (activeClass.assistantIds.length === 0) {
-      showToast(strings.toast.cannotLeaveAsRep, 'error');
-      return;
-    }
-
-    const assistantName = memberNamesMap[activeClass.assistantIds[0]] || 'Assistant';
-    if (activeClass.assistantIds.length === 1) {
-      if (confirm(strings.confirm.transferOwnershipToOne(assistantName))) {
-        await handleTransferOwnership(classId, activeClass.assistantIds[0]);
-        return;
+  useEffect(() => {
+    setPendingSyncCount(getOfflineQueue().length);
+    const handleOnline = async () => {
+      try {
+        await processOfflineQueue((count) => setPendingSyncCount(count));
+        const session = await supabase.auth.getSession();
+        if (session.data.session?.user) {
+          await fetchActiveProfile(session.data.session.user.id);
+          queryClient.invalidateQueries();
+        }
+      } catch (err) {
+        console.warn('Error on online sync:', err);
       }
-      return;
-    } else {
-      showToast(strings.toast.selectAssistantToTransfer, 'info');
-      return;
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (activeClassId) {
+      localStorage.setItem('thesdel_active_class_id', activeClassId);
     }
-  }
+  }, [activeClassId]);
 
-  const { error } = await supabase
-    .from('class_members')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', user.id);
+  useEffect(() => {
+    localStorage.setItem('thesdel_simulated_time', simulatedTime);
+  }, [simulatedTime]);
 
-  if (error) {
-    console.error('Error leaving class:', error);
-    showToast(strings.toast.leaveFailed, 'error');
-    return;
-  }
+  useEffect(() => {
+    const applyTheme = () => {
+      const isDark =
+        theme === 'dark' ||
+        (theme === 'system' &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (isDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    applyTheme();
 
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  await queryClient.refetchQueries({ queryKey: ['classes'] });
-
-  if (activeClassId === classId) {
-    const remaining = userJoinedClasses.filter(c => c.id !== classId);
-    if (remaining.length > 0) {
-      setActiveClassId(remaining[0].id);
-    } else {
-      setActiveClassId('');
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = () => applyTheme();
+      mq.addEventListener('change', listener);
+      return () => mq.removeEventListener('change', listener);
     }
-  }
+  }, [theme]);
 
-  showToast(strings.toast.leftClass, 'success');
-};
+  const handleLoginSuccess = async (loggedInUser: User) => {
+    setUser(loggedInUser);
+    setIsLoggedIn(true);
+    setCached(CACHE_KEYS.LOGGED_IN, true);
+    setCached(CACHE_KEYS.USER, loggedInUser);
+    await fetchActiveProfile(loggedInUser.id);
+    queryClient.invalidateQueries();
+  };
 
-const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
-  if (!user) return;
+  const handleLogout = async () => {
+    await supabase.auth.signOut().catch(console.error);
+    setIsLoggedIn(false);
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href = window.location.origin + '/';
+  };
 
-  const { error: updateError } = await supabase
-    .from('classes')
-    .update({ owner_id: newOwnerId })
-    .eq('id', classId);
+  const getActiveUserRoleInClass = (): Role => {
+    if (!user) return 'member';
+    if (user.role === 'admin' || user.role === 'investor')
+      return user.role;
+    const activeClass = classes.find((c) => c.id === activeClassId);
+    if (!activeClass) return 'member';
+    if (activeClass.ownerId === user.id) return 'representative';
+    if (activeClass.assistantIds.includes(user.id))
+      return 'assistant';
+    return 'member';
+  };
 
-  if (updateError) {
-    console.error('Error transferring ownership:', updateError);
-    showToast(strings.toast.transferFailed, 'error');
-    return;
-  }
+  const currentUserRole = getActiveUserRoleInClass();
 
-  const { error: roleError } = await supabase
-    .from('class_members')
-    .update({ role: 'representative' })
-    .eq('class_id', classId)
-    .eq('user_id', newOwnerId);
-
-  if (roleError) {
-    console.error('Error updating role:', roleError);
-    showToast(strings.toast.roleUpdateFailed, 'error');
-    return;
-  }
-
-  const { error: oldRoleError } = await supabase
-    .from('class_members')
-    .update({ role: 'member' })
-    .eq('class_id', classId)
-    .eq('user_id', user.id);
-
-  if (oldRoleError) {
-    console.error('Error updating old owner role:', oldRoleError);
-    showToast(strings.toast.roleUpdateFailedSelf, 'error');
-    return;
-  }
-
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  await queryClient.refetchQueries({ queryKey: ['classes'] });
-
-  const newOwnerName = memberNamesMap[newOwnerId] || 'Assistant';
-  showToast(strings.toast.ownershipTransferred(newOwnerName), 'success');
-
-  const { error: leaveError } = await supabase
-    .from('class_members')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', user.id);
-
-  if (leaveError) {
-    console.error('Error leaving after transfer:', leaveError);
-    showToast(strings.toast.leaveAfterTransferFailed, 'error');
-    return;
-  }
-
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  await queryClient.refetchQueries({ queryKey: ['classes'] });
-
-  if (activeClassId === classId) {
-    const remaining = userJoinedClasses.filter(c => c.id !== classId);
-    if (remaining.length > 0) {
-      setActiveClassId(remaining[0].id);
-    } else {
-      setActiveClassId('');
-    }
-  }
-
-  showToast(strings.toast.leftAfterTransfer, 'success');
-};
-const renderViewContent = () => {
-  if (!user) return null;
-
-  switch (currentView) {
-    case 'home':
-      return (
-        <HomeView
-          currentUser={user}
-          timetable={timetable}
-          attendanceLogs={attendanceLogs}
-          joinedClasses={userJoinedClasses}
-          currentSimulatedTime={simulatedTime}
-          updates={updates.filter(
-            (u) =>
-              u.classId === activeClassId ||
-              u.classId === 'global' ||
-              u.classId === 'class_reps' ||
-              u.classId === 'region_north' ||
-              u.classId === 'region_south' ||
-              u.classId === 'country_all'
-          )}
-          onMarkAttendance={handleMarkAttendance}
-          userRole={currentUserRole}
-          activeClassId={activeClassId}
-          onAddBroadcast={handleClassRepBroadcast}
-          onNavigateToNotifications={() => setView('notifications')}
-          onForceRefresh={async () => {
-            await queryClient.invalidateQueries();
-          }}
-          onTrackAdEvent={handleTrackAdEvent}
-        />
-      );
-    case 'timetable':
-      return (
-        <TimetableView
-          timetable={timetable}
-          joinedClasses={userJoinedClasses}
-          activeClassId={activeClassId}
-          onAddEntry={handleAddTimetableEntry}
-          onEditEntry={handleEditTimetableEntry}
-          onDeleteEntry={handleDeleteTimetableEntry}
-          currentUserRole={currentUserRole}
-        />
-      );
-    case 'attendance':
-      return (
-        <AttendanceView
-          timetable={timetable}
-          attendanceLogs={attendanceLogs}
-          joinedClasses={userJoinedClasses}
-          currentSimulatedTime={simulatedTime}
-        />
-      );
-    case 'class':
-      return (
-        <ClassView
-          classes={userJoinedClasses}
-          activeClassId={activeClassId}
-          onSelectClass={setActiveClassId}
-          onJoinClass={handleJoinClass}
-          onCreateClass={handleCreateClass}
-          onPromoteToAssistant={handlePromoteToAssistant}
-          onDemoteToMember={handleDemoteToMember}
-          onDeleteClass={handleDeleteClass}
-          onLeaveClass={handleLeaveClass}
-          onTransferOwnership={handleTransferOwnership}
-          currentUser={user}
-          currentUserRole={currentUserRole}
-          pendingRemovals={pendingRemovals}
-          onRequestMemberRemoval={handleRequestMemberRemoval}
-          onRemoveMemberInstantly={handleRemoveMemberInstantly}
-          onApproveMemberRemoval={handleApproveMemberRemoval}
-          onRejectMemberRemoval={handleRejectMemberRemoval}
-          onUpdateClassCode={handleUpdateClassCode}
-          memberNamesMap={memberNamesMap}
-          onApproveJoinRequest={handleApproveJoinRequest}
-          onRejectJoinRequest={handleRejectJoinRequest}
-        />
-      );
-    case 'profile':
-      return (
-        <ProfileView
-          currentUser={user}
-          joinedClasses={userJoinedClasses}
-          onLogout={handleLogout}
-          onOpenSettings={() => setView('settings')}
-        />
-      );
-    case 'settings':
-      return (
-        <SettingsView
-          currentUser={user}
-          classes={classes}
-          onBack={() => setView('profile')}
-          locale={locale}
-          onChangeLocale={handleChangeLocale}
-        />
-      );
-    case 'notifications':
-      return (
-        <NotificationsView
-          updates={updates.filter(
-            (u) =>
-              u.classId === activeClassId ||
-              u.classId === 'global' ||
-              u.classId === 'class_reps' ||
-              u.classId === 'region_north' ||
-              u.classId === 'region_south' ||
-              u.classId === 'country_all'
-          )}
-          onForceRefresh={async () => {
-            await queryClient.invalidateQueries({ queryKey: ['updates'] });
-          }}
-          onClose={() => setView('home')}
-          userRole={currentUserRole}
-          activeClassId={activeClassId}
-          onAddBroadcast={handleClassRepBroadcast}
-        />
-      );
-    default:
-      return null;
-  }
-};
-
-const isInsideAdmin = window.location.pathname.startsWith('/admin') || window.location.hash.startsWith('#/admin');
-
-if (!isLoggedIn || !user) {
-  return (
-    <LandingView
-      onLoginSuccess={handleLoginSuccess}
-      classesCount={classes.length}
-      locale={locale}
-    />
+  const userJoinedClasses = classes.filter(
+    (c) =>
+      !user ||
+      user.role === 'admin' ||
+      user.role === 'investor' ||
+      c.memberIds.includes(user.id) ||
+      c.ownerId === user.id ||
+      c.assistantIds.includes(user.id)
   );
-}
+
+  useEffect(() => {
+    if (
+      userJoinedClasses.length > 0 &&
+      !userJoinedClasses.some((c) => c.id === activeClassId)
+    ) {
+      setActiveClassId(userJoinedClasses[0].id);
+    }
+  }, [classes, userJoinedClasses, activeClassId, setActiveClassId]);
+
+  const {
+    handleClassRepBroadcast,
+    handleCreateClass,
+    handleJoinClass,
+    handleApproveJoinRequest,
+    handleRejectJoinRequest,
+    handleRequestMemberRemoval,
+    handleRemoveMemberInstantly,
+    handleApproveMemberRemoval,
+    handleRejectMemberRemoval,
+    handleUpdateClassCode,
+    handleMarkAttendance,
+    handleAddTimetableEntry,
+    handleEditTimetableEntry,
+    handleDeleteTimetableEntry,
+    handleTrackAdEvent,
+    handlePromoteToAssistant,
+    handleDemoteToMember,
+    handleDeleteClass,
+    handleLeaveClass,
+    handleTransferOwnership,
+  } = useAppHandlers({
+    user,
+    classes,
+    timetable,
+    memberNamesMap,
+    activeClassId,
+    userJoinedClasses,
+    strings,
+    showToast,
+    setActiveClassId,
+  });
+
+  const renderViewContent = () => {
+    if (!user) return null;
+
+    switch (currentView) {
+      case 'home':
+        return (
+          <HomeView
+            currentUser={user}
+            timetable={timetable}
+            attendanceLogs={attendanceLogs}
+            joinedClasses={userJoinedClasses}
+            currentSimulatedTime={simulatedTime}
+            updates={updates.filter(
+              (u) =>
+                u.classId === activeClassId ||
+                u.classId === 'global' ||
+                u.classId === 'class_reps' ||
+                u.classId === 'region_north' ||
+                u.classId === 'region_south' ||
+                u.classId === 'country_all'
+            )}
+            onMarkAttendance={handleMarkAttendance}
+            userRole={currentUserRole}
+            activeClassId={activeClassId}
+            onAddBroadcast={handleClassRepBroadcast}
+            onNavigateToNotifications={() => setView('notifications')}
+            onForceRefresh={async () => {
+              await queryClient.invalidateQueries();
+            }}
+            onTrackAdEvent={handleTrackAdEvent}
+          />
+        );
+      case 'timetable':
+        return (
+          <TimetableView
+            timetable={timetable}
+            joinedClasses={userJoinedClasses}
+            activeClassId={activeClassId}
+            onAddEntry={handleAddTimetableEntry}
+            onEditEntry={handleEditTimetableEntry}
+            onDeleteEntry={handleDeleteTimetableEntry}
+            currentUserRole={currentUserRole}
+          />
+        );
+      case 'attendance':
+        return (
+          <AttendanceView
+            timetable={timetable}
+            attendanceLogs={attendanceLogs}
+            joinedClasses={userJoinedClasses}
+            currentSimulatedTime={simulatedTime}
+          />
+        );
+      case 'class':
+        return (
+          <ClassView
+            classes={userJoinedClasses}
+            activeClassId={activeClassId}
+            onSelectClass={setActiveClassId}
+            onJoinClass={handleJoinClass}
+            onCreateClass={handleCreateClass}
+            onPromoteToAssistant={handlePromoteToAssistant}
+            onDemoteToMember={handleDemoteToMember}
+            onDeleteClass={handleDeleteClass}
+            onLeaveClass={handleLeaveClass}
+            onTransferOwnership={handleTransferOwnership}
+            currentUser={user}
+            currentUserRole={currentUserRole}
+            pendingRemovals={pendingRemovals}
+            onRequestMemberRemoval={handleRequestMemberRemoval}
+            onRemoveMemberInstantly={handleRemoveMemberInstantly}
+            onApproveMemberRemoval={handleApproveMemberRemoval}
+            onRejectMemberRemoval={handleRejectMemberRemoval}
+            onUpdateClassCode={handleUpdateClassCode}
+            memberNamesMap={memberNamesMap}
+            onApproveJoinRequest={handleApproveJoinRequest}
+            onRejectJoinRequest={handleRejectJoinRequest}
+          />
+        );
+      case 'profile':
+        return (
+          <ProfileView
+            currentUser={user}
+            joinedClasses={userJoinedClasses}
+            strings={strings.profile}
+            onLogout={handleLogout}
+            onOpenSettings={() => setView('settings')}
+          />
+        );
+      case 'settings':
+        return (
+          <SettingsView
+            currentUser={user}
+            classes={classes}
+            onBack={() => setView('profile')}
+            locale={locale}
+            onChangeLocale={handleChangeLocale}
+          />
+        );
+      case 'notifications':
+        return (
+          <NotificationsView
+            updates={updates.filter(
+              (u) =>
+                u.classId === activeClassId ||
+                u.classId === 'global' ||
+                u.classId === 'class_reps' ||
+                u.classId === 'region_north' ||
+                u.classId === 'region_south' ||
+                u.classId === 'country_all'
+            )}
+            onForceRefresh={async () => {
+              await queryClient.invalidateQueries({
+                queryKey: ['updates'],
+              });
+            }}
+            onClose={() => setView('home')}
+            userRole={currentUserRole}
+            activeClassId={activeClassId}
+            onAddBroadcast={handleClassRepBroadcast}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const isInsideAdmin =
+    window.location.pathname.startsWith('/admin') ||
+    window.location.hash.startsWith('#/admin');
+
+  if (!isLoggedIn || !user) {
+    return (
+      <LandingView
+        onLoginSuccess={handleLoginSuccess}
+        classesCount={classes.length}
+        locale={locale}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-zinc-50 flex flex-col font-sans" id="thesdel-root">
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+    <div
+      className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-zinc-50 flex flex-col font-sans"
+      id="thesdel-root"
+    >
+      {toast && (
+        <AppToast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {isInsideAdmin ? (
         <AdminApp />
       ) : (
         <>
-          <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 sticky top-0 z-30" id="thesdel-header">
-            <div className="max-w-4xl mx-auto px-4 flex items-center justify-between h-14">
-              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('home')}>
-                <BookOpen className="w-5 h-5 text-zinc-950 dark:text-zinc-50 shrink-0" />
-                <span className="font-mono text-base font-bold tracking-wider text-zinc-950 dark:text-zinc-100">{strings.header.brand}</span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {pendingSyncCount > 0 ? (
-                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono border border-amber-200 dark:border-amber-950/40 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-                    <span className="hidden sm:inline">{strings.header.syncPending}</span> <span>{pendingSyncCount}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-mono border border-emerald-200 dark:border-emerald-950/40 px-2 py-0.5 sm:px-2.5 sm:py-1 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                    <span>{strings.header.syncSynced}</span>
-                  </div>
-                )}
-                {((user.role as string) === 'admin' || (user.role as string) === 'investor') && (
-                  <button
-                    onClick={() => {
-                      window.location.hash = '#/admin';
-                    }}
-                    className="flex items-center gap-1.5 text-xs font-mono border border-zinc-900 bg-zinc-950 hover:bg-zinc-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white px-2.5 py-1 text-white transition-all cursor-pointer font-bold"
-                  >
-                    <Terminal className="w-3.5 h-3.5" />
-                    <span>{strings.header.console}</span>
-                  </button>
-                )}
-                <div className="flex items-center gap-1.5 text-xs font-mono border border-zinc-200 dark:border-zinc-800 px-2.5 py-1 bg-zinc-50 dark:bg-zinc-950">
-                  <Shield className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                  <span className="font-bold text-zinc-800 dark:text-zinc-200 uppercase">{currentUserRole}</span>
-                </div>
-              </div>
-            </div>
-          </header>
+          <AppHeader
+            user={user}
+            currentUserRole={currentUserRole}
+            pendingSyncCount={pendingSyncCount}
+            strings={strings.header}
+            onGoHome={() => setView('home')}
+          />
 
           <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 pb-24 md:pb-28">
             {renderViewContent()}
           </main>
 
-          <div className="bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 fixed bottom-0 left-0 right-0 h-16 z-50 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] pb-safe" id="thesdel-bottom-nav">
-            <nav className="max-w-4xl mx-auto grid grid-cols-5 h-full">
-              <button
-                id="nav-home"
-                onClick={() => { trackClick('Nav: Today'); setView('home'); }}
-                className={`flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
-                  currentView === 'home' ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-350'
-                }`}
-              >
-                <Clock className={`w-5 h-5 ${currentView === 'home' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.today}</span>
-              </button>
-
-              <button
-                id="nav-timetable"
-                onClick={() => { trackClick('Nav: Timetable'); setView('timetable'); }}
-                className={`flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
-                  currentView === 'timetable' ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-350'
-                }`}
-              >
-                <Calendar className={`w-5 h-5 ${currentView === 'timetable' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.timetable}</span>
-              </button>
-
-              <button
-                id="nav-attendance"
-                onClick={() => { trackClick('Nav: Attendance'); setView('attendance'); }}
-                className={`flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
-                  currentView === 'attendance' ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-350'
-                }`}
-              >
-                <CheckCircle2 className={`w-5 h-5 ${currentView === 'attendance' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.attendance}</span>
-              </button>
-
-              <button
-                id="nav-class"
-                onClick={() => { trackClick('Nav: Class'); setView('class'); }}
-                className={`flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
-                  currentView === 'class' ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-350'
-                }`}
-              >
-                <Layers className={`w-5 h-5 ${currentView === 'class' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.class}</span>
-              </button>
-
-              <button
-                id="nav-profile"
-                onClick={() => { trackClick('Nav: Profile'); setView('profile'); }}
-                className={`flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer ${
-                  currentView === 'profile' ? 'text-zinc-950 dark:text-zinc-50' : 'text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-350'
-                }`}
-              >
-                <UserIcon className={`w-5 h-5 ${currentView === 'profile' ? 'stroke-[2.5px]' : 'stroke-[1.8px]'}`} />
-                <span className="text-[10px] font-mono font-bold tracking-wider">{strings.nav.profile}</span>
-              </button>
-            </nav>
-          </div>
+          <AppBottomNav
+            currentView={currentView}
+            strings={strings.nav}
+            onNavigate={setView}
+          />
         </>
       )}
     </div>
