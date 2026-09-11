@@ -7,6 +7,7 @@ import { trackClick } from '../utils/tracker';
 
 import SettingsHeader from './SettingsHeader';
 import SettingsThemeSection from './SettingsThemeSection';
+import LanguageSection from './LanguageSection';
 import SettingsVisibilitySection from './SettingsVisibilitySection';
 import SettingsDangerZone from './SettingsDangerZone';
 import DeleteAccountModal from './DeleteAccountModal';
@@ -15,12 +16,16 @@ interface SettingsViewProps {
   currentUser: User;
   classes: ClassGroup[];
   onBack?: () => void;
+  locale: string;
+  onChangeLocale: (code: string) => void;
 }
 
 export default function SettingsView({
   currentUser,
   classes,
   onBack,
+  locale,
+  onChangeLocale,
 }: SettingsViewProps) {
   const queryClient = useQueryClient();
   const { theme, setTheme } = useAppStore();
@@ -269,6 +274,11 @@ export default function SettingsView({
       <SettingsThemeSection
         theme={theme}
         onSelectTheme={handleSelectTheme}
+      />
+
+      <LanguageSection
+        locale={locale}
+        onChange={onChangeLocale}
       />
 
       <SettingsVisibilitySection
