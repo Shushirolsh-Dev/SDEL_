@@ -2,8 +2,8 @@
    LANDING TRANSLATIONS
    ------------------------------------------------------------
    Single source of truth for every visible string on the
-   landing page. To add a language, copy the EN object, rename
-   it, translate the values, and add it to LANDING_LOCALES.
+   landing page. To add a language: copy EN, rename it,
+   translate the values, add it to LANDING_LOCALES.
    ============================================================ */
 
 export interface LandingHeaderStrings {
@@ -24,7 +24,7 @@ export interface LandingHeroStrings {
   replacesWords: string[];
 }
 
-export interface LandingPillarStrings {
+export interface LandingFeatureGridStrings {
   sectionLabel: string;
   step1Title: string;
   step1Body: string;
@@ -44,7 +44,7 @@ export interface LandingFooterStrings {
 export interface LandingStrings {
   header: LandingHeaderStrings;
   hero: LandingHeroStrings;
-  pillars: LandingPillarStrings;
+  features: LandingFeatureGridStrings;
   footer: LandingFooterStrings;
 }
 
@@ -67,7 +67,7 @@ const EN: LandingStrings = {
     ctaSecondary: 'Sign In to Class',
     replacesWords: ['WhatsApp', 'Telegram', 'Discord'],
   },
-  pillars: {
+  features: {
     sectionLabel: 'EXPLAINED IN 10 SECONDS',
     step1Title: 'Centralized Schedule',
     step1Body:
@@ -87,7 +87,7 @@ const EN: LandingStrings = {
   },
 };
 
-/* ---------------- LOCALES REGISTRY ---------------- */
+/* ---------------- LOCALES ---------------- */
 
 export const LANDING_LOCALES: Record<string, LandingStrings> = {
   en: EN,
@@ -95,7 +95,6 @@ export const LANDING_LOCALES: Record<string, LandingStrings> = {
 
 export const DEFAULT_LANDING_LOCALE = 'en';
 
-/** Resolve a locale safely, falling back to the default. */
 export function getLandingStrings(
   locale: string | undefined
 ): LandingStrings {
