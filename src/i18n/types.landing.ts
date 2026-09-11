@@ -130,6 +130,13 @@ export interface SignUpStrings {
   errorProfileCreate: string;
   errorDuplicate: string;
   errorGenericRegistration: string;
+  captchaLabel: string;
+  captchaQuestion: (a: number, b: number) => string;
+  captchaPlaceholder: string;
+  captchaNewQuestion: string;
+  errorCaptchaRequired: string;
+  errorCaptchaIncorrect: string;
+  errorRateLimited: string;
 }
 
 export interface LegalSectionItem {
