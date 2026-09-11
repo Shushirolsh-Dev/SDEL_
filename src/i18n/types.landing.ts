@@ -8,6 +8,7 @@ export interface LandingHeaderStrings {
 
 export interface LandingHeroStrings {
   badge: string;
+  replacesLabel: string;
   headlinePrefix: string;
   headlineSuffix: string;
   subtitle: string;
