@@ -71,1073 +71,1070 @@ export default function App() {
   useEffect(() => {
     trackPageView(currentView);
   }, [currentView]);
+const handleSwitcherMouseDown = (e: React.MouseEvent) => {
+  if ((e.target as HTMLElement).closest('button')) return;
+  setIsDraggingSwitcher(true);
+  setDragStartPoint({
+    x: e.clientX - switcherPosition.x,
+    y: e.clientY - switcherPosition.y
+  });
+};
 
-  const handleSwitcherMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
-    setIsDraggingSwitcher(true);
-    setDragStartPoint({
-      x: e.clientX - switcherPosition.x,
-      y: e.clientY - switcherPosition.y
+const handleSwitcherTouchStart = (e: React.TouchEvent) => {
+  if ((e.target as HTMLElement).closest('button')) return;
+  setIsDraggingSwitcher(true);
+  const touch = e.touches[0];
+  setDragStartPoint({
+    x: touch.clientX - switcherPosition.x,
+    y: touch.clientY - switcherPosition.y
+  });
+};
+
+useEffect(() => {
+  const handleGlobalMouseMove = (e: MouseEvent) => {
+    if (!isDraggingSwitcher) return;
+    setSwitcherPosition({
+      x: e.clientX - dragStartPoint.x,
+      y: e.clientY - dragStartPoint.y
     });
   };
 
-  const handleSwitcherTouchStart = (e: React.TouchEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
-    setIsDraggingSwitcher(true);
+  const handleGlobalTouchMove = (e: TouchEvent) => {
+    if (!isDraggingSwitcher) return;
     const touch = e.touches[0];
-    setDragStartPoint({
-      x: touch.clientX - switcherPosition.x,
-      y: touch.clientY - switcherPosition.y
+    setSwitcherPosition({
+      x: touch.clientX - dragStartPoint.x,
+      y: touch.clientY - dragStartPoint.y
     });
   };
 
-  useEffect(() => {
-    const handleGlobalMouseMove = (e: MouseEvent) => {
-      if (!isDraggingSwitcher) return;
-      setSwitcherPosition({
-        x: e.clientX - dragStartPoint.x,
-        y: e.clientY - dragStartPoint.y
-      });
-    };
-
-    const handleGlobalTouchMove = (e: TouchEvent) => {
-      if (!isDraggingSwitcher) return;
-      const touch = e.touches[0];
-      setSwitcherPosition({
-        x: touch.clientX - dragStartPoint.x,
-        y: touch.clientY - dragStartPoint.y
-      });
-    };
-
-    const handleGlobalMouseUp = () => {
-      setIsDraggingSwitcher(false);
-    };
-
-    if (isDraggingSwitcher) {
-      window.addEventListener('mousemove', handleGlobalMouseMove);
-      window.addEventListener('mouseup', handleGlobalMouseUp);
-      window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
-      window.addEventListener('touchend', handleGlobalMouseUp);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleGlobalMouseMove);
-      window.removeEventListener('mouseup', handleGlobalMouseUp);
-      window.removeEventListener('touchmove', handleGlobalTouchMove);
-      window.removeEventListener('touchend', handleGlobalMouseUp);
-    };
-  }, [isDraggingSwitcher, dragStartPoint, switcherPosition]);
-
-  // --- TANSTACK QUERY DATA FETCHES ---
-  const { data: classes = [] } = useQuery<ClassGroup[]>({
-    queryKey: ['classes'],
-    queryFn: async () => {
-      const { data: dbClasses, error } = await supabase.from('classes').select('*');
-      if (error) throw error;
-
-      const formattedClasses: ClassGroup[] = [];
-      for (const cls of (dbClasses || [])) {
-        const { data: membersData } = await supabase
-          .from('class_members')
-          .select('*')
-          .eq('class_id', cls.id);
-
-        const assistantIds = (membersData || [])
-          .filter((m) => m.role === 'assistant' && m.status === 'approved')
-          .map((m) => m.user_id);
-
-        const memberIds = (membersData || [])
-          .filter((m) => m.role === 'member' && m.status === 'approved')
-          .map((m) => m.user_id);
-
-        const pendingMemberIds = (membersData || [])
-          .filter((m) => m.status === 'pending')
-          .map((m) => m.user_id);
-
-        formattedClasses.push({
-          id: cls.id,
-          name: cls.name,
-          code: cls.code,
-          ownerId: cls.owner_id,
-          assistantIds,
-          memberIds,
-          pendingMemberIds,
-          description: cls.description || undefined,
-          visibility: cls.visibility || 'public'
-        });
-      }
-      return formattedClasses;
-    },
-    enabled: isLoggedIn && !!user?.id,
-  });
-
-  const { data: timetable = [] } = useQuery<TimetableEntry[]>({
-    queryKey: ['timetable'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('timetable').select('*');
-      if (error) throw error;
-      return (data || []).map((e) => ({
-        id: e.id,
-        classId: e.class_id,
-        subject: e.subject,
-        dayOfWeek: e.day_of_week,
-        startTime: e.start_time,
-        endTime: e.end_time,
-        durationMinutes: e.duration_minutes,
-        venue: e.venue,
-        originalVenue: e.original_venue || undefined,
-        venueChangedAt: e.venue_changed_at || undefined,
-        isCancelled: e.is_cancelled,
-        cancelledAt: e.cancelled_at || undefined,
-      }));
-    },
-    enabled: isLoggedIn && !!user?.id,
-  });
-
-  const { data: attendanceLogs = [] } = useQuery<AttendanceLog[]>({
-    queryKey: ['attendanceLogs', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from('attendance_logs')
-        .select('*')
-        .eq('user_id', user.id);
-      if (error) throw error;
-      return (data || []).map((l) => ({
-        id: l.id,
-        classId: l.class_id,
-        timetableEntryId: l.timetable_entry_id,
-        date: l.date,
-        status: l.status as any,
-        timestamp: l.timestamp,
-      }));
-    },
-    enabled: isLoggedIn && !!user?.id,
-  });
-
-  const { data: updates = [] } = useQuery<ClassUpdate[]>({
-    queryKey: ['updates'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('updates')
-        .select('*')
-        .order('timestamp', { ascending: false });
-      if (error) throw error;
-
-      return (data || []).map((u) => ({
-        id: u.id,
-        classId: u.class_id,
-        userId: u.user_id || undefined,
-        userName: u.user_name,
-        type: u.type as any,
-        description: u.description,
-        timestamp: u.timestamp,
-      }));
-    },
-    enabled: isLoggedIn && !!user?.id,
-  });
-
-  const { data: pendingRemovals = [] } = useQuery<PendingRemoval[]>({
-    queryKey: ['pendingRemovals'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('pending_removals').select('*');
-      if (error) throw error;
-      return (data || []).map((pr) => ({
-        id: pr.id,
-        classId: pr.class_id,
-        userId: pr.user_id,
-        requestedBy: pr.requested_by,
-        createdAt: pr.created_at,
-      }));
-    },
-    enabled: isLoggedIn && !!user?.id,
-  });
-
-  const { data: memberNamesMap = {} } = useQuery<Record<string, string>>({
-    queryKey: ['memberNamesMap'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('profiles').select('id, name');
-      if (error) throw error;
-      const profileMap: Record<string, string> = {};
-      for (const p of (data || [])) {
-        profileMap[p.id] = p.name;
-      }
-      return profileMap;
-    },
-    enabled: isLoggedIn && !!user?.id,
-  });
-
-  const genUUID = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = (Math.random() * 16) | 0;
-      const v = c === 'x' ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
-    });
+  const handleGlobalMouseUp = () => {
+    setIsDraggingSwitcher(false);
   };
 
-  const fetchActiveProfile = async (userId: string) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+  if (isDraggingSwitcher) {
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    window.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+    window.addEventListener('touchend', handleGlobalMouseUp);
+  }
 
-      if (!error && profile) {
-        const u: User = {
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          role: profile.role as Role,
-          phone: profile.phone,
-          plan: profile.plan as any,
-          whatsappNumber: profile.whatsapp_number || undefined,
-          isReminderNumberLocked: profile.is_reminder_number_locked,
-        };
-        setUser(u);
-        setCached(CACHE_KEYS.USER, u);
-      }
-    } catch (e) {
-      console.warn('Failed to refresh user profile:', e);
-    }
+  return () => {
+    window.removeEventListener('mousemove', handleGlobalMouseMove);
+    window.removeEventListener('mouseup', handleGlobalMouseUp);
+    window.removeEventListener('touchmove', handleGlobalTouchMove);
+    window.removeEventListener('touchend', handleGlobalMouseUp);
   };
+}, [isDraggingSwitcher, dragStartPoint, switcherPosition]);
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (!error && data.session?.user) {
-          setIsLoggedIn(true);
-          setCached(CACHE_KEYS.LOGGED_IN, true);
-          await fetchActiveProfile(data.session.user.id);
-        } else {
-          const cachedLoggedIn = getCached(CACHE_KEYS.LOGGED_IN, false);
-          if (cachedLoggedIn) {
-            setIsLoggedIn(true);
-            const cachedUser = getCached<User | null>(CACHE_KEYS.USER, null);
-            if (cachedUser) {
-              setUser(cachedUser);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Exception checking session:', err);
-      }
-    };
-    checkSession();
-  }, [isLoggedIn]);
-
-  useEffect(() => {
-    setPendingSyncCount(getOfflineQueue().length);
-    const handleOnline = async () => {
-      console.log('[App] Online state detected. Syncing...');
-      try {
-        await processOfflineQueue((count) => setPendingSyncCount(count));
-        const session = await supabase.auth.getSession();
-        if (session.data.session?.user) {
-          await fetchActiveProfile(session.data.session.user.id);
-          queryClient.invalidateQueries();
-        }
-      } catch (err) {
-        console.warn('Error on online sync:', err);
-      }
-    };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, [queryClient]);
-
-  useEffect(() => {
-    if (activeClassId) {
-      localStorage.setItem('thesdel_active_class_id', activeClassId);
-    }
-  }, [activeClassId]);
-
-  useEffect(() => {
-    localStorage.setItem('thesdel_simulated_time', simulatedTime);
-  }, [simulatedTime]);
-
-  useEffect(() => {
-    const applyTheme = () => {
-      const isDark =
-        theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      if (isDark) {
-        document.documentElement.classList.add('dark');
-      } else {
-        document.documentElement.classList.remove('dark');
-      }
-    };
-    applyTheme();
-
-    if (theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const listener = () => applyTheme();
-      mediaQuery.addEventListener('change', listener);
-      return () => mediaQuery.removeEventListener('change', listener);
-    }
-  }, [theme]);
-
-  const handleLoginSuccess = async (loggedInUser: User) => {
-    setUser(loggedInUser);
-    setIsLoggedIn(true);
-    setCached(CACHE_KEYS.LOGGED_IN, true);
-    setCached(CACHE_KEYS.USER, loggedInUser);
-    await fetchActiveProfile(loggedInUser.id);
-    queryClient.invalidateQueries();
-  };
-
-  const handleLogout = async () => {
-    try {
-      trackClick('Button: Log Out');
-    } catch (e) {
-      console.error(e);
-    }
-    await supabase.auth.signOut().catch(console.error);
-    setIsLoggedIn(false);
-    localStorage.clear();
-    sessionStorage.clear();
-    window.location.href = window.location.origin + '/';
-  };
-
-  const getActiveUserRoleInClass = (): Role => {
-    if (!user) return 'member';
-    if (user.role === 'admin' || user.role === 'investor') return user.role;
-    const activeClass = classes.find((c) => c.id === activeClassId);
-    if (!activeClass) return 'member';
-    if (activeClass.ownerId === user.id) return 'representative';
-    if (activeClass.assistantIds.includes(user.id)) return 'assistant';
-    return 'member';
-  };
-
-  const currentUserRole = getActiveUserRoleInClass();
-
-  const userJoinedClasses = classes.filter(
-    (c) =>
-      !user ||
-      user.role === 'admin' ||
-      user.role === 'investor' ||
-      c.memberIds.includes(user.id) ||
-      c.ownerId === user.id ||
-      c.assistantIds.includes(user.id)
-  );
-
-  useEffect(() => {
-    if (userJoinedClasses.length > 0 && !userJoinedClasses.some((c) => c.id === activeClassId)) {
-      setActiveClassId(userJoinedClasses[0].id);
-    }
-  }, [classes, userJoinedClasses, activeClassId, setActiveClassId]);
-
-  // --- ACTIONS & HANDLERS ---
-  const handleClassRepBroadcast = async (classId: string, description: string): Promise<boolean> => {
-    if (!user) return false;
-    try {
-      const newUpdate = {
-        class_id: classId,
-        user_id: user.id,
-        user_name: `${user.name} (Class Representative)`,
-        type: 'entry_added',
-        description,
-        timestamp: new Date().toISOString()
-      };
-
-      const { error } = await supabase.from('updates').insert([newUpdate]);
-      if (error) throw error;
-
-      await queryClient.invalidateQueries({ queryKey: ['updates'] });
-      return true;
-    } catch (err) {
-      console.error('[App] Failed to post class rep broadcast:', err);
-      return false;
-    }
-  };
-
-  const handleCreateClass = async (name: string, description: string, visibility: 'public' | 'private'): Promise<string> => {
-    if (!user) return '';
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let code = '';
-    let isUnique = false;
-
-    while (!isUnique) {
-      let randomPart = '';
-      for (let i = 0; i < 10; i++) {
-        randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      code = randomPart;
-
-      const { data } = await supabase
-        .from('classes')
-        .select('code')
-        .eq('code', code)
-        .maybeSingle();
-
-      if (!data) {
-        isUnique = true;
-      }
-    }
-
-    const newId = genUUID();
-    const { error } = await supabase.from('classes').insert({
-      id: newId,
-      name,
-      code,
-      owner_id: user.id,
-      description,
-      visibility
-    });
+// --- TANSTACK QUERY DATA FETCHES ---
+const { data: classes = [] } = useQuery<ClassGroup[]>({
+  queryKey: ['classes'],
+  queryFn: async () => {
+    const { data: dbClasses, error } = await supabase.from('classes').select('*');
     if (error) throw error;
 
-    const updateId = genUUID();
-    await supabase.from('updates').insert({
-      id: updateId,
-      class_id: newId,
-      user_id: user.id,
-      user_name: user.name,
-      type: 'entry_added',
-      description: `Class "${name}" was created by representative ${user.name} with unique code: ${code}`,
-      timestamp: new Date().toISOString(),
-    });
+    const formattedClasses: ClassGroup[] = [];
+    for (const cls of (dbClasses || [])) {
+      const { data: membersData } = await supabase
+        .from('class_members')
+        .select('*')
+        .eq('class_id', cls.id);
 
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    await queryClient.invalidateQueries({ queryKey: ['updates'] });
-    setActiveClassId(newId);
+      const assistantIds = (membersData || [])
+        .filter((m) => m.role === 'assistant' && m.status === 'approved')
+        .map((m) => m.user_id);
 
-    return code;
-  };
+      const memberIds = (membersData || [])
+        .filter((m) => m.role === 'member' && m.status === 'approved')
+        .map((m) => m.user_id);
 
-  const handleJoinClass = async (code: string) => {
-    if (!user) return;
+      const pendingMemberIds = (membersData || [])
+        .filter((m) => m.status === 'pending')
+        .map((m) => m.user_id);
 
-    const { data: dbClass, error: dbErr } = await supabase
-      .from('classes')
+      formattedClasses.push({
+        id: cls.id,
+        name: cls.name,
+        code: cls.code,
+        ownerId: cls.owner_id,
+        assistantIds,
+        memberIds,
+        pendingMemberIds,
+        description: cls.description || undefined,
+        visibility: cls.visibility || 'public'
+      });
+    }
+    return formattedClasses;
+  },
+  enabled: isLoggedIn && !!user?.id,
+});
+
+const { data: timetable = [] } = useQuery<TimetableEntry[]>({
+  queryKey: ['timetable'],
+  queryFn: async () => {
+    const { data, error } = await supabase.from('timetable').select('*');
+    if (error) throw error;
+    return (data || []).map((e) => ({
+      id: e.id,
+      classId: e.class_id,
+      subject: e.subject,
+      dayOfWeek: e.day_of_week,
+      startTime: e.start_time,
+      endTime: e.end_time,
+      durationMinutes: e.duration_minutes,
+      venue: e.venue,
+      originalVenue: e.original_venue || undefined,
+      venueChangedAt: e.venue_changed_at || undefined,
+      isCancelled: e.is_cancelled,
+      cancelledAt: e.cancelled_at || undefined,
+    }));
+  },
+  enabled: isLoggedIn && !!user?.id,
+});
+
+const { data: attendanceLogs = [] } = useQuery<AttendanceLog[]>({
+  queryKey: ['attendanceLogs', user?.id],
+  queryFn: async () => {
+    if (!user?.id) return [];
+    const { data, error } = await supabase
+      .from('attendance_logs')
       .select('*')
+      .eq('user_id', user.id);
+    if (error) throw error;
+    return (data || []).map((l) => ({
+      id: l.id,
+      classId: l.class_id,
+      timetableEntryId: l.timetable_entry_id,
+      date: l.date,
+      status: l.status as any,
+      timestamp: l.timestamp,
+    }));
+  },
+  enabled: isLoggedIn && !!user?.id,
+});
+
+const { data: updates = [] } = useQuery<ClassUpdate[]>({
+  queryKey: ['updates'],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from('updates')
+      .select('*')
+      .order('timestamp', { ascending: false });
+    if (error) throw error;
+
+    return (data || []).map((u) => ({
+      id: u.id,
+      classId: u.class_id,
+      userId: u.user_id || undefined,
+      userName: u.user_name,
+      type: u.type as any,
+      description: u.description,
+      timestamp: u.timestamp,
+    }));
+  },
+  enabled: isLoggedIn && !!user?.id,
+});
+
+const { data: pendingRemovals = [] } = useQuery<PendingRemoval[]>({
+  queryKey: ['pendingRemovals'],
+  queryFn: async () => {
+    const { data, error } = await supabase.from('pending_removals').select('*');
+    if (error) throw error;
+    return (data || []).map((pr) => ({
+      id: pr.id,
+      classId: pr.class_id,
+      userId: pr.user_id,
+      requestedBy: pr.requested_by,
+      createdAt: pr.created_at,
+    }));
+  },
+  enabled: isLoggedIn && !!user?.id,
+});
+
+const { data: memberNamesMap = {} } = useQuery<Record<string, string>>({
+  queryKey: ['memberNamesMap'],
+  queryFn: async () => {
+    const { data, error } = await supabase.from('profiles').select('id, name');
+    if (error) throw error;
+    const profileMap: Record<string, string> = {};
+    for (const p of (data || [])) {
+      profileMap[p.id] = p.name;
+    }
+    return profileMap;
+  },
+  enabled: isLoggedIn && !!user?.id,
+});
+const genUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+const fetchActiveProfile = async (userId: string) => {
+  try {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (!error && profile) {
+      const u: User = {
+        id: profile.id,
+        name: profile.name,
+        username: profile.username,
+        email: profile.email,
+        role: profile.role as Role,
+        phone: profile.phone,
+        plan: profile.plan as any,
+        whatsappNumber: profile.whatsapp_number || undefined,
+        isReminderNumberLocked: profile.is_reminder_number_locked,
+      };
+      setUser(u);
+      setCached(CACHE_KEYS.USER, u);
+    }
+  } catch (e) {
+    console.warn('Failed to refresh user profile:', e);
+  }
+};
+
+useEffect(() => {
+  const checkSession = async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (!error && data.session?.user) {
+        setIsLoggedIn(true);
+        setCached(CACHE_KEYS.LOGGED_IN, true);
+        await fetchActiveProfile(data.session.user.id);
+      } else {
+        const cachedLoggedIn = getCached(CACHE_KEYS.LOGGED_IN, false);
+        if (cachedLoggedIn) {
+          setIsLoggedIn(true);
+          const cachedUser = getCached<User | null>(CACHE_KEYS.USER, null);
+          if (cachedUser) {
+            setUser(cachedUser);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Exception checking session:', err);
+    }
+  };
+  checkSession();
+}, [isLoggedIn]);
+
+useEffect(() => {
+  setPendingSyncCount(getOfflineQueue().length);
+  const handleOnline = async () => {
+    console.log('[App] Online state detected. Syncing...');
+    try {
+      await processOfflineQueue((count) => setPendingSyncCount(count));
+      const session = await supabase.auth.getSession();
+      if (session.data.session?.user) {
+        await fetchActiveProfile(session.data.session.user.id);
+        queryClient.invalidateQueries();
+      }
+    } catch (err) {
+      console.warn('Error on online sync:', err);
+    }
+  };
+  window.addEventListener('online', handleOnline);
+  return () => window.removeEventListener('online', handleOnline);
+}, [queryClient]);
+
+useEffect(() => {
+  if (activeClassId) {
+    localStorage.setItem('thesdel_active_class_id', activeClassId);
+  }
+}, [activeClassId]);
+
+useEffect(() => {
+  localStorage.setItem('thesdel_simulated_time', simulatedTime);
+}, [simulatedTime]);
+
+useEffect(() => {
+  const applyTheme = () => {
+    const isDark =
+      theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
+  applyTheme();
+
+  if (theme === 'system') {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const listener = () => applyTheme();
+    mediaQuery.addEventListener('change', listener);
+    return () => mediaQuery.removeEventListener('change', listener);
+  }
+}, [theme]);
+
+const handleLoginSuccess = async (loggedInUser: User) => {
+  setUser(loggedInUser);
+  setIsLoggedIn(true);
+  setCached(CACHE_KEYS.LOGGED_IN, true);
+  setCached(CACHE_KEYS.USER, loggedInUser);
+  await fetchActiveProfile(loggedInUser.id);
+  queryClient.invalidateQueries();
+};
+
+const handleLogout = async () => {
+  try {
+    trackClick('Button: Log Out');
+  } catch (e) {
+    console.error(e);
+  }
+  await supabase.auth.signOut().catch(console.error);
+  setIsLoggedIn(false);
+  localStorage.clear();
+  sessionStorage.clear();
+  window.location.href = window.location.origin + '/';
+};
+
+const getActiveUserRoleInClass = (): Role => {
+  if (!user) return 'member';
+  if (user.role === 'admin' || user.role === 'investor') return user.role;
+  const activeClass = classes.find((c) => c.id === activeClassId);
+  if (!activeClass) return 'member';
+  if (activeClass.ownerId === user.id) return 'representative';
+  if (activeClass.assistantIds.includes(user.id)) return 'assistant';
+  return 'member';
+};
+
+const currentUserRole = getActiveUserRoleInClass();
+
+const userJoinedClasses = classes.filter(
+  (c) =>
+    !user ||
+    user.role === 'admin' ||
+    user.role === 'investor' ||
+    c.memberIds.includes(user.id) ||
+    c.ownerId === user.id ||
+    c.assistantIds.includes(user.id)
+);
+
+useEffect(() => {
+  if (userJoinedClasses.length > 0 && !userJoinedClasses.some((c) => c.id === activeClassId)) {
+    setActiveClassId(userJoinedClasses[0].id);
+  }
+}, [classes, userJoinedClasses, activeClassId, setActiveClassId]);
+// --- ACTIONS & HANDLERS ---
+const handleClassRepBroadcast = async (classId: string, description: string): Promise<boolean> => {
+  if (!user) return false;
+  try {
+    const newUpdate = {
+      class_id: classId,
+      user_id: user.id,
+      user_name: `${user.name} (Class Representative)`,
+      type: 'entry_added',
+      description,
+      timestamp: new Date().toISOString()
+    };
+
+    const { error } = await supabase.from('updates').insert([newUpdate]);
+    if (error) throw error;
+
+    await queryClient.invalidateQueries({ queryKey: ['updates'] });
+    return true;
+  } catch (err) {
+    console.error('[App] Failed to post class rep broadcast:', err);
+    return false;
+  }
+};
+
+const handleCreateClass = async (name: string, description: string, visibility: 'public' | 'private'): Promise<string> => {
+  if (!user) return '';
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let code = '';
+  let isUnique = false;
+
+  while (!isUnique) {
+    let randomPart = '';
+    for (let i = 0; i < 10; i++) {
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    code = randomPart;
+
+    const { data } = await supabase
+      .from('classes')
+      .select('code')
       .eq('code', code)
       .maybeSingle();
 
-    if (dbErr || !dbClass) {
-      showToast(`Class code "${code}" not found.`, 'error');
-      return;
+    if (!data) {
+      isUnique = true;
     }
-
-    const { data: existingMember } = await supabase
-      .from('class_members')
-      .select('*')
-      .eq('class_id', dbClass.id)
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (existingMember) {
-      showToast(`You have already joined or requested to join this class.`, 'info');
-      setActiveClassId(dbClass.id);
-      return;
-    }
-
-    const isPrivate = dbClass.visibility === 'private';
-    const initialStatus = isPrivate ? 'pending' : 'approved';
-
-    const { error: joinErr } = await supabase
-      .from('class_members')
-      .insert({
-        class_id: dbClass.id,
-        user_id: user.id,
-        role: 'member',
-        status: initialStatus
-      });
-
-    if (joinErr) {
-      showToast(`Error joining class: ${joinErr.message}`, 'error');
-      return;
-    }
-
-    if (isPrivate) {
-      showToast(`Your enrollment request has been submitted for approval.`, 'info');
-    } else {
-      showToast(`Successfully enrolled in "${dbClass.name}"!`, 'success');
-      setActiveClassId(dbClass.id);
-    }
-
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  };
-
-  const handleApproveJoinRequest = async (classId: string, userId: string) => {
-    const { error } = await supabase
-      .from('class_members')
-      .update({ status: 'approved' })
-      .eq('class_id', classId)
-      .eq('user_id', userId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast('Student joining request approved!', 'success');
-  };
-
-  const handleRejectJoinRequest = async (classId: string, userId: string) => {
-    const { error } = await supabase
-      .from('class_members')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', userId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast('Student joining request denied.', 'info');
-  };
-
-  const handleRequestMemberRemoval = async (classId: string, memberId: string) => {
-    if (!user) return;
-    const { error } = await supabase.from('pending_removals').insert({
-      id: genUUID(),
-      class_id: classId,
-      user_id: memberId,
-      requested_by: user.id,
-      created_at: new Date().toISOString(),
-    });
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
-    showToast('Removal request sent to Class Representative.', 'info');
-  };
-
-  const handleRemoveMemberInstantly = async (classId: string, memberId: string) => {
-    const { error } = await supabase
-      .from('class_members')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', memberId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast('Member removed successfully.', 'success');
-  };
-
-  const handleApproveMemberRemoval = async (classId: string, memberId: string) => {
-    const { error: delMember } = await supabase
-      .from('class_members')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', memberId);
-    if (delMember) throw delMember;
-
-    const { error: delPR } = await supabase
-      .from('pending_removals')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', memberId);
-    if (delPR) throw delPR;
-
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
-    showToast('Member removal approved.', 'success');
-  };
-
-  const handleRejectMemberRemoval = async (classId: string, memberId: string) => {
-    const { error } = await supabase
-      .from('pending_removals')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', memberId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
-    showToast('Member removal rejected.', 'info');
-  };
-
-  const handleUpdateClassCode = async (classId: string): Promise<string> => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let newCode = '';
-    let isUnique = false;
-
-    while (!isUnique) {
-      let randomPart = '';
-      for (let i = 0; i < 10; i++) {
-        randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-      }
-      newCode = randomPart;
-
-      const { data } = await supabase
-        .from('classes')
-        .select('code')
-        .eq('code', newCode)
-        .maybeSingle();
-
-      if (!data) {
-        isUnique = true;
-      }
-    }
-
-    const { error } = await supabase
-      .from('classes')
-      .update({ code: newCode })
-      .eq('id', classId);
-    if (error) throw error;
-
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast(`Class code changed to: ${newCode}`, 'success');
-    return newCode;
-  };
-
-  const handleMarkAttendance = async (entryId: string, date: string) => {
-    if (!user) return;
-    const newLogId = genUUID();
-    const { error } = await supabase.from('attendance_logs').insert({
-      id: newLogId,
-      class_id: activeClassId,
-      timetable_entry_id: entryId,
-      user_id: user.id,
-      date,
-      status: 'attended',
-      timestamp: new Date().toISOString(),
-    });
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['attendanceLogs', user.id] });
-    showToast('Attendance marked!', 'success');
-  };
-
-  const handleAddTimetableEntry = async (entry: Omit<TimetableEntry, 'id'>) => {
-    if (!user) return;
-    const newId = genUUID();
-    const { error } = await supabase.from('timetable').insert({
-      id: newId,
-      class_id: activeClassId,
-      subject: entry.subject,
-      day_of_week: entry.dayOfWeek,
-      start_time: entry.startTime,
-      end_time: entry.endTime,
-      duration_minutes: entry.durationMinutes,
-      venue: entry.venue,
-    });
-    if (error) throw error;
-
-    const updateId = genUUID();
-    await supabase.from('updates').insert({
-      id: updateId,
-      class_id: activeClassId,
-      user_id: user.id,
-      user_name: user.name,
-      type: 'entry_added',
-      description: `Added timetable schedule: ${entry.subject} on ${
-        ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][entry.dayOfWeek - 1]
-      }s at ${entry.startTime}.`,
-      timestamp: new Date().toISOString(),
-    });
-
-    await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-    await queryClient.invalidateQueries({ queryKey: ['updates'] });
-    showToast('Timetable entry added!', 'success');
-  };
-
-  const handleEditTimetableEntry = async (id: string, updatedFields: Partial<TimetableEntry>) => {
-    if (!user) return;
-    const entry = timetable.find((e) => e.id === id);
-    if (!entry) return;
-
-    let changesDescription = '';
-    const updatedWithMetadata: any = {};
-
-    if (updatedFields.subject) updatedWithMetadata.subject = updatedFields.subject;
-    if (updatedFields.startTime) updatedWithMetadata.start_time = updatedFields.startTime;
-    if (updatedFields.endTime) updatedWithMetadata.end_time = updatedFields.endTime;
-    if (updatedFields.durationMinutes) updatedWithMetadata.duration_minutes = updatedFields.durationMinutes;
-    if (updatedFields.dayOfWeek) updatedWithMetadata.day_of_week = updatedFields.dayOfWeek;
-
-    if (updatedFields.venue && updatedFields.venue !== entry.venue) {
-      updatedWithMetadata.venue = updatedFields.venue;
-      updatedWithMetadata.original_venue = entry.venue;
-      updatedWithMetadata.venue_changed_at = new Date().toISOString();
-      changesDescription += `${entry.subject} room was moved from ${entry.venue} to ${updatedFields.venue}. `;
-    }
-
-    if (updatedFields.isCancelled !== undefined && updatedFields.isCancelled !== entry.isCancelled) {
-      updatedWithMetadata.is_cancelled = updatedFields.isCancelled;
-      if (updatedFields.isCancelled) {
-        updatedWithMetadata.cancelled_at = new Date().toISOString();
-        changesDescription += `${entry.subject} class schedule is officially CANCELLED (Streak Safe). `;
-      } else {
-        changesDescription += `${entry.subject} class cancellation has been reverted. `;
-      }
-    }
-
-    const { error } = await supabase
-      .from('timetable')
-      .update(updatedWithMetadata)
-      .eq('id', id);
-    if (error) throw error;
-
-    if (changesDescription) {
-      const updateId = genUUID();
-      await supabase.from('updates').insert({
-        id: updateId,
-        class_id: activeClassId,
-        user_id: user.id,
-        user_name: user.name,
-        type: updatedFields.isCancelled ? 'cancellation' : 'venue_change',
-        description: changesDescription,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-    await queryClient.invalidateQueries({ queryKey: ['updates'] });
-    showToast('Timetable entry updated!', 'success');
-  };
-
-  const handleDeleteTimetableEntry = async (id: string) => {
-    if (!user) return;
-    const entry = timetable.find((e) => e.id === id);
-    if (!entry) return;
-
-    const { error } = await supabase.from('timetable').delete().eq('id', id);
-    if (error) throw error;
-
-    const updateId = genUUID();
-    await supabase.from('updates').insert({
-      id: updateId,
-      class_id: activeClassId,
-      user_id: user.id,
-      user_name: user.name,
-      type: 'entry_deleted',
-      description: `Schedule for ${entry.subject} was permanently removed from timetable.`,
-      timestamp: new Date().toISOString(),
-    });
-
-    await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-    await queryClient.invalidateQueries({ queryKey: ['updates'] });
-    showToast('Timetable entry deleted.', 'info');
-  };
-
-  const handleTrackAdEvent = async (adId: string, eventType: 'view' | 'click') => {
-    if (!user) return;
-    try {
-      const { error } = await supabase
-        .from('ad_analytics')
-        .insert({
-          ad_id: adId,
-          user_id: user.id,
-          event_type: eventType,
-        });
-      if (error) throw error;
-      console.log(`[Ad Analytics] Logged ${eventType} for ad ${adId}`);
-    } catch (err) {
-      console.warn('[Ad Analytics] Failed to log ad event:', err);
-    }
-  };
-
-  const handlePromoteToAssistant = async (classId: string, memberId: string) => {
-    const { error } = await supabase
-      .from('class_members')
-      .update({ role: 'assistant' })
-      .eq('class_id', classId)
-      .eq('user_id', memberId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast('Member promoted to Assistant!', 'success');
-  };
-
-  const handleDemoteToMember = async (classId: string, assistantId: string) => {
-    const { error } = await supabase
-      .from('class_members')
-      .update({ role: 'member' })
-      .eq('class_id', classId)
-      .eq('user_id', assistantId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast('Assistant demoted to Member.', 'info');
-  };
-
-  const handleDeleteClass = async (classId: string) => {
-    const { error } = await supabase.from('classes').delete().eq('id', classId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-    await queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });
-    showToast('Class deleted successfully.', 'success');
-  };
-
-  const handleLeaveClass = async (classId: string) => {
-    if (!user) {
-      showToast('You must be logged in to leave a class.', 'error');
-      return;
-    }
-
-    // Check if user is the owner (representative)
-    const activeClass = classes.find(c => c.id === classId);
-    if (activeClass && activeClass.ownerId === user.id) {
-      // Check if there are assistants to transfer to
-      if (activeClass.assistantIds.length === 0) {
-        showToast('You are the class representative. You must delete the class or promote someone to assistant first.', 'error');
-        return;
-      }
-      
-      // If there are assistants, prompt transfer
-      const assistantName = memberNamesMap[activeClass.assistantIds[0]] || 'Assistant';
-      if (activeClass.assistantIds.length === 1) {
-        // Auto-transfer to the only assistant
-        if (confirm(`You are the class representative. Transfer ownership to ${assistantName} and leave the class?`)) {
-          await handleTransferOwnership(classId, activeClass.assistantIds[0]);
-          return;
-        }
-        return;
-      } else {
-        // Multiple assistants - open selection modal (handled in ClassView)
-        showToast('Please select an assistant to transfer ownership to.', 'info');
-        return;
-      }
-    }
-
-    const { error } = await supabase
-      .from('class_members')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('Error leaving class:', error);
-      showToast('Failed to leave class. Please try again.', 'error');
-      return;
-    }
-
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    await queryClient.refetchQueries({ queryKey: ['classes'] });
-
-    if (activeClassId === classId) {
-      const remaining = userJoinedClasses.filter(c => c.id !== classId);
-      if (remaining.length > 0) {
-        setActiveClassId(remaining[0].id);
-      } else {
-        setActiveClassId('');
-      }
-    }
-
-    showToast('You have successfully left the class.', 'success');
-  };
-
-  const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
-    if (!user) return;
-
-    // Update the class owner
-    const { error: updateError } = await supabase
-      .from('classes')
-      .update({ owner_id: newOwnerId })
-      .eq('id', classId);
-
-    if (updateError) {
-      console.error('Error transferring ownership:', updateError);
-      showToast('Failed to transfer ownership. Please try again.', 'error');
-      return;
-    }
-
-    // Update the new owner's role in class_members to 'representative'
-    const { error: roleError } = await supabase
-      .from('class_members')
-      .update({ role: 'representative' })
-      .eq('class_id', classId)
-      .eq('user_id', newOwnerId);
-
-    if (roleError) {
-      console.error('Error updating role:', roleError);
-      showToast('Failed to update role. Please try again.', 'error');
-      return;
-    }
-
-    // Update the old owner's role to 'member'
-    const { error: oldRoleError } = await supabase
-      .from('class_members')
-      .update({ role: 'member' })
-      .eq('class_id', classId)
-      .eq('user_id', user.id);
-
-    if (oldRoleError) {
-      console.error('Error updating old owner role:', oldRoleError);
-      showToast('Failed to update your role. Please try again.', 'error');
-      return;
-    }
-
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    await queryClient.refetchQueries({ queryKey: ['classes'] });
-
-    const newOwnerName = memberNamesMap[newOwnerId] || 'Assistant';
-    showToast(`Ownership transferred to ${newOwnerName}. You are now a member.`, 'success');
-
-    // Now let the user leave
-    const { error: leaveError } = await supabase
-      .from('class_members')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', user.id);
-
-    if (leaveError) {
-      console.error('Error leaving after transfer:', leaveError);
-      showToast('Ownership transferred but failed to leave. Please try leaving again.', 'error');
-      return;
-    }
-
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    await queryClient.refetchQueries({ queryKey: ['classes'] });
-
-    if (activeClassId === classId) {
-      const remaining = userJoinedClasses.filter(c => c.id !== classId);
-      if (remaining.length > 0) {
-        setActiveClassId(remaining[0].id);
-      } else {
-        setActiveClassId('');
-      }
-    }
-
-    showToast('You have successfully left the class after transferring ownership.', 'success');
-  };
-
-  const handleDevRoleOverride = (targetRole: Role) => {
-    if (!user) return;
-    console.log('[App] Switching preview role to:', targetRole);
-
-    let targetName = user.name;
-    let targetEmail = user.email;
-
-    if (targetRole === 'admin') {
-      targetName = 'Philip Jonathan (Admin)';
-      targetEmail = 'philipjonathanpeter24@gmail.com';
-    } else if (targetRole === 'investor') {
-      targetName = 'Efe Omowole (Investor)';
-      targetEmail = 'efe.investor@thesdel.com';
-    } else if (targetRole === 'representative') {
-      targetName = 'Thesdel Class Rep';
-    } else if (targetRole === 'assistant') {
-      targetName = 'Thesdel Assistant';
-    } else {
-      targetName = 'Thesdel Member';
-    }
-
-    const updatedUser: User = {
-      ...user,
-      name: targetName,
-      email: targetEmail,
-      role: targetRole,
-    };
-
-    setUser(updatedUser);
-    setCached(CACHE_KEYS.USER, updatedUser);
-  };
-
-  const renderViewContent = () => {
-    if (!user) return null;
-
-    switch (currentView) {
-      case 'home':
-        return (
-          <HomeView
-            timetable={timetable}
-            attendanceLogs={attendanceLogs}
-            joinedClasses={userJoinedClasses}
-            currentSimulatedTime={simulatedTime}
-            updates={updates.filter(
-              (u) =>
-                u.classId === activeClassId ||
-                u.classId === 'global' ||
-                u.classId === 'class_reps' ||
-                u.classId === 'region_north' ||
-                u.classId === 'region_south' ||
-                u.classId === 'country_all'
-            )}
-            onMarkAttendance={handleMarkAttendance}
-            userRole={currentUserRole}
-            activeClassId={activeClassId}
-            onAddBroadcast={handleClassRepBroadcast}
-            onNavigateToNotifications={() => setView('notifications')}
-            onForceRefresh={async () => {
-              await queryClient.invalidateQueries();
-            }}
-            onTrackAdEvent={handleTrackAdEvent}
-          />
-        );
-      case 'timetable':
-        return (
-          <TimetableView
-            timetable={timetable}
-            joinedClasses={userJoinedClasses}
-            activeClassId={activeClassId}
-            onAddEntry={handleAddTimetableEntry}
-            onEditEntry={handleEditTimetableEntry}
-            onDeleteEntry={handleDeleteTimetableEntry}
-            currentUserRole={currentUserRole}
-          />
-        );
-      case 'attendance':
-        return (
-          <AttendanceView
-            timetable={timetable}
-            attendanceLogs={attendanceLogs}
-            joinedClasses={userJoinedClasses}
-            currentSimulatedTime={simulatedTime}
-          />
-        );
-      case 'class':
-        return (
-          <ClassView
-            classes={userJoinedClasses}
-            activeClassId={activeClassId}
-            onSelectClass={setActiveClassId}
-            onJoinClass={handleJoinClass}
-            onCreateClass={handleCreateClass}
-            onPromoteToAssistant={handlePromoteToAssistant}
-            onDemoteToMember={handleDemoteToMember}
-            onDeleteClass={handleDeleteClass}
-            onLeaveClass={handleLeaveClass}
-            onTransferOwnership={handleTransferOwnership}
-            currentUser={user}
-            currentUserRole={currentUserRole}
-            pendingRemovals={pendingRemovals}
-            onRequestMemberRemoval={handleRequestMemberRemoval}
-            onRemoveMemberInstantly={handleRemoveMemberInstantly}
-            onApproveMemberRemoval={handleApproveMemberRemoval}
-            onRejectMemberRemoval={handleRejectMemberRemoval}
-            onUpdateClassCode={handleUpdateClassCode}
-            memberNamesMap={memberNamesMap}
-            onApproveJoinRequest={handleApproveJoinRequest}
-            onRejectJoinRequest={handleRejectJoinRequest}
-          />
-        );
-      case 'profile':
-        return (
-          <ProfileView
-            currentUser={user}
-            joinedClasses={userJoinedClasses}
-            onLogout={handleLogout}
-            onOpenSettings={() => setView('settings')}
-          />
-        );
-      case 'settings':
-        return (
-          <SettingsView
-            currentUser={user}
-            classes={classes}
-            onBack={() => setView('profile')}
-          />
-        );
-      case 'notifications':
-        return (
-          <NotificationsView
-            updates={updates.filter(
-              (u) =>
-                u.classId === activeClassId ||
-                u.classId === 'global' ||
-                u.classId === 'class_reps' ||
-                u.classId === 'region_north' ||
-                u.classId === 'region_south' ||
-                u.classId === 'country_all'
-            )}
-            onForceRefresh={async () => {
-              await queryClient.invalidateQueries({ queryKey: ['updates'] });
-            }}
-            onClose={() => setView('home')}
-            userRole={currentUserRole}
-            activeClassId={activeClassId}
-            onAddBroadcast={handleClassRepBroadcast}
-          />
-        );
-      default:
-        return null;
-    }
-  };
-
-  const isInsideAdmin = window.location.pathname.startsWith('/admin') || window.location.hash.startsWith('#/admin');
-
-  if (!isLoggedIn || !user) {
-    return <LandingView onLoginSuccess={handleLoginSuccess} classesCount={classes.length} />;
   }
 
+  const newId = genUUID();
+  const { error } = await supabase.from('classes').insert({
+    id: newId,
+    name,
+    code,
+    owner_id: user.id,
+    description,
+    visibility
+  });
+  if (error) throw error;
+
+  const updateId = genUUID();
+  await supabase.from('updates').insert({
+    id: updateId,
+    class_id: newId,
+    user_id: user.id,
+    user_name: user.name,
+    type: 'entry_added',
+    description: `Class "${name}" was created by representative ${user.name} with unique code: ${code}`,
+    timestamp: new Date().toISOString(),
+  });
+
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  await queryClient.invalidateQueries({ queryKey: ['updates'] });
+  setActiveClassId(newId);
+
+  return code;
+};
+
+const handleJoinClass = async (code: string) => {
+  if (!user) return;
+
+  const { data: dbClass, error: dbErr } = await supabase
+    .from('classes')
+    .select('*')
+    .eq('code', code)
+    .maybeSingle();
+
+  if (dbErr || !dbClass) {
+    showToast(`Class code "${code}" not found.`, 'error');
+    return;
+  }
+
+  const { data: existingMember } = await supabase
+    .from('class_members')
+    .select('*')
+    .eq('class_id', dbClass.id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (existingMember) {
+    showToast(`You have already joined or requested to join this class.`, 'info');
+    setActiveClassId(dbClass.id);
+    return;
+  }
+
+  const isPrivate = dbClass.visibility === 'private';
+  const initialStatus = isPrivate ? 'pending' : 'approved';
+
+  const { error: joinErr } = await supabase
+    .from('class_members')
+    .insert({
+      class_id: dbClass.id,
+      user_id: user.id,
+      role: 'member',
+      status: initialStatus
+    });
+
+  if (joinErr) {
+    showToast(`Error joining class: ${joinErr.message}`, 'error');
+    return;
+  }
+
+  if (isPrivate) {
+    showToast(`Your enrollment request has been submitted for approval.`, 'info');
+  } else {
+    showToast(`Successfully enrolled in "${dbClass.name}"!`, 'success');
+    setActiveClassId(dbClass.id);
+  }
+
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+};
+
+const handleApproveJoinRequest = async (classId: string, userId: string) => {
+  const { error } = await supabase
+    .from('class_members')
+    .update({ status: 'approved' })
+    .eq('class_id', classId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast('Student joining request approved!', 'success');
+};
+
+const handleRejectJoinRequest = async (classId: string, userId: string) => {
+  const { error } = await supabase
+    .from('class_members')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast('Student joining request denied.', 'info');
+};
+
+const handleRequestMemberRemoval = async (classId: string, memberId: string) => {
+  if (!user) return;
+  const { error } = await supabase.from('pending_removals').insert({
+    id: genUUID(),
+    class_id: classId,
+    user_id: memberId,
+    requested_by: user.id,
+    created_at: new Date().toISOString(),
+  });
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
+  showToast('Removal request sent to Class Representative.', 'info');
+};
+
+const handleRemoveMemberInstantly = async (classId: string, memberId: string) => {
+  const { error } = await supabase
+    .from('class_members')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast('Member removed successfully.', 'success');
+};
+
+const handleApproveMemberRemoval = async (classId: string, memberId: string) => {
+  const { error: delMember } = await supabase
+    .from('class_members')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (delMember) throw delMember;
+
+  const { error: delPR } = await supabase
+    .from('pending_removals')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (delPR) throw delPR;
+
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
+  showToast('Member removal approved.', 'success');
+};
+
+const handleRejectMemberRemoval = async (classId: string, memberId: string) => {
+  const { error } = await supabase
+    .from('pending_removals')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['pendingRemovals'] });
+  showToast('Member removal rejected.', 'info');
+};
+
+const handleUpdateClassCode = async (classId: string): Promise<string> => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let newCode = '';
+  let isUnique = false;
+
+  while (!isUnique) {
+    let randomPart = '';
+    for (let i = 0; i < 10; i++) {
+      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    newCode = randomPart;
+
+    const { data } = await supabase
+      .from('classes')
+      .select('code')
+      .eq('code', newCode)
+      .maybeSingle();
+
+    if (!data) {
+      isUnique = true;
+    }
+  }
+
+  const { error } = await supabase
+    .from('classes')
+    .update({ code: newCode })
+    .eq('id', classId);
+  if (error) throw error;
+
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast(`Class code changed to: ${newCode}`, 'success');
+  return newCode;
+};
+
+const handleMarkAttendance = async (entryId: string, date: string) => {
+  if (!user) return;
+  const newLogId = genUUID();
+  const { error } = await supabase.from('attendance_logs').insert({
+    id: newLogId,
+    class_id: activeClassId,
+    timetable_entry_id: entryId,
+    user_id: user.id,
+    date,
+    status: 'attended',
+    timestamp: new Date().toISOString(),
+  });
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['attendanceLogs', user.id] });
+  showToast('Attendance marked!', 'success');
+};
+
+const handleAddTimetableEntry = async (entry: Omit<TimetableEntry, 'id'>) => {
+  if (!user) return;
+  const newId = genUUID();
+  const { error } = await supabase.from('timetable').insert({
+    id: newId,
+    class_id: activeClassId,
+    subject: entry.subject,
+    day_of_week: entry.dayOfWeek,
+    start_time: entry.startTime,
+    end_time: entry.endTime,
+    duration_minutes: entry.durationMinutes,
+    venue: entry.venue,
+  });
+  if (error) throw error;
+
+  const updateId = genUUID();
+  await supabase.from('updates').insert({
+    id: updateId,
+    class_id: activeClassId,
+    user_id: user.id,
+    user_name: user.name,
+    type: 'entry_added',
+    description: `Added timetable schedule: ${entry.subject} on ${
+      ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][entry.dayOfWeek - 1]
+    }s at ${entry.startTime}.`,
+    timestamp: new Date().toISOString(),
+  });
+
+  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
+  await queryClient.invalidateQueries({ queryKey: ['updates'] });
+  showToast('Timetable entry added!', 'success');
+};
+
+const handleEditTimetableEntry = async (id: string, updatedFields: Partial<TimetableEntry>) => {
+  if (!user) return;
+  const entry = timetable.find((e) => e.id === id);
+  if (!entry) return;
+
+  let changesDescription = '';
+  const updatedWithMetadata: any = {};
+
+  if (updatedFields.subject) updatedWithMetadata.subject = updatedFields.subject;
+  if (updatedFields.startTime) updatedWithMetadata.start_time = updatedFields.startTime;
+  if (updatedFields.endTime) updatedWithMetadata.end_time = updatedFields.endTime;
+  if (updatedFields.durationMinutes) updatedWithMetadata.duration_minutes = updatedFields.durationMinutes;
+  if (updatedFields.dayOfWeek) updatedWithMetadata.day_of_week = updatedFields.dayOfWeek;
+
+  if (updatedFields.venue && updatedFields.venue !== entry.venue) {
+    updatedWithMetadata.venue = updatedFields.venue;
+    updatedWithMetadata.original_venue = entry.venue;
+    updatedWithMetadata.venue_changed_at = new Date().toISOString();
+    changesDescription += `${entry.subject} room was moved from ${entry.venue} to ${updatedFields.venue}. `;
+  }
+
+  if (updatedFields.isCancelled !== undefined && updatedFields.isCancelled !== entry.isCancelled) {
+    updatedWithMetadata.is_cancelled = updatedFields.isCancelled;
+    if (updatedFields.isCancelled) {
+      updatedWithMetadata.cancelled_at = new Date().toISOString();
+      changesDescription += `${entry.subject} class schedule is officially CANCELLED (Streak Safe). `;
+    } else {
+      changesDescription += `${entry.subject} class cancellation has been reverted. `;
+    }
+  }
+
+  const { error } = await supabase
+    .from('timetable')
+    .update(updatedWithMetadata)
+    .eq('id', id);
+  if (error) throw error;
+
+  if (changesDescription) {
+    const updateId = genUUID();
+    await supabase.from('updates').insert({
+      id: updateId,
+      class_id: activeClassId,
+      user_id: user.id,
+      user_name: user.name,
+      type: updatedFields.isCancelled ? 'cancellation' : 'venue_change',
+      description: changesDescription,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
+  await queryClient.invalidateQueries({ queryKey: ['updates'] });
+  showToast('Timetable entry updated!', 'success');
+};
+
+const handleDeleteTimetableEntry = async (id: string) => {
+  if (!user) return;
+  const entry = timetable.find((e) => e.id === id);
+  if (!entry) return;
+
+  const { error } = await supabase.from('timetable').delete().eq('id', id);
+  if (error) throw error;
+
+  const updateId = genUUID();
+  await supabase.from('updates').insert({
+    id: updateId,
+    class_id: activeClassId,
+    user_id: user.id,
+    user_name: user.name,
+    type: 'entry_deleted',
+    description: `Schedule for ${entry.subject} was permanently removed from timetable.`,
+    timestamp: new Date().toISOString(),
+  });
+
+  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
+  await queryClient.invalidateQueries({ queryKey: ['updates'] });
+  showToast('Timetable entry deleted.', 'info');
+};
+
+const handleTrackAdEvent = async (adId: string, eventType: 'view' | 'click') => {
+  if (!user) return;
+  try {
+    const { error } = await supabase
+      .from('ad_analytics')
+      .insert({
+        ad_id: adId,
+        user_id: user.id,
+        event_type: eventType,
+      });
+    if (error) throw error;
+    console.log(`[Ad Analytics] Logged ${eventType} for ad ${adId}`);
+  } catch (err) {
+    console.warn('[Ad Analytics] Failed to log ad event:', err);
+  }
+};
+
+const handlePromoteToAssistant = async (classId: string, memberId: string) => {
+  const { error } = await supabase
+    .from('class_members')
+    .update({ role: 'assistant' })
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast('Member promoted to Assistant!', 'success');
+};
+
+const handleDemoteToMember = async (classId: string, assistantId: string) => {
+  const { error } = await supabase
+    .from('class_members')
+    .update({ role: 'member' })
+    .eq('class_id', classId)
+    .eq('user_id', assistantId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast('Assistant demoted to Member.', 'info');
+};
+
+const handleDeleteClass = async (classId: string) => {
+  const { error } = await supabase.from('classes').delete().eq('id', classId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
+  await queryClient.invalidateQueries({ queryKey: ['attendanceLogs'] });
+  showToast('Class deleted successfully.', 'success');
+};
+const handleLeaveClass = async (classId: string) => {
+  if (!user) {
+    showToast('You must be logged in to leave a class.', 'error');
+    return;
+  }
+
+  // Check if user is the owner (representative)
+  const activeClass = classes.find(c => c.id === classId);
+  if (activeClass && activeClass.ownerId === user.id) {
+    // Check if there are assistants to transfer to
+    if (activeClass.assistantIds.length === 0) {
+      showToast('You are the class representative. You must delete the class or promote someone to assistant first.', 'error');
+      return;
+    }
+
+    // If there are assistants, prompt transfer
+    const assistantName = memberNamesMap[activeClass.assistantIds[0]] || 'Assistant';
+    if (activeClass.assistantIds.length === 1) {
+      // Auto-transfer to the only assistant
+      if (confirm(`You are the class representative. Transfer ownership to ${assistantName} and leave the class?`)) {
+        await handleTransferOwnership(classId, activeClass.assistantIds[0]);
+        return;
+      }
+      return;
+    } else {
+      // Multiple assistants - open selection modal (handled in ClassView)
+      showToast('Please select an assistant to transfer ownership to.', 'info');
+      return;
+    }
+  }
+
+  const { error } = await supabase
+    .from('class_members')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Error leaving class:', error);
+    showToast('Failed to leave class. Please try again.', 'error');
+    return;
+  }
+
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  await queryClient.refetchQueries({ queryKey: ['classes'] });
+
+  if (activeClassId === classId) {
+    const remaining = userJoinedClasses.filter(c => c.id !== classId);
+    if (remaining.length > 0) {
+      setActiveClassId(remaining[0].id);
+    } else {
+      setActiveClassId('');
+    }
+  }
+
+  showToast('You have successfully left the class.', 'success');
+};
+
+const handleTransferOwnership = async (classId: string, newOwnerId: string) => {
+  if (!user) return;
+
+  // Update the class owner
+  const { error: updateError } = await supabase
+    .from('classes')
+    .update({ owner_id: newOwnerId })
+    .eq('id', classId);
+
+  if (updateError) {
+    console.error('Error transferring ownership:', updateError);
+    showToast('Failed to transfer ownership. Please try again.', 'error');
+    return;
+  }
+
+  // Update the new owner's role in class_members to 'representative'
+  const { error: roleError } = await supabase
+    .from('class_members')
+    .update({ role: 'representative' })
+    .eq('class_id', classId)
+    .eq('user_id', newOwnerId);
+
+  if (roleError) {
+    console.error('Error updating role:', roleError);
+    showToast('Failed to update role. Please try again.', 'error');
+    return;
+  }
+
+  // Update the old owner's role to 'member'
+  const { error: oldRoleError } = await supabase
+    .from('class_members')
+    .update({ role: 'member' })
+    .eq('class_id', classId)
+    .eq('user_id', user.id);
+
+  if (oldRoleError) {
+    console.error('Error updating old owner role:', oldRoleError);
+    showToast('Failed to update your role. Please try again.', 'error');
+    return;
+  }
+
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  await queryClient.refetchQueries({ queryKey: ['classes'] });
+
+  const newOwnerName = memberNamesMap[newOwnerId] || 'Assistant';
+  showToast(`Ownership transferred to ${newOwnerName}. You are now a member.`, 'success');
+
+  // Now let the user leave
+  const { error: leaveError } = await supabase
+    .from('class_members')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', user.id);
+
+  if (leaveError) {
+    console.error('Error leaving after transfer:', leaveError);
+    showToast('Ownership transferred but failed to leave. Please try leaving again.', 'error');
+    return;
+  }
+
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  await queryClient.refetchQueries({ queryKey: ['classes'] });
+
+  if (activeClassId === classId) {
+    const remaining = userJoinedClasses.filter(c => c.id !== classId);
+    if (remaining.length > 0) {
+      setActiveClassId(remaining[0].id);
+    } else {
+      setActiveClassId('');
+    }
+  }
+
+  showToast('You have successfully left the class after transferring ownership.', 'success');
+};
+
+const handleDevRoleOverride = (targetRole: Role) => {
+  if (!user) return;
+  console.log('[App] Switching preview role to:', targetRole);
+
+  let targetName = user.name;
+  let targetEmail = user.email;
+
+  if (targetRole === 'admin') {
+    targetName = 'Philip Jonathan (Admin)';
+    targetEmail = 'philipjonathanpeter24@gmail.com';
+  } else if (targetRole === 'investor') {
+    targetName = 'Efe Omowole (Investor)';
+    targetEmail = 'efe.investor@thesdel.com';
+  } else if (targetRole === 'representative') {
+    targetName = 'Thesdel Class Rep';
+  } else if (targetRole === 'assistant') {
+    targetName = 'Thesdel Assistant';
+  } else {
+    targetName = 'Thesdel Member';
+  }
+
+  const updatedUser: User = {
+    ...user,
+    name: targetName,
+    email: targetEmail,
+    role: targetRole,
+  };
+
+  setUser(updatedUser);
+  setCached(CACHE_KEYS.USER, updatedUser);
+};
+
+const renderViewContent = () => {
+  if (!user) return null;
+
+  switch (currentView) {
+    case 'home':
+      return (
+        <HomeView
+          currentUser={user}
+          timetable={timetable}
+          attendanceLogs={attendanceLogs}
+          joinedClasses={userJoinedClasses}
+          currentSimulatedTime={simulatedTime}
+          updates={updates.filter(
+            (u) =>
+              u.classId === activeClassId ||
+              u.classId === 'global' ||
+              u.classId === 'class_reps' ||
+              u.classId === 'region_north' ||
+              u.classId === 'region_south' ||
+              u.classId === 'country_all'
+          )}
+          onMarkAttendance={handleMarkAttendance}
+          userRole={currentUserRole}
+          activeClassId={activeClassId}
+          onAddBroadcast={handleClassRepBroadcast}
+          onNavigateToNotifications={() => setView('notifications')}
+          onForceRefresh={async () => {
+            await queryClient.invalidateQueries();
+          }}
+          onTrackAdEvent={handleTrackAdEvent}
+        />
+      );
+    case 'timetable':
+      return (
+        <TimetableView
+          timetable={timetable}
+          joinedClasses={userJoinedClasses}
+          activeClassId={activeClassId}
+          onAddEntry={handleAddTimetableEntry}
+          onEditEntry={handleEditTimetableEntry}
+          onDeleteEntry={handleDeleteTimetableEntry}
+          currentUserRole={currentUserRole}
+        />
+      );
+    case 'attendance':
+      return (
+        <AttendanceView
+          timetable={timetable}
+          attendanceLogs={attendanceLogs}
+          joinedClasses={userJoinedClasses}
+          currentSimulatedTime={simulatedTime}
+        />
+      );
+    case 'class':
+      return (
+        <ClassView
+          classes={userJoinedClasses}
+          activeClassId={activeClassId}
+          onSelectClass={setActiveClassId}
+          onJoinClass={handleJoinClass}
+          onCreateClass={handleCreateClass}
+          onPromoteToAssistant={handlePromoteToAssistant}
+          onDemoteToMember={handleDemoteToMember}
+          onDeleteClass={handleDeleteClass}
+          onLeaveClass={handleLeaveClass}
+          onTransferOwnership={handleTransferOwnership}
+          currentUser={user}
+          currentUserRole={currentUserRole}
+          pendingRemovals={pendingRemovals}
+          onRequestMemberRemoval={handleRequestMemberRemoval}
+          onRemoveMemberInstantly={handleRemoveMemberInstantly}
+          onApproveMemberRemoval={handleApproveMemberRemoval}
+          onRejectMemberRemoval={handleRejectMemberRemoval}
+          onUpdateClassCode={handleUpdateClassCode}
+          memberNamesMap={memberNamesMap}
+          onApproveJoinRequest={handleApproveJoinRequest}
+          onRejectJoinRequest={handleRejectJoinRequest}
+        />
+      );
+    case 'profile':
+      return (
+        <ProfileView
+          currentUser={user}
+          joinedClasses={userJoinedClasses}
+          onLogout={handleLogout}
+          onOpenSettings={() => setView('settings')}
+        />
+      );
+    case 'settings':
+      return (
+        <SettingsView
+          currentUser={user}
+          classes={classes}
+          onBack={() => setView('profile')}
+        />
+      );
+    case 'notifications':
+      return (
+        <NotificationsView
+          updates={updates.filter(
+            (u) =>
+              u.classId === activeClassId ||
+              u.classId === 'global' ||
+              u.classId === 'class_reps' ||
+              u.classId === 'region_north' ||
+              u.classId === 'region_south' ||
+              u.classId === 'country_all'
+          )}
+          onForceRefresh={async () => {
+            await queryClient.invalidateQueries({ queryKey: ['updates'] });
+          }}
+          onClose={() => setView('home')}
+          userRole={currentUserRole}
+          activeClassId={activeClassId}
+          onAddBroadcast={handleClassRepBroadcast}
+        />
+      );
+    default:
+      return null;
+  }
+};
+
+const isInsideAdmin = window.location.pathname.startsWith('/admin') || window.location.hash.startsWith('#/admin');
+
+if (!isLoggedIn || !user) {
+  return <LandingView onLoginSuccess={handleLoginSuccess} classesCount={classes.length} />;
+}
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-950 dark:text-zinc-50 flex flex-col font-sans" id="thesdel-root">
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
