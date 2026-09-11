@@ -279,6 +279,7 @@ export default function App() {
     showToast,
     setActiveClassId,
   });
+
   const renderViewContent = () => {
     if (!user) return null;
 
@@ -377,9 +378,11 @@ export default function App() {
           <SettingsView
             currentUser={user}
             classes={classes}
+            strings={strings.settings}
             onBack={() => setView('profile')}
             locale={locale}
             onChangeLocale={handleChangeLocale}
+            onToast={showToast}
           />
         );
       case 'notifications':
