@@ -13,11 +13,12 @@ import {
   UsersRound,
   BriefcaseBusiness,
   LockKeyhole,
+  RefreshCw,
 } from 'lucide-react';
 import { User, Role } from '../types';
 import { supabase } from '../lib/supabase';
 import CountryCodeSelector from './CountryCodeSelector';
-import type { SignUpStrings } from './LandingView';
+import type { SignUpStrings } from '../i18n/types.landing';
 
 interface SignUpScreenProps {
   strings: SignUpStrings;
@@ -56,6 +57,42 @@ const FieldShell = ({
 const inputClass =
   'w-full border border-zinc-200 bg-zinc-50 py-3.5 pl-10 pr-4 text-sm text-zinc-950 outline-none transition-all placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-950 focus:bg-white focus:ring-1 focus:ring-zinc-950';
 
+const RATE_LIMIT_KEY = 'thesdel_signup_attempts';
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const RATE_LIMIT_MAX = 3;
+
+const checkRateLimit = (): boolean => {
+  try {
+    const raw = localStorage.getItem(RATE_LIMIT_KEY);
+    const now = Date.now();
+    const attempts: number[] = raw ? JSON.parse(raw) : [];
+    const recent = attempts.filter(
+      (t) => now - t < RATE_LIMIT_WINDOW_MS
+    );
+    return recent.length < RATE_LIMIT_MAX;
+  } catch {
+    return true;
+  }
+};
+
+const recordAttempt = () => {
+  try {
+    const raw = localStorage.getItem(RATE_LIMIT_KEY);
+    const now = Date.now();
+    const attempts: number[] = raw ? JSON.parse(raw) : [];
+    const recent = attempts.filter(
+      (t) => now - t < RATE_LIMIT_WINDOW_MS
+    );
+    recent.push(now);
+    localStorage.setItem(
+      RATE_LIMIT_KEY,
+      JSON.stringify(recent)
+    );
+  } catch {
+    // ignore
+  }
+};
+
 const SignUpScreen: React.FC<SignUpScreenProps> = ({
   strings,
   onLoginSuccess,
@@ -86,6 +123,23 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
 
   const [countryCode, setCountryCode] =
     useState('+234');
+
+  const [honeypot, setHoneypot] = useState('');
+
+  const [captchaNum1, setCaptchaNum1] = useState(
+    () => Math.floor(Math.random() * 9) + 1
+  );
+  const [captchaNum2, setCaptchaNum2] = useState(
+    () => Math.floor(Math.random() * 9) + 1
+  );
+  const [captchaAnswer, setCaptchaAnswer] =
+    useState('');
+
+  const regenerateCaptcha = () => {
+    setCaptchaNum1(Math.floor(Math.random() * 9) + 1);
+    setCaptchaNum2(Math.floor(Math.random() * 9) + 1);
+    setCaptchaAnswer('');
+  };
 
   useEffect(() => {
     const checkUsername = async () => {
@@ -144,6 +198,16 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
 
     setSignUpError('');
 
+    if (honeypot.trim().length > 0) {
+      setSignUpError(strings.errorGenericRegistration);
+      return;
+    }
+
+    if (!checkRateLimit()) {
+      setSignUpError(strings.errorRateLimited);
+      return;
+    }
+
     if (
       !signUpName ||
       !signUpUsername ||
@@ -152,6 +216,20 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
       !signUpPhone
     ) {
       setSignUpError(strings.errorAllRequired);
+      return;
+    }
+
+    if (!captchaAnswer.trim()) {
+      setSignUpError(strings.errorCaptchaRequired);
+      return;
+    }
+
+    if (
+      Number(captchaAnswer) !==
+      captchaNum1 + captchaNum2
+    ) {
+      setSignUpError(strings.errorCaptchaIncorrect);
+      regenerateCaptcha();
       return;
     }
 
@@ -188,6 +266,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
       return;
     }
 
+    recordAttempt();
     setLoading(true);
     setSignUpError('');
 
@@ -358,6 +437,25 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
         onSubmit={handleSignUpSubmit}
         className="space-y-7"
       >
+        {/* HONEYPOT — bots fill this, humans never see it */}
+        <input
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: '-9999px',
+            width: '1px',
+            height: '1px',
+            opacity: 0,
+            pointerEvents: 'none',
+          }}
+        />
+
         {/* ====================================================
             IDENTITY
         ==================================================== */}
@@ -736,6 +834,48 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
               {strings.passwordProtected}
             </span>
           </div>
+        </section>
+
+        {/* ====================================================
+            VERIFICATION
+        ==================================================== */}
+
+        <section className="border border-zinc-200 bg-zinc-50 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              {strings.captchaLabel}
+            </span>
+
+            <button
+              type="button"
+              onClick={regenerateCaptcha}
+              className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.12em] text-zinc-400 transition-colors hover:text-zinc-950"
+            >
+              <RefreshCw className="h-3 w-3" />
+              {strings.captchaNewQuestion}
+            </button>
+          </div>
+
+          <label className="mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+            {strings.captchaQuestion(
+              captchaNum1,
+              captchaNum2
+            )}
+          </label>
+
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={captchaAnswer}
+            onChange={(e) => {
+              setCaptchaAnswer(e.target.value);
+              setSignUpError('');
+            }}
+            placeholder={strings.captchaPlaceholder}
+            className="w-full border border-zinc-200 bg-white px-3 py-2.5 text-sm font-bold text-zinc-950 outline-none transition-all placeholder:font-normal placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-950 focus:bg-white focus:ring-1 focus:ring-zinc-950"
+          />
         </section>
 
         {/* ====================================================
