@@ -1,5 +1,10 @@
 import type { LandingStrings } from '../types.landing';
 
+export const meta = {
+  code: 'en',
+  nativeName: 'English',
+};
+
 const EN_LANDING: LandingStrings = {
   header: {
     brand: 'THESDEL',
@@ -147,6 +152,14 @@ const EN_LANDING: LandingStrings = {
       'Username or email already taken. Please try again.',
     errorGenericRegistration:
       'An error occurred during registration.',
+    captchaLabel: 'Verification',
+    captchaQuestion: (a, b) => `Solve: ${a} + ${b} = ?`,
+    captchaPlaceholder: 'Answer',
+    captchaNewQuestion: 'New question',
+    errorCaptchaRequired: 'Please answer the verification question.',
+    errorCaptchaIncorrect: 'Incorrect answer. Please try again.',
+    errorRateLimited:
+      'Too many attempts. Please wait a few minutes before trying again.',
   },
   legal: {
     terms: {
