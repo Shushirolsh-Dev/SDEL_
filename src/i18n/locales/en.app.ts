@@ -1,5 +1,10 @@
 import type { AppStrings } from '../types.app';
 
+export const meta = {
+  code: 'en',
+  nativeName: 'English',
+};
+
 const EN: AppStrings = {
   header: {
     brand: 'THESDEL',
