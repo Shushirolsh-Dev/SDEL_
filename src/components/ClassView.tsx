@@ -10,17 +10,19 @@ import {
 } from 'lucide-react';
 import { ClassGroup, User, Role, PendingRemoval } from '../types';
 import { trackClick } from '../utils/tracker';
+import type { ClassStrings } from '../i18n/types.app';
 
-import ClassSidebar from './ClassSidebar';
-import ClassOverview from './ClassOverview';
-import ClassRequests from './ClassRequests';
-import ClassMembersCard from './ClassMembersCard';
-import ClassManagementCard from './ClassManagementCard';
-import ClassModals from './ClassModals';
+import ClassSidebar from './class/ClassSidebar';
+import ClassOverview from './class/ClassOverview';
+import ClassRequests from './class/ClassRequests';
+import ClassMembersCard from './class/ClassMembersCard';
+import ClassManagementCard from './class/ClassManagementCard';
+import ClassModals from './class/ClassModals';
 
 interface ClassViewProps {
   classes: ClassGroup[];
   activeClassId: string;
+  strings: ClassStrings;
   onSelectClass: (id: string) => void;
   onJoinClass: (code: string) => void;
   onCreateClass: (
@@ -81,6 +83,7 @@ type ConfirmAction =
 const ClassView: React.FC<ClassViewProps> = ({
   classes,
   activeClassId,
+  strings,
   onSelectClass,
   onJoinClass,
   onCreateClass,
@@ -207,18 +210,18 @@ const ClassView: React.FC<ClassViewProps> = ({
     resetMessages();
 
     if (!joinCode.trim()) {
-      setJoinMessage('Enter a class code.');
+      setJoinMessage(strings.join.emptyCodeError);
       return;
     }
 
     if (Number(captchaAnswer) !== captchaNum1 + captchaNum2) {
-      setCaptchaError('Incorrect answer.');
+      setCaptchaError(strings.join.incorrectCaptchaError);
       regenerateCaptcha();
       return;
     }
 
     setIsJoining(true);
-    setLoadingMessage('Joining class...');
+    setLoadingMessage(strings.toast.joiningClass);
 
     try {
       await Promise.resolve(onJoinClass(joinCode.trim().toUpperCase()));
@@ -228,7 +231,7 @@ const ClassView: React.FC<ClassViewProps> = ({
       showToast('success', 'Join request submitted.');
     } catch (error) {
       setJoinMessage(
-        error instanceof Error ? error.message : 'Unable to join class.'
+        error instanceof Error ? error.message : strings.toast.unableToJoin
       );
     } finally {
       setIsJoining(false);
@@ -240,18 +243,18 @@ const ClassView: React.FC<ClassViewProps> = ({
     resetMessages();
 
     if (!classNameInput.trim()) {
-      setJoinMessage('Enter a class name.');
+      setJoinMessage(strings.create.emptyNameError);
       return;
     }
 
     if (Number(captchaAnswer) !== captchaNum1 + captchaNum2) {
-      setCaptchaError('Incorrect answer.');
+      setCaptchaError(strings.create.incorrectCaptchaError);
       regenerateCaptcha();
       return;
     }
 
     setIsCreating(true);
-    setLoadingMessage('Creating class...');
+    setLoadingMessage(strings.toast.creatingClass);
 
     try {
       const createdClassCode = await onCreateClass(
@@ -269,8 +272,8 @@ const ClassView: React.FC<ClassViewProps> = ({
       showToast(
         'success',
         createdClassCode
-          ? `Class created. Code: ${createdClassCode}`
-          : 'Class created successfully.'
+          ? strings.create.createdWithCode(createdClassCode)
+          : strings.create.createdSuccess
       );
 
       setActiveTab('details');
@@ -278,7 +281,7 @@ const ClassView: React.FC<ClassViewProps> = ({
       setJoinMessage(
         error instanceof Error
           ? error.message
-          : 'Unable to create class.'
+          : strings.toast.unableToCreate
       );
     } finally {
       setIsCreating(false);
@@ -288,20 +291,16 @@ const ClassView: React.FC<ClassViewProps> = ({
 
   const handleRegenerateCode = async (classId: string) => {
     setIsRegenerating(true);
-    setLoadingMessage('Generating new class code...');
+    setLoadingMessage(strings.toast.generatingCode);
 
     try {
-      const newCode = await onUpdateClassCode(classId);
-      showToast(
-        'success',
-        newCode ? `New class code: ${newCode}` : 'Class code updated.'
-      );
+      await onUpdateClassCode(classId);
     } catch (error) {
       showToast(
         'error',
         error instanceof Error
           ? error.message
-          : 'Unable to regenerate class code.'
+          : strings.toast.unableToRegenerate
       );
     } finally {
       setIsRegenerating(false);
@@ -317,13 +316,13 @@ const ClassView: React.FC<ClassViewProps> = ({
     setProcessingJoinId(userId);
     try {
       await onApproveJoinRequest(classId, userId);
-      showToast('success', 'Join request approved.');
+      showToast('success', strings.toast.joinApproved);
     } catch (error) {
       showToast(
         'error',
         error instanceof Error
           ? error.message
-          : 'Unable to approve join request.'
+          : strings.toast.unableToApproveJoin
       );
     } finally {
       setProcessingJoinId(null);
@@ -338,13 +337,13 @@ const ClassView: React.FC<ClassViewProps> = ({
     setProcessingJoinId(userId);
     try {
       await onRejectJoinRequest(classId, userId);
-      showToast('success', 'Join request rejected.');
+      showToast('success', strings.toast.joinRejected);
     } catch (error) {
       showToast(
         'error',
         error instanceof Error
           ? error.message
-          : 'Unable to reject join request.'
+          : strings.toast.unableToRejectJoin
       );
     } finally {
       setProcessingJoinId(null);
@@ -358,7 +357,7 @@ const ClassView: React.FC<ClassViewProps> = ({
       setCopiedCode(true);
       trackClick('class_code_copy');
     } catch {
-      showToast('error', 'Unable to copy class code.');
+      showToast('error', strings.toast.unableToCopyCode);
     }
   };
 
@@ -398,7 +397,7 @@ const ClassView: React.FC<ClassViewProps> = ({
           setShowTransferModal(true);
         } else {
           onLeaveClass(action.classId);
-          showToast('success', 'You left the class.');
+          showToast('success', strings.toast.leftClass);
         }
       } finally {
         setLeavingClassId(null);
@@ -409,7 +408,7 @@ const ClassView: React.FC<ClassViewProps> = ({
 
     if (action.type === 'delete') {
       onDeleteClass(action.classId);
-      showToast('success', 'Class deleted.');
+      showToast('success', strings.toast.classDeleted);
       return;
     }
 
@@ -420,13 +419,13 @@ const ClassView: React.FC<ClassViewProps> = ({
 
     if (action.type === 'remove-member') {
       onRemoveMemberInstantly(action.classId, action.memberId);
-      showToast('success', `${action.memberName} was removed.`);
+      showToast('success', strings.toast.memberRemoved(action.memberName));
       return;
     }
 
     if (action.type === 'request-removal') {
       onRequestMemberRemoval(action.classId, action.memberId);
-      showToast('info', 'Removal request submitted.');
+      showToast('info', strings.toast.removalRequestSubmitted);
       return;
     }
 
@@ -447,236 +446,245 @@ const ClassView: React.FC<ClassViewProps> = ({
   ).length;
 
   return (
-<div className="relative min-h-full bg-white text-zinc-950 dark:bg-black dark:text-white">
-  <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-    {/* Header */}
-    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">
-          Class spaces
-        </p>
-
-        <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
-          Your classes
-        </h1>
-
-        <p className="mt-1 max-w-xl text-sm text-zinc-500 dark:text-zinc-400">
-          Manage your class spaces, members, access and class codes.
-        </p>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('details');
-            trackClick('class_details_tab');
-          }}
-          className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
-            activeTab === 'details'
-              ? 'bg-zinc-950 text-white dark:bg-white dark:text-black'
-              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
-          }`}
-        >
-          My classes
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('create');
-            regenerateCaptcha();
-            trackClick('class_create_tab');
-          }}
-          className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
-            activeTab === 'create'
-              ? 'bg-zinc-950 text-white dark:bg-white dark:text-black'
-              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
-          }`}
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Create class
-        </button>
-      </div>
-    </div>
-
-    {activeTab === 'details' && (
-      <section id="details-section" className="space-y-5">
-        {classes.length === 0 ? (
-          <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900">
-              <Users className="h-5 w-5 text-zinc-500" />
-            </div>
-
-            <h2 className="text-base font-black">No classes yet</h2>
-
-            <p className="mx-auto mt-1 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
-              Join an existing class with a class code or create a
-              new class space.
+    <div className="relative min-h-full bg-white text-zinc-950 dark:bg-black dark:text-white">
+      <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+              {strings.header.eyebrow}
             </p>
 
-            <div className="mt-5 flex flex-wrap justify-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('join');
-                  regenerateCaptcha();
-                }}
-                className="inline-flex items-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-              >
-                <KeyRound className="h-3.5 w-3.5" />
-                Join a class
-              </button>
+            <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
+              {strings.header.title}
+            </h1>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('create');
-                  regenerateCaptcha();
-                }}
-                className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Create a class
-              </button>
-            </div>
+            <p className="mt-1 max-w-xl text-sm text-zinc-500 dark:text-zinc-400">
+              {strings.header.subtitle}
+            </p>
           </div>
-        ) : (
-          <div
-            id="class-layout-grid"
-            className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)]"
-          >
-            <ClassSidebar
-              classes={classes}
-              activeClassId={activeClassId}
-              onSelectClass={onSelectClass}
-              onJoinAnother={() => {
-                setActiveTab('join');
-                regenerateCaptcha();
-                trackClick('join_another_class');
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('details');
+                trackClick('class_details_tab');
               }}
-            />
+              className={`rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+                activeTab === 'details'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black'
+                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
+              }`}
+            >
+              {strings.header.tabMyClasses}
+            </button>
 
-            <div className="min-w-0 space-y-5">
-              {activeClass && (
-                <>
-                  <ClassOverview
-                    activeClass={activeClass}
-                    currentUser={currentUser}
-                    copiedCode={copiedCode}
-                    onCopyCode={copyClassCode}
-                  />
-
-                  {isUserAdminOrAssistantOfActiveClass && (
-                    <ClassRequests
-                      activeClass={activeClass}
-                      pendingRemovals={pendingRemovals}
-                      pendingRemovalCount={pendingRemovalCount}
-                      processingJoinId={processingJoinId}
-                      getMemberName={getMemberName}
-                      onApproveJoin={handleApproveJoin}
-                      onRejectJoinRequest={(
-                        classId,
-                        userId,
-                        userName
-                      ) =>
-                        setConfirmAction({
-                          type: 'reject-join',
-                          classId,
-                          userId,
-                          userName,
-                        })
-                      }
-                      onApproveRemoval={(classId, memberId) => {
-                        onApproveMemberRemoval(classId, memberId);
-                        showToast('success', 'Removal approved.');
-                      }}
-                      onRejectRemoval={(classId, memberId) => {
-                        onRejectMemberRemoval(classId, memberId);
-                        showToast(
-                          'info',
-                          'Removal request rejected.'
-                        );
-                      }}
-                    />
-                  )}
-
-                  <ClassMembersCard
-                    activeClass={activeClass}
-                    currentUser={currentUser}
-                    currentUserRole={currentUserRole}
-                    getMemberName={getMemberName}
-                    onPromote={(classId, memberId, memberName) => {
-                      onPromoteToAssistant(classId, memberId);
-                      showToast(
-                        'success',
-                        `${memberName} is now an assistant.`
-                      );
-                    }}
-                    onDemote={(classId, memberId, memberName) => {
-                      onDemoteToMember(classId, memberId);
-                      showToast(
-                        'success',
-                        `${memberName} is now a member.`
-                      );
-                    }}
-                    onRemoveMember={(
-                      classId,
-                      memberId,
-                      memberName
-                    ) =>
-                      setConfirmAction({
-                        type: 'remove-member',
-                        classId,
-                        memberId,
-                        memberName,
-                      })
-                    }
-                    onRequestRemoval={(
-                      classId,
-                      memberId,
-                      memberName
-                    ) =>
-                      setConfirmAction({
-                        type: 'request-removal',
-                        classId,
-                        memberId,
-                        memberName,
-                      })
-                    }
-                  />
-
-                  <ClassManagementCard
-                    activeClass={activeClass}
-                    currentUser={currentUser}
-                    leavingClassId={leavingClassId}
-                    onRegenerateClick={(classId, className) =>
-                      setConfirmAction({
-                        type: 'regenerate',
-                        classId,
-                        className,
-                      })
-                    }
-                    onTransferClick={() => {
-                      setSelectedTransferId('');
-                      setShowTransferModal(true);
-                    }}
-                    onLeaveClick={requestLeaveClass}
-                    onDeleteClick={(classId, className) =>
-                      setConfirmAction({
-                        type: 'delete',
-                        classId,
-                        className,
-                      })
-                    }
-                  />
-                </>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('create');
+                regenerateCaptcha();
+                trackClick('class_create_tab');
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+                activeTab === 'create'
+                  ? 'bg-zinc-950 text-white dark:bg-white dark:text-black'
+                  : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800'
+              }`}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {strings.header.tabCreateClass}
+            </button>
           </div>
+        </div>
+
+        {activeTab === 'details' && (
+          <section id="details-section" className="space-y-5">
+            {classes.length === 0 ? (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900">
+                  <Users className="h-5 w-5 text-zinc-500" />
+                </div>
+
+                <h2 className="text-base font-black">
+                  {strings.header.emptyTitle}
+                </h2>
+
+                <p className="mx-auto mt-1 max-w-md text-sm text-zinc-500 dark:text-zinc-400">
+                  {strings.header.emptySubtitle}
+                </p>
+
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('join');
+                      regenerateCaptcha();
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-zinc-950 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    {strings.header.emptyJoinButton}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('create');
+                      regenerateCaptcha();
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    {strings.header.emptyCreateButton}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                id="class-layout-grid"
+                className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)]"
+              >
+                <ClassSidebar
+                  classes={classes}
+                  activeClassId={activeClassId}
+                  strings={strings.sidebar}
+                  onSelectClass={onSelectClass}
+                  onJoinAnother={() => {
+                    setActiveTab('join');
+                    regenerateCaptcha();
+                    trackClick('join_another_class');
+                  }}
+                />
+
+                <div className="min-w-0 space-y-5">
+                  {activeClass && (
+                    <>
+                      <ClassOverview
+                        activeClass={activeClass}
+                        currentUser={currentUser}
+                        copiedCode={copiedCode}
+                        strings={strings.overview}
+                        onCopyCode={copyClassCode}
+                      />
+
+                      {isUserAdminOrAssistantOfActiveClass && (
+                        <ClassRequests
+                          activeClass={activeClass}
+                          pendingRemovals={pendingRemovals}
+                          pendingRemovalCount={pendingRemovalCount}
+                          processingJoinId={processingJoinId}
+                          strings={strings.requests}
+                          getMemberName={getMemberName}
+                          onApproveJoin={handleApproveJoin}
+                          onRejectJoinRequest={(
+                            classId,
+                            userId,
+                            userName
+                          ) =>
+                            setConfirmAction({
+                              type: 'reject-join',
+                              classId,
+                              userId,
+                              userName,
+                            })
+                          }
+                          onApproveRemoval={(classId, memberId) => {
+                            onApproveMemberRemoval(classId, memberId);
+                            showToast(
+                              'success',
+                              strings.toast.removalApproved
+                            );
+                          }}
+                          onRejectRemoval={(classId, memberId) => {
+                            onRejectMemberRemoval(classId, memberId);
+                            showToast(
+                              'info',
+                              strings.toast.removalRequestRejected
+                            );
+                          }}
+                        />
+                      )}
+
+                      <ClassMembersCard
+                        activeClass={activeClass}
+                        currentUser={currentUser}
+                        currentUserRole={currentUserRole}
+                        strings={strings.members}
+                        getMemberName={getMemberName}
+                        onPromote={(classId, memberId, memberName) => {
+                          onPromoteToAssistant(classId, memberId);
+                          showToast(
+                            'success',
+                            strings.toast.nowAssistant(memberName)
+                          );
+                        }}
+                        onDemote={(classId, memberId, memberName) => {
+                          onDemoteToMember(classId, memberId);
+                          showToast(
+                            'success',
+                            strings.toast.nowMember(memberName)
+                          );
+                        }}
+                        onRemoveMember={(
+                          classId,
+                          memberId,
+                          memberName
+                        ) =>
+                          setConfirmAction({
+                            type: 'remove-member',
+                            classId,
+                            memberId,
+                            memberName,
+                          })
+                        }
+                        onRequestRemoval={(
+                          classId,
+                          memberId,
+                          memberName
+                        ) =>
+                          setConfirmAction({
+                            type: 'request-removal',
+                            classId,
+                            memberId,
+                            memberName,
+                          })
+                        }
+                      />
+
+                      <ClassManagementCard
+                        activeClass={activeClass}
+                        currentUser={currentUser}
+                        leavingClassId={leavingClassId}
+                        strings={strings.management}
+                        onRegenerateClick={(classId, className) =>
+                          setConfirmAction({
+                            type: 'regenerate',
+                            classId,
+                            className,
+                          })
+                        }
+                        onTransferClick={() => {
+                          setSelectedTransferId('');
+                          setShowTransferModal(true);
+                        }}
+                        onLeaveClick={requestLeaveClass}
+                        onDeleteClick={(classId, className) =>
+                          setConfirmAction({
+                            type: 'delete',
+                            classId,
+                            className,
+                          })
+                        }
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
         )}
-      </section>
-    )}
+
         {activeTab === 'join' && (
           <section
             id="join-section"
@@ -684,14 +692,13 @@ const ClassView: React.FC<ClassViewProps> = ({
           >
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
-                Join class
+                {strings.join.eyebrow}
               </p>
               <h2 className="mt-2 text-2xl font-black tracking-tight">
-                Enter a class code
+                {strings.join.title}
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Use the code provided by the class owner or
-                representative.
+                {strings.join.subtitle}
               </p>
             </div>
 
@@ -701,7 +708,7 @@ const ClassView: React.FC<ClassViewProps> = ({
               </div>
 
               <label className="block text-xs font-black uppercase tracking-wider text-zinc-500">
-                Class code
+                {strings.join.classCodeLabel}
               </label>
 
               <input
@@ -715,7 +722,7 @@ const ClassView: React.FC<ClassViewProps> = ({
                     handleJoin();
                   }
                 }}
-                placeholder="Enter class code"
+                placeholder={strings.join.classCodePlaceholder}
                 autoComplete="off"
                 className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-black tracking-[0.18em] outline-none transition placeholder:font-medium placeholder:tracking-normal focus:border-zinc-950 dark:border-zinc-700 dark:bg-black dark:focus:border-white"
               />
@@ -724,12 +731,15 @@ const ClassView: React.FC<ClassViewProps> = ({
                 <div className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-zinc-500" />
                   <p className="text-xs font-black uppercase tracking-wider text-zinc-500">
-                    Verification
+                    {strings.join.verificationLabel}
                   </p>
                 </div>
 
                 <p className="mt-3 text-sm font-bold">
-                  Solve: {captchaNum1} + {captchaNum2} = ?
+                  {strings.join.captchaQuestion(
+                    captchaNum1,
+                    captchaNum2
+                  )}
                 </p>
 
                 <input
@@ -739,7 +749,7 @@ const ClassView: React.FC<ClassViewProps> = ({
                     setCaptchaError('');
                   }}
                   inputMode="numeric"
-                  placeholder="Answer"
+                  placeholder={strings.join.captchaPlaceholder}
                   className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-bold outline-none transition placeholder:font-medium focus:border-zinc-950 dark:border-zinc-700 dark:bg-black dark:focus:border-white"
                 />
 
@@ -756,7 +766,7 @@ const ClassView: React.FC<ClassViewProps> = ({
                   className="mt-3 inline-flex items-center gap-2 text-xs font-black text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
-                  New question
+                  {strings.join.newQuestionButton}
                 </button>
               </div>
 
@@ -775,11 +785,11 @@ const ClassView: React.FC<ClassViewProps> = ({
                 {isJoining ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    Joining...
+                    {strings.join.joiningButton}
                   </>
                 ) : (
                   <>
-                    Join class
+                    {strings.join.joinButton}
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}
@@ -795,14 +805,13 @@ const ClassView: React.FC<ClassViewProps> = ({
           >
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
-                Create class
+                {strings.create.eyebrow}
               </p>
               <h2 className="mt-2 text-2xl font-black tracking-tight">
-                Create a new class
+                {strings.create.title}
               </h2>
               <p className="mt-1 text-sm text-zinc-500">
-                Set up a space for your class, department, or study
-                group.
+                {strings.create.subtitle}
               </p>
             </div>
 
@@ -810,21 +819,21 @@ const ClassView: React.FC<ClassViewProps> = ({
               <div className="space-y-5">
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-zinc-500">
-                    Class name
+                    {strings.create.nameLabel}
                   </label>
                   <input
                     value={classNameInput}
                     onChange={(event) =>
                       setClassNameInput(event.target.value)
                     }
-                    placeholder="e.g. MTH 102"
+                    placeholder={strings.create.namePlaceholder}
                     className="mt-2 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-semibold outline-none transition placeholder:font-medium focus:border-zinc-950 dark:border-zinc-700 dark:bg-black dark:focus:border-white"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-zinc-500">
-                    Description
+                    {strings.create.descriptionLabel}
                   </label>
                   <textarea
                     value={classDescriptionInput}
@@ -832,14 +841,14 @@ const ClassView: React.FC<ClassViewProps> = ({
                       setClassDescriptionInput(event.target.value)
                     }
                     rows={4}
-                    placeholder="What is this class for?"
+                    placeholder={strings.create.descriptionPlaceholder}
                     className="mt-2 w-full resize-none rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-medium outline-none transition placeholder:text-zinc-400 focus:border-zinc-950 dark:border-zinc-700 dark:bg-black dark:focus:border-white"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-zinc-500">
-                    Visibility
+                    {strings.create.visibilityLabel}
                   </label>
 
                   <div className="mt-2 grid gap-3 sm:grid-cols-2">
@@ -857,11 +866,11 @@ const ClassView: React.FC<ClassViewProps> = ({
                       <div className="flex items-center gap-3">
                         <Globe2Icon />
                         <span className="text-sm font-black">
-                          Public
+                          {strings.create.visibilityPublicTitle}
                         </span>
                       </div>
                       <p className="mt-2 text-xs leading-5 text-zinc-500">
-                        Anyone with the class code can request to join.
+                        {strings.create.visibilityPublicSubtitle}
                       </p>
                     </button>
 
@@ -879,11 +888,11 @@ const ClassView: React.FC<ClassViewProps> = ({
                       <div className="flex items-center gap-3">
                         <LockKeyholeIcon />
                         <span className="text-sm font-black">
-                          Private
+                          {strings.create.visibilityPrivateTitle}
                         </span>
                       </div>
                       <p className="mt-2 text-xs leading-5 text-zinc-500">
-                        Only people you approve can join this class.
+                        {strings.create.visibilityPrivateSubtitle}
                       </p>
                     </button>
                   </div>
@@ -891,14 +900,17 @@ const ClassView: React.FC<ClassViewProps> = ({
 
                 <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
                   <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-zinc-500" />
+                         <Shield className="h-4 w-4 text-zinc-500" />
                     <p className="text-xs font-black uppercase tracking-wider text-zinc-500">
-                      Verification
+                      {strings.create.verificationLabel}
                     </p>
                   </div>
 
                   <p className="mt-3 text-sm font-bold">
-                    Solve: {captchaNum1} + {captchaNum2} = ?
+                    {strings.create.captchaQuestion(
+                      captchaNum1,
+                      captchaNum2
+                    )}
                   </p>
 
                   <input
@@ -908,7 +920,7 @@ const ClassView: React.FC<ClassViewProps> = ({
                       setCaptchaError('');
                     }}
                     inputMode="numeric"
-                    placeholder="Answer"
+                    placeholder={strings.create.captchaPlaceholder}
                     className="mt-3 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-bold outline-none transition placeholder:font-medium focus:border-zinc-950 dark:border-zinc-700 dark:bg-black dark:focus:border-white"
                   />
 
@@ -925,7 +937,7 @@ const ClassView: React.FC<ClassViewProps> = ({
                     className="mt-3 inline-flex items-center gap-2 text-xs font-black text-zinc-500 transition hover:text-zinc-950 dark:hover:text-white"
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
-                    New question
+                    {strings.create.newQuestionButton}
                   </button>
                 </div>
 
@@ -938,12 +950,12 @@ const ClassView: React.FC<ClassViewProps> = ({
                   {isCreating ? (
                     <>
                       <RefreshCw className="h-4 w-4 animate-spin" />
-                      Creating...
+                      {strings.create.creatingButton}
                     </>
                   ) : (
                     <>
                       <Plus className="h-4 w-4" />
-                      Create class
+                      {strings.create.createButton}
                     </>
                   )}
                 </button>
@@ -962,11 +974,16 @@ const ClassView: React.FC<ClassViewProps> = ({
         activeClass={activeClass}
         currentUser={currentUser}
         selectedTransferId={selectedTransferId}
+        strings={strings.modals}
         getMemberName={getMemberName}
         onSelectTransfer={setSelectedTransferId}
         onCloseTransfer={() => setShowTransferModal(false)}
         onConfirmTransfer={async () => {
-          if (!selectedTransferId || !onTransferOwnership || !activeClass)
+          if (
+            !selectedTransferId ||
+            !onTransferOwnership ||
+            !activeClass
+          )
             return;
 
           try {
@@ -976,9 +993,9 @@ const ClassView: React.FC<ClassViewProps> = ({
             );
             setShowTransferModal(false);
             setSelectedTransferId('');
-            showToast('success', 'Ownership transferred.');
+            showToast('success', strings.toast.ownershipTransferred);
           } catch {
-            showToast('error', 'Unable to transfer ownership.');
+            showToast('error', strings.toast.unableToTransfer);
           }
         }}
         confirmAction={confirmAction}
