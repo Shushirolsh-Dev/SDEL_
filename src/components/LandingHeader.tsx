@@ -1,6 +1,6 @@
 import React from 'react';
 import { BookOpen } from 'lucide-react';
-import type { LandingHeaderStrings } from './LandingView';
+import type { LandingHeaderStrings } from '../i18n/types.landing';
 
 type Screen =
   | 'landing'
