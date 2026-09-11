@@ -319,6 +319,7 @@ export default function App() {
             timetable={timetable}
             joinedClasses={userJoinedClasses}
             activeClassId={activeClassId}
+            strings={strings.timetable}
             onAddEntry={handleAddTimetableEntry}
             onEditEntry={handleEditTimetableEntry}
             onDeleteEntry={handleDeleteTimetableEntry}
