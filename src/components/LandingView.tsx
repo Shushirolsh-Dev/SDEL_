@@ -21,7 +21,7 @@ import {
 } from './LegalScreens';
 
 /* ============================================================
-   LANDING STRINGS — inline, no external file
+   LANDING STRINGS
    ============================================================ */
 
 export interface LandingHeaderStrings {
@@ -101,6 +101,59 @@ export interface ForgotStrings {
   close: string;
 }
 
+export interface SignUpStrings {
+  topMarker: string;
+  title: string;
+  subtitle: string;
+  sectionIdentity: string;
+  sectionContact: string;
+  sectionRole: string;
+  sectionSecurity: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  usernameLabel: string;
+  usernamePlaceholder: string;
+  usernameChecking: string;
+  usernameAvailable: string;
+  usernameUnavailable: string;
+  usernameHint: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  phoneLabel: string;
+  phonePlaceholder: string;
+  phoneHint: string;
+  roleQuestion: string;
+  roleStudentTitle: string;
+  roleStudentBody: string;
+  roleRepTitle: string;
+  roleRepBody: string;
+  passwordLabel: string;
+  passwordPlaceholder: string;
+  passwordHint: string;
+  passwordProtected: string;
+  showPassword: string;
+  hidePassword: string;
+  termsPrefix: string;
+  termsOfService: string;
+  termsConjunction: string;
+  privacyPolicy: string;
+  termsSuffix: string;
+  submitIdle: string;
+  submitLoading: string;
+  alreadyHaveAccount: string;
+  signIn: string;
+  footnote: string;
+  errorAllRequired: string;
+  errorUsernameFormat: string;
+  errorUsernameTaken: string;
+  errorPhoneInvalid: string;
+  errorTermsRequired: string;
+  errorEmailRegistered: string;
+  errorProfileCreate: string;
+  errorDuplicate: string;
+  errorGenericRegistration: string;
+}
+
 export interface LandingStrings {
   header: LandingHeaderStrings;
   hero: LandingHeroStrings;
@@ -108,6 +161,7 @@ export interface LandingStrings {
   footer: LandingFooterStrings;
   login: LoginStrings;
   forgot: ForgotStrings;
+  signup: SignUpStrings;
 }
 
 const EN: LandingStrings = {
@@ -164,8 +218,7 @@ const EN: LandingStrings = {
     newTo: 'New to THESDEL?',
     createAccount: 'Create an account',
     footnote: 'Student Digital Exchange Layer',
-    emptyFieldsError:
-      'Please enter both email and password.',
+    emptyFieldsError: 'Please enter both email and password.',
     fallbackProfileError:
       'Unable to load your profile. Please contact support.',
     genericError: 'An error occurred during log in.',
@@ -191,6 +244,70 @@ const EN: LandingStrings = {
     genericError:
       'An error occurred during password reset request.',
     close: 'Close',
+  },
+  signup: {
+    topMarker: 'THESDEL / CREATE ACCOUNT',
+    title: 'Create your account.',
+    subtitle:
+      'Set up your THESDEL profile and join your school community.',
+    sectionIdentity: '01 / Identity',
+    sectionContact: '02 / Contact',
+    sectionRole: '03 / Role',
+    sectionSecurity: '04 / Security',
+    nameLabel: 'Full name',
+    namePlaceholder: 'Your full name',
+    usernameLabel: 'Username',
+    usernamePlaceholder: 'choose_a_username',
+    usernameChecking: 'Checking availability...',
+    usernameAvailable: 'Username available',
+    usernameUnavailable: 'Username unavailable',
+    usernameHint: '3–20 characters',
+    emailLabel: 'Email address',
+    emailPlaceholder: 'you@example.com',
+    phoneLabel: 'Phone number',
+    phonePlaceholder: 'Phone number',
+    phoneHint:
+      'Used for account-related communication and reminders when enabled.',
+    roleQuestion: 'How will you use THESDEL?',
+    roleStudentTitle: 'Student',
+    roleStudentBody:
+      'Join classes and manage your school schedule.',
+    roleRepTitle: 'Representative',
+    roleRepBody:
+      'Create and manage schedules for your class.',
+    passwordLabel: 'Password',
+    passwordPlaceholder: 'Create a password',
+    passwordHint: 'Minimum 6 characters',
+    passwordProtected: 'Protected',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
+    termsPrefix: 'I agree to the',
+    termsOfService: 'Terms of Service',
+    termsConjunction: 'and',
+    privacyPolicy: 'Privacy Policy',
+    termsSuffix: '.',
+    submitIdle: 'Create account',
+    submitLoading: 'Creating account',
+    alreadyHaveAccount: 'Already have an account?',
+    signIn: 'Sign in',
+    footnote: 'Student Digital Exchange Layer',
+    errorAllRequired: 'All fields are required.',
+    errorUsernameFormat:
+      'Username must be 3-20 characters (letters, numbers, underscore only).',
+    errorUsernameTaken:
+      'Username is already taken. Please choose another.',
+    errorPhoneInvalid:
+      'Please enter a valid phone number.',
+    errorTermsRequired:
+      'You must agree to the Terms of Service and Privacy Policy.',
+    errorEmailRegistered:
+      'This email is already registered. Please sign in or use a different email.',
+    errorProfileCreate:
+      'Failed to create profile. Please try again.',
+    errorDuplicate:
+      'Username or email already taken. Please try again.',
+    errorGenericRegistration:
+      'An error occurred during registration.',
   },
 };
 
@@ -329,6 +446,7 @@ export default function LandingView({
         {activeScreen === 'signup' && (
           <div className="flex flex-1 items-center justify-center px-5 py-16 sm:px-8">
             <SignUpScreen
+              strings={strings.signup}
               onLoginSuccess={onLoginSuccess}
               onGoLogin={goLogin}
               onGoTerms={() => setActiveScreen('terms')}
