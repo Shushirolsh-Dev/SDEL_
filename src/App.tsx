@@ -288,6 +288,7 @@ export default function App() {
         return (
           <HomeView
             currentUser={user}
+            strings={strings.home}
             timetable={timetable}
             attendanceLogs={attendanceLogs}
             joinedClasses={userJoinedClasses}
