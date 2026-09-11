@@ -1,8 +1,13 @@
 import type { AppStrings } from './types.app';
 import type { LandingStrings } from './types.landing';
 
-import EN_APP from './locales/en.app';
-import EN_LANDING from './locales/en.landing';
+import {
+  APP_LOCALES,
+  LANDING_LOCALES,
+  AVAILABLE_LOCALES,
+  DEFAULT_APP_LOCALE,
+  DEFAULT_LANDING_LOCALE,
+} from './discover';
 
 export type {
   AppStrings,
@@ -27,16 +32,15 @@ export type {
   LegalStrings,
 } from './types.landing';
 
-export const APP_LOCALES: Record<string, AppStrings> = {
-  en: EN_APP,
-};
+export type { LocaleMeta } from './discover';
 
-export const LANDING_LOCALES: Record<string, LandingStrings> = {
-  en: EN_LANDING,
+export {
+  APP_LOCALES,
+  LANDING_LOCALES,
+  AVAILABLE_LOCALES,
+  DEFAULT_APP_LOCALE,
+  DEFAULT_LANDING_LOCALE,
 };
-
-export const DEFAULT_APP_LOCALE = 'en';
-export const DEFAULT_LANDING_LOCALE = 'en';
 
 export function getAppStrings(
   locale: string | undefined
