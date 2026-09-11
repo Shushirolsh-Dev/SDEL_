@@ -14,7 +14,7 @@ import { supabase } from '../lib/supabase';
 import type {
   LoginStrings,
   ForgotStrings,
-} from './LandingView';
+} from '../i18n/types.landing';
 
 /* ============================================================
    SHARED UI
@@ -208,7 +208,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       id="login-screen"
       className="w-full max-w-[440px] animate-fade-in"
     >
-      {/* TOP MARKER */}
       <div className="mb-8 flex items-center justify-center gap-3">
         <span className="h-px w-10 bg-zinc-200" />
 
@@ -219,7 +218,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         <span className="h-px w-10 bg-zinc-200" />
       </div>
 
-      {/* HEADER */}
       <div className="mb-8 text-center">
         <div className="mx-auto mb-5 flex h-11 w-11 items-center justify-center border border-zinc-200 bg-white">
           <LockKeyhole className="h-4 w-4 text-zinc-800" />
@@ -234,7 +232,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         </p>
       </div>
 
-      {/* ERROR */}
       {loginError && (
         <div className="mb-5 flex items-start gap-3 border border-red-200 bg-red-50 px-4 py-3.5 text-red-800 animate-fade-in">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -245,12 +242,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         </div>
       )}
 
-      {/* FORM */}
       <form
         onSubmit={handleLoginSubmit}
         className="space-y-5"
       >
-        {/* EMAIL */}
         <div>
           <FieldLabel>{strings.emailLabel}</FieldLabel>
 
@@ -273,7 +268,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </FieldShell>
         </div>
 
-        {/* PASSWORD */}
         <div>
           <div className="mb-2 flex items-center justify-between">
             <FieldLabel>{strings.passwordLabel}</FieldLabel>
@@ -331,7 +325,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </FieldShell>
         </div>
 
-        {/* SUBMIT */}
         <button
           type="submit"
           disabled={loading}
@@ -351,7 +344,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         </button>
       </form>
 
-      {/* SIGNUP */}
       <div className="mt-7 border-t border-zinc-200 pt-6 text-center">
         <p className="text-xs text-zinc-500">
           {strings.newTo}{' '}
@@ -365,7 +357,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         </p>
       </div>
 
-      {/* FOOT NOTE */}
       <p className="mt-8 text-center font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-300">
         {strings.footnote}
       </p>
@@ -434,7 +425,6 @@ export const ForgotPasswordScreen: React.FC<
       id="forgot-password-screen"
       className="w-full max-w-[440px] animate-fade-in"
     >
-      {/* TOP MARKER */}
       <div className="mb-8 flex items-center justify-center gap-3">
         <span className="h-px w-10 bg-zinc-200" />
 
@@ -445,7 +435,6 @@ export const ForgotPasswordScreen: React.FC<
         <span className="h-px w-10 bg-zinc-200" />
       </div>
 
-      {/* HEADER */}
       <div className="mb-8 text-center">
         <div className="mx-auto mb-5 flex h-11 w-11 items-center justify-center border border-zinc-200 bg-white">
           <KeyRound className="h-4 w-4 text-zinc-800" />
@@ -460,7 +449,6 @@ export const ForgotPasswordScreen: React.FC<
         </p>
       </div>
 
-      {/* ERROR */}
       {forgotError && (
         <div className="mb-5 flex items-start gap-3 border border-red-200 bg-red-50 px-4 py-3.5 text-red-800 animate-fade-in">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -557,7 +545,6 @@ export const ForgotPasswordScreen: React.FC<
         </form>
       )}
 
-      {/* FOOT NOTE */}
       <p className="mt-8 text-center font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-300">
         {strings.footnote}
       </p>
