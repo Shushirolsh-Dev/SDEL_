@@ -60,11 +60,54 @@ export interface LandingFooterStrings {
   about: string;
 }
 
+export interface LoginStrings {
+  topMarker: string;
+  title: string;
+  subtitle: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  passwordLabel: string;
+  passwordPlaceholder: string;
+  forgotLink: string;
+  showPassword: string;
+  hidePassword: string;
+  submitIdle: string;
+  submitLoading: string;
+  newTo: string;
+  createAccount: string;
+  footnote: string;
+  emptyFieldsError: string;
+  fallbackProfileError: string;
+  genericError: string;
+  close: string;
+}
+
+export interface ForgotStrings {
+  topMarker: string;
+  title: string;
+  subtitle: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  submitIdle: string;
+  submitLoading: string;
+  backToSignIn: string;
+  successTitle: string;
+  successBodyPrefix: string;
+  successBodySuffix: string;
+  returnToSignIn: string;
+  footnote: string;
+  emptyEmailError: string;
+  genericError: string;
+  close: string;
+}
+
 export interface LandingStrings {
   header: LandingHeaderStrings;
   hero: LandingHeroStrings;
   features: LandingFeatureGridStrings;
   footer: LandingFooterStrings;
+  login: LoginStrings;
+  forgot: ForgotStrings;
 }
 
 const EN: LandingStrings = {
@@ -103,6 +146,51 @@ const EN: LandingStrings = {
     terms: 'Terms of Service',
     privacy: 'Privacy Policy',
     about: 'About',
+  },
+  login: {
+    topMarker: 'THESDEL / ACCESS',
+    title: 'Welcome back.',
+    subtitle:
+      'Sign in to continue to your school space, schedule, and classes.',
+    emailLabel: 'Email address',
+    emailPlaceholder: 'you@example.com',
+    passwordLabel: 'Password',
+    passwordPlaceholder: 'Enter your password',
+    forgotLink: 'Forgot?',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
+    submitIdle: 'Continue',
+    submitLoading: 'Signing in',
+    newTo: 'New to THESDEL?',
+    createAccount: 'Create an account',
+    footnote: 'Student Digital Exchange Layer',
+    emptyFieldsError:
+      'Please enter both email and password.',
+    fallbackProfileError:
+      'Unable to load your profile. Please contact support.',
+    genericError: 'An error occurred during log in.',
+    close: 'Close',
+  },
+  forgot: {
+    topMarker: 'THESDEL / RECOVERY',
+    title: 'Reset your password.',
+    subtitle:
+      "Enter the email connected to your account and we'll send you a secure reset link.",
+    emailLabel: 'Email address',
+    emailPlaceholder: 'you@example.com',
+    submitIdle: 'Send reset link',
+    submitLoading: 'Sending',
+    backToSignIn: 'Back to sign in',
+    successTitle: 'Reset link sent',
+    successBodyPrefix: 'Check',
+    successBodySuffix:
+      'for instructions to create a new password.',
+    returnToSignIn: 'Return to sign in',
+    footnote: 'Secure account recovery',
+    emptyEmailError: 'Please enter your email address.',
+    genericError:
+      'An error occurred during password reset request.',
+    close: 'Close',
   },
 };
 
@@ -167,7 +255,6 @@ export default function LandingView({
       id="thesdel-auth-container"
       className="relative flex min-h-screen flex-col bg-white text-zinc-950 dark:bg-black dark:text-white"
     >
-      {/* HEADER */}
       <LandingHeader
         activeScreen={activeScreen}
         strings={strings.header}
@@ -188,14 +275,12 @@ export default function LandingView({
         }}
       />
 
-      {/* MAIN */}
       <main className="flex w-full flex-1 flex-col">
         {activeScreen === 'landing' && (
           <div
             id="landing-screen"
             className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 sm:px-8"
           >
-            {/* HERO */}
             <div className="flex flex-1 items-center justify-center py-24 sm:py-32">
               <LandingHero
                 currentText={currentText}
@@ -205,10 +290,8 @@ export default function LandingView({
               />
             </div>
 
-            {/* FEATURES */}
             <LandingFeatureGrid strings={strings.features} />
 
-            {/* LINKS */}
             <div className="mt-24 grid grid-cols-1 gap-8 border-t border-zinc-200 py-10 dark:border-zinc-800 sm:grid-cols-2 sm:items-center">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
                 Your school schedule, organized.
@@ -257,6 +340,7 @@ export default function LandingView({
         {activeScreen === 'login' && (
           <div className="flex flex-1 items-center justify-center px-5 py-16 sm:px-8">
             <LoginScreen
+              strings={strings.login}
               onLoginSuccess={onLoginSuccess}
               onGoSignup={goSignup}
               onGoForgotPassword={() =>
@@ -268,7 +352,10 @@ export default function LandingView({
 
         {activeScreen === 'forgot_password' && (
           <div className="flex flex-1 items-center justify-center px-5 py-16 sm:px-8">
-            <ForgotPasswordScreen onGoLogin={goLogin} />
+            <ForgotPasswordScreen
+              strings={strings.forgot}
+              onGoLogin={goLogin}
+            />
           </div>
         )}
 
@@ -291,7 +378,6 @@ export default function LandingView({
         )}
       </main>
 
-      {/* FOOTER */}
       <footer className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-black">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-400">
