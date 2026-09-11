@@ -30,6 +30,14 @@ export type {
   HomeUpdatesStrings,
   HomeRepStrings,
   HomeAdStrings,
+  TimetableStrings,
+  TimetableHeaderStrings,
+  TimetablePermissionStrings,
+  TimetableEmptyStrings,
+  TimetableDayStrings,
+  TimetableEntryCardStrings,
+  TimetableFormStrings,
+  TimetableDeleteStrings,
 } from './types.app';
 
 export type {
