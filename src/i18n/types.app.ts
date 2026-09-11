@@ -125,6 +125,84 @@ export interface NotificationsStrings {
   rep: NotificationsRepStrings;
 }
 
+export interface HomeHeaderStrings {
+  todayLabel: string;
+  greetingMorning: string;
+  greetingAfternoon: string;
+  greetingEvening: string;
+  nameFallback: string;
+  openNotifications: string;
+}
+
+export interface HomeNextClassStrings {
+  liveClassLabel: string;
+  nextClassLabel: string;
+  fallbackClassName: string;
+  noMoreClassesTitle: string;
+  noMoreClassesSubtitle: string;
+  liveCountdown: (minutes: number) => string;
+  startsInHours: (hours: number, minutes: number) => string;
+  startsInMinutes: (minutes: number) => string;
+  noMoreClassesToday: string;
+}
+
+export interface HomeScheduleStrings {
+  sectionTitle: string;
+  sectionSubtitle: string;
+  refreshing: string;
+  refresh: string;
+  emptyTitle: string;
+  emptySubtitle: string;
+  fallbackClassName: string;
+  liveBadge: string;
+  cancelledBadge: string;
+  presentButton: string;
+  markButton: string;
+}
+
+export interface HomeAttendanceStrings {
+  sectionLabel: string;
+  attendedCount: (count: number) => string;
+  totalCount: (count: number) => string;
+}
+
+export interface HomeUpdatesStrings {
+  sectionTitle: string;
+  showLess: string;
+  viewAll: string;
+  noUpdates: string;
+  reacted: string;
+  acknowledge: string;
+  labelCancelled: string;
+  labelVenueChanged: string;
+  labelGlobal: string;
+  labelClassUpdate: string;
+}
+
+export interface HomeRepStrings {
+  title: string;
+  subtitle: string;
+  textareaPlaceholder: string;
+  sending: string;
+  broadcast: string;
+  successMessage: string;
+}
+
+export interface HomeAdStrings {
+  sponsoredLabel: string;
+  altFallback: string;
+}
+
+export interface HomeStrings {
+  header: HomeHeaderStrings;
+  nextClass: HomeNextClassStrings;
+  schedule: HomeScheduleStrings;
+  attendance: HomeAttendanceStrings;
+  updates: HomeUpdatesStrings;
+  rep: HomeRepStrings;
+  ad: HomeAdStrings;
+}
+
 export interface AppStrings {
   header: HeaderStrings;
   nav: NavStrings;
@@ -133,4 +211,5 @@ export interface AppStrings {
   broadcast: BroadcastStrings;
   profile: ProfileStrings;
   notifications: NotificationsStrings;
+  home: HomeStrings;
 }
