@@ -347,6 +347,188 @@ export interface AttendanceStrings {
   empty: AttendanceEmptyStrings;
 }
 
+export interface ClassHeaderStrings {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  tabMyClasses: string;
+  tabCreateClass: string;
+  emptyTitle: string;
+  emptySubtitle: string;
+  emptyJoinButton: string;
+  emptyCreateButton: string;
+}
+
+export interface ClassSidebarStrings {
+  sectionLabel: string;
+  membersSuffix: string;
+  joinAnother: string;
+}
+
+export interface ClassOverviewStrings {
+  badgeClassSpace: string;
+  badgeRepresentative: string;
+  noDescription: string;
+  visibilityPublic: string;
+  visibilityPrivate: string;
+  classCodeLabel: string;
+  copyCodeTitle: string;
+  membersLabel: string;
+  studentsSubtitle: string;
+}
+
+export interface ClassRequestsStrings {
+  joinRequestsTitle: string;
+  joinRequestsSubtitle: string;
+  waitingForApproval: string;
+  approveButton: string;
+  denyButton: string;
+  removalRequestsTitle: string;
+  removalRequestsSubtitle: string;
+  memberRemovalRequested: string;
+  rejectButton: string;
+}
+
+export interface ClassMembersStrings {
+  title: string;
+  subtitle: string;
+  youBadge: string;
+  roleRepresentative: string;
+  roleAssistant: string;
+  roleMember: string;
+  demoteButton: string;
+  promoteButton: string;
+  removeButton: string;
+  requestRemovalButton: string;
+  emptyMessage: string;
+}
+
+export interface ClassManagementStrings {
+  title: string;
+  subtitle: string;
+  classCodeTitle: string;
+  classCodeSubtitle: string;
+  regenerateButton: string;
+  transferTitle: string;
+  transferSubtitle: string;
+  transferButton: string;
+  leaveTitle: string;
+  leaveSubtitle: string;
+  leavingButton: string;
+  leaveButton: string;
+  deleteTitle: string;
+  deleteSubtitle: string;
+  deleteButton: string;
+}
+
+export interface ClassModalsStrings {
+  loadingCreating: string;
+  loadingJoining: string;
+  loadingUpdating: string;
+  loadingFallback: string;
+
+  transferTitle: string;
+  transferSubtitle: string;
+  cancelButton: string;
+  transferConfirmButton: string;
+
+  confirmDeleteTitle: string;
+  confirmRegenerateTitle: string;
+  confirmRejectJoinTitle: string;
+  confirmRemoveMemberTitle: string;
+  confirmRequestRemovalTitle: string;
+
+  confirmDeleteBody: (className: string) => string;
+  confirmRegenerateBody: (className: string) => string;
+  confirmRejectJoinBody: (userName: string) => string;
+  confirmRemoveMemberBody: (memberName: string) => string;
+  confirmRequestRemovalBody: (memberName: string) => string;
+
+  confirmDeleteButton: string;
+  confirmRegenerateButton: string;
+  confirmRejectButton: string;
+  confirmRemoveButton: string;
+  confirmRequestRemovalButton: string;
+}
+
+export interface ClassJoinStrings {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  classCodeLabel: string;
+  classCodePlaceholder: string;
+  verificationLabel: string;
+  captchaQuestion: (a: number, b: number) => string;
+  captchaPlaceholder: string;
+  newQuestionButton: string;
+  emptyCodeError: string;
+  incorrectCaptchaError: string;
+  joiningButton: string;
+  joinButton: string;
+}
+
+export interface ClassCreateStrings {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  descriptionLabel: string;
+  descriptionPlaceholder: string;
+  visibilityLabel: string;
+  visibilityPublicTitle: string;
+  visibilityPublicSubtitle: string;
+  visibilityPrivateTitle: string;
+  visibilityPrivateSubtitle: string;
+  verificationLabel: string;
+  captchaQuestion: (a: number, b: number) => string;
+  captchaPlaceholder: string;
+  newQuestionButton: string;
+  emptyNameError: string;
+  incorrectCaptchaError: string;
+  creatingButton: string;
+  createButton: string;
+  createdWithCode: (code: string) => string;
+  createdSuccess: string;
+}
+
+export interface ClassToastStrings {
+  joiningClass: string;
+  creatingClass: string;
+  generatingCode: string;
+  unableToJoin: string;
+  unableToCreate: string;
+  unableToRegenerate: string;
+  joinApproved: string;
+  joinRejected: string;
+  unableToApproveJoin: string;
+  unableToRejectJoin: string;
+  unableToCopyCode: string;
+  leftClass: string;
+  classDeleted: string;
+  memberRemoved: (name: string) => string;
+  removalRequestSubmitted: string;
+  removalApproved: string;
+  removalRequestRejected: string;
+  nowAssistant: (name: string) => string;
+  nowMember: (name: string) => string;
+  ownershipTransferred: string;
+  unableToTransfer: string;
+}
+
+export interface ClassStrings {
+  header: ClassHeaderStrings;
+  sidebar: ClassSidebarStrings;
+  overview: ClassOverviewStrings;
+  requests: ClassRequestsStrings;
+  members: ClassMembersStrings;
+  management: ClassManagementStrings;
+  modals: ClassModalsStrings;
+  join: ClassJoinStrings;
+  create: ClassCreateStrings;
+  toast: ClassToastStrings;
+}
+
 export interface AppStrings {
   header: HeaderStrings;
   nav: NavStrings;
@@ -358,4 +540,5 @@ export interface AppStrings {
   home: HomeStrings;
   timetable: TimetableStrings;
   attendance: AttendanceStrings;
+  class: ClassStrings;
 }
