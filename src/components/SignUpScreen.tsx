@@ -92,6 +92,7 @@ const recordAttempt = () => {
     // ignore
   }
 };
+
 const SignUpScreen: React.FC<SignUpScreenProps> = ({
   strings,
   onLoginSuccess,
@@ -160,15 +161,15 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
       setCheckingUsername(true);
 
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('username', signUpUsername)
-          .maybeSingle();
+        // ─── RPC instead of direct profiles select ───
+        const { data, error } = await supabase.rpc(
+          'is_username_available',
+          { p_username: signUpUsername }
+        );
 
         if (error) throw error;
 
-        setUsernameAvailable(!data);
+        setUsernameAvailable(data === true);
       } catch (err) {
         console.error(
           'Error checking username:',
@@ -303,18 +304,15 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
       }
 
       if (authData.user) {
-        // ─── CHANGED: use RPC instead of table select ───
+        // ─── use RPC to read own profile ───
         let {
           data: profile,
           error: profileError,
         } = await supabase.rpc('get_my_profile');
 
         if (profileError || !profile) {
-          // ─── CHANGED: explicit columns on insert return ───
-          const {
-            data: insertedProfile,
-            error: insertError,
-          } = await supabase
+          // ─── insert WITHOUT read-back, then RPC for full row ───
+          const { error: insertError } = await supabase
             .from('profiles')
             .insert({
               id: authData.user.id,
@@ -324,16 +322,10 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
               role: signUpRole,
               phone: phoneTrimmed,
               plan: 'free',
-            })
-            .select(
-              'id, name, username, email, role, phone, plan, whatsapp_number, is_reminder_number_locked'
-            )
-            .single();
+            });
 
           if (insertError) {
-            if (
-              insertError.code === '23505'
-            ) {
+            if (insertError.code === '23505') {
               setSignUpError(strings.errorUsernameTaken);
             } else {
               setSignUpError(strings.errorProfileCreate);
@@ -343,9 +335,16 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
             return;
           }
 
-          if (insertedProfile) {
-            profile = insertedProfile;
+          const { data: freshProfile, error: freshError } =
+            await supabase.rpc('get_my_profile');
+
+          if (freshError || !freshProfile) {
+            setSignUpError(strings.errorProfileCreate);
+            setLoading(false);
+            return;
           }
+
+          profile = freshProfile;
         }
 
         if (!profile) {
@@ -364,8 +363,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
           phone: profile.phone,
           plan: profile.plan as any,
           whatsappNumber:
-            profile.whatsapp_number ||
-            undefined,
+            profile.whatsapp_number || undefined,
           isReminderNumberLocked:
             profile.is_reminder_number_locked,
         };
@@ -707,7 +705,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
                 )
               }
               className={`group relative flex min-h-[94px] flex-col items-start justify-between border p-4 text-left transition-all ${
-                signUpRole ===
+                                signUpRole ===
                 'representative'
                   ? 'border-zinc-950 bg-zinc-950 text-white'
                   : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-zinc-400 hover:bg-white'
