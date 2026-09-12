@@ -100,6 +100,9 @@ export interface SignUpStrings {
   phoneLabel: string;
   phonePlaceholder: string;
   phoneHint: string;
+  phoneChecking: string;
+  phoneAvailable: string;
+  phoneUnavailable: string;
   roleQuestion: string;
   roleStudentTitle: string;
   roleStudentBody: string;
@@ -125,6 +128,7 @@ export interface SignUpStrings {
   errorUsernameFormat: string;
   errorUsernameTaken: string;
   errorPhoneInvalid: string;
+  errorPhoneTaken: string;
   errorTermsRequired: string;
   errorEmailRegistered: string;
   errorProfileCreate: string;
