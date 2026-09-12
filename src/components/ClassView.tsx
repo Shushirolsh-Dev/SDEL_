@@ -964,6 +964,8 @@ return (
   </section>
 )}
 
+      </div>
+
       <ClassModals
         isCreating={isCreating}
         isJoining={isJoining}
