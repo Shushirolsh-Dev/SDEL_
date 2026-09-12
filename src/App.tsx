@@ -90,7 +90,6 @@ export default function App() {
     userId: user?.id,
   });
 
-  // ─── CHANGED: reads own profile via RPC, not table select ───
   const fetchActiveProfile = async (userId: string) => {
     try {
       const { data: profile, error } = await supabase.rpc(
@@ -227,14 +226,16 @@ export default function App() {
 
   const currentUserRole = getActiveUserRoleInClass();
 
+  // ─── CHANGED: now includes classes where user is a PENDING member ───
   const userJoinedClasses = classes.filter(
     (c) =>
       !user ||
       user.role === 'admin' ||
       user.role === 'investor' ||
-      c.memberIds.includes(user.id) ||
       c.ownerId === user.id ||
-      c.assistantIds.includes(user.id)
+      c.assistantIds.includes(user.id) ||
+      c.memberIds.includes(user.id) ||
+      (c.pendingMemberIds || []).includes(user.id)
   );
 
   useEffect(() => {
@@ -278,6 +279,7 @@ export default function App() {
     showToast,
     setActiveClassId,
   });
+
   const renderViewContent = () => {
     if (!user) return null;
 
