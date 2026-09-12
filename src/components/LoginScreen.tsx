@@ -102,12 +102,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       if (authData.user) {
         let profileErrorDetails = '';
 
+        // ─── CHANGED: use RPC instead of table select ───
         let { data: profile, error: profileError } =
-          await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authData.user.id)
-            .single();
+          await supabase.rpc('get_my_profile');
 
         if (profileError || !profile) {
           if (profileError) {
@@ -137,6 +134,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           const fallbackPhone =
             metadata.phone || '';
 
+          // ─── CHANGED: explicit columns on insert return ───
           const {
             data: insertedProfile,
             error: insertError,
@@ -151,7 +149,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               phone: fallbackPhone,
               plan: 'free',
             })
-            .select()
+            .select(
+              'id, name, username, email, role, phone, plan, whatsapp_number, is_reminder_number_locked'
+            )
             .single();
 
           if (!insertError && insertedProfile) {
@@ -365,7 +365,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 };
 
 /* ============================================================
-   FORGOT PASSWORD SCREEN
+   FORGOT PASSWORD SCREEN — unchanged
    ============================================================ */
 
 interface ForgotPasswordScreenProps {
