@@ -96,7 +96,7 @@ export function useAppHandlers({
       const { data } = await supabase
         .from('classes')
         .select('code')
-        .ilike('code', code)
+        .eq('code', code)
         .maybeSingle();
 
       if (!data) {
@@ -142,11 +142,15 @@ const handleJoinClass = async (code: string) => {
 
   const trimmedCode = code.trim();
 
+  console.log('[handleJoinClass] Looking up code:', JSON.stringify(trimmedCode));
+
   const { data: dbClass, error: dbErr } = await supabase
     .from('classes')
     .select('*')
-    .ilike('code', trimmedCode)
+    .eq('code', trimmedCode)
     .maybeSingle();
+
+  console.log('[handleJoinClass] Result:', dbClass, 'Error:', dbErr);
 
   if (dbErr || !dbClass) {
     showToast(strings.toast.classCodeNotFound(code), 'error');
@@ -323,7 +327,7 @@ const handleUpdateClassCode = async (
     const { data } = await supabase
       .from('classes')
       .select('code')
-      .ilike('code', newCode)
+      .eq('code', newCode)
       .maybeSingle();
 
     if (!data) {
