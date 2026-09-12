@@ -137,433 +137,445 @@ export function useAppHandlers({
     return code;
   };
 
-const handleJoinClass = async (code: string) => {
-  if (!user) return;
+  const handleJoinClass = async (code: string) => {
+    if (!user) return;
 
-  const trimmedCode = code.trim();
+    const trimmedCode = code.trim();
 
-  console.log('[handleJoinClass] Looking up code:', JSON.stringify(trimmedCode));
+    // ─── Verify live Supabase session before doing anything ───
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabase.auth.getSession();
 
-  const { data: dbClass, error: dbErr } = await supabase
-    .from('classes')
-    .select('*')
-    .eq('code', trimmedCode)
-    .maybeSingle();
-
-  console.log('[handleJoinClass] Result:', dbClass, 'Error:', dbErr);
-
-  if (dbErr || !dbClass) {
-    showToast(strings.toast.classCodeNotFound(code), 'error');
-    return;
-  }
-
-  const { data: existingMember } = await supabase
-    .from('class_members')
-    .select('*')
-    .eq('class_id', dbClass.id)
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (existingMember) {
-    showToast(strings.toast.alreadyJoined, 'info');
-    setActiveClassId(dbClass.id);
-    return;
-  }
-
-  const isPrivate = dbClass.visibility === 'private';
-  const initialStatus = isPrivate ? 'pending' : 'approved';
-
-  const { error: joinErr } = await supabase
-    .from('class_members')
-    .insert({
-      class_id: dbClass.id,
-      user_id: user.id,
-      role: 'member',
-      status: initialStatus,
-    });
-
-  if (joinErr) {
-    showToast(
-      strings.toast.errorJoining(joinErr.message),
-      'error'
-    );
-    return;
-  }
-
-  if (isPrivate) {
-    showToast(strings.toast.requestSubmitted, 'info');
-  } else {
-    showToast(
-      strings.toast.enrolledSuccess(dbClass.name),
-      'success'
-    );
-    setActiveClassId(dbClass.id);
-  }
-
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-};
-
-const handleApproveJoinRequest = async (
-  classId: string,
-  userId: string
-) => {
-  const { error } = await supabase
-    .from('class_members')
-    .update({ status: 'approved' })
-    .eq('class_id', classId)
-    .eq('user_id', userId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.joinApproved, 'success');
-};
-
-const handleRejectJoinRequest = async (
-  classId: string,
-  userId: string
-) => {
-  const { error } = await supabase
-    .from('class_members')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', userId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.joinDenied, 'info');
-};
-
-const handleRequestMemberRemoval = async (
-  classId: string,
-  memberId: string
-) => {
-  if (!user) return;
-  const { error } = await supabase
-    .from('pending_removals')
-    .insert({
-      id: genUUID(),
-      class_id: classId,
-      user_id: memberId,
-      requested_by: user.id,
-      created_at: new Date().toISOString(),
-    });
-  if (error) throw error;
-  await queryClient.invalidateQueries({
-    queryKey: ['pendingRemovals'],
-  });
-  showToast(strings.toast.removalRequestSent, 'info');
-};
-
-const handleRemoveMemberInstantly = async (
-  classId: string,
-  memberId: string
-) => {
-  const { error } = await supabase
-    .from('class_members')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', memberId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.memberRemoved, 'success');
-};
-
-const handleApproveMemberRemoval = async (
-  classId: string,
-  memberId: string
-) => {
-  const { error: delMember } = await supabase
-    .from('class_members')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', memberId);
-  if (delMember) throw delMember;
-
-  const { error: delPR } = await supabase
-    .from('pending_removals')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', memberId);
-  if (delPR) throw delPR;
-
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  await queryClient.invalidateQueries({
-    queryKey: ['pendingRemovals'],
-  });
-  showToast(strings.toast.removalApproved, 'success');
-};
-
-const handleRejectMemberRemoval = async (
-  classId: string,
-  memberId: string
-) => {
-  const { error } = await supabase
-    .from('pending_removals')
-    .delete()
-    .eq('class_id', classId)
-    .eq('user_id', memberId);
-  if (error) throw error;
-  await queryClient.invalidateQueries({
-    queryKey: ['pendingRemovals'],
-  });
-  showToast(strings.toast.removalRejected, 'info');
-};
-
-const handleUpdateClassCode = async (
-  classId: string
-): Promise<string> => {
-  const chars =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let newCode = '';
-  let isUnique = false;
-
-  while (!isUnique) {
-    let randomPart = '';
-    for (let i = 0; i < 10; i++) {
-      randomPart += chars.charAt(
-        Math.floor(Math.random() * chars.length)
+    if (sessionError || !session?.user) {
+      showToast(
+        'Your session expired. Please sign in again.',
+        'error'
       );
+      return;
     }
-    newCode = randomPart;
 
-    const { data } = await supabase
+    const liveUserId = session.user.id;
+
+    const { data: dbClass, error: dbErr } = await supabase
       .from('classes')
-      .select('code')
-      .eq('code', newCode)
+      .select('*')
+      .eq('code', trimmedCode)
       .maybeSingle();
 
-    if (!data) {
-      isUnique = true;
+    if (dbErr || !dbClass) {
+      showToast(strings.toast.classCodeNotFound(code), 'error');
+      return;
     }
-  }
 
-  const { error } = await supabase
-    .from('classes')
-    .update({ code: newCode })
-    .eq('id', classId);
-  if (error) throw error;
+    const { data: existingMember } = await supabase
+      .from('class_members')
+      .select('*')
+      .eq('class_id', dbClass.id)
+      .eq('user_id', liveUserId)
+      .maybeSingle();
 
-  await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  showToast(strings.toast.codeChanged(newCode), 'success');
-  return newCode;
-};
+    if (existingMember) {
+      showToast(strings.toast.alreadyJoined, 'info');
+      setActiveClassId(dbClass.id);
+      return;
+    }
 
-  const handleMarkAttendance = async (
-    entryId: string,
-    date: string
+    const isPrivate = dbClass.visibility === 'private';
+    const initialStatus = isPrivate ? 'pending' : 'approved';
+
+    const { error: joinErr } = await supabase
+      .from('class_members')
+      .insert({
+        class_id: dbClass.id,
+        user_id: liveUserId,
+        role: 'member',
+        status: initialStatus,
+      });
+
+    if (joinErr) {
+      showToast(
+        strings.toast.errorJoining(joinErr.message),
+        'error'
+      );
+      return;
+    }
+
+    if (isPrivate) {
+      showToast(strings.toast.requestSubmitted, 'info');
+    } else {
+      showToast(
+        strings.toast.enrolledSuccess(dbClass.name),
+        'success'
+      );
+      setActiveClassId(dbClass.id);
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  };
+
+  const handleApproveJoinRequest = async (
+    classId: string,
+    userId: string
+  ) => {
+    const { error } = await supabase
+      .from('class_members')
+      .update({ status: 'approved' })
+      .eq('class_id', classId)
+      .eq('user_id', userId);
+    if (error) throw error;
+    await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    showToast(strings.toast.joinApproved, 'success');
+  };
+
+  const handleRejectJoinRequest = async (
+    classId: string,
+    userId: string
+  ) => {
+    const { error } = await supabase
+      .from('class_members')
+      .delete()
+      .eq('class_id', classId)
+      .eq('user_id', userId);
+    if (error) throw error;
+    await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    showToast(strings.toast.joinDenied, 'info');
+  };
+
+  const handleRequestMemberRemoval = async (
+    classId: string,
+    memberId: string
   ) => {
     if (!user) return;
-    const newLogId = genUUID();
     const { error } = await supabase
-      .from('attendance_logs')
+      .from('pending_removals')
       .insert({
-        id: newLogId,
-        class_id: activeClassId,
-        timetable_entry_id: entryId,
-        user_id: user.id,
-        date,
-        status: 'attended',
-        timestamp: new Date().toISOString(),
+        id: genUUID(),
+        class_id: classId,
+        user_id: memberId,
+        requested_by: user.id,
+        created_at: new Date().toISOString(),
       });
     if (error) throw error;
     await queryClient.invalidateQueries({
-      queryKey: ['attendanceLogs', user.id],
+      queryKey: ['pendingRemovals'],
     });
-    showToast(strings.toast.attendanceMarked, 'success');
+    showToast(strings.toast.removalRequestSent, 'info');
   };
 
-  const handleAddTimetableEntry = async (
-    entry: Omit<TimetableEntry, 'id'>
-  ) => {
-    if (!user) return;
-    const newId = genUUID();
-    const { error } = await supabase
-      .from('timetable')
-      .insert({
-        id: newId,
-        class_id: activeClassId,
-        subject: entry.subject,
-        day_of_week: entry.dayOfWeek,
-        start_time: entry.startTime,
-        end_time: entry.endTime,
-        duration_minutes: entry.durationMinutes,
-        venue: entry.venue,
-      });
-    if (error) throw error;
-
-    const updateId = genUUID();
-    await supabase.from('updates').insert({
-      id: updateId,
-      class_id: activeClassId,
-      user_id: user.id,
-      user_name: user.name,
-      type: 'entry_added',
-      description: strings.broadcast.entryAdded(
-        entry.subject,
-        strings.broadcast.dayNames[entry.dayOfWeek - 1],
-        entry.startTime
-      ),
-      timestamp: new Date().toISOString(),
-    });
-
-    await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-    await queryClient.invalidateQueries({ queryKey: ['updates'] });
-    showToast(strings.toast.timetableAdded, 'success');
-  };
-
-  const handleEditTimetableEntry = async (
-    id: string,
-    updatedFields: Partial<TimetableEntry>
-  ) => {
-    if (!user) return;
-    const entry = timetable.find((e) => e.id === id);
-    if (!entry) return;
-
-    let changesDescription = '';
-    const updatedWithMetadata: any = {};
-
-    if (updatedFields.subject)
-      updatedWithMetadata.subject = updatedFields.subject;
-    if (updatedFields.startTime)
-      updatedWithMetadata.start_time = updatedFields.startTime;
-    if (updatedFields.endTime)
-      updatedWithMetadata.end_time = updatedFields.endTime;
-    if (updatedFields.durationMinutes)
-      updatedWithMetadata.duration_minutes =
-        updatedFields.durationMinutes;
-    if (updatedFields.dayOfWeek)
-      updatedWithMetadata.day_of_week = updatedFields.dayOfWeek;
-
-    if (
-      updatedFields.venue &&
-      updatedFields.venue !== entry.venue
-    ) {
-      updatedWithMetadata.venue = updatedFields.venue;
-      updatedWithMetadata.original_venue = entry.venue;
-      updatedWithMetadata.venue_changed_at =
-        new Date().toISOString();
-      changesDescription += strings.broadcast.venueChanged(
-        entry.subject,
-        entry.venue || '',
-        updatedFields.venue
-      );
-    }
-
-    if (
-      updatedFields.isCancelled !== undefined &&
-      updatedFields.isCancelled !== entry.isCancelled
-    ) {
-      updatedWithMetadata.is_cancelled = updatedFields.isCancelled;
-      if (updatedFields.isCancelled) {
-        updatedWithMetadata.cancelled_at =
-          new Date().toISOString();
-        changesDescription += strings.broadcast.classCancelled(
-          entry.subject
-        );
-      } else {
-        changesDescription +=
-          strings.broadcast.cancellationReverted(entry.subject);
-      }
-    }
-
-    const { error } = await supabase
-      .from('timetable')
-      .update(updatedWithMetadata)
-      .eq('id', id);
-    if (error) throw error;
-
-    if (changesDescription) {
-      const updateId = genUUID();
-      await supabase.from('updates').insert({
-        id: updateId,
-        class_id: activeClassId,
-        user_id: user.id,
-        user_name: user.name,
-        type: updatedFields.isCancelled
-          ? 'cancellation'
-          : 'venue_change',
-        description: changesDescription,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-    await queryClient.invalidateQueries({ queryKey: ['updates'] });
-    showToast(strings.toast.timetableUpdated, 'success');
-  };
-
-  const handleDeleteTimetableEntry = async (id: string) => {
-    if (!user) return;
-    const entry = timetable.find((e) => e.id === id);
-    if (!entry) return;
-
-    const { error } = await supabase
-      .from('timetable')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
-
-    const updateId = genUUID();
-    await supabase.from('updates').insert({
-      id: updateId,
-      class_id: activeClassId,
-      user_id: user.id,
-      user_name: user.name,
-      type: 'entry_deleted',
-      description: strings.broadcast.entryDeleted(entry.subject),
-      timestamp: new Date().toISOString(),
-    });
-
-    await queryClient.invalidateQueries({ queryKey: ['timetable'] });
-    await queryClient.invalidateQueries({ queryKey: ['updates'] });
-    showToast(strings.toast.timetableDeleted, 'info');
-  };
-
-  const handleTrackAdEvent = async (
-    adId: string,
-    eventType: 'view' | 'click'
-  ) => {
-    if (!user) return;
-    try {
-      const { error } = await supabase
-        .from('ad_analytics')
-        .insert({
-          ad_id: adId,
-          user_id: user.id,
-          event_type: eventType,
-        });
-      if (error) throw error;
-      console.log(`[Ad Analytics] Logged ${eventType} for ad ${adId}`);
-    } catch (err) {
-      console.warn('[Ad Analytics] Failed to log ad event:', err);
-    }
-  };
-
-  const handlePromoteToAssistant = async (
+  const handleRemoveMemberInstantly = async (
     classId: string,
     memberId: string
   ) => {
     const { error } = await supabase
       .from('class_members')
-      .update({ role: 'assistant' })
+      .delete()
       .eq('class_id', classId)
       .eq('user_id', memberId);
     if (error) throw error;
     await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast(strings.toast.memberPromoted, 'success');
+    showToast(strings.toast.memberRemoved, 'success');
   };
 
-  const handleDemoteToMember = async (
+  const handleApproveMemberRemoval = async (
     classId: string,
-    assistantId: string
+    memberId: string
+  ) => {
+    const { error: delMember } = await supabase
+      .from('class_members')
+      .delete()
+      .eq('class_id', classId)
+      .eq('user_id', memberId);
+    if (delMember) throw delMember;
+
+    const { error: delPR } = await supabase
+      .from('pending_removals')
+      .delete()
+      .eq('class_id', classId)
+      .eq('user_id', memberId);
+    if (delPR) throw delPR;
+
+    await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    await queryClient.invalidateQueries({
+      queryKey: ['pendingRemovals'],
+    });
+    showToast(strings.toast.removalApproved, 'success');
+  };
+
+  const handleRejectMemberRemoval = async (
+    classId: string,
+    memberId: string
   ) => {
     const { error } = await supabase
-      .from('class_members')
-      .update({ role: 'member' })
+      .from('pending_removals')
+      .delete()
       .eq('class_id', classId)
-      .eq('user_id', assistantId);
+      .eq('user_id', memberId);
     if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast(strings.toast.assistantDemoted, 'info');
+    await queryClient.invalidateQueries({
+      queryKey: ['pendingRemovals'],
+    });
+    showToast(strings.toast.removalRejected, 'info');
   };
+
+  const handleUpdateClassCode = async (
+    classId: string
+  ): Promise<string> => {
+    const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let newCode = '';
+    let isUnique = false;
+
+    while (!isUnique) {
+      let randomPart = '';
+      for (let i = 0; i < 10; i++) {
+        randomPart += chars.charAt(
+          Math.floor(Math.random() * chars.length)
+        );
+      }
+      newCode = randomPart;
+
+      const { data } = await supabase
+        .from('classes')
+        .select('code')
+        .eq('code', newCode)
+        .maybeSingle();
+
+      if (!data) {
+        isUnique = true;
+      }
+    }
+
+    const { error } = await supabase
+      .from('classes')
+      .update({ code: newCode })
+      .eq('id', classId);
+    if (error) throw error;
+
+    await queryClient.invalidateQueries({ queryKey: ['classes'] });
+    showToast(strings.toast.codeChanged(newCode), 'success');
+    return newCode;
+  };
+
+const handleMarkAttendance = async (
+  entryId: string,
+  date: string
+) => {
+  if (!user) return;
+  const newLogId = genUUID();
+  const { error } = await supabase
+    .from('attendance_logs')
+    .insert({
+      id: newLogId,
+      class_id: activeClassId,
+      timetable_entry_id: entryId,
+      user_id: user.id,
+      date,
+      status: 'attended',
+      timestamp: new Date().toISOString(),
+    });
+  if (error) throw error;
+  await queryClient.invalidateQueries({
+    queryKey: ['attendanceLogs', user.id],
+  });
+  showToast(strings.toast.attendanceMarked, 'success');
+};
+
+const handleAddTimetableEntry = async (
+  entry: Omit<TimetableEntry, 'id'>
+) => {
+  if (!user) return;
+  const newId = genUUID();
+  const { error } = await supabase
+    .from('timetable')
+    .insert({
+      id: newId,
+      class_id: activeClassId,
+      subject: entry.subject,
+      day_of_week: entry.dayOfWeek,
+      start_time: entry.startTime,
+      end_time: entry.endTime,
+      duration_minutes: entry.durationMinutes,
+      venue: entry.venue,
+    });
+  if (error) throw error;
+
+  const updateId = genUUID();
+  await supabase.from('updates').insert({
+    id: updateId,
+    class_id: activeClassId,
+    user_id: user.id,
+    user_name: user.name,
+    type: 'entry_added',
+    description: strings.broadcast.entryAdded(
+      entry.subject,
+      strings.broadcast.dayNames[entry.dayOfWeek - 1],
+      entry.startTime
+    ),
+    timestamp: new Date().toISOString(),
+  });
+
+  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
+  await queryClient.invalidateQueries({ queryKey: ['updates'] });
+  showToast(strings.toast.timetableAdded, 'success');
+};
+
+const handleEditTimetableEntry = async (
+  id: string,
+  updatedFields: Partial<TimetableEntry>
+) => {
+  if (!user) return;
+  const entry = timetable.find((e) => e.id === id);
+  if (!entry) return;
+
+  let changesDescription = '';
+  const updatedWithMetadata: any = {};
+
+  if (updatedFields.subject)
+    updatedWithMetadata.subject = updatedFields.subject;
+  if (updatedFields.startTime)
+    updatedWithMetadata.start_time = updatedFields.startTime;
+  if (updatedFields.endTime)
+    updatedWithMetadata.end_time = updatedFields.endTime;
+  if (updatedFields.durationMinutes)
+    updatedWithMetadata.duration_minutes =
+      updatedFields.durationMinutes;
+  if (updatedFields.dayOfWeek)
+    updatedWithMetadata.day_of_week = updatedFields.dayOfWeek;
+
+  if (
+    updatedFields.venue &&
+    updatedFields.venue !== entry.venue
+  ) {
+    updatedWithMetadata.venue = updatedFields.venue;
+    updatedWithMetadata.original_venue = entry.venue;
+    updatedWithMetadata.venue_changed_at =
+      new Date().toISOString();
+    changesDescription += strings.broadcast.venueChanged(
+      entry.subject,
+      entry.venue || '',
+      updatedFields.venue
+    );
+  }
+
+  if (
+    updatedFields.isCancelled !== undefined &&
+    updatedFields.isCancelled !== entry.isCancelled
+  ) {
+    updatedWithMetadata.is_cancelled = updatedFields.isCancelled;
+    if (updatedFields.isCancelled) {
+      updatedWithMetadata.cancelled_at =
+        new Date().toISOString();
+      changesDescription += strings.broadcast.classCancelled(
+        entry.subject
+      );
+    } else {
+      changesDescription +=
+        strings.broadcast.cancellationReverted(entry.subject);
+    }
+  }
+
+  const { error } = await supabase
+    .from('timetable')
+    .update(updatedWithMetadata)
+    .eq('id', id);
+  if (error) throw error;
+
+  if (changesDescription) {
+    const updateId = genUUID();
+    await supabase.from('updates').insert({
+      id: updateId,
+      class_id: activeClassId,
+      user_id: user.id,
+      user_name: user.name,
+      type: updatedFields.isCancelled
+        ? 'cancellation'
+        : 'venue_change',
+      description: changesDescription,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
+  await queryClient.invalidateQueries({ queryKey: ['updates'] });
+  showToast(strings.toast.timetableUpdated, 'success');
+};
+
+const handleDeleteTimetableEntry = async (id: string) => {
+  if (!user) return;
+  const entry = timetable.find((e) => e.id === id);
+  if (!entry) return;
+
+  const { error } = await supabase
+    .from('timetable')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+
+  const updateId = genUUID();
+  await supabase.from('updates').insert({
+    id: updateId,
+    class_id: activeClassId,
+    user_id: user.id,
+    user_name: user.name,
+    type: 'entry_deleted',
+    description: strings.broadcast.entryDeleted(entry.subject),
+    timestamp: new Date().toISOString(),
+  });
+
+  await queryClient.invalidateQueries({ queryKey: ['timetable'] });
+  await queryClient.invalidateQueries({ queryKey: ['updates'] });
+  showToast(strings.toast.timetableDeleted, 'info');
+};
+
+const handleTrackAdEvent = async (
+  adId: string,
+  eventType: 'view' | 'click'
+) => {
+  if (!user) return;
+  try {
+    const { error } = await supabase
+      .from('ad_analytics')
+      .insert({
+        ad_id: adId,
+        user_id: user.id,
+        event_type: eventType,
+      });
+    if (error) throw error;
+    console.log(`[Ad Analytics] Logged ${eventType} for ad ${adId}`);
+  } catch (err) {
+    console.warn('[Ad Analytics] Failed to log ad event:', err);
+  }
+};
+
+const handlePromoteToAssistant = async (
+  classId: string,
+  memberId: string
+) => {
+  const { error } = await supabase
+    .from('class_members')
+    .update({ role: 'assistant' })
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast(strings.toast.memberPromoted, 'success');
+};
+
+const handleDemoteToMember = async (
+  classId: string,
+  assistantId: string
+) => {
+  const { error } = await supabase
+    .from('class_members')
+    .update({ role: 'member' })
+    .eq('class_id', classId)
+    .eq('user_id', assistantId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast(strings.toast.assistantDemoted, 'info');
+};
 
   const handleDeleteClass = async (classId: string) => {
     const { error } = await supabase
