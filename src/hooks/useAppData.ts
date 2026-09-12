@@ -20,9 +20,6 @@ export function useAppData({
 }: UseAppDataOptions) {
   const enabled = isLoggedIn && !!userId;
 
-  // ------------------------------------------------------------------
-  // 1. ONE entry query — my classes + my memberships in two batched calls
-  // ------------------------------------------------------------------
   const membershipQuery = useQuery<{
     classIds: string[];
     membershipRows: any[];
@@ -34,7 +31,6 @@ export function useAppData({
         return { classIds: [], membershipRows: [], classRows: [] };
       }
 
-      // My approved/pending memberships
       const { data: myMemberships, error: memErr } = await supabase
         .from('class_members')
         .select('class_id, role, status, user_id')
@@ -46,7 +42,6 @@ export function useAppData({
         (m) => m.class_id
       );
 
-      // Classes I own (in case I own classes without a class_members row)
       const { data: ownedClasses, error: ownErr } = await supabase
         .from('classes')
         .select('id')
@@ -56,7 +51,6 @@ export function useAppData({
 
       const ownedClassIds = (ownedClasses || []).map((c) => c.id);
 
-      // Union of class ids I'm connected to
       const classIds = Array.from(
         new Set([...memberClassIds, ...ownedClassIds])
       );
@@ -65,7 +59,6 @@ export function useAppData({
         return { classIds: [], membershipRows: [], classRows: [] };
       }
 
-      // ONE batched call for classes
       const { data: classRows, error: classErr } = await supabase
         .from('classes')
         .select('id, name, code, owner_id, description, visibility')
@@ -73,7 +66,6 @@ export function useAppData({
 
       if (classErr) throw classErr;
 
-      // ONE batched call for members of those classes
       const { data: membershipRows, error: allMemErr } = await supabase
         .from('class_members')
         .select('class_id, user_id, role, status')
@@ -92,54 +84,7 @@ export function useAppData({
 
   const classIds = membershipQuery.data?.classIds ?? [];
 
-  // ------------------------------------------------------------------
-  // 2. classes — derived in memory from the batched results
-  // ------------------------------------------------------------------
-  const classes = useMemo<ClassGroup[]>(() => {
-    const data = membershipQuery.data;
-    if (!data) return [];
-
-    const { membershipRows, classRows } = data;
-
-    return classRows.map((cls: any) => {
-      const rows = membershipRows.filter(
-        (m: any) => m.class_id === cls.id
-      );
-
-      const assistantIds = rows
-        .filter(
-          (m: any) =>
-            m.role === 'assistant' && m.status === 'approved'
-        )
-        .map((m: any) => m.user_id);
-
-      const memberIds = rows
-        .filter(
-          (m: any) => m.role === 'member' && m.status === 'approved'
-        )
-        .map((m: any) => m.user_id);
-
-      const pendingMemberIds = rows
-        .filter((m: any) => m.status === 'pending')
-        .map((m: any) => m.user_id);
-
-      return {
-        id: cls.id,
-        name: cls.name,
-        code: cls.code,
-        ownerId: cls.owner_id,
-        assistantIds,
-        memberIds,
-        pendingMemberIds,
-        description: cls.description || undefined,
-        visibility: cls.visibility || 'public',
-      };
-    });
-  }, [membershipQuery.data]);
-
-  // ------------------------------------------------------------------
-  // 3. memberNamesMap — derived from the batched memberships
-  // ------------------------------------------------------------------
+  // Collect every user_id we need names for (approved + pending)
   const memberIdsToFetch = useMemo(() => {
     const data = membershipQuery.data;
     if (!data) return [];
@@ -147,11 +92,18 @@ export function useAppData({
     for (const m of data.membershipRows) {
       set.add(m.user_id);
     }
+    // Also include class owners
+    for (const c of data.classRows) {
+      if (c.owner_id) set.add(c.owner_id);
+    }
     return Array.from(set);
   }, [membershipQuery.data]);
 
   const memberProfilesQuery = useQuery<Record<string, string>>({
-    queryKey: ['memberProfiles', memberIdsToFetch.sort().join(',')],
+    queryKey: [
+      'memberProfiles',
+      memberIdsToFetch.slice().sort().join(','),
+    ],
     queryFn: async () => {
       if (memberIdsToFetch.length === 0) return {};
       const { data, error } = await supabase
@@ -168,11 +120,86 @@ export function useAppData({
     enabled: enabled && memberIdsToFetch.length > 0,
   });
 
-  // ------------------------------------------------------------------
-  // 4. timetable — scoped to my classIds
-  // ------------------------------------------------------------------
+  const memberNamesMap = memberProfilesQuery.data ?? {};
+
+  const classes = useMemo<any[]>(() => {
+    const data = membershipQuery.data;
+    if (!data) return [];
+
+    const { membershipRows, classRows } = data;
+
+    return classRows.map((cls: any) => {
+      const rows = membershipRows.filter(
+        (m: any) => m.class_id === cls.id
+      );
+
+      const ownerName =
+        memberNamesMap[cls.owner_id] || 'Representative';
+
+      const approvedAssistants = rows.filter(
+        (m: any) =>
+          m.role === 'assistant' && m.status === 'approved'
+      );
+      const approvedMembers = rows.filter(
+        (m: any) => m.role === 'member' && m.status === 'approved'
+      );
+      const pendingRows = rows.filter(
+        (m: any) => m.status === 'pending'
+      );
+
+      const assistantIds = approvedAssistants.map(
+        (m: any) => m.user_id
+      );
+      const memberIds = approvedMembers.map((m: any) => m.user_id);
+      const pendingMemberIds = pendingRows.map(
+        (m: any) => m.user_id
+      );
+
+      // Full member list for the card UI
+      const members = [
+        {
+          id: cls.owner_id,
+          name: ownerName,
+          role: 'representative',
+          status: 'approved',
+        },
+        ...approvedAssistants.map((m: any) => ({
+          id: m.user_id,
+          name: memberNamesMap[m.user_id] || 'Assistant',
+          role: 'assistant',
+          status: 'approved',
+        })),
+        ...approvedMembers.map((m: any) => ({
+          id: m.user_id,
+          name: memberNamesMap[m.user_id] || 'Member',
+          role: 'member',
+          status: 'approved',
+        })),
+        ...pendingRows.map((m: any) => ({
+          id: m.user_id,
+          name: memberNamesMap[m.user_id] || 'Pending',
+          role: m.role || 'member',
+          status: 'pending',
+        })),
+      ];
+
+      return {
+        id: cls.id,
+        name: cls.name,
+        code: cls.code,
+        ownerId: cls.owner_id,
+        assistantIds,
+        memberIds,
+        pendingMemberIds,
+        members,
+        description: cls.description || undefined,
+        visibility: cls.visibility || 'public',
+      };
+    });
+  }, [membershipQuery.data, memberNamesMap]);
+
   const timetableQuery = useQuery<TimetableEntry[]>({
-    queryKey: ['timetable', classIds.sort().join(',')],
+    queryKey: ['timetable', classIds.slice().sort().join(',')],
     queryFn: async () => {
       if (classIds.length === 0) return [];
       const { data, error } = await supabase
@@ -200,9 +227,6 @@ export function useAppData({
     enabled: enabled && classIds.length > 0,
   });
 
-  // ------------------------------------------------------------------
-  // 5. attendanceLogs — already scoped to user, add a sane limit
-  // ------------------------------------------------------------------
   const attendanceLogsQuery = useQuery<AttendanceLog[]>({
     queryKey: ['attendanceLogs', userId],
     queryFn: async () => {
@@ -228,11 +252,8 @@ export function useAppData({
     enabled,
   });
 
-  // ------------------------------------------------------------------
-  // 6. updates — scoped to my classIds, newest 100
-  // ------------------------------------------------------------------
   const updatesQuery = useQuery<ClassUpdate[]>({
-    queryKey: ['updates', classIds.sort().join(',')],
+    queryKey: ['updates', classIds.slice().sort().join(',')],
     queryFn: async () => {
       if (classIds.length === 0) return [];
       const { data, error } = await supabase
@@ -258,18 +279,13 @@ export function useAppData({
     enabled: enabled && classIds.length > 0,
   });
 
-  // ------------------------------------------------------------------
-  // 7. pendingRemovals — scoped to my classIds
-  // ------------------------------------------------------------------
   const pendingRemovalsQuery = useQuery<PendingRemoval[]>({
-    queryKey: ['pendingRemovals', classIds.sort().join(',')],
+    queryKey: ['pendingRemovals', classIds.slice().sort().join(',')],
     queryFn: async () => {
       if (classIds.length === 0) return [];
       const { data, error } = await supabase
         .from('pending_removals')
-        .select(
-          'id, class_id, user_id, requested_by, created_at'
-        )
+        .select('id, class_id, user_id, requested_by, created_at')
         .in('class_id', classIds);
       if (error) throw error;
       return (data || []).map((pr: any) => ({
@@ -284,11 +300,11 @@ export function useAppData({
   });
 
   return {
-    classes,
+    classes: classes as ClassGroup[],
     timetable: timetableQuery.data ?? [],
     attendanceLogs: attendanceLogsQuery.data ?? [],
     updates: updatesQuery.data ?? [],
     pendingRemovals: pendingRemovalsQuery.data ?? [],
-    memberNamesMap: memberProfilesQuery.data ?? {},
+    memberNamesMap,
   };
 }
