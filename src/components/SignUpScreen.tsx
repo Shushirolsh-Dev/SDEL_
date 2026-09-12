@@ -92,7 +92,6 @@ const recordAttempt = () => {
     // ignore
   }
 };
-
 const SignUpScreen: React.FC<SignUpScreenProps> = ({
   strings,
   onLoginSuccess,
@@ -304,16 +303,14 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
       }
 
       if (authData.user) {
+        // ─── CHANGED: use RPC instead of table select ───
         let {
           data: profile,
           error: profileError,
-        } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authData.user.id)
-          .single();
+        } = await supabase.rpc('get_my_profile');
 
         if (profileError || !profile) {
+          // ─── CHANGED: explicit columns on insert return ───
           const {
             data: insertedProfile,
             error: insertError,
@@ -328,7 +325,9 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
               phone: phoneTrimmed,
               plan: 'free',
             })
-            .select()
+            .select(
+              'id, name, username, email, role, phone, plan, whatsapp_number, is_reminder_number_locked'
+            )
             .single();
 
           if (insertError) {
@@ -456,10 +455,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
           }}
         />
 
-        {/* ====================================================
-            IDENTITY
-        ==================================================== */}
-
+        {/* IDENTITY */}
         <section>
           <div className="mb-4 flex items-center gap-3">
             <span className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-400">
@@ -470,7 +466,6 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
           </div>
 
           <div className="space-y-5">
-            {/* NAME */}
             <div>
               <FieldLabel>{strings.nameLabel}</FieldLabel>
 
@@ -497,7 +492,6 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
               </FieldShell>
             </div>
 
-            {/* USERNAME */}
             <div>
               <FieldLabel>{strings.usernameLabel}</FieldLabel>
 
@@ -567,7 +561,6 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
               </div>
             </div>
 
-            {/* EMAIL */}
             <div>
               <FieldLabel>{strings.emailLabel}</FieldLabel>
 
@@ -596,10 +589,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
           </div>
         </section>
 
-        {/* ====================================================
-            CONTACT
-        ==================================================== */}
-
+        {/* CONTACT */}
         <section>
           <div className="mb-4 flex items-center gap-3">
             <span className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-400">
@@ -652,10 +642,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
           </div>
         </section>
 
-        {/* ====================================================
-            ROLE
-        ==================================================== */}
-
+        {/* ROLE */}
         <section>
           <div className="mb-4 flex items-center gap-3">
             <span className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-400">
@@ -762,10 +749,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
           </div>
         </section>
 
-        {/* ====================================================
-            SECURITY
-        ==================================================== */}
-
+        {/* SECURITY */}
         <section>
           <div className="mb-4 flex items-center gap-3">
             <span className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-400">
@@ -836,10 +820,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
           </div>
         </section>
 
-        {/* ====================================================
-            VERIFICATION
-        ==================================================== */}
-
+        {/* VERIFICATION */}
         <section className="border border-zinc-200 bg-zinc-50 p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="flex items-center gap-2 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">
@@ -878,10 +859,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
           />
         </section>
 
-        {/* ====================================================
-            TERMS
-        ==================================================== */}
-
+        {/* TERMS */}
         <div className="border border-zinc-200 bg-zinc-50 p-4">
           <label
             htmlFor="signup-terms-check"
