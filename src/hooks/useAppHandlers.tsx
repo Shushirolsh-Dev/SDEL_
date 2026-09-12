@@ -96,7 +96,7 @@ export function useAppHandlers({
       const { data } = await supabase
         .from('classes')
         .select('code')
-        .eq('code', code)
+        .ilike('code', code)
         .maybeSingle();
 
       if (!data) {
@@ -137,208 +137,210 @@ export function useAppHandlers({
     return code;
   };
 
-  const handleJoinClass = async (code: string) => {
-    if (!user) return;
+const handleJoinClass = async (code: string) => {
+  if (!user) return;
 
-    const { data: dbClass, error: dbErr } = await supabase
+  const trimmedCode = code.trim();
+
+  const { data: dbClass, error: dbErr } = await supabase
+    .from('classes')
+    .select('*')
+    .ilike('code', trimmedCode)
+    .maybeSingle();
+
+  if (dbErr || !dbClass) {
+    showToast(strings.toast.classCodeNotFound(code), 'error');
+    return;
+  }
+
+  const { data: existingMember } = await supabase
+    .from('class_members')
+    .select('*')
+    .eq('class_id', dbClass.id)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (existingMember) {
+    showToast(strings.toast.alreadyJoined, 'info');
+    setActiveClassId(dbClass.id);
+    return;
+  }
+
+  const isPrivate = dbClass.visibility === 'private';
+  const initialStatus = isPrivate ? 'pending' : 'approved';
+
+  const { error: joinErr } = await supabase
+    .from('class_members')
+    .insert({
+      class_id: dbClass.id,
+      user_id: user.id,
+      role: 'member',
+      status: initialStatus,
+    });
+
+  if (joinErr) {
+    showToast(
+      strings.toast.errorJoining(joinErr.message),
+      'error'
+    );
+    return;
+  }
+
+  if (isPrivate) {
+    showToast(strings.toast.requestSubmitted, 'info');
+  } else {
+    showToast(
+      strings.toast.enrolledSuccess(dbClass.name),
+      'success'
+    );
+    setActiveClassId(dbClass.id);
+  }
+
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+};
+
+const handleApproveJoinRequest = async (
+  classId: string,
+  userId: string
+) => {
+  const { error } = await supabase
+    .from('class_members')
+    .update({ status: 'approved' })
+    .eq('class_id', classId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast(strings.toast.joinApproved, 'success');
+};
+
+const handleRejectJoinRequest = async (
+  classId: string,
+  userId: string
+) => {
+  const { error } = await supabase
+    .from('class_members')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast(strings.toast.joinDenied, 'info');
+};
+
+const handleRequestMemberRemoval = async (
+  classId: string,
+  memberId: string
+) => {
+  if (!user) return;
+  const { error } = await supabase
+    .from('pending_removals')
+    .insert({
+      id: genUUID(),
+      class_id: classId,
+      user_id: memberId,
+      requested_by: user.id,
+      created_at: new Date().toISOString(),
+    });
+  if (error) throw error;
+  await queryClient.invalidateQueries({
+    queryKey: ['pendingRemovals'],
+  });
+  showToast(strings.toast.removalRequestSent, 'info');
+};
+
+const handleRemoveMemberInstantly = async (
+  classId: string,
+  memberId: string
+) => {
+  const { error } = await supabase
+    .from('class_members')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast(strings.toast.memberRemoved, 'success');
+};
+
+const handleApproveMemberRemoval = async (
+  classId: string,
+  memberId: string
+) => {
+  const { error: delMember } = await supabase
+    .from('class_members')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (delMember) throw delMember;
+
+  const { error: delPR } = await supabase
+    .from('pending_removals')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (delPR) throw delPR;
+
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  await queryClient.invalidateQueries({
+    queryKey: ['pendingRemovals'],
+  });
+  showToast(strings.toast.removalApproved, 'success');
+};
+
+const handleRejectMemberRemoval = async (
+  classId: string,
+  memberId: string
+) => {
+  const { error } = await supabase
+    .from('pending_removals')
+    .delete()
+    .eq('class_id', classId)
+    .eq('user_id', memberId);
+  if (error) throw error;
+  await queryClient.invalidateQueries({
+    queryKey: ['pendingRemovals'],
+  });
+  showToast(strings.toast.removalRejected, 'info');
+};
+
+const handleUpdateClassCode = async (
+  classId: string
+): Promise<string> => {
+  const chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let newCode = '';
+  let isUnique = false;
+
+  while (!isUnique) {
+    let randomPart = '';
+    for (let i = 0; i < 10; i++) {
+      randomPart += chars.charAt(
+        Math.floor(Math.random() * chars.length)
+      );
+    }
+    newCode = randomPart;
+
+    const { data } = await supabase
       .from('classes')
-      .select('*')
-      .eq('code', code)
+      .select('code')
+      .ilike('code', newCode)
       .maybeSingle();
 
-    if (dbErr || !dbClass) {
-      showToast(strings.toast.classCodeNotFound(code), 'error');
-      return;
+    if (!data) {
+      isUnique = true;
     }
+  }
 
-    const { data: existingMember } = await supabase
-      .from('class_members')
-      .select('*')
-      .eq('class_id', dbClass.id)
-      .eq('user_id', user.id)
-      .maybeSingle();
+  const { error } = await supabase
+    .from('classes')
+    .update({ code: newCode })
+    .eq('id', classId);
+  if (error) throw error;
 
-    if (existingMember) {
-      showToast(strings.toast.alreadyJoined, 'info');
-      setActiveClassId(dbClass.id);
-      return;
-    }
-
-    const isPrivate = dbClass.visibility === 'private';
-    const initialStatus = isPrivate ? 'pending' : 'approved';
-
-    const { error: joinErr } = await supabase
-      .from('class_members')
-      .insert({
-        class_id: dbClass.id,
-        user_id: user.id,
-        role: 'member',
-        status: initialStatus,
-      });
-
-    if (joinErr) {
-      showToast(
-        strings.toast.errorJoining(joinErr.message),
-        'error'
-      );
-      return;
-    }
-
-    if (isPrivate) {
-      showToast(strings.toast.requestSubmitted, 'info');
-    } else {
-      showToast(
-        strings.toast.enrolledSuccess(dbClass.name),
-        'success'
-      );
-      setActiveClassId(dbClass.id);
-    }
-
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-  };
-
-  const handleApproveJoinRequest = async (
-    classId: string,
-    userId: string
-  ) => {
-    const { error } = await supabase
-      .from('class_members')
-      .update({ status: 'approved' })
-      .eq('class_id', classId)
-      .eq('user_id', userId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast(strings.toast.joinApproved, 'success');
-  };
-
-  const handleRejectJoinRequest = async (
-    classId: string,
-    userId: string
-  ) => {
-    const { error } = await supabase
-      .from('class_members')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', userId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast(strings.toast.joinDenied, 'info');
-  };
-
-  const handleRequestMemberRemoval = async (
-    classId: string,
-    memberId: string
-  ) => {
-    if (!user) return;
-    const { error } = await supabase
-      .from('pending_removals')
-      .insert({
-        id: genUUID(),
-        class_id: classId,
-        user_id: memberId,
-        requested_by: user.id,
-        created_at: new Date().toISOString(),
-      });
-    if (error) throw error;
-    await queryClient.invalidateQueries({
-      queryKey: ['pendingRemovals'],
-    });
-    showToast(strings.toast.removalRequestSent, 'info');
-  };
-
-  const handleRemoveMemberInstantly = async (
-    classId: string,
-    memberId: string
-  ) => {
-    const { error } = await supabase
-      .from('class_members')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', memberId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast(strings.toast.memberRemoved, 'success');
-  };
-
-  const handleApproveMemberRemoval = async (
-    classId: string,
-    memberId: string
-  ) => {
-    const { error: delMember } = await supabase
-      .from('class_members')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', memberId);
-    if (delMember) throw delMember;
-
-    const { error: delPR } = await supabase
-      .from('pending_removals')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', memberId);
-    if (delPR) throw delPR;
-
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    await queryClient.invalidateQueries({
-      queryKey: ['pendingRemovals'],
-    });
-    showToast(strings.toast.removalApproved, 'success');
-  };
-
-  const handleRejectMemberRemoval = async (
-    classId: string,
-    memberId: string
-  ) => {
-    const { error } = await supabase
-      .from('pending_removals')
-      .delete()
-      .eq('class_id', classId)
-      .eq('user_id', memberId);
-    if (error) throw error;
-    await queryClient.invalidateQueries({
-      queryKey: ['pendingRemovals'],
-    });
-    showToast(strings.toast.removalRejected, 'info');
-  };
-
-  const handleUpdateClassCode = async (
-    classId: string
-  ): Promise<string> => {
-    const chars =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let newCode = '';
-    let isUnique = false;
-
-    while (!isUnique) {
-      let randomPart = '';
-      for (let i = 0; i < 10; i++) {
-        randomPart += chars.charAt(
-          Math.floor(Math.random() * chars.length)
-        );
-      }
-      newCode = randomPart;
-
-      const { data } = await supabase
-        .from('classes')
-        .select('code')
-        .eq('code', newCode)
-        .maybeSingle();
-
-      if (!data) {
-        isUnique = true;
-      }
-    }
-
-    const { error } = await supabase
-      .from('classes')
-      .update({ code: newCode })
-      .eq('id', classId);
-    if (error) throw error;
-
-    await queryClient.invalidateQueries({ queryKey: ['classes'] });
-    showToast(strings.toast.codeChanged(newCode), 'success');
-    return newCode;
-  };
+  await queryClient.invalidateQueries({ queryKey: ['classes'] });
+  showToast(strings.toast.codeChanged(newCode), 'success');
+  return newCode;
+};
 
   const handleMarkAttendance = async (
     entryId: string,
