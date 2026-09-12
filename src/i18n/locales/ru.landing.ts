@@ -115,6 +115,9 @@ const RU_LANDING: LandingStrings = {
     phonePlaceholder: 'Номер телефона',
     phoneHint:
       'Используется для связи по аккаунту и напоминаний.',
+    phoneChecking: 'Проверка номера телефона...',
+    phoneAvailable: 'Номер телефона доступен',
+    phoneUnavailable: 'Номер телефона уже используется',
     roleQuestion: 'Как вы будете использовать THESDEL?',
     roleStudentTitle: 'Студент',
     roleStudentBody:
@@ -144,6 +147,8 @@ const RU_LANDING: LandingStrings = {
     errorUsernameTaken:
       'Это имя уже занято. Выберите другое.',
     errorPhoneInvalid: 'Введите корректный номер телефона.',
+    errorPhoneTaken:
+      'Этот номер телефона уже зарегистрирован. Используйте другой.',
     errorTermsRequired:
       'Необходимо принять Условия и Политику конфиденциальности.',
     errorEmailRegistered:
