@@ -84,7 +84,6 @@ export function useAppData({
 
   const classIds = membershipQuery.data?.classIds ?? [];
 
-  // Collect every user_id we need names for (approved + pending)
   const memberIdsToFetch = useMemo(() => {
     const data = membershipQuery.data;
     if (!data) return [];
@@ -92,7 +91,6 @@ export function useAppData({
     for (const m of data.membershipRows) {
       set.add(m.user_id);
     }
-    // Also include class owners
     for (const c of data.classRows) {
       if (c.owner_id) set.add(c.owner_id);
     }
@@ -128,6 +126,16 @@ export function useAppData({
 
     const { membershipRows, classRows } = data;
 
+    // ─── DEBUG ALERT ───
+    alert(
+      'DEBUG rows=' +
+        membershipRows.length +
+        ' classes=' +
+        classRows.length +
+        ' names=' +
+        Object.keys(memberNamesMap).length
+    );
+
     return classRows.map((cls: any) => {
       const rows = membershipRows.filter(
         (m: any) => m.class_id === cls.id
@@ -155,7 +163,6 @@ export function useAppData({
         (m: any) => m.user_id
       );
 
-      // Full member list for the card UI
       const members = [
         {
           id: cls.owner_id,
