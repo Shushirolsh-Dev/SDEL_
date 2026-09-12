@@ -112,6 +112,9 @@ const EN_LANDING: LandingStrings = {
     phonePlaceholder: 'Phone number',
     phoneHint:
       'Used for account-related communication and reminders when enabled.',
+    phoneChecking: 'Checking phone number...',
+    phoneAvailable: 'Phone number available',
+    phoneUnavailable: 'Phone number already in use',
     roleQuestion: 'How will you use THESDEL?',
     roleStudentTitle: 'Student',
     roleStudentBody:
@@ -142,6 +145,8 @@ const EN_LANDING: LandingStrings = {
       'Username is already taken. Please choose another.',
     errorPhoneInvalid:
       'Please enter a valid phone number.',
+    errorPhoneTaken:
+      'This phone number is already registered. Please use a different one.',
     errorTermsRequired:
       'You must agree to the Terms of Service and Privacy Policy.',
     errorEmailRegistered:
