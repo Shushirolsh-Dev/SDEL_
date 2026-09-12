@@ -121,6 +121,12 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
   const [checkingUsername, setCheckingUsername] =
     useState(false);
 
+  // ─── NEW: phone availability state ───
+  const [phoneAvailable, setPhoneAvailable] =
+    useState<boolean | null>(null);
+  const [checkingPhone, setCheckingPhone] =
+    useState(false);
+
   const [countryCode, setCountryCode] =
     useState('+234');
 
@@ -161,7 +167,6 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
       setCheckingUsername(true);
 
       try {
-        // ─── RPC instead of direct profiles select ───
         const { data, error } = await supabase.rpc(
           'is_username_available',
           { p_username: signUpUsername }
@@ -189,204 +194,265 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
     return () => clearTimeout(debounce);
   }, [signUpUsername]);
 
-  const handleSignUpSubmit = async (
-    e: React.FormEvent
-  ) => {
-    e.preventDefault();
-
-    if (loading) return;
-
-    setSignUpError('');
-
-    if (honeypot.trim().length > 0) {
-      setSignUpError(strings.errorGenericRegistration);
-      return;
-    }
-
-    if (!checkRateLimit()) {
-      setSignUpError(strings.errorRateLimited);
-      return;
-    }
-
-    if (
-      !signUpName ||
-      !signUpUsername ||
-      !signUpEmail ||
-      !signUpPassword ||
-      !signUpPhone
-    ) {
-      setSignUpError(strings.errorAllRequired);
-      return;
-    }
-
-    if (!captchaAnswer.trim()) {
-      setSignUpError(strings.errorCaptchaRequired);
-      return;
-    }
-
-    if (
-      Number(captchaAnswer) !==
-      captchaNum1 + captchaNum2
-    ) {
-      setSignUpError(strings.errorCaptchaIncorrect);
-      regenerateCaptcha();
-      return;
-    }
-
-    const usernameRegex =
-      /^[a-zA-Z0-9_]{3,20}$/;
-
-    if (!usernameRegex.test(signUpUsername)) {
-      setSignUpError(strings.errorUsernameFormat);
-      return;
-    }
-
-    if (usernameAvailable === false) {
-      setSignUpError(strings.errorUsernameTaken);
-      return;
-    }
-
-    const rawPhone = signUpPhone
-      .trim()
-      .replace(/^0+/, '');
-
-    const phoneTrimmed =
-      `${countryCode}${rawPhone}`;
-
-    const phoneRegex =
-      /^\+[1-9]\d{6,14}$/;
-
-    if (!phoneRegex.test(phoneTrimmed)) {
-      setSignUpError(strings.errorPhoneInvalid);
-      return;
-    }
-
-    if (!signUpAgreed) {
-      setSignUpError(strings.errorTermsRequired);
-      return;
-    }
-
-    recordAttempt();
-    setLoading(true);
-    setSignUpError('');
-
-    try {
-      const {
-        data: authData,
-        error: authError,
-      } = await supabase.auth.signUp({
-        email: signUpEmail,
-        password: signUpPassword,
-        options: {
-          data: {
-            name: signUpName,
-            username: signUpUsername,
-            role: signUpRole,
-            phone: phoneTrimmed,
-          },
-        },
-      });
-
-      if (authError) {
-        if (
-          authError.message.includes(
-            'User already registered'
-          ) ||
-          authError.status === 400
-        ) {
-          setSignUpError(strings.errorEmailRegistered);
-        } else {
-          setSignUpError(authError.message);
-        }
-
-        setLoading(false);
+  // ─── NEW: phone availability check ───
+  useEffect(() => {
+    const checkPhone = async () => {
+      if (!signUpPhone || signUpPhone.length < 6) {
+        setPhoneAvailable(null);
         return;
       }
 
-      if (authData.user) {
-        // ─── use RPC to read own profile ───
-        let {
-          data: profile,
-          error: profileError,
-        } = await supabase.rpc('get_my_profile');
+      const rawPhone = signUpPhone
+        .trim()
+        .replace(/^0+/, '');
 
-        if (profileError || !profile) {
-          // ─── insert WITHOUT read-back, then RPC for full row ───
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
-              name: signUpName,
-              username: signUpUsername,
-              email: signUpEmail,
-              role: signUpRole,
-              phone: phoneTrimmed,
-              plan: 'free',
-            });
+      const fullPhone = `${countryCode}${rawPhone}`;
 
-          if (insertError) {
-            if (insertError.code === '23505') {
-              setSignUpError(strings.errorUsernameTaken);
+      const phoneRegex = /^\+[1-9]\d{6,14}$/;
+
+      if (!phoneRegex.test(fullPhone)) {
+        setPhoneAvailable(null);
+        return;
+      }
+
+      setCheckingPhone(true);
+
+      try {
+        const { data, error } = await supabase.rpc(
+          'is_phone_available',
+          { p_phone: fullPhone }
+        );
+
+        if (error) throw error;
+
+        setPhoneAvailable(data === true);
+      } catch (err) {
+        console.error('Error checking phone:', err);
+        setPhoneAvailable(null);
+      } finally {
+        setCheckingPhone(false);
+      }
+    };
+
+    const debounce = setTimeout(checkPhone, 500);
+
+    return () => clearTimeout(debounce);
+  }, [signUpPhone, countryCode]);
+
+const handleSignUpSubmit = async (
+  e: React.FormEvent
+) => {
+  e.preventDefault();
+
+  if (loading) return;
+
+  setSignUpError('');
+
+  if (honeypot.trim().length > 0) {
+    setSignUpError(strings.errorGenericRegistration);
+    return;
+  }
+
+  if (!checkRateLimit()) {
+    setSignUpError(strings.errorRateLimited);
+    return;
+  }
+
+  if (
+    !signUpName ||
+    !signUpUsername ||
+    !signUpEmail ||
+    !signUpPassword ||
+    !signUpPhone
+  ) {
+    setSignUpError(strings.errorAllRequired);
+    return;
+  }
+
+  if (!captchaAnswer.trim()) {
+    setSignUpError(strings.errorCaptchaRequired);
+    return;
+  }
+
+  if (
+    Number(captchaAnswer) !==
+    captchaNum1 + captchaNum2
+  ) {
+    setSignUpError(strings.errorCaptchaIncorrect);
+    regenerateCaptcha();
+    return;
+  }
+
+  const usernameRegex =
+    /^[a-zA-Z0-9_]{3,20}$/;
+
+  if (!usernameRegex.test(signUpUsername)) {
+    setSignUpError(strings.errorUsernameFormat);
+    return;
+  }
+
+  if (usernameAvailable === false) {
+    setSignUpError(strings.errorUsernameTaken);
+    return;
+  }
+
+  const rawPhone = signUpPhone
+    .trim()
+    .replace(/^0+/, '');
+
+  const phoneTrimmed =
+    `${countryCode}${rawPhone}`;
+
+  const phoneRegex =
+    /^\+[1-9]\d{6,14}$/;
+
+  if (!phoneRegex.test(phoneTrimmed)) {
+    setSignUpError(strings.errorPhoneInvalid);
+    return;
+  }
+
+  // ─── NEW: block submit if phone is already taken ───
+  if (phoneAvailable === false) {
+    setSignUpError(strings.errorPhoneTaken);
+    return;
+  }
+
+  if (!signUpAgreed) {
+    setSignUpError(strings.errorTermsRequired);
+    return;
+  }
+
+  recordAttempt();
+  setLoading(true);
+  setSignUpError('');
+
+  try {
+    const {
+      data: authData,
+      error: authError,
+    } = await supabase.auth.signUp({
+      email: signUpEmail,
+      password: signUpPassword,
+      options: {
+        data: {
+          name: signUpName,
+          username: signUpUsername,
+          role: signUpRole,
+          phone: phoneTrimmed,
+        },
+      },
+    });
+
+    if (authError) {
+      if (
+        authError.message.includes(
+          'User already registered'
+        ) ||
+        authError.status === 400
+      ) {
+        setSignUpError(strings.errorEmailRegistered);
+      } else {
+        setSignUpError(authError.message);
+      }
+
+      setLoading(false);
+      return;
+    }
+
+    if (authData.user) {
+      let {
+        data: profile,
+        error: profileError,
+      } = await supabase.rpc('get_my_profile');
+
+      if (profileError || !profile) {
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authData.user.id,
+            name: signUpName,
+            username: signUpUsername,
+            email: signUpEmail,
+            role: signUpRole,
+            phone: phoneTrimmed,
+            plan: 'free',
+          });
+
+        if (insertError) {
+          if (insertError.code === '23505') {
+            // ─── NEW: distinguish username vs phone collision ───
+            const msg = insertError.message || '';
+            if (msg.includes('phone')) {
+              setSignUpError(strings.errorPhoneTaken);
             } else {
-              setSignUpError(strings.errorProfileCreate);
+              setSignUpError(strings.errorUsernameTaken);
             }
-
-            setLoading(false);
-            return;
-          }
-
-          const { data: freshProfile, error: freshError } =
-            await supabase.rpc('get_my_profile');
-
-          if (freshError || !freshProfile) {
+          } else {
             setSignUpError(strings.errorProfileCreate);
-            setLoading(false);
-            return;
           }
-
-          profile = freshProfile;
-        }
-
-        if (!profile) {
-          setSignUpError(strings.errorProfileCreate);
 
           setLoading(false);
           return;
         }
 
-        const newUser: User = {
-          id: profile.id,
-          name: profile.name,
-          username: profile.username,
-          email: profile.email,
-          role: profile.role as Role,
-          phone: profile.phone,
-          plan: profile.plan as any,
-          whatsappNumber:
-            profile.whatsapp_number || undefined,
-          isReminderNumberLocked:
-            profile.is_reminder_number_locked,
-        };
+        const { data: freshProfile, error: freshError } =
+          await supabase.rpc('get_my_profile');
 
-        onLoginSuccess(newUser);
+        if (freshError || !freshProfile) {
+          setSignUpError(strings.errorProfileCreate);
+          setLoading(false);
+          return;
+        }
+
+        profile = freshProfile;
       }
-    } catch (err: any) {
-      if (
-        err.message?.includes(
-          'duplicate key'
-        ) ||
-        err.code === '23505'
-      ) {
-        setSignUpError(strings.errorDuplicate);
-      } else {
-        setSignUpError(
-          err.message || strings.errorGenericRegistration
-        );
+
+      if (!profile) {
+        setSignUpError(strings.errorProfileCreate);
+
+        setLoading(false);
+        return;
       }
-    } finally {
-      setLoading(false);
+
+      const newUser: User = {
+        id: profile.id,
+        name: profile.name,
+        username: profile.username,
+        email: profile.email,
+        role: profile.role as Role,
+        phone: profile.phone,
+        plan: profile.plan as any,
+        whatsappNumber:
+          profile.whatsapp_number || undefined,
+        isReminderNumberLocked:
+          profile.is_reminder_number_locked,
+      };
+
+      onLoginSuccess(newUser);
     }
-  };
+  } catch (err: any) {
+    if (
+      err.message?.includes(
+        'duplicate key'
+      ) ||
+      err.code === '23505'
+    ) {
+      // ─── NEW: distinguish username vs phone at catch level too ───
+      const msg = err.message || '';
+      if (msg.includes('phone')) {
+        setSignUpError(strings.errorPhoneTaken);
+      } else {
+        setSignUpError(strings.errorDuplicate);
+      }
+    } else {
+      setSignUpError(
+        err.message || strings.errorGenericRegistration
+      );
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <section
@@ -629,14 +695,40 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
                     );
                     setSignUpError('');
                   }}
-                  className={inputClass}
+                  className={`${inputClass} pr-12 ${
+                    phoneAvailable === false
+                      ? 'border-red-400 focus:border-red-500 focus:ring-red-500'
+                      : phoneAvailable === true
+                      ? 'border-emerald-400 focus:border-emerald-500 focus:ring-emerald-500'
+                      : ''
+                  }`}
                 />
+
+                {signUpPhone.length >= 6 && (
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                    {checkingPhone ? (
+                      <span className="block h-3.5 w-3.5 animate-spin rounded-full border border-zinc-300 border-t-zinc-900" />
+                    ) : phoneAvailable === true ? (
+                      <Check className="h-4 w-4 text-emerald-600" />
+                    ) : phoneAvailable === false ? (
+                      <AlertTriangle className="h-4 w-4 text-red-500" />
+                    ) : null}
+                  </div>
+                )}
               </div>
             </div>
 
-            <p className="mt-2 text-[9px] leading-4 text-zinc-400">
-              {strings.phoneHint}
-            </p>
+            <div className="mt-2 flex justify-between gap-3">
+              <span className="text-[9px] text-zinc-400">
+                {checkingPhone
+                  ? strings.phoneChecking
+                  : phoneAvailable === true
+                  ? strings.phoneAvailable
+                  : phoneAvailable === false
+                  ? strings.phoneUnavailable
+                  : strings.phoneHint}
+              </span>
+            </div>
           </div>
         </section>
 
@@ -705,7 +797,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({
                 )
               }
               className={`group relative flex min-h-[94px] flex-col items-start justify-between border p-4 text-left transition-all ${
-                                signUpRole ===
+                signUpRole ===
                 'representative'
                   ? 'border-zinc-950 bg-zinc-950 text-white'
                   : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:border-zinc-400 hover:bg-white'
