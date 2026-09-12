@@ -90,13 +90,12 @@ export default function App() {
     userId: user?.id,
   });
 
+  // ─── CHANGED: reads own profile via RPC, not table select ───
   const fetchActiveProfile = async (userId: string) => {
     try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const { data: profile, error } = await supabase.rpc(
+        'get_my_profile'
+      );
 
       if (!error && profile) {
         const u: User = {
@@ -279,7 +278,6 @@ export default function App() {
     showToast,
     setActiveClassId,
   });
-
   const renderViewContent = () => {
     if (!user) return null;
 
