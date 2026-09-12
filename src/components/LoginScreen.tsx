@@ -102,7 +102,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       if (authData.user) {
         let profileErrorDetails = '';
 
-        // ─── CHANGED: use RPC instead of table select ───
+        // ─── use RPC to read own profile ───
         let { data: profile, error: profileError } =
           await supabase.rpc('get_my_profile');
 
@@ -134,11 +134,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           const fallbackPhone =
             metadata.phone || '';
 
-          // ─── CHANGED: explicit columns on insert return ───
-          const {
-            data: insertedProfile,
-            error: insertError,
-          } = await supabase
+          // ─── insert WITHOUT read-back, then RPC for full row ───
+          const { error: insertError } = await supabase
             .from('profiles')
             .insert({
               id: authData.user.id,
@@ -148,21 +145,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               role: fallbackRole,
               phone: fallbackPhone,
               plan: 'free',
-            })
-            .select(
-              'id, name, username, email, role, phone, plan, whatsapp_number, is_reminder_number_locked'
-            )
-            .single();
+            });
 
-          if (!insertError && insertedProfile) {
-            profile = insertedProfile;
+          if (!insertError) {
+            const { data: freshProfile } =
+              await supabase.rpc('get_my_profile');
+            profile = freshProfile;
             profileError = null;
-          } else if (insertError) {
+          } else {
             console.error(
               '[LoginScreen] Profile insert error:',
               insertError
             );
-
             profileErrorDetails = `Insert error: ${insertError.message}`;
           }
         }
