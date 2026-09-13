@@ -51,12 +51,22 @@ export default function SettingsView({
   const [deleteError, setDeleteError] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleSelectTheme = (next: 'system' | 'dark') => {
+  const handleSelectTheme = (next: 'light' | 'dark' | 'system') => {
     setTheme(next);
+
     if (next === 'dark') {
       document.documentElement.classList.add('dark');
-    } else {
+    } else if (next === 'light') {
       document.documentElement.classList.remove('dark');
+    } else {
+      const prefersDark = window.matchMedia(
+        '(prefers-color-scheme: dark)'
+      ).matches;
+      if (prefersDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     }
   };
 
