@@ -461,5 +461,3 @@ export function useAppData({
     memberNamesMap,
   };
 }
-
-Only the debugging "alert(...)" was removed. No class logic, query, membership filtering, or UI behavior was changed.
