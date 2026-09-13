@@ -205,6 +205,16 @@ const RU: AppStrings = {
       labelVenueChanged: 'АУДИТОРИЯ ИЗМЕНЕНА',
       labelGlobal: 'ОБЩЕЕ',
       labelClassUpdate: 'ОБНОВЛЕНИЕ КЛАССА',
+
+      edited: 'Изменено',
+      editBroadcast: 'Редактировать объявление',
+      deleteBroadcast: 'Удалить объявление',
+      cancel: 'Отмена',
+      save: 'Сохранить',
+      delete: 'Удалить',
+      deleteBroadcastTitle: 'Удалить это объявление?',
+      deleteBroadcastMessage: 'Это действие нельзя отменить.',
+      dateLocale: 'ru-RU',
     },
     rep: {
       title: 'Староста',
@@ -219,7 +229,7 @@ const RU: AppStrings = {
       altFallback: 'Спонсор',
     },
   },
-  timetable: {
+timetable: {
     header: {
       sectionLabel: 'Учебное расписание',
       title: 'Расписание',
