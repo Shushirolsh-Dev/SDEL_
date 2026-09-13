@@ -541,6 +541,8 @@ export interface SettingsThemeStrings {
   sectionTitle: string;
   systemTitle: string;
   systemSubtitle: string;
+  lightTitle: string;
+  lightSubtitle: string;
   darkTitle: string;
   darkSubtitle: string;
 }
@@ -558,6 +560,8 @@ export interface SettingsVisibilityStrings {
   subtitle: string;
   applyAllTitle: string;
   applyAllSubtitle: string;
+  applyAllPublicSubtitle: string;
+  applyAllPrivateSubtitle: string;
   publicButton: string;
   privateButton: string;
   yourClassesLabel: string;
@@ -569,6 +573,8 @@ export interface SettingsVisibilityStrings {
   updatingButton: string;
   makePrivateButton: string;
   makePublicButton: string;
+  classPublicSubtitle: string;
+  classPrivateSubtitle: string;
   alertGlobalEmpty: string;
   alertGlobalConfirm: (visibility: string) => string;
   alertGlobalSuccess: (visibility: string) => string;
