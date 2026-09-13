@@ -2,21 +2,23 @@ import { create } from 'zustand';
 
 export type ViewType = 'home' | 'timetable' | 'attendance' | 'class' | 'profile' | 'settings' | 'notifications';
 
+type Theme = 'light' | 'dark' | 'system';
+
 interface AppState {
-  theme: 'system' | 'dark';
+  theme: Theme;
   currentView: ViewType;
   previousView: ViewType;
   activeClassId: string;
   isRoadmapOpen: boolean;
-  
-  setTheme: (theme: 'system' | 'dark') => void;
+
+  setTheme: (theme: Theme) => void;
   setView: (view: ViewType) => void;
   setActiveClassId: (id: string) => void;
   setIsRoadmapOpen: (isOpen: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  theme: (localStorage.getItem('thesdel_theme') as 'system' | 'dark') || 'system',
+  theme: (localStorage.getItem('thesdel_theme') as Theme) || 'system',
   currentView: 'home',
   previousView: 'home',
   activeClassId: localStorage.getItem('thesdel_active_class_id') || '',
