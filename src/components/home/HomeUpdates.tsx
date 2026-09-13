@@ -65,6 +65,7 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
   const [editText, setEditText] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const isWithinEditWindow = (timestamp: string) => {
     const createdAt = new Date(timestamp).getTime();
@@ -84,6 +85,8 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
   };
 
   const cancelEditing = () => {
+    if (isSaving) return;
+
     setEditingId(null);
     setEditText('');
   };
@@ -91,19 +94,27 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
   const saveEdit = async (updateId: string) => {
     const cleanText = editText.trim();
 
-    if (!cleanText) return;
+    if (!cleanText || isSaving) return;
 
-    const success = await onEditBroadcast(
-      updateId,
-      cleanText
-    );
+    setIsSaving(true);
 
-    if (success) {
-      cancelEditing();
+    try {
+      const success = await onEditBroadcast(
+        updateId,
+        cleanText
+      );
+
+      if (success) {
+        setEditingId(null);
+        setEditText('');
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = (updateId: string) => {
+    if (isDeleting) return;
     setDeleteId(updateId);
   };
 
@@ -211,12 +222,15 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
                       {label.text}
                     </span>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <span className="text-[10px] text-zinc-400">
-                        {new Intl.DateTimeFormat(undefined, {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        }).format(
+                        {new Intl.DateTimeFormat(
+                          strings.dateLocale,
+                          {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          }
+                        ).format(
                           new Date(update.timestamp)
                         )}
                       </span>
@@ -229,12 +243,20 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
                               onClick={() =>
                                 startEditing(update)
                               }
-                              className="rounded-md p-1.5 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-950 dark:hover:bg-zinc-900 dark:hover:text-white"
+                              disabled={isEditing}
+                              className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-default disabled:opacity-40 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-900 dark:hover:text-white"
                               aria-label={
                                 strings.editBroadcast
                               }
+                              title={
+                                strings.editBroadcast
+                              }
                             >
-                              <Pencil className="h-3.5 w-3.5" />
+                              <Pencil className="h-3 w-3" />
+
+                              <span className="hidden sm:inline">
+                                {strings.editBroadcast}
+                              </span>
                             </button>
                           )}
 
@@ -243,12 +265,19 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
                             onClick={() =>
                               handleDelete(update.id)
                             }
-                            className="rounded-md p-1.5 text-zinc-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                            className="flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1.5 text-[11px] font-semibold text-zinc-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-red-900 dark:hover:bg-red-950/30 dark:hover:text-red-400"
                             aria-label={
                               strings.deleteBroadcast
                             }
+                            title={
+                              strings.deleteBroadcast
+                            }
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3 w-3" />
+
+                            <span className="hidden sm:inline">
+                              {strings.deleteBroadcast}
+                            </span>
                           </button>
                         </div>
                       )}
@@ -256,7 +285,7 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
                   </div>
 
                   {isEditing ? (
-                    <div className="mt-3">
+                    <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
                       <textarea
                         value={editText}
                         onChange={(event) =>
@@ -264,14 +293,16 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
                         }
                         rows={3}
                         autoFocus
-                        className="w-full resize-none rounded-lg border border-zinc-300 bg-transparent px-3 py-2.5 text-sm leading-6 text-zinc-800 outline-none focus:border-zinc-950 dark:border-zinc-700 dark:text-zinc-200 dark:focus:border-white"
+                        disabled={isSaving}
+                        className="w-full resize-none rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm leading-6 text-zinc-800 outline-none transition focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:focus:border-white dark:focus:ring-white"
                       />
 
-                      <div className="mt-2 flex items-center justify-end gap-2">
+                      <div className="mt-3 flex items-center justify-end gap-2">
                         <button
                           type="button"
                           onClick={cancelEditing}
-                          className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-semibold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                          disabled={isSaving}
+                          className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
                         >
                           <X className="h-3.5 w-3.5" />
                           {strings.cancel}
@@ -279,12 +310,15 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
 
                         <button
                           type="button"
-                          disabled={!editText.trim()}
+                          disabled={
+                            !editText.trim() || isSaving
+                          }
                           onClick={() =>
                             saveEdit(update.id)
                           }
-                          className="rounded-md bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-zinc-950"
+                          className="flex items-center gap-1.5 rounded-lg bg-zinc-950 px-4 py-2 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                         >
+                          <Check className="h-3.5 w-3.5" />
                           {strings.save}
                         </button>
                       </div>
@@ -364,7 +398,7 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
 
       {deleteId && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-5"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 px-5 backdrop-blur-[2px]"
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
@@ -376,47 +410,48 @@ const HomeUpdates: React.FC<HomeUpdatesProps> = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-broadcast-title"
-            className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-950"
+            className="w-full max-w-md overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950"
           >
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400">
-                <Trash2 className="h-4 w-4" />
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400">
+                  <Trash2 className="h-5 w-5" />
+                </div>
+
+                <div className="min-w-0">
+                  <h3
+                    id="delete-broadcast-title"
+                    className="text-base font-bold text-zinc-950 dark:text-white"
+                  >
+                    {strings.deleteBroadcastTitle}
+                  </h3>
+
+                  <p className="mt-1.5 text-sm leading-5 text-zinc-500 dark:text-zinc-400">
+                    {strings.deleteBroadcastMessage}
+                  </p>
+                </div>
               </div>
 
-              <div>
-                <h3
-                  id="delete-broadcast-title"
-                  className="text-sm font-bold text-zinc-950 dark:text-white"
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={cancelDelete}
+                  disabled={isDeleting}
+                  className="flex min-h-10 items-center justify-center rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-900"
                 >
-                  {strings.deleteBroadcastTitle}
-                </h3>
+                  {strings.cancel}
+                </button>
 
-                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                  {strings.deleteBroadcastMessage}
-                </p>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="flex min-h-10 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {strings.delete}
+                </button>
               </div>
-            </div>
-
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={cancelDelete}
-                disabled={isDeleting}
-                className="rounded-lg px-3 py-2 text-xs font-semibold text-zinc-500 transition hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-900"
-              >
-                {strings.cancel}
-              </button>
-
-              <button
-                type="button"
-                onClick={confirmDelete}
-                disabled={isDeleting}
-                className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isDeleting
-                  ? strings.delete
-                  : strings.delete}
-              </button>
             </div>
           </div>
         </div>
