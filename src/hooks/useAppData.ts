@@ -73,18 +73,6 @@ export function useAppData({
 
       if (allMemErr) throw allMemErr;
 
-      alert(
-        'CLASS DATA\n' +
-          'userId: ' +
-          userId +
-          '\n' +
-          'classIds: ' +
-          JSON.stringify(classIds) +
-          '\n' +
-          'memberships: ' +
-          JSON.stringify(membershipRows)
-      );
-
       return {
         classIds,
         membershipRows: membershipRows || [],
