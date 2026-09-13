@@ -1,5 +1,5 @@
-import React from 'react';
-import { Monitor, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Monitor, Check, ChevronDown, X } from 'lucide-react';
 import type { SettingsThemeStrings } from '../../i18n/types.app';
 
 type Theme = 'system' | 'dark';
@@ -15,85 +15,168 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
   strings,
   onSelectTheme,
 }) => {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
+  const currentLabel =
+    theme === 'system' ? strings.systemTitle : strings.darkTitle;
+
+  const handleSelect = (next: Theme) => {
+    onSelectTheme(next);
+    setOpen(false);
+  };
+
   return (
-    <section
-      id="settings-theme-section"
-      className="mb-5 overflow-hidden border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950"
-    >
-      <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-5 dark:border-zinc-900">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-400">
-            {strings.sectionLabel}
-          </p>
+    <>
+      <section
+        id="settings-theme-section"
+        className="border-b border-zinc-200 py-6 dark:border-zinc-800"
+      >
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-900">
+            <Monitor className="h-4 w-4 text-zinc-600 dark:text-zinc-300" />
+          </div>
 
-          <h2 className="mt-1 text-base font-bold text-zinc-950 dark:text-white">
-            {strings.sectionTitle}
-          </h2>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-zinc-950 dark:text-white">
+              {strings.sectionTitle}
+            </h2>
+
+            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+              {theme === 'system'
+                ? strings.systemSubtitle
+                : strings.darkSubtitle}
+            </p>
+          </div>
         </div>
 
-        <Monitor className="h-5 w-5 text-zinc-400" />
-      </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-left transition-all hover:border-zinc-300 active:scale-[0.995] dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
+        >
+          <span className="text-sm font-semibold text-zinc-950 dark:text-white">
+            {currentLabel}
+          </span>
 
-      <div className="p-6">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => onSelectTheme('system')}
-            className={`group flex items-center justify-between border px-5 py-4 text-left transition-colors ${
-              theme === 'system'
-                ? 'border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950'
-                : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-600'
-            }`}
+          <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />
+        </button>
+      </section>
+
+      {/* Bottom Sheet */}
+      {open && (
+        <div
+          className="fixed inset-0 z-[200] flex items-end justify-center"
+          onClick={() => setOpen(false)}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+
+          {/* Sheet */}
+          <div
+            className="relative w-full max-w-lg rounded-t-3xl border-t border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div>
-              <span className="block text-sm font-bold">
-                {strings.systemTitle}
-              </span>
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-2">
+              <div className="h-1.5 w-10 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+            </div>
 
-              <span
-                className={`mt-0.5 block text-xs ${
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3 dark:border-zinc-900">
+              <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
+                {strings.sectionTitle}
+              </h3>
+
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-full p-1.5 text-zinc-500 transition hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Options list */}
+            <div className="px-2 py-2">
+              <button
+                type="button"
+                onClick={() => handleSelect('system')}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-3.5 text-left transition-colors ${
                   theme === 'system'
-                    ? 'text-white/60 dark:text-zinc-950/60'
-                    : 'text-zinc-400'
+                    ? 'bg-zinc-100 dark:bg-zinc-900'
+                    : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
                 }`}
               >
-                {strings.systemSubtitle}
-              </span>
-            </div>
+                <div className="min-w-0">
+                  <span
+                    className={`block text-sm ${
+                      theme === 'system'
+                        ? 'font-bold text-zinc-950 dark:text-white'
+                        : 'font-medium text-zinc-700 dark:text-zinc-300'
+                    }`}
+                  >
+                    {strings.systemTitle}
+                  </span>
 
-            {theme === 'system' && <Check className="h-5 w-5" />}
-          </button>
+                  <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
+                    {strings.systemSubtitle}
+                  </span>
+                </div>
 
-          <button
-            type="button"
-            onClick={() => onSelectTheme('dark')}
-            className={`group flex items-center justify-between border px-5 py-4 text-left transition-colors ${
-              theme === 'dark'
-                ? 'border-zinc-950 bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-zinc-950'
-                : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-600'
-            }`}
-          >
-            <div>
-              <span className="block text-sm font-bold">
-                {strings.darkTitle}
-              </span>
+                {theme === 'system' && (
+                  <Check className="h-4 w-4 shrink-0 text-zinc-950 dark:text-white" />
+                )}
+              </button>
 
-              <span
-                className={`mt-0.5 block text-xs ${
+              <button
+                type="button"
+                onClick={() => handleSelect('dark')}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-3.5 text-left transition-colors ${
                   theme === 'dark'
-                    ? 'text-white/60 dark:text-zinc-950/60'
-                    : 'text-zinc-400'
+                    ? 'bg-zinc-100 dark:bg-zinc-900'
+                    : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
                 }`}
               >
-                {strings.darkSubtitle}
-              </span>
+                <div className="min-w-0">
+                  <span
+                    className={`block text-sm ${
+                      theme === 'dark'
+                        ? 'font-bold text-zinc-950 dark:text-white'
+                        : 'font-medium text-zinc-700 dark:text-zinc-300'
+                    }`}
+                  >
+                    {strings.darkTitle}
+                  </span>
+
+                  <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
+                    {strings.darkSubtitle}
+                  </span>
+                </div>
+
+                {theme === 'dark' && (
+                  <Check className="h-4 w-4 shrink-0 text-zinc-950 dark:text-white" />
+                )}
+              </button>
             </div>
 
-            {theme === 'dark' && <Check className="h-5 w-5" />}
-          </button>
+            {/* Safe area spacer for iOS */}
+            <div className="h-6" />
+          </div>
         </div>
-      </div>
-    </section>
+      )}
+    </>
   );
 };
 
