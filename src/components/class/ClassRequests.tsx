@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   UserPlus,
   ShieldAlert,
@@ -37,7 +37,16 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
   onApproveRemoval,
   onRejectRemoval,
 }) => {
-  const joinRequests = (activeClass as any).joinRequests || [];
+  // ─── Build join requests from pendingMemberIds, not activeClass.joinRequests ───
+  const joinRequests = useMemo(() => {
+    const anyClass: any = activeClass;
+    const pendingIds: string[] = anyClass.pendingMemberIds || [];
+
+    return pendingIds.map((userId) => ({
+      userId,
+      userName: getMemberName(userId),
+    }));
+  }, [activeClass, getMemberName]);
 
   return (
     <>
@@ -63,15 +72,9 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
           </div>
 
           <div className="space-y-2">
-            {joinRequests.map((request: any) => {
-              const userId =
-                request.userId || request.id || request.studentId;
-
-              const userName =
-                request.userName ||
-                request.name ||
-                getMemberName(userId);
-
+            {joinRequests.map((request) => {
+              const userId = request.userId;
+              const userName = request.userName;
               const processing = processingJoinId === userId;
 
               return (
@@ -156,11 +159,13 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
             {pendingRemovals
               .filter((request) => request.classId === activeClass.id)
               .map((request) => {
-                const memberName = getMemberName(request.memberId);
+                const targetId =
+                  (request as any).userId || (request as any).memberId;
+                const memberName = getMemberName(targetId);
 
                 return (
                   <div
-                    key={`${request.classId}-${request.memberId}`}
+                    key={`${request.classId}-${targetId}`}
                     className="flex flex-col gap-3 rounded-xl border border-zinc-100 p-3 dark:border-zinc-800 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="flex min-w-0 items-center gap-3">
@@ -185,7 +190,7 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
                         onClick={() =>
                           onApproveRemoval(
                             activeClass.id,
-                            request.memberId
+                            targetId
                           )
                         }
                         className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-3 py-2 text-[10px] font-black text-white transition hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
@@ -199,7 +204,7 @@ const ClassRequests: React.FC<ClassRequestsProps> = ({
                         onClick={() =>
                           onRejectRemoval(
                             activeClass.id,
-                            request.memberId
+                            targetId
                           )
                         }
                         className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-[10px] font-black text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900"
