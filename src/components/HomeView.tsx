@@ -230,8 +230,12 @@ export default function HomeView({
     );
   };
 
+  const activeClassUpdates = updates.filter(
+    (update) => update.classId === activeClassId
+  );
+
   const filterBulletinUpdates = () =>
-    updates.filter((up) => {
+    activeClassUpdates.filter((up) => {
       if (
         up.description.startsWith('{') &&
         up.description.endsWith('}')
@@ -280,8 +284,7 @@ export default function HomeView({
         setIsAnnouncementOpen(true);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updates, pollVotes]);
+  }, [updates, activeClassId, pollVotes]);
 
   const handleToggleAnnouncements = () => {
     setIsAnnouncementOpen((previous) => !previous);
@@ -424,7 +427,7 @@ export default function HomeView({
     day: 'numeric',
   });
   const activeAd =
-    updates.find((up) => {
+    activeClassUpdates.find((up) => {
       if (
         !up.description.startsWith('{') ||
         !up.description.endsWith('}')
@@ -462,7 +465,7 @@ export default function HomeView({
     }
   }, [activeAd, onTrackAdEvent]);
 
-  const bulletinUpdates = updates.filter((up) => {
+  const bulletinUpdates = activeClassUpdates.filter((up) => {
     if (
       up.type === 'entry_added' ||
       up.type === 'entry_edited' ||
@@ -547,14 +550,6 @@ export default function HomeView({
     };
   };
 
-  /*
-   * Broadcast permission is CLASS-SPECIFIC.
-   *
-   * A user being a global "representative" does not mean
-   * they can broadcast in every class they belong to.
-   *
-   * The representative of the active class is its owner.
-   */
   const activeClass = joinedClasses.find(
     (classItem) => classItem.id === activeClassId
   );
@@ -607,7 +602,7 @@ export default function HomeView({
 
           <HomeUpdates
             strings={strings.updates}
-            updates={updates}
+            updates={activeClassUpdates}
             visibleUpdates={visibleBulletinUpdates}
             isAnnouncementOpen={isAnnouncementOpen}
             hasUnread={hasUnread}
