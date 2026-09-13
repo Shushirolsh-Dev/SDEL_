@@ -197,40 +197,6 @@ export function useAppData({
           membership.class_id === classRow.id
       );
 
-      /*
-       * --------------------------------------------------------
-       * DEBUG: SHOW THE ACTUAL DATABASE MEMBERSHIP ROWS
-       * --------------------------------------------------------
-       */
-      alert(
-        `CLASS: ${classRow.name}\n` +
-        `Class ID: ${classRow.id}\n` +
-        `Raw rows for this class: ${rows.length}\n\n` +
-        (
-          rows.length > 0
-            ? rows
-                .map(
-                  (r: any) =>
-                    `user=${r.user_id}\nrole=${r.role}\nstatus=${r.status}`
-                )
-                .join('\n\n')
-            : 'NO MEMBERSHIP ROWS FOUND'
-        ) +
-        `\n\nApproved members: ${
-          rows.filter(
-            (r: any) =>
-              r.role === 'member' &&
-              r.status === 'approved'
-          ).length
-        }` +
-        `\nPending members: ${
-          rows.filter(
-            (r: any) =>
-              r.status === 'pending'
-          ).length
-        }`
-      );
-
       const ownerName =
         memberNamesMap[classRow.owner_id] ||
         'Representative';
@@ -495,3 +461,5 @@ export function useAppData({
     memberNamesMap,
   };
 }
+
+Only the debugging "alert(...)" was removed. No class logic, query, membership filtering, or UI behavior was changed.
