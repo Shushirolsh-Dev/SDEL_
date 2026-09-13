@@ -409,6 +409,14 @@ export default function App() {
     userJoinedClasses.map((c) => c.id)
   );
 
+  const activeClass = classes.find(
+    (c) => c.id === activeClassId
+  );
+
+  const activeClassUpdates = updates.filter(
+    (u) => u.classId === activeClassId
+  );
+
   const renderViewContent = () => {
     if (!user) return null;
 
@@ -590,16 +598,8 @@ export default function App() {
       case 'notifications':
         return (
           <NotificationsView
-            updates={updates.filter(
-              (u) =>
-                u.classId === activeClassId ||
-                myClassIds.has(u.classId) ||
-                u.classId === 'global' ||
-                u.classId === 'class_reps' ||
-                u.classId === 'region_north' ||
-                u.classId === 'region_south' ||
-                u.classId === 'country_all'
-            )}
+            currentUser={user}
+            updates={activeClassUpdates}
             strings={
               strings.notifications
             }
@@ -618,6 +618,9 @@ export default function App() {
             }
             activeClassId={
               activeClassId
+            }
+            activeClassOwnerId={
+              activeClass?.ownerId
             }
             onAddBroadcast={
               handleClassRepBroadcast
