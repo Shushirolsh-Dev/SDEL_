@@ -224,7 +224,10 @@ export default function HomeView({
     };
 
     setPollVotes(updated);
-    localStorage.setItem('thesdel_poll_votes', JSON.stringify(updated));
+    localStorage.setItem(
+      'thesdel_poll_votes',
+      JSON.stringify(updated)
+    );
   };
 
   const filterBulletinUpdates = () =>
@@ -420,7 +423,6 @@ export default function HomeView({
     month: 'long',
     day: 'numeric',
   });
-
   const activeAd =
     updates.find((up) => {
       if (
@@ -545,8 +547,21 @@ export default function HomeView({
     };
   };
 
+  /*
+   * Broadcast permission is CLASS-SPECIFIC.
+   *
+   * A user being a global "representative" does not mean
+   * they can broadcast in every class they belong to.
+   *
+   * The representative of the active class is its owner.
+   */
+  const activeClass = joinedClasses.find(
+    (classItem) => classItem.id === activeClassId
+  );
+
   const canBroadcast =
-    (userRole === 'representative' || userRole === 'class_rep') &&
+    !!activeClass &&
+    activeClass.ownerId === currentUser.id &&
     !!onAddBroadcast &&
     !!activeClassId;
 
