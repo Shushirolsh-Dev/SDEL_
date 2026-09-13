@@ -276,62 +276,66 @@ export default function SettingsView({
   return (
     <div
       id="settings-view-container"
-      className="mx-auto min-h-full w-full max-w-6xl bg-zinc-50 px-4 py-6 dark:bg-black sm:px-6 lg:px-8"
+      className="min-h-full w-full"
     >
-      <SettingsHeader strings={strings.header} onBack={onBack} />
+      <div className="mx-auto w-full max-w-2xl">
+        <SettingsHeader strings={strings.header} onBack={onBack} />
 
-      <SettingsThemeSection
-        theme={theme}
-        strings={strings.theme}
-        onSelectTheme={handleSelectTheme}
-      />
+        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <SettingsThemeSection
+            theme={theme}
+            strings={strings.theme}
+            onSelectTheme={handleSelectTheme}
+          />
 
-      <SettingsLanguageSection
-        locale={locale}
-        strings={strings.language}
-        onChange={onChangeLocale}
-      />
+          <SettingsLanguageSection
+            locale={locale}
+            strings={strings.language}
+            onChange={onChangeLocale}
+          />
 
-      <SettingsVisibilitySection
-        currentUser={currentUser}
-        ownedClasses={ownedClasses}
-        updatingClassId={updatingClassId}
-        isUpdatingGlobal={isUpdatingGlobal}
-        strings={strings.visibility}
-        onToggleVisibility={handleToggleVisibility}
-        onGlobalVisibility={handleGlobalVisibility}
-      />
+          <SettingsVisibilitySection
+            currentUser={currentUser}
+            ownedClasses={ownedClasses}
+            updatingClassId={updatingClassId}
+            isUpdatingGlobal={isUpdatingGlobal}
+            strings={strings.visibility}
+            onToggleVisibility={handleToggleVisibility}
+            onGlobalVisibility={handleGlobalVisibility}
+          />
 
-      <SettingsDangerZone
-        strings={strings.danger}
-        onDeleteClick={() => setShowDeleteModal(true)}
-      />
+          <SettingsDangerZone
+            strings={strings.danger}
+            onDeleteClick={() => setShowDeleteModal(true)}
+          />
+        </div>
 
-      <DeleteAccountModal
-        isOpen={showDeleteModal}
-        password={deletePassword}
-        confirmed={deleteConfirmed}
-        error={deleteError}
-        isDeleting={isDeleting}
-        strings={strings.deleteModal}
-        onPasswordChange={setDeletePassword}
-        onConfirmedChange={setDeleteConfirmed}
-        onClose={handleCloseDeleteModal}
-        onConfirm={handleDeleteAccount}
-      />
+        <DeleteAccountModal
+          isOpen={showDeleteModal}
+          password={deletePassword}
+          confirmed={deleteConfirmed}
+          error={deleteError}
+          isDeleting={isDeleting}
+          strings={strings.deleteModal}
+          onPasswordChange={setDeletePassword}
+          onConfirmedChange={setDeleteConfirmed}
+          onClose={handleCloseDeleteModal}
+          onConfirm={handleDeleteAccount}
+        />
 
-      <footer
-        id="settings-footer"
-        className="border-t border-zinc-200 py-6 text-center dark:border-zinc-900"
-      >
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-400">
-          {strings.footer.title}
-        </p>
+        <footer
+          id="settings-footer"
+          className="border-t border-zinc-200 py-6 text-center dark:border-zinc-800"
+        >
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-zinc-400">
+            {strings.footer.title}
+          </p>
 
-        <p className="mt-1 text-xs text-zinc-400">
-          {strings.footer.subtitle}
-        </p>
-      </footer>
+          <p className="mt-1 text-xs text-zinc-400">
+            {strings.footer.subtitle}
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }
