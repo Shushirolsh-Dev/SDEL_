@@ -194,8 +194,18 @@ const EN: AppStrings = {
       labelVenueChanged: 'VENUE CHANGED',
       labelGlobal: 'GLOBAL',
       labelClassUpdate: 'CLASS UPDATE',
+
+      edited: 'Edited',
+      editBroadcast: 'Edit broadcast',
+      deleteBroadcast: 'Delete broadcast',
+      cancel: 'Cancel',
+      save: 'Save',
+      delete: 'Delete',
+      deleteBroadcastTitle: 'Delete this broadcast?',
+      deleteBroadcastMessage: 'This cannot be undone.',
+      dateLocale: 'en-US',
     },
-    rep: {
+rep: {
       title: 'Class rep',
       subtitle: 'Send a broadcast to your class.',
       textareaPlaceholder: 'Write an announcement...',
