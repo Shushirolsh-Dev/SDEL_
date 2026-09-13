@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Monitor, Check, ChevronDown, X } from 'lucide-react';
+import { Monitor, Check, ChevronDown, X, Sun, Moon } from 'lucide-react';
 import type { SettingsThemeStrings } from '../../i18n/types.app';
 
-type Theme = 'system' | 'dark';
+type Theme = 'light' | 'dark' | 'system';
 
 interface SettingsThemeSectionProps {
   theme: Theme;
@@ -29,7 +29,18 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
   }, [open]);
 
   const currentLabel =
-    theme === 'system' ? strings.systemTitle : strings.darkTitle;
+    theme === 'light'
+      ? strings.lightTitle
+      : theme === 'dark'
+      ? strings.darkTitle
+      : strings.systemTitle;
+
+  const currentSubtitle =
+    theme === 'light'
+      ? strings.lightSubtitle
+      : theme === 'dark'
+      ? strings.darkSubtitle
+      : strings.systemSubtitle;
 
   const handleSelect = (next: Theme) => {
     onSelectTheme(next);
@@ -53,9 +64,7 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
             </h2>
 
             <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-              {theme === 'system'
-                ? strings.systemSubtitle
-                : strings.darkSubtitle}
+              {currentSubtitle}
             </p>
           </div>
         </div>
@@ -73,26 +82,21 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
         </button>
       </section>
 
-      {/* Bottom Sheet */}
       {open && (
         <div
           className="fixed inset-0 z-[200] flex items-end justify-center"
           onClick={() => setOpen(false)}
         >
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
-          {/* Sheet */}
           <div
             className="relative w-full max-w-lg rounded-t-3xl border-t border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-950 animate-slide-up"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Drag handle */}
             <div className="flex justify-center pt-3 pb-2">
               <div className="h-1.5 w-10 rounded-full bg-zinc-300 dark:bg-zinc-700" />
             </div>
 
-            {/* Header */}
             <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3 dark:border-zinc-900">
               <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
                 {strings.sectionTitle}
@@ -108,38 +112,43 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
               </button>
             </div>
 
-            {/* Options list */}
             <div className="px-2 py-2">
+              {/* Light */}
               <button
                 type="button"
-                onClick={() => handleSelect('system')}
+                onClick={() => handleSelect('light')}
                 className={`flex w-full items-center justify-between rounded-xl px-3 py-3.5 text-left transition-colors ${
-                  theme === 'system'
+                  theme === 'light'
                     ? 'bg-zinc-100 dark:bg-zinc-900'
                     : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
                 }`}
               >
-                <div className="min-w-0">
-                  <span
-                    className={`block text-sm ${
-                      theme === 'system'
-                        ? 'font-bold text-zinc-950 dark:text-white'
-                        : 'font-medium text-zinc-700 dark:text-zinc-300'
-                    }`}
-                  >
-                    {strings.systemTitle}
-                  </span>
+                <div className="flex items-center gap-3">
+                  <Sun className="h-4 w-4 shrink-0 text-zinc-500" />
 
-                  <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
-                    {strings.systemSubtitle}
-                  </span>
+                  <div className="min-w-0">
+                    <span
+                      className={`block text-sm ${
+                        theme === 'light'
+                          ? 'font-bold text-zinc-950 dark:text-white'
+                          : 'font-medium text-zinc-700 dark:text-zinc-300'
+                      }`}
+                    >
+                      {strings.lightTitle}
+                    </span>
+
+                    <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
+                      {strings.lightSubtitle}
+                    </span>
+                  </div>
                 </div>
 
-                {theme === 'system' && (
+                {theme === 'light' && (
                   <Check className="h-4 w-4 shrink-0 text-zinc-950 dark:text-white" />
                 )}
               </button>
 
+              {/* Dark */}
               <button
                 type="button"
                 onClick={() => handleSelect('dark')}
@@ -149,29 +158,67 @@ const SettingsThemeSection: React.FC<SettingsThemeSectionProps> = ({
                     : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
                 }`}
               >
-                <div className="min-w-0">
-                  <span
-                    className={`block text-sm ${
-                      theme === 'dark'
-                        ? 'font-bold text-zinc-950 dark:text-white'
-                        : 'font-medium text-zinc-700 dark:text-zinc-300'
-                    }`}
-                  >
-                    {strings.darkTitle}
-                  </span>
+                <div className="flex items-center gap-3">
+                  <Moon className="h-4 w-4 shrink-0 text-zinc-500" />
 
-                  <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
-                    {strings.darkSubtitle}
-                  </span>
+                  <div className="min-w-0">
+                    <span
+                      className={`block text-sm ${
+                        theme === 'dark'
+                          ? 'font-bold text-zinc-950 dark:text-white'
+                          : 'font-medium text-zinc-700 dark:text-zinc-300'
+                      }`}
+                    >
+                      {strings.darkTitle}
+                    </span>
+
+                    <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
+                      {strings.darkSubtitle}
+                    </span>
+                  </div>
                 </div>
 
                 {theme === 'dark' && (
                   <Check className="h-4 w-4 shrink-0 text-zinc-950 dark:text-white" />
                 )}
               </button>
+
+              {/* System */}
+              <button
+                type="button"
+                onClick={() => handleSelect('system')}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-3.5 text-left transition-colors ${
+                  theme === 'system'
+                    ? 'bg-zinc-100 dark:bg-zinc-900'
+                    : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Monitor className="h-4 w-4 shrink-0 text-zinc-500" />
+
+                  <div className="min-w-0">
+                    <span
+                      className={`block text-sm ${
+                        theme === 'system'
+                          ? 'font-bold text-zinc-950 dark:text-white'
+                          : 'font-medium text-zinc-700 dark:text-zinc-300'
+                      }`}
+                    >
+                      {strings.systemTitle}
+                    </span>
+
+                    <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
+                      {strings.systemSubtitle}
+                    </span>
+                  </div>
+                </div>
+
+                {theme === 'system' && (
+                  <Check className="h-4 w-4 shrink-0 text-zinc-950 dark:text-white" />
+                )}
+              </button>
             </div>
 
-            {/* Safe area spacer for iOS */}
             <div className="h-6" />
           </div>
         </div>
