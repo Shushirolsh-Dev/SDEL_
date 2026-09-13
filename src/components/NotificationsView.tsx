@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ClassUpdate } from '../types';
+import { ClassUpdate, User } from '../types';
 import type { NotificationsStrings } from '../i18n/types.app';
 import NotificationsHeader from './notifications/NotificationsHeader';
 import NotificationsEmpty from './notifications/NotificationsEmpty';
@@ -7,12 +7,14 @@ import NotificationCard from './notifications/NotificationCard';
 import ClassRepBroadcast from './notifications/ClassRepBroadcast';
 
 interface NotificationsViewProps {
+  currentUser: User;
   updates: ClassUpdate[];
   strings: NotificationsStrings;
   onForceRefresh?: () => Promise<void>;
   onClose: () => void;
   userRole: string;
   activeClassId?: string;
+  activeClassOwnerId?: string;
   onAddBroadcast?: (
     classId: string,
     description: string
@@ -20,12 +22,14 @@ interface NotificationsViewProps {
 }
 
 export default function NotificationsView({
+  currentUser,
   updates,
   strings,
   onForceRefresh,
   onClose,
   userRole,
   activeClassId,
+  activeClassOwnerId,
   onAddBroadcast,
 }: NotificationsViewProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -87,6 +91,7 @@ export default function NotificationsView({
     };
 
     setPollVotes(updated);
+
     localStorage.setItem(
       'thesdel_poll_votes',
       JSON.stringify(updated)
@@ -192,9 +197,11 @@ export default function NotificationsView({
   }, [updates, pollVotes]);
 
   const canBroadcast =
-    userRole === 'representative' &&
-    !!onAddBroadcast &&
-    !!activeClassId;
+    !!currentUser &&
+    !!activeClassId &&
+    !!activeClassOwnerId &&
+    activeClassOwnerId === currentUser.id &&
+    !!onAddBroadcast;
 
   return (
     <div
