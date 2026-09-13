@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Users,
   Crown,
@@ -38,6 +38,13 @@ interface ClassMembersCardProps {
   ) => void;
 }
 
+interface DerivedMember {
+  id: string;
+  name: string;
+  role: string;
+  status: string;
+}
+
 const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
   activeClass,
   currentUser,
@@ -49,6 +56,60 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
   onRemoveMember,
   onRequestRemoval,
 }) => {
+  // ─── Build the member list from IDs, not from activeClass.members ───
+  const members = useMemo<DerivedMember[]>(() => {
+    const anyClass: any = activeClass;
+    const list: DerivedMember[] = [];
+
+    // Owner first
+    if (anyClass.ownerId) {
+      list.push({
+        id: anyClass.ownerId,
+        name: getMemberName(anyClass.ownerId),
+        role: 'representative',
+        status: 'approved',
+      });
+    }
+
+    // Assistants
+    for (const id of anyClass.assistantIds || []) {
+      if (id === anyClass.ownerId) continue;
+      list.push({
+        id,
+        name: getMemberName(id),
+        role: 'assistant',
+        status: 'approved',
+      });
+    }
+
+    // Approved members
+    for (const id of anyClass.memberIds || []) {
+      if (id === anyClass.ownerId) continue;
+      if ((anyClass.assistantIds || []).includes(id)) continue;
+      list.push({
+        id,
+        name: getMemberName(id),
+        role: 'member',
+        status: 'approved',
+      });
+    }
+
+    // Pending members
+    for (const id of anyClass.pendingMemberIds || []) {
+      if (id === anyClass.ownerId) continue;
+      if ((anyClass.assistantIds || []).includes(id)) continue;
+      if ((anyClass.memberIds || []).includes(id)) continue;
+      list.push({
+        id,
+        name: getMemberName(id),
+        role: 'member',
+        status: 'pending',
+      });
+    }
+
+    return list;
+  }, [activeClass, getMemberName]);
+
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
       <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
@@ -67,13 +128,13 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
           </div>
 
           <span className="text-xs font-black text-zinc-400">
-            {activeClass.members?.length || 0}
+            {members.length}
           </span>
         </div>
       </div>
 
       <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-        {(activeClass.members || []).map((member: any) => {
+        {members.map((member: any) => {
           const memberId = member.id;
           const memberName =
             member.name ||
@@ -88,7 +149,7 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
 
           const isOwner =
             memberId === activeClass.ownerId ||
-            memberId === activeClass.representativeId;
+            memberId === (activeClass as any).representativeId;
 
           const canManageMember =
             activeClass.ownerId === currentUser.id;
@@ -214,8 +275,7 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
           );
         })}
 
-        {(!activeClass.members ||
-          activeClass.members.length === 0) && (
+        {members.length === 0 && (
           <div className="p-8 text-center">
             <Users className="mx-auto h-5 w-5 text-zinc-400" />
             <p className="mt-2 text-xs font-bold text-zinc-500">
