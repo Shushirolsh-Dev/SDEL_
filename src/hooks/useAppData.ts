@@ -18,207 +18,301 @@ export function useAppData({
   isLoggedIn,
   userId,
 }: UseAppDataOptions) {
-  const enabled = isLoggedIn && !!userId;
+  const enabled = Boolean(isLoggedIn && userId);
 
-  const membershipQuery = useQuery<{
-    classIds: string[];
-    membershipRows: any[];
-    classRows: any[];
-  }>({
-    queryKey: ['myMembership', userId],
+  /*
+   * ------------------------------------------------------------
+   * CLASSES + MEMBERS
+   * ------------------------------------------------------------
+   *
+   * One source of truth for:
+   * - classes the user owns
+   * - classes the user belongs to
+   * - approved members
+   * - assistants
+   * - pending join requests
+   */
+  const classesQuery = useQuery({
+    queryKey: ['classes', userId],
+
     queryFn: async () => {
       if (!userId) {
-        return { classIds: [], membershipRows: [], classRows: [] };
+        return {
+          classIds: [],
+          classRows: [],
+          membershipRows: [],
+        };
       }
 
-      const { data: myMemberships, error: memErr } = await supabase
-        .from('class_members')
-        .select('class_id, role, status, user_id')
-        .eq('user_id', userId);
+      // Classes the current user belongs to.
+      const { data: myMemberships, error: membershipError } =
+        await supabase
+          .from('class_members')
+          .select('class_id')
+          .eq('user_id', userId);
 
-      if (memErr) throw memErr;
+      if (membershipError) {
+        throw membershipError;
+      }
+
+      // Classes owned by the current user.
+      const { data: ownedClasses, error: ownedClassesError } =
+        await supabase
+          .from('classes')
+          .select('id')
+          .eq('owner_id', userId);
+
+      if (ownedClassesError) {
+        throw ownedClassesError;
+      }
 
       const memberClassIds = (myMemberships || []).map(
-        (m) => m.class_id
+        (row) => row.class_id
       );
 
-      const { data: ownedClasses, error: ownErr } = await supabase
-        .from('classes')
-        .select('id')
-        .eq('owner_id', userId);
-
-      if (ownErr) throw ownErr;
-
-      const ownedClassIds = (ownedClasses || []).map((c) => c.id);
+      const ownedClassIds = (ownedClasses || []).map(
+        (row) => row.id
+      );
 
       const classIds = Array.from(
         new Set([...memberClassIds, ...ownedClassIds])
       );
 
       if (classIds.length === 0) {
-        return { classIds: [], membershipRows: [], classRows: [] };
+        return {
+          classIds: [],
+          classRows: [],
+          membershipRows: [],
+        };
       }
 
-      const { data: classRows, error: classErr } = await supabase
-        .from('classes')
-        .select('id, name, code, owner_id, description, visibility')
-        .in('id', classIds);
+      // Get the actual class records.
+      const { data: classRows, error: classError } =
+        await supabase
+          .from('classes')
+          .select(
+            'id, name, code, owner_id, description, visibility'
+          )
+          .in('id', classIds);
 
-      if (classErr) throw classErr;
+      if (classError) {
+        throw classError;
+      }
 
-      const { data: membershipRows, error: allMemErr } = await supabase
-        .from('class_members')
-        .select('class_id, user_id, role, status')
-        .in('class_id', classIds);
+      // Get every membership row for these classes.
+      // This includes approved members and pending requests.
+      const { data: membershipRows, error: membersError } =
+        await supabase
+          .from('class_members')
+          .select(
+            'class_id, user_id, role, status'
+          )
+          .in('class_id', classIds);
 
-      if (allMemErr) throw allMemErr;
+      if (membersError) {
+        throw membersError;
+      }
 
       return {
         classIds,
-        membershipRows: membershipRows || [],
         classRows: classRows || [],
+        membershipRows: membershipRows || [],
       };
     },
+
     enabled,
+
+    // Always consider the data stale so the app can
+    // refetch the current database state.
+    staleTime: 0,
+
+    refetchOnMount: true,
   });
 
-  const classIds = membershipQuery.data?.classIds ?? [];
+  const classIds = classesQuery.data?.classIds ?? [];
 
+  /*
+   * ------------------------------------------------------------
+   * MEMBER PROFILE NAMES
+   * ------------------------------------------------------------
+   */
   const memberIdsToFetch = useMemo(() => {
-    const data = membershipQuery.data;
-    if (!data) return [];
+    const data = classesQuery.data;
 
-    const set = new Set<string>();
-
-    for (const m of data.membershipRows) {
-      set.add(m.user_id);
+    if (!data) {
+      return [];
     }
 
-    for (const c of data.classRows) {
-      if (c.owner_id) set.add(c.owner_id);
+    const ids = new Set<string>();
+
+    for (const membership of data.membershipRows) {
+      if (membership.user_id) {
+        ids.add(membership.user_id);
+      }
     }
 
-    return Array.from(set);
-  }, [membershipQuery.data]);
+    for (const classRow of data.classRows) {
+      if (classRow.owner_id) {
+        ids.add(classRow.owner_id);
+      }
+    }
+
+    return Array.from(ids).sort();
+  }, [classesQuery.data]);
 
   const memberProfilesQuery = useQuery<Record<string, string>>({
-    queryKey: [
-      'memberProfiles',
-      memberIdsToFetch.slice().sort().join(','),
-    ],
+    queryKey: ['memberProfiles', memberIdsToFetch],
+
     queryFn: async () => {
-      if (memberIdsToFetch.length === 0) return {};
+      if (memberIdsToFetch.length === 0) {
+        return {};
+      }
 
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name')
         .in('id', memberIdsToFetch);
 
-      if (error) throw error;
-
-      const map: Record<string, string> = {};
-
-      for (const p of data || []) {
-        map[p.id] = p.name;
+      if (error) {
+        throw error;
       }
 
-      return map;
+      const names: Record<string, string> = {};
+
+      for (const profile of data || []) {
+        names[profile.id] = profile.name;
+      }
+
+      return names;
     },
+
     enabled: enabled && memberIdsToFetch.length > 0,
+
+    staleTime: 0,
+
+    refetchOnMount: true,
   });
 
   const memberNamesMap = memberProfilesQuery.data ?? {};
 
-  const classes = useMemo<any[]>(() => {
-    const data = membershipQuery.data;
+  /*
+   * ------------------------------------------------------------
+   * BUILD CLASS OBJECTS
+   * ------------------------------------------------------------
+   */
+  const classes = useMemo<ClassGroup[]>(() => {
+    const data = classesQuery.data;
 
-    if (!data) return [];
+    if (!data) {
+      return [];
+    }
 
-    const { membershipRows, classRows } = data;
+    const { classRows, membershipRows } = data;
 
-    return classRows.map((cls: any) => {
+    return classRows.map((classRow: any) => {
       const rows = membershipRows.filter(
-        (m: any) => m.class_id === cls.id
+        (membership: any) =>
+          membership.class_id === classRow.id
       );
 
       const ownerName =
-        memberNamesMap[cls.owner_id] || 'Representative';
+        memberNamesMap[classRow.owner_id] ||
+        'Representative';
 
       const approvedAssistants = rows.filter(
-        (m: any) =>
-          m.role === 'assistant' && m.status === 'approved'
+        (membership: any) =>
+          membership.role === 'assistant' &&
+          membership.status === 'approved'
       );
 
       const approvedMembers = rows.filter(
-        (m: any) =>
-          m.role === 'member' && m.status === 'approved'
+        (membership: any) =>
+          membership.role === 'member' &&
+          membership.status === 'approved'
       );
 
-      const pendingRows = rows.filter(
-        (m: any) => m.status === 'pending'
+      const pendingMembers = rows.filter(
+        (membership: any) =>
+          membership.status === 'pending'
       );
 
       const assistantIds = approvedAssistants.map(
-        (m: any) => m.user_id
+        (membership: any) => membership.user_id
       );
 
       const memberIds = approvedMembers.map(
-        (m: any) => m.user_id
+        (membership: any) => membership.user_id
       );
 
-      const pendingMemberIds = pendingRows.map(
-        (m: any) => m.user_id
+      const pendingMemberIds = pendingMembers.map(
+        (membership: any) => membership.user_id
       );
 
       const members = [
         {
-          id: cls.owner_id,
+          id: classRow.owner_id,
           name: ownerName,
           role: 'representative',
           status: 'approved',
         },
 
-        ...approvedAssistants.map((m: any) => ({
-          id: m.user_id,
-          name: memberNamesMap[m.user_id] || 'Assistant',
+        ...approvedAssistants.map((membership: any) => ({
+          id: membership.user_id,
+          name:
+            memberNamesMap[membership.user_id] ||
+            'Assistant',
           role: 'assistant',
           status: 'approved',
         })),
 
-        ...approvedMembers.map((m: any) => ({
-          id: m.user_id,
-          name: memberNamesMap[m.user_id] || 'Member',
+        ...approvedMembers.map((membership: any) => ({
+          id: membership.user_id,
+          name:
+            memberNamesMap[membership.user_id] ||
+            'Member',
           role: 'member',
           status: 'approved',
         })),
 
-        ...pendingRows.map((m: any) => ({
-          id: m.user_id,
-          name: memberNamesMap[m.user_id] || 'Pending',
-          role: m.role || 'member',
+        ...pendingMembers.map((membership: any) => ({
+          id: membership.user_id,
+          name:
+            memberNamesMap[membership.user_id] ||
+            'Pending',
+          role: membership.role || 'member',
           status: 'pending',
         })),
       ];
 
       return {
-        id: cls.id,
-        name: cls.name,
-        code: cls.code,
-        ownerId: cls.owner_id,
+        id: classRow.id,
+        name: classRow.name,
+        code: classRow.code,
+        ownerId: classRow.owner_id,
         assistantIds,
         memberIds,
         pendingMemberIds,
         members,
-        description: cls.description || undefined,
-        visibility: cls.visibility || 'public',
+        description:
+          classRow.description || undefined,
+        visibility:
+          classRow.visibility || 'public',
       };
     });
-  }, [membershipQuery.data, memberNamesMap]);
+  }, [classesQuery.data, memberNamesMap]);
 
+  /*
+   * ------------------------------------------------------------
+   * TIMETABLE
+   * ------------------------------------------------------------
+   */
   const timetableQuery = useQuery<TimetableEntry[]>({
-    queryKey: ['timetable', classIds.slice().sort().join(',')],
+    queryKey: ['timetable', classIds],
+
     queryFn: async () => {
-      if (classIds.length === 0) return [];
+      if (classIds.length === 0) {
+        return [];
+      }
 
       const { data, error } = await supabase
         .from('timetable')
@@ -227,58 +321,84 @@ export function useAppData({
         )
         .in('class_id', classIds);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      return (data || []).map((e: any) => ({
-        id: e.id,
-        classId: e.class_id,
-        subject: e.subject,
-        dayOfWeek: e.day_of_week,
-        startTime: e.start_time,
-        endTime: e.end_time,
-        durationMinutes: e.duration_minutes,
-        venue: e.venue,
-        originalVenue: e.original_venue || undefined,
-        venueChangedAt: e.venue_changed_at || undefined,
-        isCancelled: e.is_cancelled,
-        cancelledAt: e.cancelled_at || undefined,
+      return (data || []).map((entry: any) => ({
+        id: entry.id,
+        classId: entry.class_id,
+        subject: entry.subject,
+        dayOfWeek: entry.day_of_week,
+        startTime: entry.start_time,
+        endTime: entry.end_time,
+        durationMinutes: entry.duration_minutes,
+        venue: entry.venue,
+        originalVenue:
+          entry.original_venue || undefined,
+        venueChangedAt:
+          entry.venue_changed_at || undefined,
+        isCancelled: entry.is_cancelled,
+        cancelledAt:
+          entry.cancelled_at || undefined,
       }));
     },
+
     enabled: enabled && classIds.length > 0,
   });
 
-  const attendanceLogsQuery = useQuery<AttendanceLog[]>({
-    queryKey: ['attendanceLogs', userId],
-    queryFn: async () => {
-      if (!userId) return [];
+  /*
+   * ------------------------------------------------------------
+   * ATTENDANCE
+   * ------------------------------------------------------------
+   */
+  const attendanceLogsQuery =
+    useQuery<AttendanceLog[]>({
+      queryKey: ['attendanceLogs', userId],
 
-      const { data, error } = await supabase
-        .from('attendance_logs')
-        .select(
-          'id, class_id, timetable_entry_id, date, status, timestamp'
-        )
-        .eq('user_id', userId)
-        .order('date', { ascending: false })
-        .limit(500);
+      queryFn: async () => {
+        if (!userId) {
+          return [];
+        }
 
-      if (error) throw error;
+        const { data, error } = await supabase
+          .from('attendance_logs')
+          .select(
+            'id, class_id, timetable_entry_id, date, status, timestamp'
+          )
+          .eq('user_id', userId)
+          .order('date', { ascending: false })
+          .limit(500);
 
-      return (data || []).map((l: any) => ({
-        id: l.id,
-        classId: l.class_id,
-        timetableEntryId: l.timetable_entry_id,
-        date: l.date,
-        status: l.status as any,
-        timestamp: l.timestamp,
-      }));
-    },
-    enabled,
-  });
+        if (error) {
+          throw error;
+        }
 
+        return (data || []).map((log: any) => ({
+          id: log.id,
+          classId: log.class_id,
+          timetableEntryId: log.timetable_entry_id,
+          date: log.date,
+          status: log.status as any,
+          timestamp: log.timestamp,
+        }));
+      },
+
+      enabled,
+    });
+
+  /*
+   * ------------------------------------------------------------
+   * CLASS UPDATES
+   * ------------------------------------------------------------
+   */
   const updatesQuery = useQuery<ClassUpdate[]>({
-    queryKey: ['updates', classIds.slice().sort().join(',')],
+    queryKey: ['updates', classIds],
+
     queryFn: async () => {
-      if (classIds.length === 0) return [];
+      if (classIds.length === 0) {
+        return [];
+      }
 
       const { data, error } = await supabase
         .from('updates')
@@ -289,52 +409,73 @@ export function useAppData({
         .order('timestamp', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
-      return (data || []).map((u: any) => ({
-        id: u.id,
-        classId: u.class_id,
-        userId: u.user_id || undefined,
-        userName: u.user_name,
-        type: u.type as any,
-        description: u.description,
-        timestamp: u.timestamp,
+      return (data || []).map((update: any) => ({
+        id: update.id,
+        classId: update.class_id,
+        userId: update.user_id || undefined,
+        userName: update.user_name,
+        type: update.type as any,
+        description: update.description,
+        timestamp: update.timestamp,
       }));
     },
+
     enabled: enabled && classIds.length > 0,
   });
 
-  const pendingRemovalsQuery = useQuery<PendingRemoval[]>({
-    queryKey: ['pendingRemovals', classIds.slice().sort().join(',')],
-    queryFn: async () => {
-      if (classIds.length === 0) return [];
+  /*
+   * ------------------------------------------------------------
+   * PENDING REMOVALS
+   * ------------------------------------------------------------
+   */
+  const pendingRemovalsQuery =
+    useQuery<PendingRemoval[]>({
+      queryKey: ['pendingRemovals', classIds],
 
-      const { data, error } = await supabase
-        .from('pending_removals')
-        .select(
-          'id, class_id, user_id, requested_by, created_at'
-        )
-        .in('class_id', classIds);
+      queryFn: async () => {
+        if (classIds.length === 0) {
+          return [];
+        }
 
-      if (error) throw error;
+        const { data, error } = await supabase
+          .from('pending_removals')
+          .select(
+            'id, class_id, user_id, requested_by, created_at'
+          )
+          .in('class_id', classIds);
 
-      return (data || []).map((pr: any) => ({
-        id: pr.id,
-        classId: pr.class_id,
-        userId: pr.user_id,
-        requestedBy: pr.requested_by,
-        createdAt: pr.created_at,
-      }));
-    },
-    enabled: enabled && classIds.length > 0,
-  });
+        if (error) {
+          throw error;
+        }
 
+        return (data || []).map((removal: any) => ({
+          id: removal.id,
+          classId: removal.class_id,
+          userId: removal.user_id,
+          requestedBy: removal.requested_by,
+          createdAt: removal.created_at,
+        }));
+      },
+
+      enabled: enabled && classIds.length > 0,
+    });
+
+  /*
+   * ------------------------------------------------------------
+   * RETURN APP DATA
+   * ------------------------------------------------------------
+   */
   return {
-    classes: classes as ClassGroup[],
+    classes,
     timetable: timetableQuery.data ?? [],
     attendanceLogs: attendanceLogsQuery.data ?? [],
     updates: updatesQuery.data ?? [],
-    pendingRemovals: pendingRemovalsQuery.data ?? [],
+    pendingRemovals:
+      pendingRemovalsQuery.data ?? [],
     memberNamesMap,
   };
 }
