@@ -114,6 +114,7 @@ export function useAppData({
   });
 
   const classIds = classesQuery.data?.classIds ?? [];
+  const classIdsKey = classIds.slice().sort().join(',');
 
   /*
    * ------------------------------------------------------------
@@ -144,8 +145,10 @@ export function useAppData({
     return Array.from(ids).sort();
   }, [classesQuery.data]);
 
+  const memberIdsKey = memberIdsToFetch.join(',');
+
   const memberProfilesQuery = useQuery<Record<string, string>>({
-    queryKey: ['memberProfiles', memberIdsToFetch],
+    queryKey: ['memberProfiles', memberIdsKey],
 
     queryFn: async () => {
       if (memberIdsToFetch.length === 0) {
@@ -282,19 +285,10 @@ export function useAppData({
       };
     });
   }, [classesQuery.data, memberNamesMap]);
-
-  /*
-   * ------------------------------------------------------------
-   * TIMETABLE
-   * ------------------------------------------------------------
-   */
   const timetableQuery = useQuery<TimetableEntry[]>({
-    queryKey: ['timetable', classIds],
-
+    queryKey: ['timetable', classIdsKey],
     queryFn: async () => {
-      if (classIds.length === 0) {
-        return [];
-      }
+      if (classIds.length === 0) return [];
 
       const { data, error } = await supabase
         .from('timetable')
@@ -303,9 +297,7 @@ export function useAppData({
         )
         .in('class_id', classIds);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       return (data || []).map((entry: any) => ({
         id: entry.id,
@@ -316,71 +308,51 @@ export function useAppData({
         endTime: entry.end_time,
         durationMinutes: entry.duration_minutes,
         venue: entry.venue,
-        originalVenue:
-          entry.original_venue || undefined,
-        venueChangedAt:
-          entry.venue_changed_at || undefined,
+        originalVenue: entry.original_venue || undefined,
+        venueChangedAt: entry.venue_changed_at || undefined,
         isCancelled: entry.is_cancelled,
-        cancelledAt:
-          entry.cancelled_at || undefined,
+        cancelledAt: entry.cancelled_at || undefined,
       }));
     },
-
     enabled: enabled && classIds.length > 0,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  /*
-   * ------------------------------------------------------------
-   * ATTENDANCE
-   * ------------------------------------------------------------
-   */
-  const attendanceLogsQuery =
-    useQuery<AttendanceLog[]>({
-      queryKey: ['attendanceLogs', userId],
-
-      queryFn: async () => {
-        if (!userId) {
-          return [];
-        }
-
-        const { data, error } = await supabase
-          .from('attendance_logs')
-          .select(
-            'id, class_id, timetable_entry_id, date, status, timestamp'
-          )
-          .eq('user_id', userId)
-          .order('date', { ascending: false })
-          .limit(500);
-
-        if (error) {
-          throw error;
-        }
-
-        return (data || []).map((log: any) => ({
-          id: log.id,
-          classId: log.class_id,
-          timetableEntryId: log.timetable_entry_id,
-          date: log.date,
-          status: log.status as any,
-          timestamp: log.timestamp,
-        }));
-      },
-
-      enabled,
-    });
-
-  /*
-   * ------------------------------------------------------------
-   * CLASS UPDATES
-   * ------------------------------------------------------------
-   */
-  const updatesQuery = useQuery<ClassUpdate[]>({
-    queryKey: ['updates', classIds],
-
+  const attendanceLogsQuery = useQuery<AttendanceLog[]>({
+    queryKey: ['attendanceLogs', userId],
     queryFn: async () => {
-      if (classIds.length === 0) {
-        return [];
-      }
+      if (!userId) return [];
+
+      const { data, error } = await supabase
+        .from('attendance_logs')
+        .select(
+          'id, class_id, timetable_entry_id, date, status, timestamp'
+        )
+        .eq('user_id', userId)
+        .order('date', { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+
+      return (data || []).map((log: any) => ({
+        id: log.id,
+        classId: log.class_id,
+        timetableEntryId: log.timetable_entry_id,
+        date: log.date,
+        status: log.status as any,
+        timestamp: log.timestamp,
+      }));
+    },
+    enabled,
+    staleTime: 0,
+    refetchOnMount: true,
+  });
+
+  const updatesQuery = useQuery<ClassUpdate[]>({
+    queryKey: ['updates', classIdsKey],
+    queryFn: async () => {
+      if (classIds.length === 0) return [];
 
       const { data, error } = await supabase
         .from('updates')
@@ -391,9 +363,7 @@ export function useAppData({
         .order('timestamp', { ascending: false })
         .limit(100);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       return (data || []).map((update: any) => ({
         id: update.id,
@@ -405,59 +375,42 @@ export function useAppData({
         timestamp: update.timestamp,
       }));
     },
-
     enabled: enabled && classIds.length > 0,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  /*
-   * ------------------------------------------------------------
-   * PENDING REMOVALS
-   * ------------------------------------------------------------
-   */
-  const pendingRemovalsQuery =
-    useQuery<PendingRemoval[]>({
-      queryKey: ['pendingRemovals', classIds],
+  const pendingRemovalsQuery = useQuery<PendingRemoval[]>({
+    queryKey: ['pendingRemovals', classIdsKey],
+    queryFn: async () => {
+      if (classIds.length === 0) return [];
 
-      queryFn: async () => {
-        if (classIds.length === 0) {
-          return [];
-        }
+      const { data, error } = await supabase
+        .from('pending_removals')
+        .select('id, class_id, user_id, requested_by, created_at')
+        .in('class_id', classIds);
 
-        const { data, error } = await supabase
-          .from('pending_removals')
-          .select(
-            'id, class_id, user_id, requested_by, created_at'
-          )
-          .in('class_id', classIds);
+      if (error) throw error;
 
-        if (error) {
-          throw error;
-        }
+      return (data || []).map((removal: any) => ({
+        id: removal.id,
+        classId: removal.class_id,
+        userId: removal.user_id,
+        requestedBy: removal.requested_by,
+        createdAt: removal.created_at,
+      }));
+    },
+    enabled: enabled && classIds.length > 0,
+    staleTime: 0,
+    refetchOnMount: true,
+  });
 
-        return (data || []).map((removal: any) => ({
-          id: removal.id,
-          classId: removal.class_id,
-          userId: removal.user_id,
-          requestedBy: removal.requested_by,
-          createdAt: removal.created_at,
-        }));
-      },
-
-      enabled: enabled && classIds.length > 0,
-    });
-
-  /*
-   * ------------------------------------------------------------
-   * RETURN APP DATA
-   * ------------------------------------------------------------
-   */
   return {
     classes,
     timetable: timetableQuery.data ?? [],
     attendanceLogs: attendanceLogsQuery.data ?? [],
     updates: updatesQuery.data ?? [],
-    pendingRemovals:
-      pendingRemovalsQuery.data ?? [],
+    pendingRemovals: pendingRemovalsQuery.data ?? [],
     memberNamesMap,
   };
 }
