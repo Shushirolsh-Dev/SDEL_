@@ -30,6 +30,13 @@ interface HomeViewProps {
     classId: string,
     description: string
   ) => Promise<boolean>;
+  onEditBroadcast?: (
+    updateId: string,
+    description: string
+  ) => Promise<boolean>;
+  onDeleteBroadcast?: (
+    updateId: string
+  ) => Promise<boolean>;
   onForceRefresh?: () => Promise<void>;
   onNavigateToNotifications?: () => void;
   onTrackAdEvent?: (
@@ -124,6 +131,8 @@ export default function HomeView({
   userRole,
   activeClassId,
   onAddBroadcast,
+  onEditBroadcast,
+  onDeleteBroadcast,
   onForceRefresh,
   onNavigateToNotifications,
   onTrackAdEvent,
