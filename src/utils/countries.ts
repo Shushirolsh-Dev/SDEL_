@@ -48,6 +48,7 @@ export const COUNTRIES: Country[] = [
   { name: 'Congo, Democratic Republic of the', code: '+243', flag: '🇨🇩', currency: 'CDF', symbol: 'FC' },
   { name: 'Congo, Republic of the', code: '+242', flag: '🇨🇬', currency: 'XAF', symbol: 'FCFA' },
   { name: 'Costa Rica', code: '+506', flag: '🇨🇷', currency: 'CRC', symbol: '₡' },
+  { name: "Côte d'Ivoire", code: '+225', flag: '🇨🇮', currency: 'XOF', symbol: 'CFA' },
   { name: 'Croatia', code: '+385', flag: '🇭🇷', currency: 'EUR', symbol: '€' },
   { name: 'Cuba', code: '+53', flag: '🇨🇺', currency: 'CUP', symbol: '$' },
   { name: 'Cyprus', code: '+357', flag: '🇨🇾', currency: 'EUR', symbol: '€' },
@@ -206,10 +207,18 @@ export const COUNTRIES: Country[] = [
 
 export function getCountryFromPhone(phone?: string): Country {
   if (!phone) {
-    return { name: 'United States', code: '+1', flag: '🇺🇸', currency: 'USD', symbol: '$' };
+    return {
+      name: 'United States',
+      code: '+1',
+      flag: '🇺🇸',
+      currency: 'USD',
+      symbol: '$'
+    };
   }
+
   const cleanPhone = phone.trim();
   let bestMatch: Country | null = null;
+
   for (const country of COUNTRIES) {
     if (cleanPhone.startsWith(country.code)) {
       if (!bestMatch || country.code.length > bestMatch.code.length) {
@@ -217,6 +226,12 @@ export function getCountryFromPhone(phone?: string): Country {
       }
     }
   }
-  return bestMatch || { name: 'United States', code: '+1', flag: '🇺🇸', currency: 'USD', symbol: '$' };
-}
 
+  return bestMatch || {
+    name: 'United States',
+    code: '+1',
+    flag: '🇺🇸',
+    currency: 'USD',
+    symbol: '$'
+  };
+}
