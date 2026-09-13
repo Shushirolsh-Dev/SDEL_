@@ -24,13 +24,6 @@ export function useAppData({
    * ------------------------------------------------------------
    * CLASSES + MEMBERS
    * ------------------------------------------------------------
-   *
-   * One source of truth for:
-   * - classes the user owns
-   * - classes the user belongs to
-   * - approved members
-   * - assistants
-   * - pending join requests
    */
   const classesQuery = useQuery({
     queryKey: ['classes', userId],
@@ -44,7 +37,6 @@ export function useAppData({
         };
       }
 
-      // Classes the current user belongs to.
       const { data: myMemberships, error: membershipError } =
         await supabase
           .from('class_members')
@@ -55,7 +47,6 @@ export function useAppData({
         throw membershipError;
       }
 
-      // Classes owned by the current user.
       const { data: ownedClasses, error: ownedClassesError } =
         await supabase
           .from('classes')
@@ -86,7 +77,6 @@ export function useAppData({
         };
       }
 
-      // Get the actual class records.
       const { data: classRows, error: classError } =
         await supabase
           .from('classes')
@@ -99,8 +89,6 @@ export function useAppData({
         throw classError;
       }
 
-      // Get every membership row for these classes.
-      // This includes approved members and pending requests.
       const { data: membershipRows, error: membersError } =
         await supabase
           .from('class_members')
@@ -121,11 +109,7 @@ export function useAppData({
     },
 
     enabled,
-
-    // Always consider the data stale so the app can
-    // refetch the current database state.
     staleTime: 0,
-
     refetchOnMount: true,
   });
 
@@ -187,9 +171,7 @@ export function useAppData({
     },
 
     enabled: enabled && memberIdsToFetch.length > 0,
-
     staleTime: 0,
-
     refetchOnMount: true,
   });
 
@@ -213,6 +195,40 @@ export function useAppData({
       const rows = membershipRows.filter(
         (membership: any) =>
           membership.class_id === classRow.id
+      );
+
+      /*
+       * --------------------------------------------------------
+       * DEBUG: SHOW THE ACTUAL DATABASE MEMBERSHIP ROWS
+       * --------------------------------------------------------
+       */
+      alert(
+        `CLASS: ${classRow.name}\n` +
+        `Class ID: ${classRow.id}\n` +
+        `Raw rows for this class: ${rows.length}\n\n` +
+        (
+          rows.length > 0
+            ? rows
+                .map(
+                  (r: any) =>
+                    `user=${r.user_id}\nrole=${r.role}\nstatus=${r.status}`
+                )
+                .join('\n\n')
+            : 'NO MEMBERSHIP ROWS FOUND'
+        ) +
+        `\n\nApproved members: ${
+          rows.filter(
+            (r: any) =>
+              r.role === 'member' &&
+              r.status === 'approved'
+          ).length
+        }` +
+        `\nPending members: ${
+          rows.filter(
+            (r: any) =>
+              r.status === 'pending'
+          ).length
+        }`
       );
 
       const ownerName =
