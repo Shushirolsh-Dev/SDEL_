@@ -73,6 +73,18 @@ export function useAppData({
 
       if (allMemErr) throw allMemErr;
 
+      alert(
+        'CLASS DATA\n' +
+          'userId: ' +
+          userId +
+          '\n' +
+          'classIds: ' +
+          JSON.stringify(classIds) +
+          '\n' +
+          'memberships: ' +
+          JSON.stringify(membershipRows)
+      );
+
       return {
         classIds,
         membershipRows: membershipRows || [],
@@ -87,13 +99,17 @@ export function useAppData({
   const memberIdsToFetch = useMemo(() => {
     const data = membershipQuery.data;
     if (!data) return [];
+
     const set = new Set<string>();
+
     for (const m of data.membershipRows) {
       set.add(m.user_id);
     }
+
     for (const c of data.classRows) {
       if (c.owner_id) set.add(c.owner_id);
     }
+
     return Array.from(set);
   }, [membershipQuery.data]);
 
@@ -104,15 +120,20 @@ export function useAppData({
     ],
     queryFn: async () => {
       if (memberIdsToFetch.length === 0) return {};
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, name')
         .in('id', memberIdsToFetch);
+
       if (error) throw error;
+
       const map: Record<string, string> = {};
+
       for (const p of data || []) {
         map[p.id] = p.name;
       }
+
       return map;
     },
     enabled: enabled && memberIdsToFetch.length > 0,
@@ -122,19 +143,10 @@ export function useAppData({
 
   const classes = useMemo<any[]>(() => {
     const data = membershipQuery.data;
+
     if (!data) return [];
 
     const { membershipRows, classRows } = data;
-
-    // ─── DEBUG ALERT ───
-    alert(
-      'DEBUG rows=' +
-        membershipRows.length +
-        ' classes=' +
-        classRows.length +
-        ' names=' +
-        Object.keys(memberNamesMap).length
-    );
 
     return classRows.map((cls: any) => {
       const rows = membershipRows.filter(
@@ -148,9 +160,12 @@ export function useAppData({
         (m: any) =>
           m.role === 'assistant' && m.status === 'approved'
       );
+
       const approvedMembers = rows.filter(
-        (m: any) => m.role === 'member' && m.status === 'approved'
+        (m: any) =>
+          m.role === 'member' && m.status === 'approved'
       );
+
       const pendingRows = rows.filter(
         (m: any) => m.status === 'pending'
       );
@@ -158,7 +173,11 @@ export function useAppData({
       const assistantIds = approvedAssistants.map(
         (m: any) => m.user_id
       );
-      const memberIds = approvedMembers.map((m: any) => m.user_id);
+
+      const memberIds = approvedMembers.map(
+        (m: any) => m.user_id
+      );
+
       const pendingMemberIds = pendingRows.map(
         (m: any) => m.user_id
       );
@@ -170,18 +189,21 @@ export function useAppData({
           role: 'representative',
           status: 'approved',
         },
+
         ...approvedAssistants.map((m: any) => ({
           id: m.user_id,
           name: memberNamesMap[m.user_id] || 'Assistant',
           role: 'assistant',
           status: 'approved',
         })),
+
         ...approvedMembers.map((m: any) => ({
           id: m.user_id,
           name: memberNamesMap[m.user_id] || 'Member',
           role: 'member',
           status: 'approved',
         })),
+
         ...pendingRows.map((m: any) => ({
           id: m.user_id,
           name: memberNamesMap[m.user_id] || 'Pending',
@@ -209,13 +231,16 @@ export function useAppData({
     queryKey: ['timetable', classIds.slice().sort().join(',')],
     queryFn: async () => {
       if (classIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from('timetable')
         .select(
           'id, class_id, subject, day_of_week, start_time, end_time, duration_minutes, venue, original_venue, venue_changed_at, is_cancelled, cancelled_at'
         )
         .in('class_id', classIds);
+
       if (error) throw error;
+
       return (data || []).map((e: any) => ({
         id: e.id,
         classId: e.class_id,
@@ -238,6 +263,7 @@ export function useAppData({
     queryKey: ['attendanceLogs', userId],
     queryFn: async () => {
       if (!userId) return [];
+
       const { data, error } = await supabase
         .from('attendance_logs')
         .select(
@@ -246,7 +272,9 @@ export function useAppData({
         .eq('user_id', userId)
         .order('date', { ascending: false })
         .limit(500);
+
       if (error) throw error;
+
       return (data || []).map((l: any) => ({
         id: l.id,
         classId: l.class_id,
@@ -263,6 +291,7 @@ export function useAppData({
     queryKey: ['updates', classIds.slice().sort().join(',')],
     queryFn: async () => {
       if (classIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from('updates')
         .select(
@@ -271,6 +300,7 @@ export function useAppData({
         .in('class_id', classIds)
         .order('timestamp', { ascending: false })
         .limit(100);
+
       if (error) throw error;
 
       return (data || []).map((u: any) => ({
@@ -290,11 +320,16 @@ export function useAppData({
     queryKey: ['pendingRemovals', classIds.slice().sort().join(',')],
     queryFn: async () => {
       if (classIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from('pending_removals')
-        .select('id, class_id, user_id, requested_by, created_at')
+        .select(
+          'id, class_id, user_id, requested_by, created_at'
+        )
         .in('class_id', classIds);
+
       if (error) throw error;
+
       return (data || []).map((pr: any) => ({
         id: pr.id,
         classId: pr.class_id,
