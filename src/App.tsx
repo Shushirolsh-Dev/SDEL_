@@ -30,6 +30,7 @@ import {
 
 export default function App() {
   const queryClient = useQueryClient();
+
   const {
     theme,
     currentView,
@@ -43,6 +44,7 @@ export default function App() {
 
   const handleChangeLocale = (next: string) => {
     setLocale(next);
+
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem('thesdel_locale', next);
     }
@@ -61,7 +63,9 @@ export default function App() {
     return saved ? saved : '10:45';
   });
 
-  const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
+  const [pendingSyncCount, setPendingSyncCount] =
+    useState<number>(0);
+
   const [toast, setToast] = useState<{
     message: string;
     type: 'success' | 'error' | 'info';
@@ -105,72 +109,120 @@ export default function App() {
           role: profile.role as Role,
           phone: profile.phone,
           plan: profile.plan as any,
-          whatsappNumber: profile.whatsapp_number || undefined,
-          isReminderNumberLocked: profile.is_reminder_number_locked,
+          whatsappNumber:
+            profile.whatsapp_number || undefined,
+          isReminderNumberLocked:
+            profile.is_reminder_number_locked,
         };
+
         setUser(u);
         setCached(CACHE_KEYS.USER, u);
       }
     } catch (e) {
-      console.warn('Failed to refresh user profile:', e);
+      console.warn(
+        'Failed to refresh user profile:',
+        e
+      );
     }
   };
 
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
+        const { data, error } =
+          await supabase.auth.getSession();
+
         if (!error && data.session?.user) {
           setIsLoggedIn(true);
           setCached(CACHE_KEYS.LOGGED_IN, true);
-          await fetchActiveProfile(data.session.user.id);
+
+          await fetchActiveProfile(
+            data.session.user.id
+          );
         } else {
           const cachedLoggedIn = getCached(
             CACHE_KEYS.LOGGED_IN,
             false
           );
+
           if (cachedLoggedIn) {
             setIsLoggedIn(true);
-            const cachedUser = getCached<User | null>(
-              CACHE_KEYS.USER,
-              null
-            );
+
+            const cachedUser =
+              getCached<User | null>(
+                CACHE_KEYS.USER,
+                null
+              );
+
             if (cachedUser) setUser(cachedUser);
           }
         }
       } catch (err) {
-        console.warn('Exception checking session:', err);
+        console.warn(
+          'Exception checking session:',
+          err
+        );
       }
     };
+
     checkSession();
   }, [isLoggedIn]);
 
   useEffect(() => {
-    setPendingSyncCount(getOfflineQueue().length);
+    setPendingSyncCount(
+      getOfflineQueue().length
+    );
+
     const handleOnline = async () => {
       try {
-        await processOfflineQueue((count) => setPendingSyncCount(count));
-        const session = await supabase.auth.getSession();
+        await processOfflineQueue((count) =>
+          setPendingSyncCount(count)
+        );
+
+        const session =
+          await supabase.auth.getSession();
+
         if (session.data.session?.user) {
-          await fetchActiveProfile(session.data.session.user.id);
+          await fetchActiveProfile(
+            session.data.session.user.id
+          );
+
           queryClient.invalidateQueries();
         }
       } catch (err) {
-        console.warn('Error on online sync:', err);
+        console.warn(
+          'Error on online sync:',
+          err
+        );
       }
     };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
+
+    window.addEventListener(
+      'online',
+      handleOnline
+    );
+
+    return () =>
+      window.removeEventListener(
+        'online',
+        handleOnline
+      );
   }, [queryClient]);
 
   useEffect(() => {
     if (activeClassId) {
-      localStorage.setItem('thesdel_active_class_id', activeClassId);
+      localStorage.setItem(
+        'thesdel_active_class_id',
+        activeClassId
+      );
     }
   }, [activeClassId]);
 
   useEffect(() => {
-    localStorage.setItem('thesdel_simulated_time', simulatedTime);
+    localStorage.setItem(
+      'thesdel_simulated_time',
+      simulatedTime
+    );
   }, [simulatedTime]);
 
   useEffect(() => {
@@ -178,76 +230,149 @@ export default function App() {
       const isDark =
         theme === 'dark' ||
         (theme === 'system' &&
-          window.matchMedia('(prefers-color-scheme: dark)').matches);
+          window.matchMedia(
+            '(prefers-color-scheme: dark)'
+          ).matches);
+
       if (isDark) {
-        document.documentElement.classList.add('dark');
+        document.documentElement.classList.add(
+          'dark'
+        );
       } else {
-        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.remove(
+          'dark'
+        );
       }
     };
+
     applyTheme();
 
     if (theme === 'system') {
-      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      const mq = window.matchMedia(
+        '(prefers-color-scheme: dark)'
+      );
+
       const listener = () => applyTheme();
-      mq.addEventListener('change', listener);
-      return () => mq.removeEventListener('change', listener);
+
+      mq.addEventListener(
+        'change',
+        listener
+      );
+
+      return () =>
+        mq.removeEventListener(
+          'change',
+          listener
+        );
     }
   }, [theme]);
 
-  const handleLoginSuccess = async (loggedInUser: User) => {
+  const handleLoginSuccess = async (
+    loggedInUser: User
+  ) => {
     setUser(loggedInUser);
     setIsLoggedIn(true);
-    setCached(CACHE_KEYS.LOGGED_IN, true);
-    setCached(CACHE_KEYS.USER, loggedInUser);
-    await fetchActiveProfile(loggedInUser.id);
+
+    setCached(
+      CACHE_KEYS.LOGGED_IN,
+      true
+    );
+
+    setCached(
+      CACHE_KEYS.USER,
+      loggedInUser
+    );
+
+    await fetchActiveProfile(
+      loggedInUser.id
+    );
+
     queryClient.invalidateQueries();
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut().catch(console.error);
+    await supabase.auth
+      .signOut()
+      .catch(console.error);
+
     setIsLoggedIn(false);
+
     localStorage.clear();
     sessionStorage.clear();
-    window.location.href = window.location.origin + '/';
+
+    window.location.href =
+      window.location.origin + '/';
   };
 
   const getActiveUserRoleInClass = (): Role => {
     if (!user) return 'member';
-    if (user.role === 'admin' || user.role === 'investor')
+
+    if (
+      user.role === 'admin' ||
+      user.role === 'investor'
+    ) {
       return user.role;
-    const activeClass = classes.find((c) => c.id === activeClassId);
+    }
+
+    const activeClass = classes.find(
+      (c) => c.id === activeClassId
+    );
+
     if (!activeClass) return 'member';
-    if (activeClass.ownerId === user.id) return 'representative';
-    if (activeClass.assistantIds.includes(user.id))
+
+    if (activeClass.ownerId === user.id)
+      return 'representative';
+
+    if (
+      activeClass.assistantIds.includes(
+        user.id
+      )
+    ) {
       return 'assistant';
+    }
+
     return 'member';
   };
 
-  const currentUserRole = getActiveUserRoleInClass();
+  const currentUserRole =
+    getActiveUserRoleInClass();
 
-  const userJoinedClasses = classes.filter(
-    (c) =>
-      !user ||
-      user.role === 'admin' ||
-      user.role === 'investor' ||
-      c.ownerId === user.id ||
-      c.assistantIds.includes(user.id) ||
-      c.memberIds.includes(user.id) ||
-      (c.pendingMemberIds || []).includes(user.id)
-  );
+  const userJoinedClasses =
+    classes.filter(
+      (c) =>
+        !user ||
+        user.role === 'admin' ||
+        user.role === 'investor' ||
+        c.ownerId === user.id ||
+        c.assistantIds.includes(user.id) ||
+        c.memberIds.includes(user.id) ||
+        (c.pendingMemberIds || []).includes(
+          user.id
+        )
+    );
 
   useEffect(() => {
     if (
       userJoinedClasses.length > 0 &&
-      !userJoinedClasses.some((c) => c.id === activeClassId)
+      !userJoinedClasses.some(
+        (c) => c.id === activeClassId
+      )
     ) {
-      setActiveClassId(userJoinedClasses[0].id);
+      setActiveClassId(
+        userJoinedClasses[0].id
+      );
     }
-  }, [classes, userJoinedClasses, activeClassId, setActiveClassId]);
+  }, [
+    classes,
+    userJoinedClasses,
+    activeClassId,
+    setActiveClassId,
+  ]);
 
   const {
     handleClassRepBroadcast,
+    handleEditBroadcast,
+    handleDeleteBroadcast,
     handleCreateClass,
     handleJoinClass,
     handleApproveJoinRequest,
@@ -280,7 +405,9 @@ export default function App() {
   });
 
   // ─── Build a Set of my class IDs for fast lookup in filters ───
-  const myClassIds = new Set(userJoinedClasses.map((c) => c.id));
+  const myClassIds = new Set(
+    userJoinedClasses.map((c) => c.id)
+  );
 
   const renderViewContent = () => {
     if (!user) return null;
@@ -305,17 +432,32 @@ export default function App() {
                 u.classId === 'region_south' ||
                 u.classId === 'country_all'
             )}
-            onMarkAttendance={handleMarkAttendance}
+            onMarkAttendance={
+              handleMarkAttendance
+            }
             userRole={currentUserRole}
             activeClassId={activeClassId}
-            onAddBroadcast={handleClassRepBroadcast}
-            onNavigateToNotifications={() => setView('notifications')}
+            onAddBroadcast={
+              handleClassRepBroadcast
+            }
+            onEditBroadcast={
+              handleEditBroadcast
+            }
+            onDeleteBroadcast={
+              handleDeleteBroadcast
+            }
+            onNavigateToNotifications={() =>
+              setView('notifications')
+            }
             onForceRefresh={async () => {
               await queryClient.invalidateQueries();
             }}
-            onTrackAdEvent={handleTrackAdEvent}
+            onTrackAdEvent={
+              handleTrackAdEvent
+            }
           />
         );
+
       case 'timetable':
         return (
           <TimetableView
@@ -323,71 +465,128 @@ export default function App() {
             joinedClasses={userJoinedClasses}
             activeClassId={activeClassId}
             strings={strings.timetable}
-            onAddEntry={handleAddTimetableEntry}
-            onEditEntry={handleEditTimetableEntry}
-            onDeleteEntry={handleDeleteTimetableEntry}
-            currentUserRole={currentUserRole}
+            onAddEntry={
+              handleAddTimetableEntry
+            }
+            onEditEntry={
+              handleEditTimetableEntry
+            }
+            onDeleteEntry={
+              handleDeleteTimetableEntry
+            }
+            currentUserRole={
+              currentUserRole
+            }
           />
         );
+
       case 'attendance':
         return (
           <AttendanceView
             timetable={timetable}
             attendanceLogs={attendanceLogs}
             joinedClasses={userJoinedClasses}
-            currentSimulatedTime={simulatedTime}
+            currentSimulatedTime={
+              simulatedTime
+            }
             strings={strings.attendance}
           />
         );
+
       case 'class':
         return (
           <ClassView
             classes={userJoinedClasses}
             activeClassId={activeClassId}
             strings={strings.class}
-            onSelectClass={setActiveClassId}
+            onSelectClass={
+              setActiveClassId
+            }
             onJoinClass={handleJoinClass}
-            onCreateClass={handleCreateClass}
-            onPromoteToAssistant={handlePromoteToAssistant}
-            onDemoteToMember={handleDemoteToMember}
-            onDeleteClass={handleDeleteClass}
-            onLeaveClass={handleLeaveClass}
-            onTransferOwnership={handleTransferOwnership}
+            onCreateClass={
+              handleCreateClass
+            }
+            onPromoteToAssistant={
+              handlePromoteToAssistant
+            }
+            onDemoteToMember={
+              handleDemoteToMember
+            }
+            onDeleteClass={
+              handleDeleteClass
+            }
+            onLeaveClass={
+              handleLeaveClass
+            }
+            onTransferOwnership={
+              handleTransferOwnership
+            }
             currentUser={user}
-            currentUserRole={currentUserRole}
-            pendingRemovals={pendingRemovals}
-            onRequestMemberRemoval={handleRequestMemberRemoval}
-            onRemoveMemberInstantly={handleRemoveMemberInstantly}
-            onApproveMemberRemoval={handleApproveMemberRemoval}
-            onRejectMemberRemoval={handleRejectMemberRemoval}
-            onUpdateClassCode={handleUpdateClassCode}
-            memberNamesMap={memberNamesMap}
-            onApproveJoinRequest={handleApproveJoinRequest}
-            onRejectJoinRequest={handleRejectJoinRequest}
+            currentUserRole={
+              currentUserRole
+            }
+            pendingRemovals={
+              pendingRemovals
+            }
+            onRequestMemberRemoval={
+              handleRequestMemberRemoval
+            }
+            onRemoveMemberInstantly={
+              handleRemoveMemberInstantly
+            }
+            onApproveMemberRemoval={
+              handleApproveMemberRemoval
+            }
+            onRejectMemberRemoval={
+              handleRejectMemberRemoval
+            }
+            onUpdateClassCode={
+              handleUpdateClassCode
+            }
+            memberNamesMap={
+              memberNamesMap
+            }
+            onApproveJoinRequest={
+              handleApproveJoinRequest
+            }
+            onRejectJoinRequest={
+              handleRejectJoinRequest
+            }
           />
         );
+
       case 'profile':
         return (
           <ProfileView
             currentUser={user}
-            joinedClasses={userJoinedClasses}
+            joinedClasses={
+              userJoinedClasses
+            }
             strings={strings.profile}
             onLogout={handleLogout}
-            onOpenSettings={() => setView('settings')}
+            onOpenSettings={() =>
+              setView('settings')
+            }
           />
         );
+
       case 'settings':
         return (
           <SettingsView
             currentUser={user}
             classes={classes}
             strings={strings.settings}
-            onBack={() => setView('profile')}
+            onBack={() =>
+              setView('profile')
+            }
             locale={locale}
-            onChangeLocale={handleChangeLocale}
+            onChangeLocale={
+              handleChangeLocale
+            }
             onToast={showToast}
           />
         );
+
       case 'notifications':
         return (
           <NotificationsView
@@ -401,31 +600,50 @@ export default function App() {
                 u.classId === 'region_south' ||
                 u.classId === 'country_all'
             )}
-            strings={strings.notifications}
+            strings={
+              strings.notifications
+            }
             onForceRefresh={async () => {
-              await queryClient.invalidateQueries({
-                queryKey: ['updates'],
-              });
+              await queryClient.invalidateQueries(
+                {
+                  queryKey: ['updates'],
+                }
+              );
             }}
-            onClose={() => setView('home')}
-            userRole={currentUserRole}
-            activeClassId={activeClassId}
-            onAddBroadcast={handleClassRepBroadcast}
+            onClose={() =>
+              setView('home')
+            }
+            userRole={
+              currentUserRole
+            }
+            activeClassId={
+              activeClassId
+            }
+            onAddBroadcast={
+              handleClassRepBroadcast
+            }
           />
         );
+
       default:
         return null;
     }
   };
 
   const isInsideAdmin =
-    window.location.pathname.startsWith('/admin') ||
-    window.location.hash.startsWith('#/admin');
+    window.location.pathname.startsWith(
+      '/admin'
+    ) ||
+    window.location.hash.startsWith(
+      '#/admin'
+    );
 
   if (!isLoggedIn || !user) {
     return (
       <LandingView
-        onLoginSuccess={handleLoginSuccess}
+        onLoginSuccess={
+          handleLoginSuccess
+        }
         classesCount={classes.length}
         locale={locale}
       />
@@ -441,7 +659,9 @@ export default function App() {
         <AppToast
           message={toast.message}
           type={toast.type}
-          onClose={() => setToast(null)}
+          onClose={() =>
+            setToast(null)
+          }
         />
       )}
 
@@ -451,10 +671,16 @@ export default function App() {
         <>
           <AppHeader
             user={user}
-            currentUserRole={currentUserRole}
-            pendingSyncCount={pendingSyncCount}
+            currentUserRole={
+              currentUserRole
+            }
+            pendingSyncCount={
+              pendingSyncCount
+            }
             strings={strings.header}
-            onGoHome={() => setView('home')}
+            onGoHome={() =>
+              setView('home')
+            }
           />
 
           <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 pb-24 md:pb-28">
