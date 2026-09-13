@@ -128,7 +128,7 @@ const ClassMembersCard: React.FC<ClassMembersCardProps> = ({
           </div>
 
           <span className="text-xs font-black text-zinc-400">
-            {members.length}
+            {members.filter((member) => member.status === 'approved').length}
           </span>
         </div>
       </div>
