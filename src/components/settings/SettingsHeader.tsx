@@ -16,16 +16,16 @@ const SettingsHeader: React.FC<SettingsHeaderProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="mb-6 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400 transition-colors hover:text-zinc-950 dark:hover:text-white"
+          className="mb-6 inline-flex min-w-0 items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400 transition-colors hover:text-zinc-950 dark:hover:text-white"
         >
-          <span className="text-base">←</span>
-          {strings.backButton}
+          <span className="shrink-0 text-base">←</span>
+          <span className="truncate">{strings.backButton}</span>
         </button>
       )}
 
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
+      <div className="flex min-w-0 items-end justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="mb-1 truncate text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">
             {strings.eyebrow}
           </p>
 
