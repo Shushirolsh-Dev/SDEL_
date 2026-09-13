@@ -226,7 +226,6 @@ export default function App() {
 
   const currentUserRole = getActiveUserRoleInClass();
 
-  // ─── CHANGED: now includes classes where user is a PENDING member ───
   const userJoinedClasses = classes.filter(
     (c) =>
       !user ||
@@ -280,6 +279,9 @@ export default function App() {
     setActiveClassId,
   });
 
+  // ─── Build a Set of my class IDs for fast lookup in filters ───
+  const myClassIds = new Set(userJoinedClasses.map((c) => c.id));
+
   const renderViewContent = () => {
     if (!user) return null;
 
@@ -296,6 +298,7 @@ export default function App() {
             updates={updates.filter(
               (u) =>
                 u.classId === activeClassId ||
+                myClassIds.has(u.classId) ||
                 u.classId === 'global' ||
                 u.classId === 'class_reps' ||
                 u.classId === 'region_north' ||
@@ -391,6 +394,7 @@ export default function App() {
             updates={updates.filter(
               (u) =>
                 u.classId === activeClassId ||
+                myClassIds.has(u.classId) ||
                 u.classId === 'global' ||
                 u.classId === 'class_reps' ||
                 u.classId === 'region_north' ||
