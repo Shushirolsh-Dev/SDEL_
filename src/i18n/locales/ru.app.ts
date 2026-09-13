@@ -557,6 +557,8 @@ const RU: AppStrings = {
       sectionTitle: 'Тема',
       systemTitle: 'Системная',
       systemSubtitle: 'Как на устройстве',
+      lightTitle: 'Светлая',
+      lightSubtitle: 'Всегда светлая тема',
       darkTitle: 'Тёмная',
       darkSubtitle: 'Всегда тёмная тема',
     },
@@ -573,6 +575,10 @@ const RU: AppStrings = {
         'Определите, могут ли студенты присоединяться сразу или требуют одобрения.',
       applyAllTitle: 'Применить ко всем классам',
       applyAllSubtitle: 'Изменить все ваши классы сразу.',
+      applyAllPublicSubtitle:
+        'Любой с кодом может присоединиться сразу',
+      applyAllPrivateSubtitle:
+        'Новые участники требуют одобрения',
       publicButton: 'Публичный',
       privateButton: 'Приватный',
       yourClassesLabel: 'Ваши классы',
@@ -584,6 +590,10 @@ const RU: AppStrings = {
       updatingButton: 'Обновление',
       makePrivateButton: 'Сделать приватным',
       makePublicButton: 'Сделать публичным',
+      classPublicSubtitle:
+        'Любой с кодом может присоединиться сразу',
+      classPrivateSubtitle:
+        'Новые участники требуют одобрения',
       alertGlobalEmpty:
         'У вас нет классов, чтобы применить глобальные настройки.',
       alertGlobalConfirm: (visibility) =>
