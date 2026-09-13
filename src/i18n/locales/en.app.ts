@@ -539,6 +539,8 @@ const EN: AppStrings = {
       sectionTitle: 'Theme',
       systemTitle: 'System',
       systemSubtitle: 'Follow your device',
+      lightTitle: 'Light',
+      lightSubtitle: 'Always use light mode',
       darkTitle: 'Dark',
       darkSubtitle: 'Always use dark mode',
     },
@@ -555,6 +557,9 @@ const EN: AppStrings = {
         'Control whether students can join your classes immediately or require approval.',
       applyAllTitle: 'Apply to all classes',
       applyAllSubtitle: 'Change every class you own at once.',
+      applyAllPublicSubtitle: 'Anyone with the code can join instantly',
+      applyAllPrivateSubtitle:
+        'New members must be approved before joining',
       publicButton: 'Public',
       privateButton: 'Private',
       yourClassesLabel: 'Your classes',
@@ -563,9 +568,12 @@ const EN: AppStrings = {
       emptyTitle: 'No classes owned yet.',
       emptySubtitle: 'Classes you create will appear here.',
       joinCodeLabel: 'Join code ·',
-            updatingButton: 'Updating',
+      updatingButton: 'Updating',
       makePrivateButton: 'Make private',
       makePublicButton: 'Make public',
+      classPublicSubtitle: 'Anyone with the code can join instantly',
+      classPrivateSubtitle:
+        'New members must be approved before joining',
       alertGlobalEmpty:
         'You do not own any classes to apply global visibility settings.',
       alertGlobalConfirm: (visibility) =>
