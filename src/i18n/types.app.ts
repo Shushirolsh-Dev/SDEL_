@@ -186,6 +186,7 @@ export interface HomeUpdatesStrings {
   delete: string;
   deleteBroadcastTitle: string;
   deleteBroadcastMessage: string;
+  dateLocale: string;
 }
 
 export interface HomeRepStrings {
