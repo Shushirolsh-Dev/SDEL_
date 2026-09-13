@@ -49,7 +49,23 @@ export function useAppHandlers({
     classId: string,
     description: string
   ): Promise<boolean> => {
-    if (!user) return false;
+    if (!user) {
+      showToast(
+        'You must be signed in to send a broadcast.',
+        'error'
+      );
+      return false;
+    }
+
+    const cleanDescription = description.trim();
+
+    if (!classId || !cleanDescription) {
+      showToast(
+        'A class and message are required.',
+        'error'
+      );
+      return false;
+    }
 
     try {
       const newUpdate = {
@@ -58,26 +74,67 @@ export function useAppHandlers({
         user_id: user.id,
         user_name: `${user.name} (${strings.broadcast.classRepMarker})`,
         type: 'broadcast',
-        description,
+        description: cleanDescription,
         timestamp: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('updates')
-        .insert([newUpdate]);
+      console.log(
+        '[Broadcast] Sending update:',
+        newUpdate
+      );
 
-      if (error) throw error;
+      const { data, error } = await supabase
+        .from('updates')
+        .insert(newUpdate)
+        .select(
+          'id, class_id, user_id, user_name, type, description, timestamp'
+        )
+        .single();
+
+      if (error) {
+        console.error(
+          '[Broadcast Insert Error]',
+          error
+        );
+
+        showToast(
+          `Broadcast failed: ${error.message}`,
+          'error'
+        );
+
+        return false;
+      }
+
+      console.log(
+        '[Broadcast] Successfully inserted:',
+        data
+      );
 
       await queryClient.invalidateQueries({
         queryKey: ['updates'],
       });
 
+      showToast(
+        'Broadcast sent successfully.',
+        'success'
+      );
+
       return true;
     } catch (err) {
       console.error(
-        '[App] Failed to post class rep broadcast:',
+        '[Broadcast Unexpected Error]',
         err
       );
+
+      showToast(
+        `Broadcast failed: ${
+          err instanceof Error
+            ? err.message
+            : 'Unknown error'
+        }`,
+        'error'
+      );
+
       return false;
     }
   };
@@ -438,7 +495,8 @@ export function useAppHandlers({
 
     showToast(strings.toast.removalRequestSent, 'info');
   };
-const handleRemoveMemberInstantly = async (
+
+  const handleRemoveMemberInstantly = async (
     classId: string,
     memberId: string
   ) => {
@@ -631,7 +689,6 @@ const handleRemoveMemberInstantly = async (
 
     showToast(strings.toast.timetableAdded, 'success');
   };
-
   const handleEditTimetableEntry = async (
     id: string,
     updatedFields: Partial<TimetableEntry>
@@ -867,7 +924,9 @@ const handleRemoveMemberInstantly = async (
       return;
     }
 
-    const activeClass = classes.find((c) => c.id === classId);
+    const activeClass = classes.find(
+      (c) => c.id === classId
+    );
 
     if (activeClass && activeClass.ownerId === user.id) {
       if (activeClass.assistantIds.length === 0) {
