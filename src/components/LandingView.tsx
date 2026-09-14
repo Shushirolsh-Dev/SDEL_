@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Download } from 'lucide-react';
 import { User } from '../types';
 
 import {
@@ -6,6 +7,7 @@ import {
   useOnceTypewriter,
 } from '../hooks/useTypewriter';
 
+import { usePWAInstall } from '../hooks/usePWAInstall';
 import { getLandingStrings } from '../i18n/strings';
 
 import LandingHeader from './LandingHeader';
@@ -46,6 +48,8 @@ export default function LandingView({
 
   const strings = getLandingStrings(locale);
 
+  const { canInstall, install } = usePWAInstall();
+
   const currentText = useCyclingTypewriter(
     strings.hero.replacesWords
   );
@@ -82,6 +86,20 @@ export default function LandingView({
           }
         }}
       />
+
+      {activeScreen === 'landing' && canInstall && (
+        <div className="flex justify-center py-3">
+          <button
+            type="button"
+            onClick={install}
+            aria-label={strings.installApp}
+            className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 font-mono text-xs font-bold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white"
+          >
+            <span>{strings.installApp}</span>
+            <Download className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       <main className="flex w-full flex-1 flex-col">
         {activeScreen === 'landing' && (
