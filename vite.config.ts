@@ -11,7 +11,7 @@ export default defineConfig({
 
     VitePWA({
       registerType: 'autoUpdate',
-      minify: false,
+      strategies: 'injectManifest',
 
       manifest: {
         name: 'Thesdel',
