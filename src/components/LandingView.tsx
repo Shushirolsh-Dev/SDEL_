@@ -88,15 +88,15 @@ export default function LandingView({
       />
 
       {activeScreen === 'landing' && canInstall && (
-        <div className="flex justify-center py-3">
+        <div className="flex w-full justify-center px-5 py-6 sm:px-8">
           <button
             type="button"
             onClick={install}
             aria-label={strings.installApp}
-            className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3.5 py-2 font-mono text-xs font-bold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white"
+            className="group inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-950 px-7 py-4 font-mono text-xs font-bold uppercase tracking-[0.14em] text-white transition-all hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 sm:w-auto"
           >
-            <span>{strings.installApp}</span>
-            <Download className="h-4 w-4" />
+            {strings.installApp}
+            <Download className="h-4 w-4 transition-transform group-hover:translate-y-0.5" />
           </button>
         </div>
       )}
