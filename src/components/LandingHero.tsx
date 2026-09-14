@@ -1,7 +1,6 @@
 import React from 'react';
-import { ArrowRight, Download } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import type { LandingHeroStrings } from '../i18n/types.landing';
-import { usePWAInstall } from '../hooks/usePWAInstall';
 
 interface LandingHeroProps {
   currentText: string;
@@ -16,8 +15,6 @@ const LandingHero: React.FC<LandingHeroProps> = ({
   onGoSignup,
   onGoLogin,
 }) => {
-  const { canInstall, install } = usePWAInstall();
-
   return (
     <div className="mx-auto max-w-3xl text-center">
       {/* Ticker */}
@@ -65,19 +62,6 @@ const LandingHero: React.FC<LandingHeroProps> = ({
           {strings.ctaSecondary}
         </button>
       </div>
-
-      {/* Install App */}
-      {canInstall && (
-        <div className="mt-6 flex justify-center">
-          <button
-            onClick={install}
-            className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-5 py-3 font-mono text-xs font-bold text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-white"
-          >
-            <Download className="h-4 w-4" />
-            {strings.installApp}
-          </button>
-        </div>
-      )}
     </div>
   );
 };
