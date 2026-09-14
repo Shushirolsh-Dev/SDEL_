@@ -52,6 +52,7 @@ const LandingHeader: React.FC<LandingHeaderProps> = ({
               >
                 {strings.signIn}
               </button>
+
               <button
                 onClick={onGoSignup}
                 className="rounded-lg bg-zinc-950 px-4 py-2 font-mono text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 cursor-pointer"

@@ -54,6 +54,7 @@ const LandingHero: React.FC<LandingHeroProps> = ({
           {strings.ctaPrimary}
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </button>
+
         <button
           onClick={onGoLogin}
           className="inline-flex w-full items-center justify-center rounded-lg border border-zinc-200 px-7 py-4 font-mono text-xs font-bold uppercase tracking-[0.14em] text-zinc-950 transition-colors hover:border-zinc-950 dark:border-zinc-800 dark:text-white dark:hover:border-white sm:w-auto"

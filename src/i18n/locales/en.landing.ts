@@ -10,6 +10,7 @@ const EN_LANDING: LandingStrings = {
     brand: 'THESDEL',
     signIn: 'Sign In',
     joinFree: 'Join Free',
+    installApp: 'Install App',
     backToLogin: '← Back to Login',
     backToHome: '← Back to Home',
   },

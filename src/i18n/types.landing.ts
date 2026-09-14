@@ -2,6 +2,7 @@ export interface LandingHeaderStrings {
   brand: string;
   signIn: string;
   joinFree: string;
+  installApp: string;
   backToLogin: string;
   backToHome: string;
 }
