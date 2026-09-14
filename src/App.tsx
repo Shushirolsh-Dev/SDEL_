@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import AdminApp from '../admin/AdminApp';
 import { User, Role } from './types';
@@ -290,6 +290,61 @@ export default function App() {
     queryClient.invalidateQueries();
   };
 
+  // ─── Browser history navigation ───
+  const currentViewRef = useRef(currentView);
+
+  useEffect(() => {
+    currentViewRef.current = currentView;
+  }, [currentView]);
+
+  // Use this for normal/forward navigation.
+  const navigateToView = (view: typeof currentView) => {
+    if (view === currentViewRef.current) return;
+
+    window.history.pushState(
+      { thesdelView: view },
+      ''
+    );
+
+    setView(view);
+  };
+
+  // Use this when the user is going BACK.
+  const goBack = () => {
+    window.history.back();
+  };
+
+  // Listen for the phone/browser back button.
+  useEffect(() => {
+    window.history.replaceState(
+      { thesdelView: currentView },
+      ''
+    );
+
+    const handlePopState = (
+      event: PopStateEvent
+    ) => {
+      const previousView =
+        event.state?.thesdelView;
+
+      if (previousView) {
+        setView(previousView);
+      }
+    };
+
+    window.addEventListener(
+      'popstate',
+      handlePopState
+    );
+
+    return () => {
+      window.removeEventListener(
+        'popstate',
+        handlePopState
+      );
+    };
+  }, [setView]);
+
   const handleLogout = async () => {
     await supabase.auth
       .signOut()
@@ -455,7 +510,7 @@ export default function App() {
               handleDeleteBroadcast
             }
             onNavigateToNotifications={() =>
-              setView('notifications')
+              navigateToView('notifications')
             }
             onForceRefresh={async () => {
               await queryClient.invalidateQueries();
@@ -573,7 +628,7 @@ export default function App() {
             strings={strings.profile}
             onLogout={handleLogout}
             onOpenSettings={() =>
-              setView('settings')
+              navigateToView('settings')
             }
           />
         );
@@ -584,9 +639,7 @@ export default function App() {
             currentUser={user}
             classes={classes}
             strings={strings.settings}
-            onBack={() =>
-              setView('profile')
-            }
+            onBack={goBack}
             locale={locale}
             onChangeLocale={
               handleChangeLocale
@@ -610,9 +663,7 @@ export default function App() {
                 }
               );
             }}
-            onClose={() =>
-              setView('home')
-            }
+            onClose={goBack}
             userRole={
               currentUserRole
             }
@@ -682,7 +733,7 @@ export default function App() {
             }
             strings={strings.header}
             onGoHome={() =>
-              setView('home')
+              navigateToView('home')
             }
           />
 
@@ -693,7 +744,7 @@ export default function App() {
           <AppBottomNav
             currentView={currentView}
             strings={strings.nav}
-            onNavigate={setView}
+            onNavigate={navigateToView}
           />
         </>
       )}
