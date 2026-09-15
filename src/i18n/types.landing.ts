@@ -144,6 +144,13 @@ export interface SignUpStrings {
   errorRateLimited: string;
 }
 
+export interface NotificationSettingsStrings {
+  title: string;
+  description: string;
+  enable: string;
+  enabled: string;
+}
+
 export interface LegalSectionItem {
   number: string;
   title: string;
@@ -175,5 +182,6 @@ export interface LandingStrings {
   login: LoginStrings;
   forgot: ForgotStrings;
   signup: SignUpStrings;
+  notifications: NotificationSettingsStrings;
   legal: LegalStrings;
 }
