@@ -356,3 +356,11 @@ export interface AttendanceStrings {
   status: AttendanceStatusStrings;
   empty: AttendanceEmptyStrings;
 }
+
+export interface NotificationSettingsStrings {
+  sectionLabel: string;
+  title: string;
+  description: string;
+  enable: string;
+  enabled: string;
+}
