@@ -14,6 +14,8 @@ func main() {
 		port = "10000"
 	}
 
+	_ = webpush.Subscription{}
+
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
