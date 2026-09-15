@@ -7,7 +7,12 @@ import {
   ClassUpdate,
   PendingRemoval,
 } from '../types';
-import { supabase } from '../lib/supabase';
+import {
+  supabase,
+  CACHE_KEYS,
+  getCached,
+  setCached,
+} from '../lib/supabase';
 
 interface UseAppDataOptions {
   isLoggedIn: boolean;
@@ -37,75 +42,119 @@ export function useAppData({
         };
       }
 
-      const { data: myMemberships, error: membershipError } =
-        await supabase
-          .from('class_members')
-          .select('class_id')
-          .eq('user_id', userId);
+      try {
+        const { data: myMemberships, error: membershipError } =
+          await supabase
+            .from('class_members')
+            .select('class_id')
+            .eq('user_id', userId);
 
-      if (membershipError) {
-        throw membershipError;
-      }
+        if (membershipError) {
+          throw membershipError;
+        }
 
-      const { data: ownedClasses, error: ownedClassesError } =
-        await supabase
-          .from('classes')
-          .select('id')
-          .eq('owner_id', userId);
+        const { data: ownedClasses, error: ownedClassesError } =
+          await supabase
+            .from('classes')
+            .select('id')
+            .eq('owner_id', userId);
 
-      if (ownedClassesError) {
-        throw ownedClassesError;
-      }
+        if (ownedClassesError) {
+          throw ownedClassesError;
+        }
 
-      const memberClassIds = (myMemberships || []).map(
-        (row) => row.class_id
-      );
+        const memberClassIds = (myMemberships || []).map(
+          (row) => row.class_id
+        );
 
-      const ownedClassIds = (ownedClasses || []).map(
-        (row) => row.id
-      );
+        const ownedClassIds = (ownedClasses || []).map(
+          (row) => row.id
+        );
 
-      const classIds = Array.from(
-        new Set([...memberClassIds, ...ownedClassIds])
-      );
+        const classIds = Array.from(
+          new Set([...memberClassIds, ...ownedClassIds])
+        );
 
-      if (classIds.length === 0) {
-        return {
-          classIds: [],
-          classRows: [],
-          membershipRows: [],
+        if (classIds.length === 0) {
+          const emptyData = {
+            classIds: [],
+            classRows: [],
+            membershipRows: [],
+          };
+
+          setCached(
+            `${CACHE_KEYS.CLASSES}_${userId}`,
+            emptyData
+          );
+
+          return emptyData;
+        }
+
+        const { data: classRows, error: classError } =
+          await supabase
+            .from('classes')
+            .select(
+              'id, name, code, owner_id, description, visibility'
+            )
+            .in('id', classIds);
+
+        if (classError) {
+          throw classError;
+        }
+
+        const { data: membershipRows, error: membersError } =
+          await supabase
+            .from('class_members')
+            .select(
+              'class_id, user_id, role, status'
+            )
+            .in('class_id', classIds);
+
+        if (membersError) {
+          throw membersError;
+        }
+
+        const freshData = {
+          classIds,
+          classRows: classRows || [],
+          membershipRows: membershipRows || [],
         };
+
+        // Save the latest classes for this specific user.
+        setCached(
+          `${CACHE_KEYS.CLASSES}_${userId}`,
+          freshData
+        );
+
+        return freshData;
+      } catch (error) {
+        // If Supabase is unavailable, use this user's cached classes.
+        const cachedData = getCached(
+          `${CACHE_KEYS.CLASSES}_${userId}`,
+          null
+        );
+
+        if (cachedData) {
+          console.log(
+            '[Offline] Loaded cached classes for user:',
+            userId
+          );
+
+          return cachedData;
+        }
+
+        throw error;
       }
+    },
 
-      const { data: classRows, error: classError } =
-        await supabase
-          .from('classes')
-          .select(
-            'id, name, code, owner_id, description, visibility'
-          )
-          .in('id', classIds);
+    // Load cached classes immediately when available.
+    initialData: () => {
+      if (!userId) return undefined;
 
-      if (classError) {
-        throw classError;
-      }
-
-      const { data: membershipRows, error: membersError } =
-        await supabase
-          .from('class_members')
-          .select(
-            'class_id, user_id, role, status'
-          )
-          .in('class_id', classIds);
-
-      if (membersError) {
-        throw membersError;
-      }
-
-      return {
-        classIds,
-        classRows: classRows || [],
-        membershipRows: membershipRows || [],
-      };
+      return getCached(
+        `${CACHE_KEYS.CLASSES}_${userId}`,
+        undefined
+      );
     },
 
     enabled,
@@ -285,6 +334,12 @@ export function useAppData({
       };
     });
   }, [classesQuery.data, memberNamesMap]);
+
+  /*
+   * ------------------------------------------------------------
+   * TIMETABLE
+   * ------------------------------------------------------------
+   */
   const timetableQuery = useQuery<TimetableEntry[]>({
     queryKey: ['timetable', classIdsKey],
     queryFn: async () => {
@@ -319,6 +374,11 @@ export function useAppData({
     refetchOnMount: true,
   });
 
+  /*
+   * ------------------------------------------------------------
+   * ATTENDANCE
+   * ------------------------------------------------------------
+   */
   const attendanceLogsQuery = useQuery<AttendanceLog[]>({
     queryKey: ['attendanceLogs', userId],
     queryFn: async () => {
@@ -349,6 +409,11 @@ export function useAppData({
     refetchOnMount: true,
   });
 
+  /*
+   * ------------------------------------------------------------
+   * UPDATES
+   * ------------------------------------------------------------
+   */
   const updatesQuery = useQuery<ClassUpdate[]>({
     queryKey: ['updates', classIdsKey],
     queryFn: async () => {
@@ -380,6 +445,11 @@ export function useAppData({
     refetchOnMount: true,
   });
 
+  /*
+   * ------------------------------------------------------------
+   * PENDING REMOVALS
+   * ------------------------------------------------------------
+   */
   const pendingRemovalsQuery = useQuery<PendingRemoval[]>({
     queryKey: ['pendingRemovals', classIdsKey],
     queryFn: async () => {
@@ -387,7 +457,9 @@ export function useAppData({
 
       const { data, error } = await supabase
         .from('pending_removals')
-        .select('id, class_id, user_id, requested_by, created_at')
+        .select(
+          'id, class_id, user_id, requested_by, created_at'
+        )
         .in('class_id', classIds);
 
       if (error) throw error;
