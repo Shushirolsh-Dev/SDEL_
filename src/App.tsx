@@ -27,6 +27,7 @@ import {
   processOfflineQueue,
   getOfflineQueue,
 } from './lib/supabase';
+import { subscribeToPush } from './lib/push';
 
 export default function App() {
   const queryClient = useQueryClient();
