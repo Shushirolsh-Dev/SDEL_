@@ -12,6 +12,7 @@ const EN: AppStrings = {
     syncPending: 'PENDING SYNC:',
     console: 'Console',
   },
+
   nav: {
     today: 'Today',
     timetable: 'Timetable',
@@ -19,6 +20,7 @@ const EN: AppStrings = {
     class: 'Class',
     profile: 'Profile',
   },
+
   toast: {
     classCodeNotFound: (code) => `Class code "${code}" not found.`,
     alreadyJoined:
@@ -60,10 +62,12 @@ const EN: AppStrings = {
     leftAfterTransfer:
       'You have successfully left the class after transferring ownership.',
   },
+
   confirm: {
     transferOwnershipToOne: (name) =>
       `You are the class representative. Transfer ownership to ${name} and leave the class?`,
   },
+
   broadcast: {
     classRepMarker: 'Class Representative',
     classCreated: (name, author, code) =>
@@ -88,12 +92,14 @@ const EN: AppStrings = {
       'Sunday',
     ],
   },
+
   profile: {
     roleFallback: 'Student',
     studentFallback: 'Student',
     settingsButton: 'Settings',
     logoutButton: 'Log out',
   },
+
   notifications: {
     header: {
       backTitle: 'Back',
@@ -145,6 +151,7 @@ const EN: AppStrings = {
       successMessage: 'Broadcast posted successfully',
     },
   },
+
   home: {
     header: {
       todayLabel: 'Today',
@@ -161,7 +168,8 @@ const EN: AppStrings = {
       noMoreClassesTitle: 'No more classes',
       noMoreClassesSubtitle: 'Your academic day is clear.',
       liveCountdown: (minutes) => `LIVE NOW · ${minutes}m remaining`,
-      startsInHours: (hours, minutes) => `Starts in ${hours}h ${minutes}m`,
+      startsInHours: (hours, minutes) =>
+        `Starts in ${hours}h ${minutes}m`,
       startsInMinutes: (minutes) => `Starts in ${minutes}m`,
       noMoreClassesToday: 'No more classes today',
     },
@@ -194,7 +202,6 @@ const EN: AppStrings = {
       labelVenueChanged: 'VENUE CHANGED',
       labelGlobal: 'GLOBAL',
       labelClassUpdate: 'CLASS UPDATE',
-
       edited: 'Edited',
       editBroadcast: 'Edit broadcast',
       deleteBroadcast: 'Delete broadcast',
@@ -218,6 +225,7 @@ const EN: AppStrings = {
       altFallback: 'Sponsored',
     },
   },
+
   timetable: {
     header: {
       sectionLabel: 'Academic Schedule',
@@ -228,10 +236,12 @@ const EN: AppStrings = {
     },
     permission: {
       managerPrefix: 'You have',
-      managerSuffix: 'privileges. You can manage the shared timetable.',
+      managerSuffix:
+        'privileges. You can manage the shared timetable.',
       memberPrefix: 'You are viewing this timetable as a',
       memberMiddle: 'member',
-      memberSuffix: '. Only class managers can modify entries.',
+      memberSuffix:
+        '. Only class managers can modify entries.',
     },
     empty: {
       noClassTitle: 'No class yet',
@@ -296,6 +306,7 @@ const EN: AppStrings = {
       removeButton: 'Remove',
     },
   },
+
   attendance: {
     header: {
       sectionLabel: 'Academic Record',
@@ -361,182 +372,40 @@ const EN: AppStrings = {
   },
   class: {
     header: {
-      eyebrow: 'Class spaces',
-      title: 'Your classes',
+      sectionLabel: 'Class',
+      title: 'Class',
+      backButton: 'Back',
+    },
+    empty: {
+      title: 'No class selected',
       subtitle:
-        'Manage your class spaces, members, access and class codes.',
-      tabMyClasses: 'My classes',
-      tabCreateClass: 'Create class',
-      emptyTitle: 'No classes yet',
-      emptySubtitle:
-        'Join an existing class with a class code or create a new class space.',
-      emptyJoinButton: 'Join a class',
-      emptyCreateButton: 'Create a class',
+        'Select a class to view its members and details.',
     },
-    sidebar: {
-      sectionLabel: 'Classes',
-      membersSuffix: 'members',
-      joinAnother: 'Join another class',
+    info: {
+      classCode: 'Class code',
+      members: 'Members',
+      representative: 'Representative',
+      assistant: 'Assistant',
+      member: 'Member',
     },
-    overview: {
-      badgeClassSpace: 'Class space',
-      badgeRepresentative: 'Representative',
-      noDescription: 'No class description has been added yet.',
-      visibilityPublic: 'Public',
-      visibilityPrivate: 'Private',
-      classCodeLabel: 'Class code',
-      copyCodeTitle: 'Copy class code',
-      membersLabel: 'Members',
-      studentsSubtitle: 'students in this class',
-    },
-    requests: {
-      joinRequestsTitle: 'Join requests',
-      joinRequestsSubtitle:
-        'Review students waiting to enter this class.',
-      waitingForApproval: 'Waiting for approval',
-      approveButton: 'Approve',
-      denyButton: 'Deny',
-      removalRequestsTitle: 'Removal requests',
-      removalRequestsSubtitle:
-        'Review requests to remove members.',
-      memberRemovalRequested: 'Member removal requested',
-      rejectButton: 'Reject',
-    },
-    members: {
-      title: 'Members',
-      subtitle: 'Students currently inside this class.',
-      youBadge: 'You',
-      roleRepresentative: 'Representative',
-      roleAssistant: 'Assistant',
-      roleMember: 'Member',
-      demoteButton: 'Demote',
-      promoteButton: 'Make assistant',
-      removeButton: 'Remove',
-      requestRemovalButton: 'Request removal',
-      emptyMessage: 'No members yet.',
-    },
-    management: {
-      title: 'Class management',
-      subtitle: 'Manage access, ownership, and this class.',
-      classCodeTitle: 'Class code',
-      classCodeSubtitle:
-        'Regenerate the code if it has been shared too widely.',
-      regenerateButton: 'Regenerate',
-      transferTitle: 'Transfer ownership',
-      transferSubtitle:
-        'Give another administrator ownership of this class.',
-      transferButton: 'Transfer',
-      leaveTitle: 'Leave class',
-      leaveSubtitle: 'Remove yourself from this class.',
-      leavingButton: 'Leaving...',
-      leaveButton: 'Leave',
-      deleteTitle: 'Delete class',
-      deleteSubtitle:
-        'Permanently remove this class and its membership.',
-      deleteButton: 'Delete',
-    },
-    modals: {
-      loadingCreating: 'Creating class',
-      loadingJoining: 'Joining class',
-      loadingUpdating: 'Updating class',
-      loadingFallback: 'Please wait...',
-
-      transferTitle: 'Transfer ownership',
-      transferSubtitle:
-        'Select an assistant to become the new owner.',
-      cancelButton: 'Cancel',
-      transferConfirmButton: 'Transfer',
-
-      confirmDeleteTitle: 'Delete class?',
-      confirmRegenerateTitle: 'Regenerate class code?',
-      confirmRejectJoinTitle: 'Reject join request?',
-      confirmRemoveMemberTitle: 'Remove member?',
-      confirmRequestRemovalTitle: 'Request member removal?',
-
-      confirmDeleteBody: (className) =>
-        `This will permanently delete "${className}". This action cannot be undone.`,
-      confirmRegenerateBody: (className) =>
-        `The current code for "${className}" will stop working and a new code will be generated.`,
-      confirmRejectJoinBody: (userName) =>
-        `${userName}'s request to join this class will be rejected.`,
-      confirmRemoveMemberBody: (memberName) =>
-        `${memberName} will be removed from this class.`,
-      confirmRequestRemovalBody: (memberName) =>
-        `${memberName} will receive a removal request for this class.`,
-
-      confirmDeleteButton: 'Delete',
-      confirmRegenerateButton: 'Regenerate',
-      confirmRejectButton: 'Reject',
-      confirmRemoveButton: 'Remove',
-      confirmRequestRemovalButton: 'Request removal',
+    actions: {
+      joinClass: 'Join class',
+      createClass: 'Create class',
+      leaveClass: 'Leave class',
+      transferOwnership: 'Transfer ownership',
+      promote: 'Promote',
+      demote: 'Demote',
+      remove: 'Remove',
     },
     join: {
-      eyebrow: 'Join class',
-      title: 'Enter a class code',
-      subtitle:
-        'Use the code provided by the class owner or representative.',
-      classCodeLabel: 'Class code',
-      classCodePlaceholder: 'Enter class code',
-      verificationLabel: 'Verification',
-      captchaQuestion: (a, b) => `Solve: ${a} + ${b} = ?`,
-      captchaPlaceholder: 'Answer',
-      newQuestionButton: 'New question',
-      emptyCodeError: 'Enter a class code.',
-      incorrectCaptchaError: 'Incorrect answer.',
-      joiningButton: 'Joining...',
-      joinButton: 'Join class',
-    },
-    create: {
-      eyebrow: 'Create class',
-      title: 'Create a new class',
-      subtitle:
-        'Set up a space for your class, department, or study group.',
-      nameLabel: 'Class name',
-      namePlaceholder: 'e.g. MTH 102',
-      descriptionLabel: 'Description',
-      descriptionPlaceholder: 'What is this class for?',
-      visibilityLabel: 'Visibility',
-      visibilityPublicTitle: 'Public',
-      visibilityPublicSubtitle:
-        'Anyone with the class code can request to join.',
-      visibilityPrivateTitle: 'Private',
-      visibilityPrivateSubtitle:
-        'Only people you approve can join this class.',
-      verificationLabel: 'Verification',
-      captchaQuestion: (a, b) => `Solve: ${a} + ${b} = ?`,
-      captchaPlaceholder: 'Answer',
-      newQuestionButton: 'New question',
-      emptyNameError: 'Enter a class name.',
-      incorrectCaptchaError: 'Incorrect answer.',
-      creatingButton: 'Creating...',
-      createButton: 'Create class',
-      createdWithCode: (code) => `Class created. Code: ${code}`,
-      createdSuccess: 'Class created successfully.',
-    },
-    toast: {
-      joiningClass: 'Joining class...',
-      creatingClass: 'Creating class...',
-      generatingCode: 'Generating new class code...',
-      unableToJoin: 'Unable to join class.',
-      unableToCreate: 'Unable to create class.',
-      unableToRegenerate: 'Unable to regenerate class code.',
-      joinApproved: 'Join request approved.',
-      joinRejected: 'Join request rejected.',
-      unableToApproveJoin: 'Unable to approve join request.',
-      unableToRejectJoin: 'Unable to reject join request.',
-      unableToCopyCode: 'Unable to copy class code.',
-      leftClass: 'You left the class.',
-      classDeleted: 'Class deleted.',
-      memberRemoved: (name) => `${name} was removed.`,
-      removalRequestSubmitted: 'Removal request submitted.',
-      removalApproved: 'Removal approved.',
-      removalRequestRejected: 'Removal request rejected.',
-      nowAssistant: (name) => `${name} is now an assistant.`,
-      nowMember: (name) => `${name} is now a member.`,
-      ownershipTransferred: 'Ownership transferred.',
-      unableToTransfer: 'Unable to transfer ownership.',
+      title: 'Join a class',
+      subtitle: 'Enter the class code provided by your representative.',
+      placeholder: 'Enter class code',
+      button: 'Join class',
+      loading: 'Joining...',
     },
   },
+
   settings: {
     header: {
       backButton: 'Profile',
@@ -544,6 +413,7 @@ const EN: AppStrings = {
       title: 'Settings',
       subtitle: 'Manage your preferences and class controls.',
     },
+
     theme: {
       sectionLabel: 'Appearance',
       sectionTitle: 'Theme',
@@ -554,83 +424,271 @@ const EN: AppStrings = {
       darkTitle: 'Dark',
       darkSubtitle: 'Always use dark mode',
     },
+
     language: {
       sectionLabel: 'Preferences',
       title: 'Language',
       dropdownLabel: 'Display language',
       hint: 'The interface will display in this language across the app.',
     },
+
+    notifications: {
+      sectionLabel: 'Preferences',
+      title: 'Notifications',
+      description: 'Get important THESDEL updates on this device.',
+      enable: 'Enable notifications',
+      enabled: 'Notifications enabled',
+    },
+
     visibility: {
-      sectionLabel: 'Class management',
+      sectionLabel: 'Privacy',
       title: 'Class visibility',
-      subtitle:
-        'Control whether students can join your classes immediately or require approval.',
-            applyAllTitle: 'Apply to all classes',
-      applyAllSubtitle: 'Change every class you own at once.',
-      applyAllPublicSubtitle: 'Anyone with the code can join instantly',
-      applyAllPrivateSubtitle:
-        'New members must be approved before joining',
-      publicButton: 'Public',
-      privateButton: 'Private',
-      yourClassesLabel: 'Your classes',
-      classSingular: 'class',
-      classPlural: 'classes',
-      emptyTitle: 'No classes owned yet.',
-      emptySubtitle: 'Classes you create will appear here.',
-      joinCodeLabel: 'Join code ·',
-      updatingButton: 'Updating',
-      makePrivateButton: 'Make private',
-      makePublicButton: 'Make public',
-      classPublicSubtitle: 'Anyone with the code can join instantly',
-      classPrivateSubtitle:
-        'New members must be approved before joining',
-      alertGlobalEmpty:
-        'You do not own any classes to apply global visibility settings.',
-      alertGlobalConfirm: (visibility) =>
-        `Are you sure you want to change all your owned classes to ${visibility}?`,
-      alertGlobalSuccess: (visibility) =>
-        `Success: All your owned classes are now ${visibility}.`,
-      alertGlobalFailed: (message) =>
-        `Failed to apply global visibility: ${message}`,
+      description:
+        'Control whether your classes can be discovered by other students.',
+      publicTitle: 'Public',
+      publicSubtitle: 'Students can discover this class.',
+      privateTitle: 'Private',
+      privateSubtitle: 'Only students with the class code can join.',
+      globalTitle: 'Apply to all classes',
+      globalDescription:
+        'Change the visibility of all classes you own.',
+      publicButton: 'Make all public',
+      privateButton: 'Make all private',
+      updating: 'Updating...',
       alertToggleFailed: (message) =>
         `Failed to update visibility: ${message}`,
+      alertGlobalEmpty: 'You do not own any classes.',
+      alertGlobalConfirm: (visibility) =>
+        `Make all your classes ${visibility}?`,
+      alertGlobalSuccess: (visibility) =>
+        `All your classes are now ${visibility}.`,
+      alertGlobalFailed: (message) =>
+        `Failed to update class visibility: ${message}`,
     },
+
     danger: {
-      sectionLabel: 'Account',
-      title: 'Danger zone',
-      deleteTitle: 'Delete your account',
-      deleteSubtitle:
-        'Permanently remove your account, classes, memberships, attendance records and related data.',
-      deleteButton: 'Delete account',
+      sectionLabel: 'Danger zone',
+      title: 'Delete account',
+      description:
+        'Permanently delete your account and associated data.',
+      button: 'Delete account',
     },
+
     deleteModal: {
-      eyebrow: 'Permanent action',
-      title: 'Delete account?',
-      subtitle:
-        'This action cannot be undone. Your account and associated data will be permanently deleted.',
-      passwordLabel: 'Confirm with password',
+      title: 'Delete account',
+      description:
+        'This action is permanent and cannot be undone.',
+      passwordLabel: 'Password',
       passwordPlaceholder: 'Enter your password',
       confirmLabel:
-        'I understand that deleting my account is permanent and cannot be undone.',
+        'I understand that my account and data will be permanently deleted.',
       cancelButton: 'Cancel',
-      deleteButton: 'Delete permanently',
-      deletingButton: 'Deleting',
-      errorPasswordRequired:
-        'Please enter your password to authorize this action.',
+      deleteButton: 'Delete account',
+      deletingButton: 'Deleting...',
+      errorPasswordRequired: 'Please enter your password.',
       errorConfirmRequired:
-        'You must check the confirmation box to proceed.',
-      errorPasswordIncorrect:
-        'Password verification failed. Please enter your correct current password.',
-      errorProfileDelete:
-        'Failed to delete profile. Please contact support.',
-      errorAuthDelete:
-        'Failed to delete auth user. Please contact support.',
-      errorGeneric:
-        'An unexpected error occurred during account deletion.',
+        'Please confirm that you understand this action.',
+      errorPasswordIncorrect: 'Incorrect password.',
+      errorProfileDelete: 'Failed to delete your profile.',
+      errorAuthDelete: 'Failed to delete your authentication account.',
+      errorGeneric: 'Something went wrong. Please try again.',
     },
+
     footer: {
       title: 'Settings',
       subtitle: 'Manage your account and preferences.',
+    },
+  },
+
+  landing: {
+    header: {
+      brand: 'THESDEL',
+      signIn: 'Sign in',
+      joinFree: 'Join free',
+      installApp: 'Install app',
+      backToLogin: 'Back to login',
+      backToHome: 'Back to home',
+    },
+    hero: {
+      badge: 'Built for students',
+      replacesLabel: 'Replaces',
+      headlinePrefix: 'Your student life,',
+      headlineSuffix: 'organized.',
+      subtitle:
+        'Manage your classes, timetable, attendance, and academic life in one place.',
+      ctaPrimary: 'Get started',
+      ctaSecondary: 'Sign in',
+      replacesWords: [
+        'spreadsheets',
+        'WhatsApp groups',
+        'paper notes',
+      ],
+    },
+    features: {
+      sectionLabel: 'How it works',
+      sectionTitle: 'Everything students need.',
+      step1Title: 'Join your class',
+      step1Body:
+        'Use your class code to join your academic community.',
+      step2Title: 'Stay organized',
+      step2Body:
+        'Keep your timetable and attendance in one place.',
+      step3Title: 'Stay informed',
+      step3Body:
+        'Get important class announcements and updates.',
+    },
+    footer: {
+      builtBy: 'Built for students',
+      terms: 'Terms',
+      privacy: 'Privacy',
+      about: 'About',
+      linksTagline: 'Learn. Grow. Become.',
+      brandMark: 'THESDEL',
+      descriptor: 'The Student Digital Exchange Layer',
+    },
+    login: {
+      topMarker: 'WELCOME BACK',
+      title: 'Sign in',
+      subtitle: 'Continue to your student workspace.',
+      emailLabel: 'Email',
+      emailPlaceholder: 'you@example.com',
+      passwordLabel: 'Password',
+      passwordPlaceholder: 'Enter your password',
+      forgotLink: 'Forgot password?',
+      showPassword: 'Show password',
+      hidePassword: 'Hide password',
+      submitIdle: 'Sign in',
+      submitLoading: 'Signing in...',
+      newTo: 'New to THESDEL?',
+      createAccount: 'Create an account',
+      footnote: 'Your student workspace, in one place.',
+      emptyFieldsError: 'Please enter your email and password.',
+      fallbackProfileError:
+        'Could not load your profile. Please try again.',
+      genericError: 'Unable to sign in. Please try again.',
+      close: 'Close',
+    },
+    forgot: {
+      topMarker: 'ACCOUNT RECOVERY',
+      title: 'Forgot password?',
+      subtitle:
+        'Enter your email and we will send you a password reset link.',
+      emailLabel: 'Email',
+      emailPlaceholder: 'you@example.com',
+      submitIdle: 'Send reset link',
+      submitLoading: 'Sending...',
+      backToSignIn: 'Back to sign in',
+      successTitle: 'Check your email',
+      successBodyPrefix:
+        'We sent a password reset link to',
+      successBodySuffix: '.',
+      returnToSignIn: 'Return to sign in',
+      footnote: 'Your student workspace, in one place.',
+      emptyEmailError: 'Please enter your email.',
+      genericError:
+        'Unable to send the reset email. Please try again.',
+      close: 'Close',
+    },
+    signup: {
+      topMarker: 'CREATE ACCOUNT',
+      title: 'Join THESDEL',
+      subtitle:
+        'Create your student account and get started.',
+      sectionIdentity: 'Identity',
+      sectionContact: 'Contact',
+      sectionRole: 'Role',
+      sectionSecurity: 'Security',
+      nameLabel: 'Full name',
+      namePlaceholder: 'Your full name',
+      usernameLabel: 'Username',
+      usernamePlaceholder: 'Choose a username',
+      usernameChecking: 'Checking...',
+      usernameAvailable: 'Username available',
+      usernameUnavailable: 'Username unavailable',
+      usernameHint:
+        'Use 3–20 characters with letters, numbers, and underscores.',
+      emailLabel: 'Email',
+      emailPlaceholder: 'you@example.com',
+      phoneLabel: 'Phone number',
+      phonePlaceholder: 'Phone number',
+      phoneHint: 'Use a valid phone number.',
+      phoneChecking: 'Checking...',
+      phoneAvailable: 'Phone number available',
+      phoneUnavailable: 'Phone number already registered',
+      roleQuestion: 'What is your role?',
+      roleStudentTitle: 'Student',
+      roleStudentBody: 'Join classes and manage your academic life.',
+      roleRepTitle: 'Class representative',
+      roleRepBody:
+        'Manage your class and keep members informed.',
+      passwordLabel: 'Password',
+      passwordPlaceholder: 'Create a password',
+      passwordHint: 'Use a strong password.',
+      passwordProtected: 'Your password is securely protected.',
+      showPassword: 'Show password',
+      hidePassword: 'Hide password',
+      termsPrefix: 'I agree to the',
+      termsOfService: 'Terms of Service',
+      termsConjunction: 'and',
+      privacyPolicy: 'Privacy Policy',
+      termsSuffix: '.',
+      submitIdle: 'Create account',
+      submitLoading: 'Creating account...',
+      alreadyHaveAccount: 'Already have an account?',
+      signIn: 'Sign in',
+      footnote: 'Your student workspace, in one place.',
+      errorAllRequired: 'Please complete all required fields.',
+      errorUsernameFormat: 'Invalid username format.',
+      errorUsernameTaken: 'Username is already taken.',
+      errorPhoneInvalid: 'Invalid phone number.',
+      errorPhoneTaken: 'Phone number is already registered.',
+      errorTermsRequired:
+        'You must agree to the Terms of Service and Privacy Policy.',
+      errorEmailRegistered:
+        'An account with this email already exists.',
+      errorProfileCreate:
+        'Unable to create your profile. Please try again.',
+      errorDuplicate:
+        'An account with these details already exists.',
+      errorGenericRegistration:
+        'Unable to create your account. Please try again.',
+      captchaLabel: 'Verification',
+      captchaQuestion: (a, b) => `What is ${a} + ${b}?`,
+      captchaPlaceholder: 'Answer',
+      captchaNewQuestion: 'New question',
+      errorCaptchaRequired: 'Please answer the verification question.',
+      errorCaptchaIncorrect: 'Incorrect answer.',
+      errorRateLimited:
+        'Too many attempts. Please wait and try again.',
+    },
+    legal: {
+      terms: {
+        eyebrow: 'LEGAL',
+        title: 'Terms of Service',
+        description:
+          'Please review the terms that govern your use of THESDEL.',
+        footerLabel: 'THESDEL',
+        buttonLabel: 'Back',
+        sections: [],
+      },
+      privacy: {
+        eyebrow: 'LEGAL',
+        title: 'Privacy Policy',
+        description:
+          'Learn how THESDEL handles your information.',
+        footerLabel: 'THESDEL',
+        buttonLabel: 'Back',
+        sections: [],
+      },
+      about: {
+        eyebrow: 'ABOUT',
+        title: 'About THESDEL',
+        description:
+          'The Student Digital Exchange Layer.',
+        footerLabel: 'THESDEL',
+        buttonLabel: 'Back',
+        sections: [],
+      },
     },
   },
 };
