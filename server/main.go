@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"github.com/SherClockHolmes/webpush-go"
 )
 
 func main() {
